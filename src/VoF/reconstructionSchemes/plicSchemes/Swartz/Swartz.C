@@ -258,7 +258,7 @@ void Foam::reconstruction::Swartz::improveNormals()
 
 }
 
-void Foam::reconstruction::Swartz::positionInterface()
+void Foam::reconstruction::Swartz::positionInterface(const volVectorField& normals)
 {
     forAll(interfaceCell_, ifaceC)
     {
@@ -270,14 +270,14 @@ void Foam::reconstruction::Swartz::positionInterface()
             alpha1_[cellC],
             isoFaceTol_,
             100,
-            swartzNormals_[cellC]
+            normals[cellC]
         );
 
         if (sIterPLIC_.cellStatus() == 0)
         {
             normal_[cellC] = sIterPLIC_.surfaceArea();
             centre_[cellC] = sIterPLIC_.surfaceCentre();
-            if (mag(normal_[cellC]) == 0)
+            if (mag(normals[cellC]) == 0)
             {
                 normal_[cellC] = Zero;
                 centre_[cellC] = Zero;
@@ -300,6 +300,8 @@ void Foam::reconstruction::Swartz::reconstruct(bool forceUpdate)
         dimensionedScalar("SMALL", Foam::pow(dimLength, -1), SMALL);
     youngsNormals_ = alphaGradTmp() / alphaMagGradTmp();
 
+    positionInterface(youngsNormals_);
+
     // Initialize Swartz normals to Youngs normals
     swartzNormals_ = youngsNormals_;
     
@@ -310,7 +312,7 @@ void Foam::reconstruction::Swartz::reconstruct(bool forceUpdate)
         // Use Swartz normals to position the interface. 
         // Set normal_ to area-normal vectors given by the PLIC polygons.
         // Set center_ to the centroids of PLIC polygons.
-        positionInterface();
+        positionInterface(swartzNormals_);
     }
 }
 

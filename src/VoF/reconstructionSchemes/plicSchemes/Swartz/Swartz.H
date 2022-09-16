@@ -122,7 +122,7 @@ public:
         virtual void improveNormals(); 
 
         //- Position the interface.
-        virtual void positionInterface(); 
+        virtual void positionInterface(const volVectorField& normals); 
 
         //- Reconstruct interface
         virtual void reconstruct(bool forceUpdate = true);
