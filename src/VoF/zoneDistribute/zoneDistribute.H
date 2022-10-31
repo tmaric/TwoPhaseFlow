@@ -168,7 +168,7 @@ public:
             const GeometricField<Type, fvPatchField, volMesh>& phi
         );
 
-
+        void centerTransformation(const label& celli, const label& copuledCelli, point& center);
 };
 
 

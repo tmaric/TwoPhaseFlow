@@ -199,6 +199,25 @@ void Foam::zoneDistribute::setUpCommforZone(const boolList& zone,bool updateSten
 }
 
 
+void Foam::zoneDistribute::centerTransformation(const label& celli, const label& coupledCelli, point& center)
+{
+    const polyBoundaryMesh& boundaryMesh = mesh_.boundaryMesh();
+    
+    forAll(boundaryMesh, patchi)
+    {
+        const cyclicPolyPatch* cpp = isA<cyclicPolyPatch>(boundaryMesh[patchi]);
+        if (cpp)
+        {                                
+            label neiPatchID = cpp->neighbPolyPatchID();
+            if(boundaryMesh[patchi].faceCells().found(celli) && 
+                boundaryMesh[neiPatchID].faceCells().found(coupledCelli))
+                {                                      
+                    const label& facei = coupledCelli - boundaryMesh[neiPatchID].start();
+                    cpp->transformPosition(center, facei);
+                }
+        }
+    }
+}
 
 
 // ************************************************************************* //
