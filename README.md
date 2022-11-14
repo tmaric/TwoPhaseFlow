@@ -34,10 +34,11 @@ cd modules/multiDimAMR/
 ```
 ### running testsuite
 
-assuming you have installed python version >= 3.6 (miniconda is a great option)
+make sure that the desired openfoam installation is sourced e.g. v1812 and that 
+python is installed with a version >= 3.6 (miniconda is a great option, but anaconda works as well)
 
 ```
-python -m venv env
+python -m venv env # creats virtual python enviroments (optional step)
 pip install oftest
 
 py.test # runs the tests
@@ -73,3 +74,29 @@ https://develop.openfoam.com/Development/openfoam/-/issues/1753
 ## License
 
 This project is licensed under the GPL v3 License - see the [LICENSE.md](LICENSE.md) file for details
+
+
+
+## running Benchmarks
+
+```
+pip install casefoam
+
+```
+
+The run/benchmark cases are run with
+
+
+```
+cd run/benchmark/phaseChange/suckingInterface/
+python genCases.py # generates the study based and template case (here StefanProblem)
+./Allrun # runs all the created testcases
+python getResults.py # to see results
+```
+
+Alternatively, the runAll.sh can be executed in the folder.
+
+Note:
+
+that some cases use the slurm queuing system and call `sbatch Allrun_Slurm` in the Allrun script, so you might need to modify it in the template case
+
