@@ -13,6 +13,11 @@ surfaceIterators/surfaceIteratorIso.C
 multiDimPolyFitter/multiDimPolyFunctions/paraboloid.C
 multiDimPolyFitter/leastSquareFitParabolid.C
 
+zoneDistribute/zoneStencils/zoneCellStencils.C
+zoneDistribute/zoneStencils/zoneCPCStencil.C
+zoneDistribute/zoneDistribute.C
+zoneDistribute/zoneDistributePoints.C
+
 reconstructedDistanceFunction/reconstructedDistanceFunction.C
 markInterfaceRegion/markInterfaceRegion.C
 

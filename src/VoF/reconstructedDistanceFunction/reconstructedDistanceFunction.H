@@ -42,7 +42,7 @@ SourceFiles
 #include "surfaceFields.H"
 #include "globalIndex.H"
 #include "Map.H"
-#include "zoneDistribute.H"
+#include "../zoneDistribute/zoneDistribute.H"
 #include "dimensionedScalar.H"
 #include "typeInfo.H"
 
