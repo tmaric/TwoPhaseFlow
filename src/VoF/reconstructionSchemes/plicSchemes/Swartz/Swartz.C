@@ -260,9 +260,14 @@ void Foam::reconstruction::Swartz::improveNormals()
 
 void Foam::reconstruction::Swartz::positionInterface(const volVectorField& normals)
 {
-    forAll(interfaceCell_, ifaceC)
+//     forAll(interfaceCell_, ifaceC)
+//     {
+//         label cellC = interfaceCell_[ifaceC];
+    // SMD
+    // Loop over interfaceLabels_ not interfaceCell_
+    forAll(interfaceLabels_, i)
     {
-        label cellC = interfaceCell_[ifaceC];
+        const label cellC = interfaceLabels_[i];
 
         sIterPLIC_.vofCutCell
         (
@@ -300,7 +305,36 @@ void Foam::reconstruction::Swartz::reconstruct(bool forceUpdate)
         dimensionedScalar("SMALL", Foam::pow(dimLength, -1), SMALL);
     youngsNormals_ = alphaGradTmp() / alphaMagGradTmp();
 
+    // SMD
+    // Create missing interface information
+    // (taken from gradAlpha.C)
+    if (alpha1_.mesh().topoChanging())
+    {
+        // Introduced resizing to cope with changing meshes
+        if (interfaceCell_.size() != alpha1_.mesh().nCells())
+        {
+            interfaceCell_.resize(alpha1_.mesh().nCells());
+        }
+    }
+
+    interfaceCell_ = false;
+
+    interfaceLabels_.clear();
+
+    forAll(alpha1_, celli)
+    {
+        if (sIterPLIC_.isASurfaceCell(alpha1_[celli]))
+        {
+            interfaceCell_[celli] = true; // is set to false earlier
+            interfaceLabels_.append(celli);
+        }
+    }
+
+    // Youngs's normals are computed for all cells, it is an
+    // overhead but is fast. gradSurf method in gradAlpha class
+    // computes the normals only for the interface cells
     positionInterface(youngsNormals_);
+    // End SMD
 
     // Initialize Swartz normals to Youngs normals
     swartzNormals_ = youngsNormals_;
