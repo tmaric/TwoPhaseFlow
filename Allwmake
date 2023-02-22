@@ -1,22 +1,24 @@
 #!/bin/bash
 
-wmake libso src/VoF
-wmake all src/boundaryConditions
-wmake all src/thermoDynamics
+WITH_BEAR=$1
 
-wmake libso src/turbulence/VoFphaseCompressibleTurbulenceModels
-wmake libso src/phaseChange
-wmake libso src/surfaceForces
+wmake $WITH_BEAR libso src/VoF
+wmake $WITH_BEAR all src/boundaryConditions
+wmake $WITH_BEAR all src/thermoDynamics
 
-wmake libso src/postProcessing
+wmake $WITH_BEAR libso src/turbulence/VoFphaseCompressibleTurbulenceModels
+wmake $WITH_BEAR libso src/phaseChange
+wmake $WITH_BEAR libso src/surfaceForces
 
-wmake apps/setFieldfromTable
-wmake apps/initAlphaField
+wmake $WITH_BEAR libso src/postProcessing
 
-wmake apps/benchmark/advectorVoF
-wmake apps/benchmark/reconstructInterface
+wmake $WITH_BEAR apps/setFieldfromTable
+wmake $WITH_BEAR apps/initAlphaField
 
-wmake solver/multiRegionPhaseChangeFlow
-wmake solver/interFlow
-wmake solver/compressibleInterFlow
+wmake $WITH_BEAR apps/benchmark/advectorVoF
+wmake $WITH_BEAR apps/benchmark/reconstructInterface
+
+wmake $WITH_BEAR solver/multiRegionPhaseChangeFlow
+wmake $WITH_BEAR solver/interFlow
+wmake $WITH_BEAR solver/compressibleInterFlow
 
