@@ -109,6 +109,7 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
         // Initialize face-owner and face-neighbor area fractions to 0. 
         scalar alphafOwn = 0; 
         scalar alphafNei = 0;
+        bool faceWasCut = false;
         
         // If the owner-cell contains the interface.  
         const auto ownCellI = own[faceI];
@@ -117,6 +118,7 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             // Calculate area fraction of the owner interface.
             cutter.calcSubFace(faceI, normals[ownCellI], centres[ownCellI]);
             alphafOwn = mag(cutter.subFaceArea()) / magSf[faceI];
+            faceWasCut = true;
         }
             
         // If the neighbor-cell contains the interface. 
@@ -126,6 +128,7 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             // Calculate the area fraction of the neighbor interface.
             cutter.calcSubFace(faceI, normals[neiCellI], centres[neiCellI]);
             alphafNei = mag(cutter.subFaceArea()) / magSf[faceI];
+            faceWasCut = true;
         }
 
         // If both areas are wetted
@@ -142,6 +145,20 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
         {
             alphaf_[faceI] = alphafNei; 
         }
+        else if ((alphafNei == 0) && (alphafOwn == 0) && faceWasCut)
+        {
+            // Geometric interface is approaching a full cell from above
+            // but it is not cutting the face. 
+            if ((alpha1[ownCellI] == 1) || (alpha1[neiCellI] == 1))
+            {
+                alphaf_[faceI] = 1;
+            }
+            else // Geometric interface has zero-area intersection with the face.
+            {
+                alphaf_[faceI] = 0;
+            }
+        }
+
     }
 
     // For all alpha1_ boundary patches 
@@ -179,6 +196,7 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             // Initialize face-owner and face-neighbor area fractions to 0. 
             scalar alphafOwn = 0; 
             scalar alphafNei = 0;
+            bool faceWasCut = false;
             
             // If the face-owner cell contains the interface.  
             label faceG = meshPatch.start() + faceI;
@@ -193,6 +211,7 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
                     centrePatchField[faceI]
                 );
                 alphafOwn = mag(cutter.subFaceArea()) / magSfPatchField[faceI];
+                faceWasCut = true;
             }
                 
             // If the patch is coupled, each face-owner cell has a patch-neighbor. 
@@ -228,6 +247,19 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             else if ((alphafNei > 0) && (alphafOwn == 0))
             {
                 alphaf_[faceI] = alphafNei; 
+            }
+            else if ((alphafNei == 0) && (alphafOwn == 0) && faceWasCut)
+            {
+                // Geometric interface is approaching a full cell from above
+                // but it is not cutting the face. 
+                if ((alpha1[ownCellI] == 1) || (alpha1PatchNeiFieldTmp()[faceI] == 1))
+                {
+                    alphaf_[faceI] = 1;                
+                }
+                else // Geometric interface has zero-area intersection with the face.
+                {
+                    alphaf_[faceI] = 0;
+                }
             }
         }
     }
