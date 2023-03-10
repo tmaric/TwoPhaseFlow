@@ -134,9 +134,13 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             // Final area fraction is the average owner/neighbor fraction. 
             alphaf_[faceI] = 0.5*(alphafOwn + alphafNei);
         }
-        else {
-            // Use either face-owner or face-neighbor wetted area.
-            alphaf_[faceI] = max(max(alphafOwn, alphafNei), 0);
+        else if ((alphafOwn > 0) && (alphafNei == 0))
+        {
+            alphaf_[faceI] = alphafOwn; 
+        }
+        else if ((alphafNei > 0) && (alphafOwn == 0))
+        {
+            alphaf_[faceI] = alphafNei; 
         }
     }
 
@@ -217,9 +221,13 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
                 // Final area fraction is the average owner/neighbor fraction. 
                 alphaf_[faceI] = 0.5*(alphafOwn + alphafNei);
             }
-            else {
-                // Use either face-owner or face-neighbor wetted area.
-                alphaf_[faceI] = max(max(alphafOwn, alphafNei), 0);
+            else if ((alphafOwn > 0) && (alphafNei == 0))
+            {
+                alphaf_[faceI] = alphafOwn; 
+            }
+            else if ((alphafNei > 0) && (alphafOwn == 0))
+            {
+                alphaf_[faceI] = alphafNei; 
             }
         }
     }
