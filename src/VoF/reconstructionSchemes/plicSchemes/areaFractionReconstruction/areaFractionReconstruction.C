@@ -189,6 +189,10 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             centrePatchNeiFieldTmp  = centrePatchField.patchNeighbourField();
             normalPatchNeiFieldTmp = normalPatchField.patchNeighbourField();
         }
+        
+        const scalarField& alpha1PatchNeiField = alpha1PatchNeiFieldTmp.cref(); 
+        const vectorField& centrePatchNeiField = centrePatchNeiFieldTmp.cref();
+        const vectorField& normalPatchNeiField = normalPatchNeiFieldTmp.cref();
 
         // Compute area fractions for a boundary patch
         forAll(alpha1PatchField, faceI)
@@ -218,8 +222,8 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             if (isCoupledPatch)
             {
                 bool faceNeiCellHasInterface = 
-                     (surfCellTol_ < alpha1PatchNeiFieldTmp()[faceI]) &&
-                     (alpha1PatchNeiFieldTmp()[faceI] < (1 - surfCellTol_));
+                     (surfCellTol_ < alpha1PatchNeiField[faceI]) &&
+                     (alpha1PatchNeiField[faceI] < (1 - surfCellTol_));
                 
                 if (faceNeiCellHasInterface)
                 {
@@ -227,8 +231,8 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
                     cutter.calcSubFace
                     (
                         faceG, 
-                        normalPatchNeiFieldTmp()[faceI],
-                        centrePatchNeiFieldTmp()[faceI] 
+                        normalPatchNeiField[faceI],
+                        centrePatchNeiField[faceI] 
                     );
                     alphafNei = mag(cutter.subFaceArea()) / magSfPatchField[faceI];
                 }
@@ -252,7 +256,7 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             {
                 // Geometric interface is approaching a full cell from above
                 // but it is not cutting the face. 
-                if ((alpha1[ownCellI] == 1) || (alpha1PatchNeiFieldTmp()[faceI] == 1))
+                if ((alpha1[ownCellI] == 1) || (alpha1PatchNeiField[faceI] == 1))
                 {
                     alphaf_[faceI] = 1;                
                 }
