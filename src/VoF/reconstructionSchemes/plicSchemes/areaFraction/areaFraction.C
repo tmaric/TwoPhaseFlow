@@ -236,8 +236,9 @@ void Foam::reconstruction::areaFraction::reconstruct(bool forceUpdate)
     gradAlpha::reconstruct(forceUpdate); 
     // Calculate area fractions using internal data. 
     calcAreaFractions();
-    // TM: PLIC normals as area-fraction weighted sum of surface-normal vectors.
-    fvc::surfaceSum(alphaf_ * mesh_.Sf());
+    // TODO(TM): PLIC normals as a negative area-fraction-weighted sum of the 
+    // surface-normal vectors.
+    -fvc::surfaceSum(alphaf_ * mesh_.Sf());
 }
 
 // ************************************************************************* //
