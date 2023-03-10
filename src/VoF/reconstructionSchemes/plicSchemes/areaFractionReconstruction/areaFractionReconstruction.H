@@ -24,18 +24,18 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::reconstruction::areaFraction
+    Foam::reconstruction::areaFractionReconstruction
 
 Description
 
 
 SourceFiles
-    areaFraction.C
+    areaFractionReconstruction.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef areaFraction_H
-#define areaFraction_H
+#ifndef areaFractionReconstruction_H
+#define areaFractionReconstruction_H
 
 #include "gradAlpha.H"
 
@@ -47,10 +47,10 @@ namespace reconstruction
 {
 
 /*---------------------------------------------------------------------------*\
-                          Class areaFraction Declaration
+                          Class areaFractionReconstruction Declaration
 \*---------------------------------------------------------------------------*/
 
-class areaFraction
+class areaFractionReconstruction
 :
     public gradAlpha 
 {
@@ -70,10 +70,10 @@ protected:
 public:
 
     //- Runtime type information
-    TypeName("areaFraction");
+    TypeName("areaFractionReconstruction");
 
     //- Construct from components
-    areaFraction
+    areaFractionReconstruction
     (
         volScalarField& alpha1,
         const surfaceScalarField& phi,
@@ -82,7 +82,7 @@ public:
     );
 
     //- Destructor
-    virtual ~areaFraction() = default;
+    virtual ~areaFractionReconstruction() = default;
 
     // Member Functions
     

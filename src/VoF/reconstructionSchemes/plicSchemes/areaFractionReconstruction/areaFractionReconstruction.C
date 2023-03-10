@@ -25,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "areaFraction.H"
+#include "areaFractionReconstruction.H"
 #include "addToRunTimeSelectionTable.H"
 #include "coupledPolyPatch.H"
 #include "cyclicPolyPatch.H"
@@ -40,14 +40,14 @@ namespace Foam
 {
 namespace reconstruction
 {
-    defineTypeNameAndDebug(areaFraction, 0);
-    addToRunTimeSelectionTable(reconstructionSchemes, areaFraction, components);
+    defineTypeNameAndDebug(areaFractionReconstruction, 0);
+    addToRunTimeSelectionTable(reconstructionSchemes, areaFractionReconstruction, components);
 }
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::reconstruction::areaFraction::areaFraction
+Foam::reconstruction::areaFractionReconstruction::areaFractionReconstruction
 (
     volScalarField& alpha1,
     const surfaceScalarField& phi,
@@ -85,7 +85,7 @@ Foam::reconstruction::areaFraction::areaFraction
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-void Foam::reconstruction::areaFraction::calcAreaFractions
+void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
 (
     const volScalarField& alpha1, 
     const volVectorField& centres,
@@ -225,12 +225,12 @@ void Foam::reconstruction::areaFraction::calcAreaFractions
     }
 }
 
-void Foam::reconstruction::areaFraction::calcAreaFractions()
+void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions()
 {
     calcAreaFractions(alpha1_, centre_, normal_, interfaceCell_);
 }
 
-void Foam::reconstruction::areaFraction::reconstruct(bool forceUpdate)
+void Foam::reconstruction::areaFractionReconstruction::reconstruct(bool forceUpdate)
 {
     // Compute normals using Youngs' algorithm.
     gradAlpha::reconstruct(forceUpdate); 

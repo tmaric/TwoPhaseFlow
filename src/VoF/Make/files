@@ -23,7 +23,7 @@ reconstructionSchemes/isoSchemes/isoAlpha/isoAlpha.C
 reconstructionSchemes/isoSchemes/isoSurface/isoSurface.C
 reconstructionSchemes/plicSchemes/gradAlpha/gradAlpha.C
 reconstructionSchemes/plicSchemes/plicRDF/plicRDF.C
-reconstructionSchemes/plicSchemes/areaFraction/areaFraction.C
+reconstructionSchemes/plicSchemes/areaFractionReconstruction/areaFractionReconstruction.C
 
 /* Run-time selectable implicitFunctions */
 advectionSchemes/newAdvectionSchemes.C
