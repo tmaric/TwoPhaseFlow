@@ -17,6 +17,7 @@ wmake $WITH_BEAR apps/initAlphaField
 
 wmake $WITH_BEAR apps/benchmark/advectorVoF
 wmake $WITH_BEAR apps/benchmark/reconstructInterface
+wmake $WITH_BEAR apps/benchmark/testAreaFractions
 
 wmake $WITH_BEAR solver/multiRegionPhaseChangeFlow
 wmake $WITH_BEAR solver/interFlow

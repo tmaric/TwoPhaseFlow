@@ -61,8 +61,7 @@ protected:
 
     const Time& runTime_; 
     
-    //- FIXME(TM): this should be protected in gradAlpha, or const-access to 
-    //  it should be provided. 
+    // Tolearnce for detecting interface cells.
     scalar surfCellTol_;
     
     surfaceScalarField alphaf_; 

@@ -31,6 +31,7 @@ License
 #include "cyclicPolyPatch.H"
 #include "linear.H"
 #include "cutFacePLIC.H"
+#include "processorPolyPatch.H"
 #include "volFieldsFwd.H"
 #include "fvcSurfaceIntegrate.H"
 
@@ -78,10 +79,7 @@ Foam::reconstruction::areaFractionReconstruction::areaFractionReconstruction
         mesh_, 
         dimensionedScalar(dimless, Zero)
     )
-{
-    gradAlpha::reconstruct();
-}
-
+{}
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
@@ -109,7 +107,6 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
         // Initialize face-owner and face-neighbor area fractions to 0. 
         scalar alphafOwn = 0; 
         scalar alphafNei = 0;
-        bool faceWasCut = false;
         
         // If the owner-cell contains the interface.  
         const auto ownCellI = own[faceI];
@@ -118,7 +115,6 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             // Calculate area fraction of the owner interface.
             cutter.calcSubFace(faceI, normals[ownCellI], centres[ownCellI]);
             alphafOwn = mag(cutter.subFaceArea()) / magSf[faceI];
-            faceWasCut = true;
         }
             
         // If the neighbor-cell contains the interface. 
@@ -128,37 +124,37 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             // Calculate the area fraction of the neighbor interface.
             cutter.calcSubFace(faceI, normals[neiCellI], centres[neiCellI]);
             alphafNei = mag(cutter.subFaceArea()) / magSf[faceI];
-            faceWasCut = true;
         }
 
         // If both areas are wetted
-        if ((alphafOwn > 0) && (alphafNei > 0))
+        if ((alphafOwn > surfCellTol_) && (alphafNei > surfCellTol_))
         {
             // Final area fraction is the average owner/neighbor fraction. 
             alphaf_[faceI] = 0.5*(alphafOwn + alphafNei);
-        }
-        else if ((alphafOwn > 0) && (alphafNei == 0))
+        }       
+        // Else if interface from the face-owner cuts the face
+        else if ((alphafOwn > surfCellTol_) && ((alphafNei < surfCellTol_))) 
         {
             alphaf_[faceI] = alphafOwn; 
         }
-        else if ((alphafNei > 0) && (alphafOwn == 0))
+        // Else if interface from the face-neighbor cuts the face
+        else if ((alphafNei > surfCellTol_) && (alphafOwn < surfCellTol_)) 
         {
             alphaf_[faceI] = alphafNei; 
         }
-        else if ((alphafNei == 0) && (alphafOwn == 0) && faceWasCut)
+        else if ((alphafNei < surfCellTol_) && (alphafOwn < surfCellTol_)) // No geometrical intersection 
         {
-            // Geometric interface is approaching a full cell from above
-            // but it is not cutting the face. 
-            if ((alpha1[ownCellI] == 1) || (alpha1[neiCellI] == 1))
-            {
+            // If the face belongs to a full cell. 
+            if ((alpha1[ownCellI] > (1 - surfCellTol_)) || 
+                (alpha1[neiCellI] > (1 - surfCellTol_))) 
+            {  
                 alphaf_[faceI] = 1;
             }
-            else // Geometric interface has zero-area intersection with the face.
+            else // the face is not wetted at all. 
             {
                 alphaf_[faceI] = 0;
             }
         }
-
     }
 
     // For all alpha1_ boundary patches 
@@ -182,17 +178,14 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
         tmp<vectorField> normalPatchNeiFieldTmp;
         
         const auto& meshPatch = mesh_.boundary()[patchI]; 
-        const bool isCoupledPatch = isA<coupledPolyPatch>(meshPatch);
-        if (isCoupledPatch)
+        // TODO(TM): implement cyclic boundaries. 
+        const bool isProcessorPatch = isA<processorPolyPatch>(meshPatch);
+        if (isProcessorPatch)
         {
             alpha1PatchNeiFieldTmp = alpha1PatchField.patchNeighbourField();
             centrePatchNeiFieldTmp  = centrePatchField.patchNeighbourField();
             normalPatchNeiFieldTmp = normalPatchField.patchNeighbourField();
         }
-        
-        const scalarField& alpha1PatchNeiField = alpha1PatchNeiFieldTmp.cref(); 
-        const vectorField& centrePatchNeiField = centrePatchNeiFieldTmp.cref();
-        const vectorField& normalPatchNeiField = normalPatchNeiFieldTmp.cref();
 
         // Compute area fractions for a boundary patch
         forAll(alpha1PatchField, faceI)
@@ -200,7 +193,6 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
             // Initialize face-owner and face-neighbor area fractions to 0. 
             scalar alphafOwn = 0; 
             scalar alphafNei = 0;
-            bool faceWasCut = false;
             
             // If the face-owner cell contains the interface.  
             label faceG = meshPatch.start() + faceI;
@@ -215,12 +207,15 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
                     centrePatchField[faceI]
                 );
                 alphafOwn = mag(cutter.subFaceArea()) / magSfPatchField[faceI];
-                faceWasCut = true;
             }
                 
             // If the patch is coupled, each face-owner cell has a patch-neighbor. 
-            if (isCoupledPatch)
+            if (isProcessorPatch)
             {
+                const scalarField& alpha1PatchNeiField = alpha1PatchNeiFieldTmp.cref(); 
+                const vectorField& centrePatchNeiField = centrePatchNeiFieldTmp.cref();
+                const vectorField& normalPatchNeiField = normalPatchNeiFieldTmp.cref();
+
                 bool faceNeiCellHasInterface = 
                      (surfCellTol_ < alpha1PatchNeiField[faceI]) &&
                      (alpha1PatchNeiField[faceI] < (1 - surfCellTol_));
@@ -238,29 +233,32 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
                 }
             }
 
-            // Final area fraction is the average owner/neighbor fraction. 
-            if ((alphafOwn > 0) && (alphafNei > 0))
+            // If both areas are wetted
+            if ((alphafOwn > surfCellTol_) && (alphafNei > surfCellTol_))
             {
                 // Final area fraction is the average owner/neighbor fraction. 
                 alphaf_[faceI] = 0.5*(alphafOwn + alphafNei);
-            }
-            else if ((alphafOwn > 0) && (alphafNei == 0))
+            }  
+            else if ((alphafOwn > surfCellTol_) && (alphafNei < surfCellTol_)) 
             {
                 alphaf_[faceI] = alphafOwn; 
             }
-            else if ((alphafNei > 0) && (alphafOwn == 0))
+            // Else if interface from the face-neighbor cuts the face
+            else if ((alphafNei > surfCellTol_) && (alphafOwn < surfCellTol_)) 
             {
                 alphaf_[faceI] = alphafNei; 
             }
-            else if ((alphafNei == 0) && (alphafOwn == 0) && faceWasCut)
+            else if ((alphafNei < surfCellTol_) && (alphafOwn < surfCellTol_) && 
+                     isProcessorPatch) // No geometrical intersection across processor patches.
             {
-                // Geometric interface is approaching a full cell from above
-                // but it is not cutting the face. 
-                if ((alpha1[ownCellI] == 1) || (alpha1PatchNeiField[faceI] == 1))
-                {
-                    alphaf_[faceI] = 1;                
+                const scalarField& alpha1PatchNeiField = alpha1PatchNeiFieldTmp.cref(); 
+                // If the face belongs to a full cell. 
+                if ((alpha1PatchField[faceI] > (1 - surfCellTol_)) || 
+                    (alpha1PatchNeiField[faceI] > (1 - surfCellTol_))) 
+                {  
+                    alphaf_[faceI] = 1;
                 }
-                else // Geometric interface has zero-area intersection with the face.
+                else // the face is not wetted at all. 
                 {
                     alphaf_[faceI] = 0;
                 }
@@ -278,11 +276,11 @@ void Foam::reconstruction::areaFractionReconstruction::reconstruct(bool forceUpd
 {
     // Compute normals using Youngs' algorithm.
     gradAlpha::reconstruct(forceUpdate); 
-    // Calculate area fractions using internal data. 
+    // Calculate area fractions using internal Youngs' data. 
     calcAreaFractions();
-    // TODO(TM): PLIC normals as a negative area-fraction-weighted sum of the 
-    // surface-normal vectors.
+    // TODO(TM): compute the interface area-normal vectors from Youngs' data.
     -fvc::surfaceSum(alphaf_ * mesh_.Sf());
+    // TODO(TM): position the interface.
 }
 
 // ************************************************************************* //
