@@ -272,6 +272,21 @@ void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions()
     calcAreaFractions(alpha1_, centre_, normal_, interfaceCell_);
 }
 
+void Foam::reconstruction::areaFractionReconstruction::calcAreaFractions
+(
+    const volScalarField& alpha1,
+    const reconstructionSchemes& recon
+)
+{
+    calcAreaFractions
+    (
+        alpha1, 
+        recon.centre(), 
+        recon.normal(), 
+        recon.interfaceCell()
+    );
+}
+
 void Foam::reconstruction::areaFractionReconstruction::reconstruct(bool forceUpdate)
 {
     // Compute normals using Youngs' algorithm.

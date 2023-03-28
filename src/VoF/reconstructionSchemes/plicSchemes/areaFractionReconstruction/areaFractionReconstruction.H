@@ -93,6 +93,12 @@ public:
             const volVectorField& normals, 
             const boolList& interfaceCell
         );
+        
+        virtual void calcAreaFractions
+        (
+            const volScalarField& alpha1,
+            const reconstructionSchemes& recon
+        );
 
         //- Compute area fractions using internal data.
         virtual void calcAreaFractions(); 
