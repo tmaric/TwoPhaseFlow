@@ -1,0 +1,35 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      meshing; 
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+radius  @!radius!@;
+N       @!n_base!@;
+x_centre @!x_centre!@; 
+y_centre @!y_centre!@;
+z_centre @!z_centre!@;
+
+HALF_WIDTH #calc "$radius * 8";
+C0 #calc "$x_centre - $HALF_WIDTH";
+C1 #calc "$y_centre - $HALF_WIDTH";
+C2 #calc "$x_centre + $HALF_WIDTH";
+C3 #calc "$y_centre + $HALF_WIDTH";
+
+Z1 #calc "4*$radius";
+Z2 #calc "12*$radius";//"2*$radius";
+
+H_START #calc "$z_centre - $Z1";
+H_END #calc "$z_centre + $Z2";
+
+// ************************************************************************* //
