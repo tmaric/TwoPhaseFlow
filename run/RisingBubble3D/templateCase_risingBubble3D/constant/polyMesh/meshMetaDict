@@ -1,0 +1,57 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant/polyMesh";
+    object      meshMetaDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+surfaceFile     "polyMeshFiles/boundary.stl";
+
+surfaceMeta
+{
+    nPoints         7372;
+    nFacets         14740;
+    nPatches        3;
+    nFeatureEdges   0;
+    patches
+    {
+        bottom
+        {
+            type            empty;
+            nFacets         1740;
+        }
+        top
+        {
+            type            empty;
+            nFacets         1740;
+        }
+        mantle
+        {
+            type            empty;
+            nFacets         11260;
+        }
+    }
+    pointSubsets
+    {
+    }
+    facetSubsets
+    {
+    }
+    featureEdgeSubsets
+    {
+    }
+}
+
+lastStep        meshOptimisation;
+
+completedSteps  16 ( start start templateGeneration templateGeneration surfaceTopology surfaceTopology surfaceProjection surfaceProjection patchAssignment patchAssignment edgeExtraction edgeExtraction boundaryLayerGeneration boundaryLayerGeneration meshOptimisation meshOptimisation );
