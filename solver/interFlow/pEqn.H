@@ -40,8 +40,11 @@
     // Update the pressure BCs to ensure flux consistency
     constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
 
-    while (pimple.correctNonOrthogonal())
+    label Nnon = 0;
+    bool correctNonOrthogonality = true;
+    while(correctNonOrthogonality)
     {
+        ++Nnon;
         fvScalarMatrix p_rghEqn
         (
             fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
@@ -49,9 +52,9 @@
 
         p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
 
-        p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
-
-        if (pimple.finalNonOrthogonalIter())
+        auto p_rgh_performance = p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
+        correctNonOrthogonality = (p_rgh_performance.nIterations() > 0);  
+        if (!correctNonOrthogonality)
         {
             phi = phiHbyA - p_rghEqn.flux();
 
@@ -62,6 +65,31 @@
             fvOptions.correct(U);
         }
     }
+    Info << "Nnon " << Nnon << endl;
+
+    // OpenFOAM implementation: use the fixed maximal number of non-orthogonal corrections. 
+    //while (pimple.correctNonOrthogonal())
+    //{
+        //fvScalarMatrix p_rghEqn
+        //(
+            //fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
+        //);
+
+        //p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
+
+        //p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
+
+        //if (pimple.finalNonOrthogonalIter())
+        //{
+            //phi = phiHbyA - p_rghEqn.flux();
+
+            //p_rgh.relax();
+
+            //U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
+            //U.correctBoundaryConditions();
+            //fvOptions.correct(U);
+        //}
+    //}
 
     #include "continuityErrs.H"
 
