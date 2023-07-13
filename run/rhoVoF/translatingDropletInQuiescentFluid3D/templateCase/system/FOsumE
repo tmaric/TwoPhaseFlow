@@ -69,7 +69,7 @@ functions
                     
                 }
                 }*/
-                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),true));
+                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
                  outputFilePtr() << mesh().time().timeName() << tab << SumKinE1<< tab << SumKinE2 << tab << mag(SumKinE3).value()<< tab <<SumKinE4.value() << tab << sum(e3.ref()).component(0).value() << tab << sum(e3.ref()).component(1).value() << tab << sum(e3.ref()).component(2).value() << endl;
              }
         #};

@@ -47,7 +47,7 @@ surfaceForces
 {
   sigma @!surface_tension_coefficient!@;
   surfaceTensionForceModel gradAlpha;
-  accelerationModel gravity;
+  accelerationForceModel gravity;
   gravity  (0 0 @!gravity!@); //(0 -0.98 0);
   deltaFunctionModel alphaCSF;
 }

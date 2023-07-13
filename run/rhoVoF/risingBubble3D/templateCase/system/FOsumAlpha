@@ -52,7 +52,7 @@ functions
                     outputFilePtr() << "0" << tab << SumAirV <<endl;
                 }
 
-                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),true));
+                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
                  outputFilePtr() << mesh().time().timeName() << tab << SumAirV << endl;
              }
         #};

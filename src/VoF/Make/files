@@ -13,11 +13,6 @@ surfaceIterators/surfaceIteratorIso.C
 multiDimPolyFitter/multiDimPolyFunctions/paraboloid.C
 multiDimPolyFitter/leastSquareFitParabolid.C
 
-zoneDistribute/zoneStencils/zoneCellStencils.C
-zoneDistribute/zoneStencils/zoneCPCStencil.C
-zoneDistribute/zoneDistribute.C
-zoneDistribute/zoneDistributePoints.C
-
 reconstructedDistanceFunction/reconstructedDistanceFunction.C
 markInterfaceRegion/markInterfaceRegion.C
 
@@ -28,7 +23,6 @@ reconstructionSchemes/isoSchemes/isoAlpha/isoAlpha.C
 reconstructionSchemes/isoSchemes/isoSurface/isoSurface.C
 reconstructionSchemes/plicSchemes/gradAlpha/gradAlpha.C
 reconstructionSchemes/plicSchemes/plicRDF/plicRDF.C
-reconstructionSchemes/plicSchemes/Swartz/Swartz.C
 
 /* Run-time selectable implicitFunctions */
 advectionSchemes/newAdvectionSchemes.C

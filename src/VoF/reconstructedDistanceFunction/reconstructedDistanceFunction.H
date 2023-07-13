@@ -42,7 +42,7 @@ SourceFiles
 #include "surfaceFields.H"
 #include "globalIndex.H"
 #include "Map.H"
-#include "../zoneDistribute/zoneDistribute.H"
+#include "zoneDistribute.H"
 #include "dimensionedScalar.H"
 #include "typeInfo.H"
 
@@ -146,6 +146,7 @@ public:
         return nextToInterface_;
     }
 
+    void centerTransformation(const label& celli, const label& coupledCelli, point& center);
 };
 
 

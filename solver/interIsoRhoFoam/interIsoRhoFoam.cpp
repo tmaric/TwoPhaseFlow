@@ -71,6 +71,7 @@ Description
 #include "reconstructionSchemes.H"
 #include "upwind.H"
 #include "fvMesh.H"
+#include "processorPolyPatch.H"
 #include "processorBC.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

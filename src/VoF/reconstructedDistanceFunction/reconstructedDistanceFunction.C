@@ -327,7 +327,7 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
                         n /= mag(n);
                         vector c =
                             distribute.getValue(centre,mapCentres,gblIdx);
-                        distribute.centerTransformation(celli, gblIdx, c);
+                        centerTransformation(celli, gblIdx, c);
                         vector distanceToIntSeg = (c - p);
                         scalar distToSurf = distanceToIntSeg & (n);
                         scalar weight = 0;
@@ -507,7 +507,7 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
                     vector n = -normals[i]/mag(normals[i]);
                     vector c = centres[i];
                     const label gblIdx = stencil[celli][i];
-                    distribute.centerTransformation(celli, gblIdx, c);
+                    centerTransformation(celli, gblIdx, c);
                     vector distanceToIntSeg = (c - p); //(centres[i] - p);
                     scalar distToSurf = distanceToIntSeg & (n);
                     scalar weight = 0;
@@ -550,7 +550,7 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
                                     vector n = -normals[j]/mag(normals[j]);
                                     vector c = centres[i];
                                     const label gblIdx = stencil[celli][i];
-                                    distribute.centerTransformation(celli, gblIdx, c);                                    
+                                    centerTransformation(celli, gblIdx, c);                                    
                                     scalar distToSurf = (c - ccs[i]) & (n);
                                     if (mag(distToSurf) < mag(reconDistFunc[idx]))
                                     {
@@ -743,6 +743,26 @@ void Foam::reconstructedDistanceFunction::updateContactAngle
             RDFbf[patchi] = projDist*cos(theta)
                          +  RDFbf[patchi].patchInternalField();
 
+        }
+    }
+}
+
+void Foam::reconstructedDistanceFunction::centerTransformation(const label& celli, const label& coupledCelli, point& center)
+{
+     const polyBoundaryMesh& boundaryMesh = mesh_.boundaryMesh();
+    
+    forAll(boundaryMesh, patchi)
+    {
+        const cyclicPolyPatch* cpp = isA<cyclicPolyPatch>(boundaryMesh[patchi]);
+        if (cpp)
+        {
+            label neiPatchID = cpp->neighbPatchID();
+            if(boundaryMesh[patchi].faceCells().found(celli) && 
+                boundaryMesh[neiPatchID].faceCells().found(coupledCelli))
+                {
+                    const label& facei = coupledCelli - boundaryMesh[neiPatchID].start();
+                    cpp->transformPosition(center, facei);
+                }
         }
     }
 }
