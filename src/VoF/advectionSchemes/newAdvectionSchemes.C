@@ -53,7 +53,7 @@ Foam::advectionSchemes::New
     Info<< "Selecting advectionSchemes: "
         << advectionSchemesTypeName << endl;
 
-    auto* ctorPtr = componentsConstructorTable(advectionSchemesTypeName);
+    auto ctorPtr = componentsConstructorTable(advectionSchemesTypeName);
 
     if (!ctorPtr)
     {
@@ -65,7 +65,7 @@ Foam::advectionSchemes::New
         ) << exit(FatalError);
     }
 
-    return autoPtr<advectionSchemes>(ctorPtr( alpha1, phi,U));
+    return autoPtr<advectionSchemes>(ctorPtr(alpha1, phi,U));
 }
 
 

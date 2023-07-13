@@ -9,9 +9,11 @@ wmake libso src/phaseChange
 wmake libso src/surfaceForces
 
 wmake libso src/postProcessing
+wmake libso src/triSurfaceImmersion
 
 wmake apps/setFieldfromTable
 wmake apps/initAlphaField
+wmake apps/surfaceInitVolumeFraction
 
 wmake apps/benchmark/advectorVoF
 wmake apps/benchmark/reconstructInterface
