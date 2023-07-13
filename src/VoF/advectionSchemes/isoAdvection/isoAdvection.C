@@ -346,7 +346,6 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 {
                     label neiPatchID = cpp->neighbPolyPatchID();
                     dVfb[neiPatchID][patchFacei] = -dVfb[patchi][patchFacei];
-                    Info << "### test" << endl;
                 }
 
                 // Check if the face is on processor patch and append it to

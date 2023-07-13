@@ -1,0 +1,7 @@
+#!/usr/bin/env bash 
+
+PATTERN=$1
+CMD=$2
+
+for dir in "$PATTERN"*; do cd $dir; eval "$CMD" && cd ..; done 
+

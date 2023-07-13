@@ -1,0 +1,94 @@
+solid airBed
+ facet normal 0 -1 0
+  outer loop
+   vertex 0.03 0 0.01
+   vertex -0.01 0 -0.01
+   vertex 0.03 0 -0.01
+  endloop
+ endfacet
+ facet normal 0 -1 0
+  outer loop
+   vertex 0.03 0 0.01
+   vertex -0.01 0 0.01
+   vertex -0.01 0 -0.01
+  endloop
+ endfacet
+endsolid airBed
+solid yMax
+ facet normal 0 1 -0
+  outer loop
+   vertex 0.03 0.02 0.01
+   vertex 0.03 0.02 -0.01
+   vertex -0.01 0.02 -0.01
+  endloop
+ endfacet
+ facet normal 0 1 0
+  outer loop
+   vertex 0.03 0.02 0.01
+   vertex -0.01 0.02 -0.01
+   vertex -0.01 0.02 0.01
+  endloop
+ endfacet
+endsolid yMax
+solid inlet
+ facet normal -1 0 0
+  outer loop
+   vertex -0.01 0 0.01
+   vertex -0.01 0.02 -0.01
+   vertex -0.01 0 -0.01
+  endloop
+ endfacet
+ facet normal -1 -0 -0
+  outer loop
+   vertex -0.01 0 0.01
+   vertex -0.01 0.02 0.01
+   vertex -0.01 0.02 -0.01
+  endloop
+ endfacet
+endsolid inlet
+solid outlet
+ facet normal 1 0 0
+  outer loop
+   vertex 0.03 0 0.01
+   vertex 0.03 0 -0.01
+   vertex 0.03 0.02 -0.01
+  endloop
+ endfacet
+ facet normal 1 0 -0
+  outer loop
+   vertex 0.03 0 0.01
+   vertex 0.03 0.02 -0.01
+   vertex 0.03 0.02 0.01
+  endloop
+ endfacet
+endsolid outlet
+solid zMinMax
+ facet normal 0 0 -1
+  outer loop
+   vertex 0.03 0.02 -0.01
+   vertex -0.01 0 -0.01
+   vertex -0.01 0.02 -0.01
+  endloop
+ endfacet
+ facet normal 0 0 -1
+  outer loop
+   vertex 0.03 0.02 -0.01
+   vertex 0.03 0 -0.01
+   vertex -0.01 0 -0.01
+  endloop
+ endfacet
+ facet normal -0 0 1
+  outer loop
+   vertex 0.03 0.02 0.01
+   vertex -0.01 0.02 0.01
+   vertex -0.01 0 0.01
+  endloop
+ endfacet
+ facet normal 0 0 1
+  outer loop
+   vertex 0.03 0.02 0.01
+   vertex -0.01 0 0.01
+   vertex 0.03 0 0.01
+  endloop
+ endfacet
+endsolid zMinMax

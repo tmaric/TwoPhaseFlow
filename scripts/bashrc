@@ -1,0 +1,9 @@
+#!/bin/sh
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PYTHONMODULES=$DIR"/modules"
+
+export PYTHONPATH=$PYTHONPATH:$PYTHONMODULES
+export PATH=$PATH:$DIR
+
+# Export here to load path in notebook
+export TWOPHASEFLOW_PYTHON_MODULES=$PYTHONMODULES

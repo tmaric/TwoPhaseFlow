@@ -1,0 +1,7 @@
+endTime 3e-3;
+
+timeStep 2e-8; //<-N256  4e-8;
+
+writeInterval 3e-5;
+
+
