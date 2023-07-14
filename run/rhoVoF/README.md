@@ -2,8 +2,8 @@
 
 benchmark cases for verification
 
-NOTE: the cyclic BC for interIsoFoam has not solved util OpenFOAM-V2212. To not pollute the origin codes in OpenFOAM, we modified the BC handling only in TwoPhaseFlow.
-We configured the cases so that interFlow works same as interIsoFoam to avoid the cyclic BC problem of default interIsoFoam in OpenFOAM.
+NOTE: the cyclic BC for interIsoFoam has not been solved until OpenFOAM-V2212. To not pollute the origin codes in OpenFOAM, we modified the BC handling only in TwoPhaseFlow.
+We configured the cases so that interFlow works the same as interIsoFoam to avoid the cyclic BC problem of default interIsoFoam in OpenFOAM.
 
 ## cyclicBC_debug_case2D 
 
@@ -27,12 +27,12 @@ run case on cluster with SLURM
 
 use interIsoFoam
 ```bash
-    sbatch isoAdv_slurm
+    sbatch isoAdv.sbatch
 ```
 
 use interIsoRhoFoam
 ```bash
-    sbatch isoRho_slurm
+    sbatch isoAdv.sbatch
 ```
 
 run case on local workstation
