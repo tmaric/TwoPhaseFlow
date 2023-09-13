@@ -1,0 +1,56 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2212                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      setAlphaFieldDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+field alpha.water;
+type        ellipsoidImplicitFunction;
+semiAxis    (0.002 0.003 10);
+origin      (0.005 0.005 0.0);  // is set to zero in function ?! wtf
+
+
+/*type composedFunction;
+mode intersect; //minDist, add, substract,intersect
+composedFunction
+{
+    plane1
+    {
+        type plane;
+        origin (0 0.004 0);
+        normal (0 -1 0);
+    }
+    plane2
+    {
+        type plane;
+        origin (0.004 0. 0);
+        normal (-1 0 0);
+    }  
+    plane3
+    {
+        type plane;
+        origin (0 0.006 0);
+        normal (0 -1 0);
+    } 
+    plane4
+    {
+        type plane;
+        origin (0.006 0. 0);
+        normal (1 0 0);
+    }
+}
+*/
+
+
+// ************************************************************************* //
