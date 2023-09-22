@@ -33,6 +33,13 @@ argList::addOption
 
 argList::addOption
 (
+    "normalFieldName", 
+    "interfaceNormal",
+    "Name of the initial interface normal field.\nDefault: interfaceNormal" 
+); 
+
+argList::addOption
+(
     "algorithm", 
     "SMCI/SMCA",
     "Name of the volume fraction calculator.\nDefault: SMCI" 
@@ -70,8 +77,11 @@ argList::addBoolOption
     "Write out all fields used by the initialization method."
 );
 
+
 argList::addBoolOption
 (
     "checkVolume",
     "Check the volume given by volume fraction compared with the volume of the surface mesh. Works only with closed surfaces."
 );
+
+

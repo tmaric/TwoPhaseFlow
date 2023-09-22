@@ -114,6 +114,10 @@ int main(int argc, char* argv[])
     // Configure volume fraction calculator
     auto fieldName =
         setOptionByPrecedence<word>(initDict, args, "fieldName", "alpha.water");
+
+    auto normalFieldName =
+        setOptionByPrecedence<word>(initDict, args, "normalFieldName", "interfaceNormal");
+
     auto algName =
         setOptionByPrecedence<word>(initDict, args, "algorithm", "SMCI");
     setOptionByPrecedence<label>(initDict, args, "refinementLevel", -1);
@@ -125,6 +129,7 @@ int main(int argc, char* argv[])
         setOptionByPrecedence<Switch>(initDict, args, "writeAllFields", false);
     auto checkVolume =
         setOptionByPrecedence<Switch>(initDict, args, "checkVolume", false);
+
 
     Info << "<------------------------------------------>"
          << "\nConfiguration:" << initDict
@@ -189,6 +194,15 @@ int main(int argc, char* argv[])
                       << Evsurf << "," << calcTime << ","
                       << vofCalcPtr->maxRefinementLevel() << "\n";
         }
+    }
+
+    // Write interface normals 
+    if (args.found("normalFieldName") || initDict.found("normalFieldName"))
+    {
+        // Fetch the surface 
+        const auto& sigDistCalc = vofCalcPtr->sigDistCalc();
+        interfaceNormal = sigDistCalc.interfaceNormals();
+        interfaceNormal.write();
     }
 
     Info << nl;

@@ -333,6 +333,39 @@ scalar levelSetDistCalc::surfaceEnclosedVolume() const
     return surfacePtr_->volume();
 }
 
+tmp<volVectorField> levelSetDistCalc::interfaceNormals() const
+{
+    tmp<volVectorField> normalsTmp 
+    (
+        new volVectorField
+        (
+            IOobject
+            (
+                "normals",  
+                mesh().time().timeName(), 
+                mesh(), 
+                IOobject::NO_READ,
+                IOobject::AUTO_WRITE
+            ),
+            mesh(),
+            dimensionedVector(dimArea, Zero)
+        )
+    );
+
+    // Assign the surface normal to cell-center.
+    volVectorField& normals = normalsTmp.ref();
+    const auto& C = mesh().C(); 
+    const auto& surf = surface();
+
+    forAll(normals, cellI)
+    {
+        vector surfGrad = surf.grad(C[cellI]);  
+        scalar surfMagGrad = mag(surfGrad);
+        normals[cellI] = surfGrad / surfMagGrad; 
+    }
+
+    return normalsTmp;
+}
 
 void levelSetDistCalc::writeFields() const
 {

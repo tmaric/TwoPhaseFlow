@@ -133,6 +133,9 @@ public:
     //- Return a reference to the cell corner level set values.
     inline const pointScalarField& pointLevelSetValues() const;
 
+    //- Returns interface-normal field.
+    virtual tmp<volVectorField> interfaceNormals() const;
+
     //- Write the level set fields
     void writeFields() const override;
 };

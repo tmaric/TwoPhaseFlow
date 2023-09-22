@@ -151,6 +151,31 @@ public:
     //  only make sense if the surface is *closed*.
     scalar surfaceEnclosedVolume() const override;
 
+    //- Returns interface-normal field.
+    virtual tmp<volVectorField> interfaceNormals() const
+    {
+        tmp<volVectorField> normalsTmp 
+        (
+            volVectorField
+            (
+                IOobject
+                (
+                    "normals",  
+                    mesh().time().timeName(), 
+                    mesh(), 
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                mesh(),
+                dimensionedVector(dimArea, Zero)
+            )
+        );
+        WarningInFunction
+            << "A warning occurred because of some condition." << endl;
+        // TODO(TM): use fvc::grad ("pointCellsLeastSquares") of the signed distance field.
+        return normalsTmp;
+    }
+
     //- Write signed distance and squared search radii fields
     void writeFields() const override;
 };

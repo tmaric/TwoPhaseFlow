@@ -161,6 +161,9 @@ public:
     //  If the surface is not closed, a negative value is returned.
     virtual scalar surfaceEnclosedVolume() const = 0;
 
+    //- Returns interface-normal field.
+    virtual tmp<volVectorField> interfaceNormals() const = 0;
+
     //- Set the value to use for points outside the narrow band
     void outOfNarrowBandValue(scalar value);
 

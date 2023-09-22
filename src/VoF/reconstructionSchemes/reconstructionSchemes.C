@@ -109,7 +109,7 @@ Foam::reconstructionSchemes::reconstructionSchemes
             IOobject::groupName("interfaceNormal", alpha1.group()),
             alpha1_.mesh().time().timeName(),
             alpha1_.mesh(),
-            IOobject::NO_READ,
+            IOobject::READ_IF_PRESENT,
             IOobject::AUTO_WRITE
         ),
         alpha1_.mesh(),

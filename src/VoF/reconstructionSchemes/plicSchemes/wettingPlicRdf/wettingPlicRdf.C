@@ -229,12 +229,24 @@ void Foam::reconstruction::wettingPlicRdf::setInitNormals(bool interpolate)
     const boolList& nextToInterface_ = RDF_.nextToInterface();
     exchangeFields.updateStencil(nextToInterface_);
 
+    if ((mesh_.time().timeIndex() <= 1) && gSum(mag(normal_)()) != 0)
+    {
+        Info << "Initializing normals from exact normals for time index " << mesh_.time().timeIndex() << endl;
+        forAll(interfaceLabels_, celli)
+        {
+            interfaceNormal_[celli] = normal_[interfaceLabels_[celli]];
+        }
+        return;
+    }
+
     if (interpolate)
     {
+        Info << "Interpolating normals" << endl;
         interpolateNormal();
     }
     else
     {
+        Info << "Gradient normals" << endl;
         gradSurf(alpha1_);
     }
 }
@@ -398,6 +410,10 @@ void Foam::reconstruction::wettingPlicRdf::centreAndNormalBC()
                         cbf[patchi][i] = centre_[celli] + 2*nTheta/boundary[patchi].deltaCoeffs()[i]; // should point outside of the domain
                         nbf[patchi][i] = nHat*mag(normal_[celli]);
 
+                        // Prescribe PLIC normal to the normal given by the volume-fraction dynamic contact angle BC. 
+                        normal_[celli] = nbf[patchi][i];
+                        // TODO(TM): look into this.
+                        interfaceNormal_[celli] = nbf[patchi][i];
                     }
 
                 }
@@ -447,9 +463,12 @@ Foam::reconstruction::wettingPlicRdf::wettingPlicRdf
 {
     setInitNormals(false);
 
-    centre_ = dimensionedVector("centre", dimLength, Zero);
-    normal_ = dimensionedVector("normal", dimArea, Zero);
+    // TODO(TM): delete
+    //centre_ = dimensionedVector("centre", dimLength, Zero);
+    //normal_ = dimensionedVector("normal", dimArea, Zero);
 
+    Info << "Reconstructing in the costructor " << endl;
+    Info << "gSum(mag(normal_)) = " << gSum(mag(normal_)()) << endl;
     forAll(interfaceLabels_, i)
     {
         const label celli = interfaceLabels_[i];
@@ -457,6 +476,9 @@ Foam::reconstruction::wettingPlicRdf::wettingPlicRdf
         {
             continue;
         }
+        // TODO(TM): remove
+        Info << "normal difference " 
+            << mag(interfaceNormal_[i] - normal_[interfaceLabels_[i]]) << endl;
         sIterPLIC_.vofCutCell
         (
             celli,
@@ -481,6 +503,10 @@ Foam::reconstruction::wettingPlicRdf::wettingPlicRdf
             normal_[celli] = Zero;
             centre_[celli] = Zero;
         }
+
+        // TODO(TM): remove
+        Info << "normal difference " 
+            << mag(interfaceNormal_[i] + normal_[interfaceLabels_[i]]) << endl;
     }
 }
 
@@ -493,10 +519,12 @@ void Foam::reconstruction::wettingPlicRdf::reconstruct(bool forceUpdate)
     zoneDistribute& exchangeFields = zoneDistribute::New(mesh_);
     const bool uptodate = alreadyReconstructed(forceUpdate);
 
+    Info << "Before uptodate&& !forceUpdate " << endl;
     if (uptodate && !forceUpdate)
     {
         return;
     }
+    Info << "After uptodate&& !forceUpdate " << endl;
 
     if (mesh_.topoChanging())
     {
@@ -512,12 +540,60 @@ void Foam::reconstruction::wettingPlicRdf::reconstruct(bool forceUpdate)
     setInitNormals(interpolateNormal_);
 
     centre_ = dimensionedVector("centre", dimLength, Zero);
-    normal_ = dimensionedVector("normal", dimArea, Zero);
+
+    // TODO(TM): double-check 
+    if (mesh_.time().timeIndex() > 1)
+    {
+        normal_ = dimensionedVector("normal", dimArea, Zero);
+    }
 
     // nextToInterface is update on setInitNormals
     const boolList& nextToInterface_ = RDF_.nextToInterface();
 
     bitSet tooCoarse(mesh_.nCells(),false);
+
+    // Reconstruct using exact normals in first time step if they are
+    // available.
+    if ((mesh_.time().timeIndex() <= 1) && (gSum(mag(normal_)()) != 0))
+    {
+        Info << "Reconstructing interface for time index " << mesh_.time().timeIndex() << endl;
+        forAll(interfaceLabels_, i)
+        {
+            const label celli = interfaceLabels_[i];
+            //if (mag(interfaceNormal_[i]) == 0 || tooCoarse.test(celli))
+            //{
+                //continue;
+            //}
+            sIterPLIC_.vofCutCell
+            (
+                celli,
+                alpha1_[celli],
+                isoFaceTol_,
+                100,
+                interfaceNormal_[i]
+            );
+
+            if (sIterPLIC_.cellStatus() == 0)
+            {
+
+                normal_[celli] = sIterPLIC_.surfaceArea();
+                centre_[celli] = sIterPLIC_.surfaceCentre();
+                if (mag(normal_[celli]) == 0)
+                {
+                    normal_[celli] = Zero;
+                    centre_[celli] = Zero;
+                }
+            }
+            else
+            {
+                normal_[celli] = Zero;
+                centre_[celli] = Zero;
+            }
+        }
+        normal_.correctBoundaryConditions();
+        centre_.correctBoundaryConditions();
+        return;
+    }
 
     for (int iter=0; iter<iteration_; ++iter)
     {
