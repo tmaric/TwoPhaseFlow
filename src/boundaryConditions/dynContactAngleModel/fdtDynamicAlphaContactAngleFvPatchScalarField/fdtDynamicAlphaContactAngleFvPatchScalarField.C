@@ -30,6 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
 #include "volMesh.H"
+#include "volFields.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -44,7 +45,8 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(0.0),
     uTheta_(0.0),
     thetaA_(0.0),
-    thetaR_(0.0)
+    thetaR_(0.0),
+    dxdy_(1.0)
 {}
 
 
@@ -61,7 +63,8 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
-    thetaR_(gcpsf.thetaR_)
+    thetaR_(gcpsf.thetaR_),
+    dxdy_(gcpsf.dxdy_)
 {}
 
 
@@ -77,7 +80,8 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(dict.get<scalar>("theta0")),
     uTheta_(dict.get<scalar>("uTheta")),
     thetaA_(dict.get<scalar>("thetaA")),
-    thetaR_(dict.get<scalar>("thetaR"))
+    thetaR_(dict.get<scalar>("thetaR")),
+    dxdy_(dict.get<scalar>("dxdy"))
 {
     evaluate();
 }
@@ -93,7 +97,8 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
-    thetaR_(gcpsf.thetaR_)
+    thetaR_(gcpsf.thetaR_),
+    dxdy_(gcpsf.dxdy_)
 {}
 
 
@@ -108,7 +113,8 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
-    thetaR_(gcpsf.thetaR_)
+    thetaR_(gcpsf.thetaR_),
+    dxdy_(gcpsf.dxdy_)
 {}
 
 
@@ -126,23 +132,116 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
         return tmp<scalarField>::New(size(), theta0_);
     }
 
+    // Get the interface normals at the wall.
     const vectorField nf(patch().nf());
-
-    // Calculated the component of the velocity parallel to the wall
-    vectorField Uwall(Up.patchInternalField() - Up);
-    Uwall -= (nf & Uwall)*nf;
 
     // Find the direction of the interface parallel to the wall
     vectorField nWall(nHat - (nf & nHat)*nf);
-
     // Normalise nWall
     nWall /= (mag(nWall) + SMALL);
 
-    // Calculate Uwall resolved normal to the interface parallel to
-    // the interface
+    // Calculate contact line velocity relative to the wall 
+    // velocity for moving walls. 
+    vectorField Uwall(Up.patchInternalField() - Up);
+    // Make contact linen velocity Uwall tangential to the wall.
+    Uwall -= (nf & Uwall)*nf;
+
+    // Calculate component of the contact line velocity Uwal in the direction
+    // of the interface normal tagential to the wall.
     scalarField uwall(nWall & Uwall);
 
-    return theta0_ + (thetaA_ - thetaR_)*tanh(uwall/uTheta_);
+    // Fetch physical properties
+    // TODO(TM): calculate single-field properties?
+    // TODO(TM): check if \rho1\nu1 > \rho2\nu2
+
+    const dictionary& transportProperties =
+    this->db().objectRegistry::lookupObject<IOdictionary>
+    (
+        "transportProperties"
+    );
+
+    // Choose the larger dynamic viscosity from available two phases.
+    word phase1Name (wordList(transportProperties.lookup("phases"))[0]);
+    word phase2Name (wordList(transportProperties.lookup("phases"))[1]);
+
+    // Get constant phase-specific densities and kinematic viscosities.
+    dimensionedScalar rho1(transportProperties.subDict(phase1Name).get<dimensionedScalar>("rho"));
+    dimensionedScalar nu1c(transportProperties.subDict(phase1Name).get<dimensionedScalar>("nu"));
+
+    dimensionedScalar rho2(transportProperties.subDict(phase2Name).get<dimensionedScalar>("rho"));
+    dimensionedScalar nu2c(transportProperties.subDict(phase2Name).get<dimensionedScalar>("nu"));
+
+    word nuName; 
+    dimensionedScalar rho(rho1); 
+    // If the dynamic viscosity of phase1 is larger
+    if (rho1*nu1c > rho2*nu2c)
+    {
+        nuName = "nu1";
+        rho = rho1;
+    }
+    else
+    {
+        nuName = "nu2";
+        rho = rho2;
+    }
+    const volScalarField& nu =
+        this->db().objectRegistry::lookupObject<volScalarField>(nuName);
+
+    // Fetch the wall kinematic viscosity of phase1 
+    const label patchi = this->patch().index();
+    const fvPatchScalarField& nup = nu.boundaryField()[patchi];
+    scalarField muwall (nup*rho.value());
+
+    // Wall Capillary number
+    dimensionedScalar sigmap(transportProperties.get<dimensionedScalar>("sigma"));
+    scalarField CaWall(muwall*uwall/sigmap.value());
+
+    // Compute the contact angles at the wall.
+    tmp<scalarField> thetafTmp = Foam::acos(nHat & nf);
+    scalarField& thetaf = thetafTmp.ref();
+
+    // For all boundary faces
+    forAll(thetaf, faceI)
+    {
+        // If we are in a contact-line cell
+        if (mag(nHat[faceI]) > 0)
+        {
+            if (thetaf[faceI] < thetaR_) // Receding regime
+            {
+                // TODO(TM): - empirical dynamic contact angle
+                //           - see how to make this work with Navier-Slip
+                //           - GNBC?
+                thetaf[faceI] = thetaR_;
+            }
+            else if (thetaf[faceI] > thetaA_) // Advancing regime
+            {
+                // TODO(TM): - empirical dynamic contact angle
+                //           - see how to make this work with Navier-Slip
+                //           - GNBC?
+                thetaf[faceI] = thetaA_;
+            }
+            else // Hysteresis regime
+            {
+                // Equation 32 in the manuscript.
+                scalar Cstar = dxdy_ * (thetaA_ - thetaR_) * muwall[faceI]  / 
+                    ((cos(thetaA_) - cos(thetaR_))*sigmap.value());
+
+                // Equation 31 in the manuscript.
+                scalar dtheta = Cstar * abs(uwall[faceI]);
+
+                if (uwall[faceI] < 0)
+                {
+                    thetaf[faceI] -= dtheta;
+                }
+                if (uwall[faceI] > 0)
+                {
+                    thetaf[faceI] += dtheta;
+                }
+            }
+        }
+    }
+
+    return thetafTmp; 
 }
 
 
@@ -153,6 +252,7 @@ void Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::write(Ostream& os) con
     os.writeEntry("uTheta", uTheta_);
     os.writeEntry("thetaA", thetaA_);
     os.writeEntry("thetaR", thetaR_);
+    os.writeEntry("dxdy", dxdy_);
     writeEntry("value", os);
 }
 

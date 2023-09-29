@@ -76,6 +76,8 @@ class fdtDynamicAlphaContactAngleFvPatchScalarField
         //- Limiting receding contact angle
         scalar thetaR_;
 
+        //- Scaling factor
+        scalar dxdy_;
 
 public:
 
