@@ -29,6 +29,7 @@ License
 #include "fdtDynamicAlphaContactAngleFvPatchScalarField.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
+#include "scalarField.H"
 #include "volMesh.H"
 #include "volFields.H"
 
@@ -43,7 +44,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 :
     alphaContactAngleTwoPhaseFvPatchScalarField(p, iF),
     theta0_(0.0),
-    uTheta_(0.0),
     thetaA_(0.0),
     thetaR_(0.0),
     dxdy_(1.0)
@@ -61,7 +61,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 :
     alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, p, iF, mapper),
     theta0_(gcpsf.theta0_),
-    uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
     dxdy_(gcpsf.dxdy_)
@@ -78,7 +77,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 :
     alphaContactAngleTwoPhaseFvPatchScalarField(p, iF, dict),
     theta0_(dict.get<scalar>("theta0")),
-    uTheta_(dict.get<scalar>("uTheta")),
     thetaA_(dict.get<scalar>("thetaA")),
     thetaR_(dict.get<scalar>("thetaR")),
     dxdy_(dict.get<scalar>("dxdy"))
@@ -95,7 +93,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 :
     alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf),
     theta0_(gcpsf.theta0_),
-    uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
     dxdy_(gcpsf.dxdy_)
@@ -111,7 +108,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 :
     alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, iF),
     theta0_(gcpsf.theta0_),
-    uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
     dxdy_(gcpsf.dxdy_)
@@ -127,11 +123,6 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     const fvsPatchVectorField& nHat
 ) const
 {
-    if (uTheta_ < SMALL)
-    {
-        return tmp<scalarField>::New(size(), theta0_);
-    }
-
     // Get the interface normals at the wall.
     const vectorField nf(patch().nf());
 
@@ -197,7 +188,7 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     scalarField CaWall(muwall*uwall/sigmap.value());
 
     // Compute the contact angles at the wall.
-    tmp<scalarField> thetafTmp = Foam::acos(nHat & nf);
+    tmp<scalarField> thetafTmp = Foam::radToDeg(Foam::acos(nHat & nf));
     scalarField& thetaf = thetafTmp.ref();
 
     // For all boundary faces
@@ -249,7 +240,6 @@ void Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::write(Ostream& os) con
 {
     alphaContactAngleTwoPhaseFvPatchScalarField::write(os);
     os.writeEntry("theta0", theta0_);
-    os.writeEntry("uTheta", uTheta_);
     os.writeEntry("thetaA", thetaA_);
     os.writeEntry("thetaR", thetaR_);
     os.writeEntry("dxdy", dxdy_);

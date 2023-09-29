@@ -67,9 +67,6 @@ class fdtDynamicAlphaContactAngleFvPatchScalarField
         //- Equilibrium contact angle
         scalar theta0_;
 
-        //- Dynamic contact angle velocity scale
-        scalar uTheta_;
-
         //- Limiting advancing contact angle
         scalar thetaA_;
 
@@ -82,7 +79,7 @@ class fdtDynamicAlphaContactAngleFvPatchScalarField
 public:
 
     //- Runtime type information
-    TypeName("dynamicAlphaContactAngle");
+    TypeName("fdtHysteresis");
 
 
     // Constructors
