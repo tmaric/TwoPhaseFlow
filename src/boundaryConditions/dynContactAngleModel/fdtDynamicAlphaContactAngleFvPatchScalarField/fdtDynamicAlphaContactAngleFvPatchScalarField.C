@@ -215,10 +215,11 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
             {
                 // Equation 32 in the manuscript.
                 scalar Cstar = dxdy_ * (thetaA_ - thetaR_) * muwall[faceI]  / 
-                    ((cos(thetaA_) - cos(thetaR_))*sigmap.value());
+                    (mag(cos(degToRad(thetaA_)) - cos(degToRad(thetaR_)))
+                     *sigmap.value());
 
                 // Equation 31 in the manuscript.
-                scalar dtheta = Cstar * abs(uwall[faceI]);
+                scalar dtheta = Cstar * mag(uwall[faceI]);
 
                 if (uwall[faceI] < 0)
                 {
