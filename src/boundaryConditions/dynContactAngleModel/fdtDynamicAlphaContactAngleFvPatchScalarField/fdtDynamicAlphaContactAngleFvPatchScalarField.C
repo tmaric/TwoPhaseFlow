@@ -32,6 +32,7 @@ License
 #include "scalarField.H"
 #include "volMesh.H"
 #include "volFields.H"
+#include "unitConversion.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -127,7 +128,7 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     const vectorField nf(patch().nf());
 
     // Find the direction of the interface parallel to the wall
-    vectorField nWall(nHat - (nf & nHat)*nf);
+    vectorField nWall(-nHat + (nf & nHat)*nf);
     // Normalise nWall
     nWall /= (mag(nWall) + SMALL);
 
@@ -213,21 +214,37 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
             }
             else // Hysteresis regime
             {
+
                 // Equation 32 in the manuscript.
                 scalar Cstar = dxdy_ * (thetaA_ - thetaR_) * muwall[faceI]  / 
-                    (mag(cos(degToRad(thetaA_)) - cos(degToRad(thetaR_)))
+                    (mag(Foam::cos(Foam::degToRad(thetaA_)) - 
+                         Foam::cos(Foam::degToRad(thetaR_)))
                      *sigmap.value());
 
                 // Equation 31 in the manuscript.
                 scalar dtheta = Cstar * mag(uwall[faceI]);
 
+
                 if (uwall[faceI] < 0)
                 {
                     thetaf[faceI] -= dtheta;
+                    Pout << "Hysteresis mode, " 
+                        << " dtheta = " << -dtheta 
+                        << " uwall = " << mag(uwall[faceI]) 
+                        << endl;
                 }
                 if (uwall[faceI] > 0)
                 {
                     thetaf[faceI] += dtheta;
+
+                    Pout << "Hysteresis mode, " 
+                        << " dtheta = " << dtheta 
+                        << " uwall = " << mag(uwall[faceI]) 
+                        << endl;
+                }
+                else
+                {
+                    Pout << "Do nothing thetaf = " << thetaf[faceI] << endl;
                 }
             }
         }
