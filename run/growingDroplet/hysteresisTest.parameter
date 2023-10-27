@@ -1,0 +1,57 @@
+values
+{
+    solver (interFlow);
+
+// BOUNDARY CONDITIONS
+    // Advacing contact angles in degree
+    THETA_A     ( 110; );
+    
+    // Receding contact angles in degree
+    THETA_R     ( 70 );
+    
+   
+// DOMAIN AND MESH PARAMETERS
+    // Width and length of domain in mm
+    X           ( 5 );
+    
+    //Height of the domain in mm
+    Z           ( 2.5 );
+      
+    // Resolution of the width and length direction
+    nx          ( 100 );
+    
+
+//SURFACE TENSTION MODEL
+    STM
+    (
+         RDF 
+        fitParaboloid
+        heightFunction
+    );
+
+
+//CONTROL DICT
+    endTime         ( 0.25 );
+    writeInterval   ( 0.001 );
+    TIMESTEP        ( 1e-5);
+
+
+//TRANSPORT PROPERTIES
+    alpha1Nu    ( 1.0e-06 );
+    alpha1Rho   ( 1000 );
+    alpha2Nu    ( 1.48e-05 );
+    alpha2Rho   ( 1.0 );
+
+    // Surface tension coefficient
+    sigma ( 0.072 );
+
+
+//DROPLET
+    // Centre position in meter
+    dropCx      ( 0.0025 );
+    dropCy      ( 0.0025 );
+    dropCz      ( 0.001 );
+
+    //Radius in meter
+    dropRadius  ( 0.001 );
+}

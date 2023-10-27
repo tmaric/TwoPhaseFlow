@@ -1,0 +1,43 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  1.6                                   |
+|   \\  /    A nd           | Web:      http://www.OpenFOAM.org               |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      vofInitDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+fieldName       alpha.oil;
+algorithm       SMCA;
+writeGeometry   off;
+invert          off;
+writeAllFields  on;
+checkVolume     off;
+refinementLevel 4;
+relError        -1.0;
+
+// Geometric parameters
+radius          0.001;
+
+distCalc
+{
+    surfaceType     levelSet;
+    surface         sphere;
+    // TODO: adapt z-coordinate so the equilibrium contact angle is recovered
+    center          (0.0025 0.0 #eval{-cos(60*3.14/180)*$radius});
+    radius          $radius;
+    orientation     inward;
+    narrowBandWidth 4.0;
+    bulkValue       1.0;
+}
+
+
+
+// ************************************************************************* //

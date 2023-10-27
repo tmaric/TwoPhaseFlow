@@ -34,6 +34,34 @@ License
 #include "volFields.H"
 #include "unitConversion.H"
 
+
+// * * * * * * * * * * * Private Member Functions * * * * * * * * * * * * * * //
+
+bool Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::hasContactLine(label faceI) const
+{
+    // TODO: Only works for 2D!
+    // Idea: a contact line cell has a alpha=0 neighbor.
+    const auto& connectedFaceLabels = this->patch().patch().faceFaces()[faceI];
+    const auto alphaInternalTmp = this->patchInternalField();
+    const auto& alphaInternal = alphaInternalTmp.cref();
+    bool contactLine = false;
+    const scalar tol = 1.0e-8;
+
+    forAll(connectedFaceLabels, I)
+    {
+        // Don't use zero, but a small value as tolerance
+        if ((alphaInternal[connectedFaceLabels[I]] < tol) && (alphaInternal[faceI] > tol))
+        {
+            contactLine = true;
+            Pout<< "local face ID " << faceI
+                << "; connected face ID " << connectedFaceLabels[I]
+                << endl;
+        }
+    }
+
+    return contactLine;
+}
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::
@@ -128,15 +156,13 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     const vectorField nf(patch().nf());
 
     // Find the direction of the interface parallel to the wall
-    vectorField nWall(-nHat + (nf & nHat)*nf);
+    vectorField nWall(nHat - (nf & nHat)*nf);
     // Normalise nWall
     nWall /= (mag(nWall) + SMALL);
 
     // Calculate contact line velocity relative to the wall 
     // velocity for moving walls. 
     vectorField Uwall(Up.patchInternalField() - Up);
-    // Make contact linen velocity Uwall tangential to the wall.
-    Uwall -= (nf & Uwall)*nf;
 
     // Calculate component of the contact line velocity Uwal in the direction
     // of the interface normal tagential to the wall.
@@ -193,53 +219,47 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     scalarField& thetaf = thetafTmp.ref();
 
     // For all boundary faces
+    Info << "\n--- Entering loop over FDT boundary faces ---" << endl;
     forAll(thetaf, faceI)
     {
         // If we are in a contact-line cell
-        if (mag(nHat[faceI]) > 0)
+        if (mag(nHat[faceI]) > 0 && hasContactLine(faceI))
         {
+            Pout << "theta_old = " << thetaf[faceI] << endl;
             if (thetaf[faceI] < thetaR_) // Receding regime
             {
-                // TODO(TM): - empirical dynamic contact angle
-                //           - see how to make this work with Navier-Slip
-                //           - GNBC?
                 thetaf[faceI] = thetaR_;
             }
             else if (thetaf[faceI] > thetaA_) // Advancing regime
             {
-                // TODO(TM): - empirical dynamic contact angle
-                //           - see how to make this work with Navier-Slip
-                //           - GNBC?
                 thetaf[faceI] = thetaA_;
             }
             else // Hysteresis regime
             {
-
                 // Equation 32 in the manuscript.
                 scalar Cstar = dxdy_ * (thetaA_ - thetaR_) * muwall[faceI]  / 
-                    (mag(Foam::cos(Foam::degToRad(thetaA_)) - 
-                         Foam::cos(Foam::degToRad(thetaR_)))
-                     *sigmap.value());
+                    (
+                         mag(Foam::cos(Foam::degToRad(thetaA_)) - 
+                             Foam::cos(Foam::degToRad(thetaR_))) * sigmap.value()
+                    );
 
-                // Equation 31 in the manuscript.
-                scalar dtheta = Cstar * mag(uwall[faceI]);
-
+                // Equation 31 in the manuscript. Limit change to 5.0 degrees maximum
+                scalar dtheta = max(5.0, Cstar * mag(uwall[faceI]));
 
                 if (uwall[faceI] < 0)
                 {
-                    thetaf[faceI] -= dtheta;
-                    Pout << "Hysteresis mode, " 
-                        << " dtheta = " << -dtheta 
-                        << " uwall = " << mag(uwall[faceI]) 
+                    thetaf[faceI] += dtheta;
+                    Pout << "Hysteresis mode advancing, " 
+                        << " dtheta = " << dtheta 
+                        << " uwall = " << uwall[faceI] 
                         << endl;
                 }
-                if (uwall[faceI] > 0)
+                else if (uwall[faceI] > 0)
                 {
-                    thetaf[faceI] += dtheta;
-
-                    Pout << "Hysteresis mode, " 
-                        << " dtheta = " << dtheta 
-                        << " uwall = " << mag(uwall[faceI]) 
+                    thetaf[faceI] -= dtheta;
+                    Pout << "Hysteresis mode receding, " 
+                        << " dtheta = " << -dtheta 
+                        << " uwall = " << uwall[faceI] 
                         << endl;
                 }
                 else
@@ -247,6 +267,12 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
                     Pout << "Do nothing thetaf = " << thetaf[faceI] << endl;
                 }
             }
+            Pout << "Contact line on face " << faceI
+                 << "Cell ID " << nu.mesh().faceOwner()[faceI + this->patch().start()]
+                 << "\n\ttheta = " << thetaf[faceI]
+                 << "\n\tnWall = " << nWall[faceI]
+                 << "\n\tuwall = " << uwall[faceI]
+                 <<endl;
         }
     }
 

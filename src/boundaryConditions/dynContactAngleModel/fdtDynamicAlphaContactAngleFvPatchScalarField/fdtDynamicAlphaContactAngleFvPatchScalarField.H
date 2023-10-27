@@ -76,6 +76,12 @@ class fdtDynamicAlphaContactAngleFvPatchScalarField
         //- Scaling factor
         scalar dxdy_;
 
+
+   // Private member functions
+       
+       //- Determine whether a face contains a contact line
+       bool hasContactLine(label faceI) const;
+
 public:
 
     //- Runtime type information

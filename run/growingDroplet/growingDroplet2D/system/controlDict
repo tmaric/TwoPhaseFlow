@@ -1,0 +1,159 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interFlow;
+
+startFrom       latestTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         0.1;
+
+deltaT          1.0e-5;
+
+writeControl    timeStep;
+
+writeInterval   10;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  14;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep  no;
+
+maxCo           0.1;
+
+maxAlphaCo      0.1;
+
+maxDeltaT       0.001;
+
+maxCapillaryNum 0.0002; //0.5;
+
+libs
+(
+    "libtwoPhaseProperties.so"
+    "libdynContactAngleModels.so"
+);
+
+OptimisationSwitches
+{
+
+      //- Parallel IO file handler
+      // uncollated (default), collated or masterUncollated
+      fileHandler collated;
+
+      //- collated: thread buffer size for queued file writes.
+      // If set to 0 or not sufficient for the file size threading is not used.
+      // Default: 2e9
+      maxThreadFileBufferSize 2e9;
+
+      //- masterUncollated: non-blocking buffer size.
+      // If the file exceeds this buffer size scheduled transfer is used.
+      // Default: 2e9
+      maxMasterFileBufferSize 2e9;
+}
+
+
+functions
+{
+    surfaces
+    {
+        type            surfaces;
+        libs
+        (
+            "libsampling.so"
+        );
+        writeControl   outputTime;
+
+        surfaceFormat  vtk;
+        formatOptions
+        {
+            vtk
+            {
+                legacy true;
+                format ascii;
+            } 
+        }
+        fields
+        (
+            p U alpha.oil
+        );
+        
+        interpolationScheme cellPoint;
+        
+        surfaces
+        (
+            isoAlpha
+            {
+                type        isoSurface;
+                isoField    alpha.oil;
+                isoValue    0.5;
+                interpolate true;
+            }
+        );
+    }
+    plic
+    {
+        type            surfaces;
+        libs            (geometricVoF postProcess);
+        writeControl    writeTime;
+
+        surfaceFormat   vtp;
+        fields          (p U);
+
+        interpolationScheme cell;
+
+        surfaces
+        {
+            freeSurf
+            {
+                type            interface;
+                interpolate     false;
+            }
+        }
+    }
+    wettedArea
+    {
+	type wettedArea;
+	libs ("libwettedAreaFunctionObject.so");
+	phaseIndicator alpha.oil;
+	patchName bottom;
+    }
+
+    contactAngleEvaluation
+    {
+     	type contactAngleEvaluation;
+        libs ("libcontactAngleEvaluationFunctionObject.so");
+        phaseIndicator alpha.oil;
+        centre (@!dropCx!@ @!dropCy!@ @!dropCz!@);
+    }
+
+}
+// ************************************************************************* //
+

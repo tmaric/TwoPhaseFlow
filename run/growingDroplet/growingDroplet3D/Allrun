@@ -1,0 +1,28 @@
+#!/bin/sh
+cd ${0%/*} || exit 1                        # Run from this directory
+. $WM_PROJECT_DIR/bin/tools/RunFunctions    # Tutorial run functions
+
+# Preprocessing
+rm -rf 0 && cp -r 0.org 0 
+touch case.foam
+
+runApplication blockMesh
+runApplication checkMesh
+
+# Create the inlet patch using topoSet and createPatch
+runApplication topoSet
+runApplication createPatch -overwrite
+
+# Initialization
+runApplication surfaceInitVolumeFraction
+
+runApplication decomposePar
+
+nohup mpirun -n 4 interFlow -parallel > log.interFlow 2>&1 &
+
+## Postprocessing
+#runApplication foamToVTK
+#
+#runApplication decomposePar
+#------------------------------------------------------------------------------
+
