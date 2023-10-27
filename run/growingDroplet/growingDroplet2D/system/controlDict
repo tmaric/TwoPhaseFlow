@@ -29,7 +29,7 @@ deltaT          1.0e-5;
 
 writeControl    timeStep;
 
-writeInterval   10;
+writeInterval   100;
 
 purgeWrite      0;
 
@@ -146,13 +146,13 @@ functions
 	patchName bottom;
     }
 
-    contactAngleEvaluation
-    {
-     	type contactAngleEvaluation;
-        libs ("libcontactAngleEvaluationFunctionObject.so");
-        phaseIndicator alpha.oil;
-        centre (@!dropCx!@ @!dropCy!@ @!dropCz!@);
-    }
+    //contactAngleEvaluation
+    //{
+    // 	type contactAngleEvaluation;
+    //    libs ("libcontactAngleEvaluationFunctionObject.so");
+    //    phaseIndicator alpha.oil;
+    //    centre (@!dropCx!@ @!dropCy!@ @!dropCz!@);
+    //}
 
 }
 // ************************************************************************* //

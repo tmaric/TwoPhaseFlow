@@ -26,6 +26,7 @@ solvers
         snapTol         1e-12;
         clip            true;
         reconstructionScheme wettingPlicRdf;
+        iterations      10;
         nAlphaSubCycles 1;
         cAlpha          1; // Note: cAlpha is not used by isoAdvector but must
                            // be specified because interfacePropertes object

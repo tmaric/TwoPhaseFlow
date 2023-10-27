@@ -26,10 +26,13 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "error.H"
 #include "fdtDynamicAlphaContactAngleFvPatchScalarField.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
+#include "messageStream.H"
 #include "scalarField.H"
+#include "volFieldsFwd.H"
 #include "volMesh.H"
 #include "volFields.H"
 #include "unitConversion.H"
@@ -39,27 +42,101 @@ License
 
 bool Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::hasContactLine(label faceI) const
 {
-    // TODO: Only works for 2D!
-    // Idea: a contact line cell has a alpha=0 neighbor.
-    const auto& connectedFaceLabels = this->patch().patch().faceFaces()[faceI];
-    const auto alphaInternalTmp = this->patchInternalField();
-    const auto& alphaInternal = alphaInternalTmp.cref();
-    bool contactLine = false;
-    const scalar tol = 1.0e-8;
+    // TODO: only works for 2D, remove
+    //const auto& connectedFaceLabels = this->patch().patch().faceFaces()[faceI];
+    //const auto alphaInternalTmp = this->patchInternalField();
+    //const auto& alphaInternal = alphaInternalTmp.cref();
+    //const scalar tol = 1.0e-8;
 
-    forAll(connectedFaceLabels, I)
+    //forAll(connectedFaceLabels, I)
+    //{
+        //// Don't use zero, but a small value as tolerance
+        //if ((alphaInternal[connectedFaceLabels[I]] < tol) && (alphaInternal[faceI] > tol))
+        //{
+            //contactLine = true;
+            //Pout<< "local face ID " << faceI
+                //<< "; connected face ID " << connectedFaceLabels[I]
+                //<< endl;
+        //}
+    //}
+
+    // Look up PLIC normals and positions. 
+    const auto& db = this->db(); 
+
+    const auto normalsName = IOobject::groupName
+    (
+        "interfaceNormal", 
+        this->internalField().group()
+    );
+    const auto centresName = IOobject::groupName
+    (
+        "interfaceCentre", 
+        this->internalField().group()
+    );
+
+    bool hasNormals = db.found(normalsName);
+    if (!hasNormals)
     {
-        // Don't use zero, but a small value as tolerance
-        if ((alphaInternal[connectedFaceLabels[I]] < tol) && (alphaInternal[faceI] > tol))
+        // This BC is updated before interface reconstruction.
+        // Do nothing if PLIC fields are not available in the registry. 
+        return false;
+    }
+
+    bool hasCentres = db.found(centresName);
+    if (!hasCentres)
+    {
+        // This BC is updated before interface reconstruction.
+        // Do nothing if PLIC fields are not available in the registry. 
+        return false;
+    }
+
+    const volVectorField& interfaceNormal = 
+        db.lookupObject<volVectorField>(normalsName);
+
+    const volVectorField& interfaceCentre = 
+        db.lookupObject<volVectorField>(centresName);
+
+
+    // Get patch fields for interface normals and centers
+    const fvPatch& patch = this->patch();
+    const label patchIndex = patch.index();
+    const auto& pInterfaceNormals = interfaceNormal.boundaryField()[patchIndex];
+    const auto& pInterfaceCentres = interfaceCentre.boundaryField()[patchIndex];
+
+    // Get patch internal fields of normals and centers
+    const auto pInternalNormalsTmp = pInterfaceNormals.patchInternalField();
+    const auto& pInternalNormals = pInternalNormalsTmp.cref(); 
+    const auto pInternalCentresTmp = pInterfaceCentres.patchInternalField();
+    const auto& pInternalCentres = pInternalCentresTmp.cref(); 
+
+    const vector& cellInterfaceNormal = pInternalNormals[faceI];
+    const vector& cellInterfaceCentre = pInternalCentres[faceI];
+
+    const auto& mesh = interfaceNormal.mesh();
+    const auto& meshPoints = mesh.points();
+    const auto& meshFaces = mesh.faces();
+    const auto& thisFace = meshFaces[patch.start() + faceI];
+
+    // Get face points. 
+    for(auto pointI = 0; pointI < (thisFace.size() - 1); ++pointI)
+    {
+        // Compute the signed distance of the first point.
+        const point& firstFacePoint = meshPoints[thisFace[pointI]];
+        const scalar firstDist = (firstFacePoint - cellInterfaceCentre) & 
+            cellInterfaceNormal;
+
+        // Compute the signed distance of the second point.
+        const point& secondFacePoint = meshPoints[thisFace[pointI + 1]];
+        const scalar secondDist = (secondFacePoint - cellInterfaceCentre) & 
+            cellInterfaceNormal;
+
+        if (firstDist * secondDist < 0)
         {
-            contactLine = true;
-            Pout<< "local face ID " << faceI
-                << "; connected face ID " << connectedFaceLabels[I]
-                << endl;
+            return true;
         }
     }
 
-    return contactLine;
+    return false;
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -244,7 +321,8 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
                     );
 
                 // Equation 31 in the manuscript. Limit change to 5.0 degrees maximum
-                scalar dtheta = max(5.0, Cstar * mag(uwall[faceI]));
+                // scalar dtheta = max(5.0, Cstar * mag(uwall[faceI]));
+                scalar dtheta = Cstar * mag(uwall[faceI]);
 
                 if (uwall[faceI] < 0)
                 {
