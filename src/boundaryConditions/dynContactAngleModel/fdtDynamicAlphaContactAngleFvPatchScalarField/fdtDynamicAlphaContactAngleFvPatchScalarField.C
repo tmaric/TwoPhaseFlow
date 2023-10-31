@@ -226,7 +226,7 @@ Foam::tmp<Foam::scalarField>
 Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
 (
     const fvPatchVectorField& Up,
-    const fvsPatchVectorField& nHat
+    const fvsPatchVectorField& nHat 
 ) const
 {
     // Get the interface normals at the wall.
@@ -295,12 +295,13 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     tmp<scalarField> thetafTmp = Foam::radToDeg(Foam::acos(nHat & nf));
     scalarField& thetaf = thetafTmp.ref();
 
+
     // For all boundary faces
     Info << "\n--- Entering loop over FDT boundary faces ---" << endl;
     forAll(thetaf, faceI)
     {
         // If we are in a contact-line cell
-        if (mag(nHat[faceI]) > 0 && hasContactLine(faceI))
+        if (mag(nHat[faceI]) > 0) //TODO(TM): && hasContactLine(faceI))
         {
             Pout << "theta_old = " << thetaf[faceI] << endl;
             if (thetaf[faceI] < thetaR_) // Receding regime
@@ -321,8 +322,8 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
                     );
 
                 // Equation 31 in the manuscript. Limit change to 5.0 degrees maximum
-                // scalar dtheta = max(5.0, Cstar * mag(uwall[faceI]));
-                scalar dtheta = Cstar * mag(uwall[faceI]);
+                scalar dtheta = min(5.0, Cstar * mag(uwall[faceI]));
+                // scalar dtheta = Cstar * mag(uwall[faceI]);
 
                 if (uwall[faceI] < 0)
                 {
@@ -351,8 +352,12 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
                  << "\n\tnWall = " << nWall[faceI]
                  << "\n\tuwall = " << uwall[faceI]
                  <<endl;
+
         }
     }
+
+    // TODO(TM): check 4 angles are written in 2D. 
+    //Info  << thetafTmp() << endl;
 
     return thetafTmp; 
 }

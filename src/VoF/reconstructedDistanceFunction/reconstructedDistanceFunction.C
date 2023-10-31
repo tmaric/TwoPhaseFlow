@@ -359,68 +359,69 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
 
     }
 
-    forAll(reconDistFunc.boundaryField(), patchI)
-    {
-        if (reconDistFunc.boundaryField().types()[patchI] == "calculated")
-        {
-            const polyPatch pp = mesh_.boundaryMesh()[patchI];
-            fvPatchScalarField& pRDF = reconDistFunc.boundaryFieldRef()[patchI];
-            forAll(pRDF, i)
-            {
-                const label& pCellI = pp.faceCells()[i];
+    //forAll(reconDistFunc.boundaryField(), patchI)
+    //{
+        //if (reconDistFunc.boundaryField().types()[patchI] == "calculated")
+        //{
 
-                if (nextToInterface_[pCellI])
-                {
-                    scalar averageDist = 0;
-                    scalar avgWeight = 0;
-                    const point p = mesh_.C().boundaryField()[patchI][i];
+            //const polyPatch pp = mesh_.boundaryMesh()[patchI];
+            //fvPatchScalarField& pRDF = reconDistFunc.boundaryFieldRef()[patchI];
+            //forAll(pRDF, i)
+            //{
+                //const label& pCellI = pp.faceCells()[i];
 
-                    forAll(stencil[pCellI],j)
-                    {
-                        const label& gblIdx = stencil[pCellI][j];
-                        vector n =
-                            -distribute.getValue(normal,mapNormal,gblIdx);
-                        if (mag(n) != 0)
-                        {
-                            n /= mag(n);
-                            vector c =
-                                distribute.getValue(centre,mapCentres,gblIdx);
-                            vector distanceToIntSeg = (c - p);
-                            scalar distToSurf = distanceToIntSeg & (n);
-                            scalar weight = 0;
+                //if (nextToInterface_[pCellI])
+                //{
+                    //scalar averageDist = 0;
+                    //scalar avgWeight = 0;
+                    //const point p = mesh_.C().boundaryField()[patchI][i];
 
-                            if (mag(distanceToIntSeg) != 0)
-                            {
-                                distanceToIntSeg /= mag(distanceToIntSeg);
-                                weight = sqr(mag(distanceToIntSeg & n));
-                            }
-                            else // exactly on the center
-                            {
-                                weight = 1;
-                            }
-                            averageDist += distToSurf * weight;
-                            avgWeight += weight;
-                        }
-                    }
+                    //forAll(stencil[pCellI],j)
+                    //{
+                        //const label& gblIdx = stencil[pCellI][j];
+                        //vector n =
+                            //-distribute.getValue(normal,mapNormal,gblIdx);
+                        //if (mag(n) != 0)
+                        //{
+                            //n /= mag(n);
+                            //vector c =
+                                //distribute.getValue(centre,mapCentres,gblIdx);
+                            //vector distanceToIntSeg = (c - p);
+                            //scalar distToSurf = distanceToIntSeg & (n);
+                            //scalar weight = 0;
 
-                    if (avgWeight != 0)
-                    {
-                        pRDF[i] = averageDist / avgWeight;
-                    }
-                    else
-                    {
-                        pRDF[i] = 0;
-                    }
+                            //if (mag(distanceToIntSeg) != 0)
+                            //{
+                                //distanceToIntSeg /= mag(distanceToIntSeg);
+                                //weight = sqr(mag(distanceToIntSeg & n));
+                            //}
+                            //else // exactly on the center
+                            //{
+                                //weight = 1;
+                            //}
+                            //averageDist += distToSurf * weight;
+                            //avgWeight += weight;
+                        //}
+                    //}
+
+                    //if (avgWeight != 0)
+                    //{
+                        //pRDF[i] = averageDist / avgWeight;
+                    //}
+                    //else
+                    //{
+                        //pRDF[i] = 0;
+                    //}
 
 
-                }
-                else
-                {
-                    pRDF[i] = 0;
-                }
-            }
-        }
-    }
+                //}
+                //else
+                //{
+                    //pRDF[i] = 0;
+                //}
+            //}
+        //}
+    //}
 
     reconDistFunc.correctBoundaryConditions();
 
@@ -705,15 +706,26 @@ void Foam::reconstructedDistanceFunction::updateContactAngle
                 );
 
             fvsPatchVectorField& nHatp = nHatb[patchi];
+            const auto& patch = nHatp.patch();
             const scalarField theta
             (
                 convertToRad*acap.theta(U.boundaryField()[patchi],nHatp)
             );
-            scalarField projDist(acap.patch().nf() & acap.patch().delta());
-            scalarField diff(projDist-(1/acap.patch().deltaCoeffs()));
 
-            RDFbf[patchi] = projDist*cos(theta)
-                         +  RDFbf[patchi].patchInternalField();
+            // \psi_b = \psi_c - (\nabla \psi)_b \cdot d_b 
+            //        = \psi_c - (\nabla \psi)_b |d_b| \cdot -n_b  
+            //        = \psi_c + [(\nabla \psi)_b \cdot n_b] |d_b| 
+            //        = \psi_c + cos(\theta) |d_b| 
+            // TODO(TM): works for orthogonal face-center/cell-center connection
+            Info << "Adjust signed distance at boundary from dynamic contact angle." << endl;
+            RDFbf[patchi] = RDFbf[patchi].patchInternalField() + 
+                            Foam::cos(theta)*Foam::pow(patch.deltaCoeffs(), -1);
+
+            //scalarField projDist(acap.patch().nf() & acap.patch().delta());
+            //scalarField diff(projDist-(1/acap.patch().deltaCoeffs()));
+
+            //RDFbf[patchi] = projDist*cos(theta)
+                         //+  RDFbf[patchi].patchInternalField();
 
         }
     }

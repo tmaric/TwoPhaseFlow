@@ -354,6 +354,7 @@ void Foam::reconstruction::wettingPlicRdf::centreAndNormalBC()
         }
     }
 
+
     forAll(boundary, patchi)
     {
         if (isA<alphaContactAngleTwoPhaseFvPatchScalarField>(abf[patchi]))
@@ -378,8 +379,23 @@ void Foam::reconstruction::wettingPlicRdf::centreAndNormalBC()
                 boundary[patchi].nf()
             );
 
+            // We need to make sure that the change in the normal reflects in the
+            // change of the signed distance.
+            // Get non-constant access to cell-centered and boundary signed distance 
+            volScalarField& signedDistance = 
+                this->db().lookupObjectRef<volScalarField>("reconstructedDistanceFunction");
+            fvPatchScalarField& patchSignedDistance = 
+                signedDistance.boundaryFieldRef()[patchi];
+
+            Info << "Patch signed distance type = " << patchSignedDistance.type() << endl;
+
+            // Face-centers
+            const surfaceVectorField& Cf = mesh_.Cf();
+            // Patch face-centers
+            const fvsPatchVectorField& patchCf = Cf.boundaryField()[patchi];
+
             // Reset nHatp to correspond to the contact angle
-            forAll(nbf[patchi],i)
+            forAll(nbf[patchi], i)
             {
                 const label celli = boundary[patchi].faceCells()[i];
                 const label faceI = boundary[patchi].start() + i;
@@ -398,24 +414,30 @@ void Foam::reconstruction::wettingPlicRdf::centreAndNormalBC()
                     {
                         //const point cutEdgeCentre = average(cutFace.surfacePoints());
 
-                        // project Normal on the face
-                        vector projN = (tensor::I - nf[i]*nf[i]) & n;
+                        //// Compute the tangential projection on the face normal nf of n.
+                        //vector projN = (tensor::I - nf[i]*nf[i]) & n;
+                        //// Normalize projN 
+                        //projN /= mag(projN) + SMALL;
 
-                        // normalise
-                        projN /= mag(projN) + SMALL;
+                        //vector nTheta = sin(theta[i])*nf[i] - cos(theta[i])*projN;
+                        //vector nHat =  cos(theta[i])*nf[i] + sin(theta[i])*projN;
 
-                        vector nTheta = sin(theta[i])*nf[i] - cos(theta[i])*projN;
-                        vector nHat =  cos(theta[i])*nf[i] + sin(theta[i])*projN;
+                        // TODO(TM): remove the ghost point of the PLIC centroid.
+                        //cbf[patchi][i] = centre_[celli] + 2*nTheta/boundary[patchi].deltaCoeffs()[i]; // should point outside of the domain
+                        //nbf[patchi][i] = nHat*mag(normal_[celli]);
 
-                        cbf[patchi][i] = centre_[celli] + 2*nTheta/boundary[patchi].deltaCoeffs()[i]; // should point outside of the domain
-                        nbf[patchi][i] = nHat*mag(normal_[celli]);
+                        // A1. prescribe PLIC normal by the volume-fraction dynamic contact angle BC. 
+                        //normal_[celli] = nbf[patchi][i];
+                        //interfaceNormal_[celli] = nbf[patchi][i];
+                        // A2. set the signed distance from the dynamic contact angle normal (centroid is fixed). 
+                        //patchSignedDistance[i] = (patchCf[i] - centre_[celli]) & 
+                            //(interfaceNormal_[celli] / mag(interfaceNormal_[celli]));
+                            
+                        // B1. set the signed distance from the dynamic contact angle normal (centroid is fixed). 
+                        //patchSignedDistance[i] = (patchCf[i] - centre_[celli]) & 
+                            //(interfaceNormal_[celli] / mag(interfaceNormal_[celli]));
 
-                        // Prescribe PLIC normal to the normal given by the volume-fraction dynamic contact angle BC. 
-                        normal_[celli] = nbf[patchi][i];
-                        // TODO(TM): look into this.
-                        interfaceNormal_[celli] = nbf[patchi][i];
                     }
-
                 }
                 else
                 {
@@ -648,7 +670,7 @@ void Foam::reconstruction::wettingPlicRdf::reconstruct(bool forceUpdate)
                 exchangeFields,
                 false
             );
-            // RDF_.updateContactAngle(alpha1_, U_, nHatb);
+            RDF_.updateContactAngle(alpha1_, U_, nHatb);
             gradSurf(RDF_);
             calcResidual(normalResidual);
         }

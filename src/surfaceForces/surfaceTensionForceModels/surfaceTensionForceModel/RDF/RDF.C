@@ -221,34 +221,44 @@ void Foam::RDF::correctContactAngle
                 );
 
             fvsPatchVectorField& nHatp = nHatb[patchi];
+
             const scalarField theta
             (
                 convertToRad*acap.theta(U_.boundaryField()[patchi], nHatp)
             );
 
-            const vectorField nf
-            (
-                boundary[patchi].nf()
-            );
+            // n_Ca . n_b  = cos(theta), the Gauss divergence operator does: 
+            // \sum_f [(\nabla \psi) \cdot n_b] n_b \cdot n_b |S_f|  
+            // Only works with Gauss!  
+            auto nfTmp = nHatp.patch().nf();
+            const auto& nf = nfTmp.cref();
+            nHatp = nf * cos(theta);
 
-            // Reset nHatp to correspond to the contact angle
+            Info << "Adjust RDF gradient from dynamic CA BC" << endl; 
 
-            const scalarField a12(nHatp & nf);
-            const scalarField b1(cos(theta));
+            //const vectorField nf
+            //(
+                //boundary[patchi].nf()
+            //);
 
-            scalarField b2(nHatp.size());
-            forAll(b2, facei)
-            {
-                b2[facei] = cos(acos(a12[facei]) - theta[facei]);
-            }
+            //// Reset nHatp to correspond to the contact angle
 
-            const scalarField det(1.0 - a12*a12);
+            //const scalarField a12(nHatp & nf);
+            //const scalarField b1(cos(theta));
 
-            scalarField a((b1 - a12*b2)/det);
-            scalarField b((b2 - a12*b1)/det);
+            //scalarField b2(nHatp.size());
+            //forAll(b2, facei)
+            //{
+                //b2[facei] = cos(acos(a12[facei]) - theta[facei]);
+            //}
 
-            nHatp = a*nf + b*nHatp;
-            nHatp /= (mag(nHatp) + deltaN_.value());
+            //const scalarField det(1.0 - a12*a12);
+
+            //scalarField a((b1 - a12*b2)/det);
+            //scalarField b((b2 - a12*b1)/det);
+
+            //nHatp = a*nf + b*nHatp;
+            //nHatp /= (mag(nHatp) + deltaN_.value());
 
             acap.gradient() = (nf & nHatp)*mag(gradAlphaf[patchi]);
             acap.evaluate();
@@ -326,28 +336,18 @@ void Foam::RDF::correct()
     // correct contact angle
     correctContactAngle(normalVec.boundaryFieldRef(), interfaceVec.boundaryFieldRef());
 
-
-    if (curvFromTr_)
-    {
-        const fvBoundaryMesh& boundary = mesh.boundary();
-
-        forAll(boundary, patchi)
-        {
-                fvPatchVectorField& nHatp = gradRDF.boundaryFieldRef()[patchi];
-                nHatp = normalVec.boundaryFieldRef()[patchi];
-        }
-    }
-
     // Face unit interface normal flux
     nHatf_ = normalVec & Sf;
 
     // Simple expression for curvature
     if (curvFromTr_)
     {
+        Info << "Curvature from trace. " << endl;
         K_ = -tr(fvc::grad(gradRDF));
     }
     else
     {
+        Info << "Curvature from div. " << endl;
         K_ = -fvc::div(nHatf_);
     }
 

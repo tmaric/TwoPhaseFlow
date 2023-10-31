@@ -12,12 +12,12 @@ runApplication setFields
 
 runApplication decomposePar
 
-if notTest "$@"
-then
-    runParallel $(getApplication)
-else
-    mpirun -oversubscribe -np 4 $(getApplication) -parallel  > log.$(getApplication)
-fi
+#if notTest "$@"
+#then
+    #runParallel $(getApplication)
+#else
+    #mpirun -oversubscribe -np 4 $(getApplication) -parallel  > log.$(getApplication)
+#fi
 
 
 #------------------------------------------------------------------------------

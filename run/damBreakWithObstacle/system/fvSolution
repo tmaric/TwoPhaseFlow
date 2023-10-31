@@ -32,7 +32,7 @@ solvers
         nAlphaSubCycles 1;
         cAlpha          1;
         advectionScheme isoAdvection;
-        reconstructionScheme plicRDF;
+        reconstructionScheme wettingPlicRdf;
         vof2IsoTol      1e-8;
     }
 

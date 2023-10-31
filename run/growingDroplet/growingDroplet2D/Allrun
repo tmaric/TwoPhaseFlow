@@ -19,7 +19,7 @@ runApplication surfaceInitVolumeFraction
 #runApplication decomposePar
 
 #nohup mpirun -n 4 interFlow -parallel > log.interFlow 2>&1 &
-interFlow > log.interFlow 2>&1 &
+runApplication interFlow 
 
 
 ## Postprocessing

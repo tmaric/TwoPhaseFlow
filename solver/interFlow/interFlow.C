@@ -52,6 +52,13 @@ int main(int argc, char *argv[])
     #include "CourantNo.H"
     #include "setInitialDeltaT.H"
 
+    // TODO(TM): we may not need this, 
+    // timeIndex-1 PLIC interface is from timeIndex-0.
+    // Visualize PLIC interface in time 0. 
+    advector->surf().reconstruct();
+    auto& fObjects = runTime.functionObjects(); 
+    fObjects.execute();
+
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     Info<< "\nStarting time loop\n" << endl;
 

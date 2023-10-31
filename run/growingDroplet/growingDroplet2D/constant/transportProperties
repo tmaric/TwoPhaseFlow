@@ -36,7 +36,8 @@ sigma               0.0329;
 surfaceForces
 {
     sigma $sigma;
-    surfaceTensionForceModel    RDF; //fitParaboloid RDF
+    surfaceTensionForceModel    RDF; // RDF; //fitParaboloid RDF
+    curvFromTr                  off;
     accelerationForceModel      gravity;
     deltaFunctionModel          alphaCSF;
 }

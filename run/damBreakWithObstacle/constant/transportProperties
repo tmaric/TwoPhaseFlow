@@ -31,7 +31,8 @@ air
     rho             1;
 }
 
-sigma           0.07;
+//sigma           0.07;
+sigma           0.0;
 
 surfaceForces
 {
