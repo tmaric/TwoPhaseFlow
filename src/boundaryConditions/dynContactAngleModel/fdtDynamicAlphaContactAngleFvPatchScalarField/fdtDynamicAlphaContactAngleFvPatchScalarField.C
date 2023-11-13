@@ -52,7 +52,7 @@ bool Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::hasContactLine(label f
     //{
         //// Don't use zero, but a small value as tolerance
         //if ((alphaInternal[connectedFaceLabels[I]] < tol) && (alphaInternal[faceI] > tol))
-        //{
+        //{n einer Kapillare, oder bei einer Ausbreitung eines Tropfens
             //contactLine = true;
             //Pout<< "local face ID " << faceI
                 //<< "; connected face ID " << connectedFaceLabels[I]
@@ -152,7 +152,20 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(0.0),
     thetaA_(0.0),
     thetaR_(0.0),
-    dxdy_(1.0)
+    dxdy_(1.0),
+    contactLineAngle_
+    (
+        IOobject
+        (
+            "clangle", 
+            this->patch().boundaryMesh().mesh().time().timeName(),  
+            this->patch().boundaryMesh().mesh(), 
+            IOobject::NO_READ, 
+            IOobject::AUTO_WRITE
+        ),
+        this->patch().boundaryMesh().mesh(), 
+        dimensionedScalar("clangle", dimless, 0)
+    )
 {}
 
 
@@ -169,7 +182,20 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
-    dxdy_(gcpsf.dxdy_)
+    dxdy_(gcpsf.dxdy_),
+    contactLineAngle_
+    (
+        IOobject
+        (
+            "clangle", 
+            this->patch().boundaryMesh().mesh().time().timeName(),  
+            this->patch().boundaryMesh().mesh(),
+            IOobject::NO_READ, 
+            IOobject::AUTO_WRITE
+        ),
+        this->patch().boundaryMesh().mesh(), 
+        dimensionedScalar("clangle", dimless, 0)
+    )
 {}
 
 
@@ -185,7 +211,20 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(dict.get<scalar>("theta0")),
     thetaA_(dict.get<scalar>("thetaA")),
     thetaR_(dict.get<scalar>("thetaR")),
-    dxdy_(dict.get<scalar>("dxdy"))
+    dxdy_(dict.get<scalar>("dxdy")),
+    contactLineAngle_
+    (
+        IOobject
+        (
+            "clangle", 
+            this->patch().boundaryMesh().mesh().time().timeName(),  
+            this->patch().boundaryMesh().mesh(),
+            IOobject::NO_READ, 
+            IOobject::AUTO_WRITE
+        ),
+        this->patch().boundaryMesh().mesh(), 
+        dimensionedScalar("clangle", dimless, 0)
+    )
 {
     evaluate();
 }
@@ -201,7 +240,20 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
-    dxdy_(gcpsf.dxdy_)
+    dxdy_(gcpsf.dxdy_),
+    contactLineAngle_
+    (
+        IOobject
+        (
+            "clangle", 
+            this->patch().boundaryMesh().mesh().time().timeName(),  
+            this->patch().boundaryMesh().mesh(),
+            IOobject::NO_READ, 
+            IOobject::AUTO_WRITE
+        ),
+        this->patch().boundaryMesh().mesh(), 
+        dimensionedScalar("clangle", dimless, 0)
+    )
 {}
 
 
@@ -216,7 +268,20 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
-    dxdy_(gcpsf.dxdy_)
+    dxdy_(gcpsf.dxdy_),
+    contactLineAngle_
+    (
+        IOobject
+        (
+            "clangle", 
+            this->patch().boundaryMesh().mesh().time().timeName(),  
+            this->patch().boundaryMesh().mesh(), 
+            IOobject::NO_READ, 
+            IOobject::AUTO_WRITE
+        ),
+        this->patch().boundaryMesh().mesh(), 
+        dimensionedScalar("clangle", dimless, 0)
+    )
 {}
 
 
@@ -295,6 +360,15 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     tmp<scalarField> thetafTmp = Foam::radToDeg(Foam::acos(nHat & nf));
     scalarField& thetaf = thetafTmp.ref();
 
+    // Visualization.
+    const auto& patch = this->patch();
+    const label patchIndex =patch.index();
+    auto& clangleBoundaryField = contactLineAngle_.boundaryFieldRef();
+    auto& clanglePatchField = clangleBoundaryField[patchIndex];
+    
+    // Visualization of the contact angle
+    const fvMesh& mesh = nu.mesh(); 
+    const auto& faceOwner = mesh.faceOwner(); 
 
     // For all boundary faces
     Info << "\n--- Entering loop over FDT boundary faces ---" << endl;
@@ -303,6 +377,9 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
         // If we are in a contact-line cell
         if (mag(nHat[faceI]) > 0) //TODO(TM): && hasContactLine(faceI))
         {
+            // Visualize current PLIC contact angle as a cell-centered value.
+            contactLineAngle_[faceOwner[patch.start() + faceI]] = thetaf[faceI];
+
             Pout << "theta_old = " << thetaf[faceI] << endl;
             if (thetaf[faceI] < thetaR_) // Receding regime
             {
@@ -346,6 +423,8 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
                     Pout << "Do nothing thetaf = " << thetaf[faceI] << endl;
                 }
             }
+            // Visualize the new dynamic contact angle as a face-centered value.
+            clanglePatchField[faceI] = thetaf[faceI];
             Pout << "Contact line on face " << faceI
                  << "Cell ID " << nu.mesh().faceOwner()[faceI + this->patch().start()]
                  << "\n\ttheta = " << thetaf[faceI]

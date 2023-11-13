@@ -18,14 +18,15 @@ FoamFile
 scale   0.001;
 
 // Length (x-direction)and height (z-direction) of domain
-// W (y-direction) is used as empty direction for 2D
 L   5;
-W   0.01;   
 H   2.5;
 
 // Resolution in each direction
 nl  100;
 nh  50;
+
+// W (y-direction) is used as empty direction for 2D
+W   #eval {$L / $nl};   
 
 vertices
 (

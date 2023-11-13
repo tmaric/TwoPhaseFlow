@@ -315,6 +315,8 @@ void Foam::RDF::correct()
 
     RDF_.constructRDFOctree(RDF_.nextToInterface(),FaceCentreField_,FaceNormalField_);
 
+    // This plays no role in dynamic contact angle that sets the signed distance 
+    // at the wall for FDT surface tension force adjustment.
     RDF_.correctBoundaryConditions(); // update proc patches
 
     dimensionedScalar deltaN
@@ -327,6 +329,8 @@ void Foam::RDF::correct()
 
     gradRDF /= (mag(gradRDF)+deltaN*dimensionedScalar("0", dimLength, 1));
 
+    // This plays no role in dynamic contact angle that sets the gradRDF 
+    // at the wall for FDT surface tension force adjustment.
     gradRDF.correctBoundaryConditions();
 
     surfaceVectorField interfaceVec("interfaceVec",fvc::interpolate((gradRDF)));

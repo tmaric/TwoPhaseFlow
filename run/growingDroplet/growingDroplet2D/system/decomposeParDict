@@ -20,7 +20,7 @@ method          simple;
 
 coeffs
 {
-    n           (2 2 1);
+    n           (4 1 1);
 }
 
 

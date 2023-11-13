@@ -48,6 +48,8 @@ SourceFiles
 #define fdtDynamicAlphaContactAngleFvPatchScalarField_H
 
 #include "alphaContactAngleTwoPhaseFvPatchScalarField.H"
+#include "volFields.H"
+#include "fvMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -76,6 +78,8 @@ class fdtDynamicAlphaContactAngleFvPatchScalarField
         //- Scaling factor
         scalar dxdy_;
 
+        //- Visualization 
+        mutable volScalarField contactLineAngle_;
 
    // Private member functions
        

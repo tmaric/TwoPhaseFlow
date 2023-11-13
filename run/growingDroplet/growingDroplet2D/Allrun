@@ -16,10 +16,11 @@ runApplication createPatch -overwrite
 # Initialization
 runApplication surfaceInitVolumeFraction
 
-#runApplication decomposePar
+runApplication decomposePar
 
-#nohup mpirun -n 4 interFlow -parallel > log.interFlow 2>&1 &
-runApplication interFlow 
+runParallel interFlow 
+
+#runApplication interFlow 
 
 
 ## Postprocessing

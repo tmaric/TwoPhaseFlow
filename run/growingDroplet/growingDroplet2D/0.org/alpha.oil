@@ -58,7 +58,7 @@ boundaryField
 	theta0 	    60;             // Not used by boundary condition
         thetaA      80;    // Advancing contact angle
         thetaR      40;    // Receding contact angle
-        dxdy        5;              // Cell aspect ratio, 1 for uniform meshes
+        dxdy        1;              // Cell aspect ratio, 1 for uniform meshes
 	limit 		none;
     }
 }
