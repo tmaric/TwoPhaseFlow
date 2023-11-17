@@ -27,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "error.H"
-#include "fdtDynamicAlphaContactAngleFvPatchScalarField.H"
+#include "fdtDynamicAlphaContactAnglePlic.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
 #include "messageStream.H"
@@ -36,11 +36,11 @@ License
 #include "volMesh.H"
 #include "volFields.H"
 #include "unitConversion.H"
-
+#include "cutFacePLIC.H"
 
 // * * * * * * * * * * * Private Member Functions * * * * * * * * * * * * * * //
 
-bool Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::hasContactLine(label faceI) const
+bool Foam::fdtDynamicAlphaContactAnglePlic::hasContactLine(label faceI) const
 {
     // TODO: only works for 2D, remove
     //const auto& connectedFaceLabels = this->patch().patch().faceFaces()[faceI];
@@ -141,8 +141,8 @@ bool Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::hasContactLine(label f
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::
-fdtDynamicAlphaContactAngleFvPatchScalarField
+Foam::fdtDynamicAlphaContactAnglePlic::
+fdtDynamicAlphaContactAnglePlic
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF
@@ -152,7 +152,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(0.0),
     thetaA_(0.0),
     thetaR_(0.0),
-    dxdy_(1.0),
     contactLineAngle_
     (
         IOobject
@@ -169,10 +168,10 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 {}
 
 
-Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::
-fdtDynamicAlphaContactAngleFvPatchScalarField
+Foam::fdtDynamicAlphaContactAnglePlic::
+fdtDynamicAlphaContactAnglePlic
 (
-    const fdtDynamicAlphaContactAngleFvPatchScalarField& gcpsf,
+    const fdtDynamicAlphaContactAnglePlic& gcpsf,
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
     const fvPatchFieldMapper& mapper
@@ -182,7 +181,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
-    dxdy_(gcpsf.dxdy_),
     contactLineAngle_
     (
         IOobject
@@ -199,8 +197,8 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 {}
 
 
-Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::
-fdtDynamicAlphaContactAngleFvPatchScalarField
+Foam::fdtDynamicAlphaContactAnglePlic::
+fdtDynamicAlphaContactAnglePlic
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
@@ -211,7 +209,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(dict.get<scalar>("theta0")),
     thetaA_(dict.get<scalar>("thetaA")),
     thetaR_(dict.get<scalar>("thetaR")),
-    dxdy_(dict.get<scalar>("dxdy")),
     contactLineAngle_
     (
         IOobject
@@ -230,17 +227,16 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 }
 
 
-Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::
-fdtDynamicAlphaContactAngleFvPatchScalarField
+Foam::fdtDynamicAlphaContactAnglePlic::
+fdtDynamicAlphaContactAnglePlic
 (
-    const fdtDynamicAlphaContactAngleFvPatchScalarField& gcpsf
+    const fdtDynamicAlphaContactAnglePlic& gcpsf
 )
 :
     alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf),
     theta0_(gcpsf.theta0_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
-    dxdy_(gcpsf.dxdy_),
     contactLineAngle_
     (
         IOobject
@@ -257,10 +253,10 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 {}
 
 
-Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::
-fdtDynamicAlphaContactAngleFvPatchScalarField
+Foam::fdtDynamicAlphaContactAnglePlic::
+fdtDynamicAlphaContactAnglePlic
 (
-    const fdtDynamicAlphaContactAngleFvPatchScalarField& gcpsf,
+    const fdtDynamicAlphaContactAnglePlic& gcpsf,
     const DimensionedField<scalar, volMesh>& iF
 )
 :
@@ -268,7 +264,6 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
     theta0_(gcpsf.theta0_),
     thetaA_(gcpsf.thetaA_),
     thetaR_(gcpsf.thetaR_),
-    dxdy_(gcpsf.dxdy_),
     contactLineAngle_
     (
         IOobject
@@ -288,7 +283,7 @@ fdtDynamicAlphaContactAngleFvPatchScalarField
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 Foam::tmp<Foam::scalarField>
-Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
+Foam::fdtDynamicAlphaContactAnglePlic::theta
 (
     const fvPatchVectorField& Up,
     const fvsPatchVectorField& nHat 
@@ -368,7 +363,55 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
     
     // Visualization of the contact angle
     const fvMesh& mesh = nu.mesh(); 
-    const auto& faceOwner = mesh.faceOwner(); 
+
+    // Contact line length calculation data
+    const auto& magSf = mesh.magSf();
+    const auto& boundaryMagSf = magSf.boundaryField();
+    const auto& patchMagSf = boundaryMagSf[patchIndex];
+
+    const auto& dCoeffs = mesh.deltaCoeffs();  
+    const auto& boundaryDcoeffs = dCoeffs.boundaryField(); 
+    const auto& patchDcoeffs = boundaryDcoeffs[patchIndex];
+
+    // Look up PLIC normals and positions. 
+    const auto& db = this->db(); 
+
+    const auto normalsName = IOobject::groupName
+    (
+        "interfaceNormal", 
+        this->internalField().group()
+    );
+    const auto centresName = IOobject::groupName
+    (
+        "interfaceCentre", 
+        this->internalField().group()
+    );
+
+    bool hasNormals = db.found(normalsName);
+    if (!hasNormals)
+    {
+        // This BC is updated before interface reconstruction.
+        // Do nothing if PLIC fields are not available in the registry. 
+        thetaf = GREAT;
+        return thetafTmp;
+    }
+
+    bool hasCentres = db.found(centresName);
+    if (!hasCentres)
+    {
+        // This BC is updated before interface reconstruction.
+        // Do nothing if PLIC fields are not available in the registry. 
+        thetaf = GREAT; 
+        return thetafTmp;
+    }
+
+    const volVectorField& interfaceNormal = 
+        db.lookupObject<volVectorField>(normalsName);
+
+    const volVectorField& interfaceCentre = 
+        db.lookupObject<volVectorField>(centresName);
+
+    cutFacePLIC cutFace(mesh);
 
     // For all boundary faces
     Info << "\n--- Entering loop over FDT boundary faces ---" << endl;
@@ -377,8 +420,10 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
         // If we are in a contact-line cell
         if (mag(nHat[faceI]) > 0) //TODO(TM): && hasContactLine(faceI))
         {
+            const label cellI = patch.faceCells()[faceI];
+
             // Visualize current PLIC contact angle as a cell-centered value.
-            contactLineAngle_[faceOwner[patch.start() + faceI]] = thetaf[faceI];
+            contactLineAngle_[cellI] = thetaf[faceI];
 
             Pout << "theta_old = " << thetaf[faceI] << endl;
             if (thetaf[faceI] < thetaR_) // Receding regime
@@ -392,12 +437,35 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
             else // Hysteresis regime
             {
                 // Equation 32 in the manuscript.
-                scalar Cstar = dxdy_ * (thetaA_ - thetaR_) * muwall[faceI]  / 
+                scalar Cstar = patchMagSf[faceI] * patchDcoeffs[faceI] *
+                    (thetaA_ - thetaR_) * muwall[faceI]  / 
                     (
                          mag(Foam::cos(Foam::degToRad(thetaA_)) - 
                              Foam::cos(Foam::degToRad(thetaR_))) * sigmap.value()
                     );
 
+                // Cut the face.
+                label cutStatus = cutFace.calcSubFace
+                (
+                    faceI,
+                    interfaceNormal[cellI],
+                    interfaceCentre[cellI]
+                );
+
+                // If the face is actually cut
+                if(cutStatus == 0)
+                {
+                    const auto& cutPoints = cutFace.subFacePoints(); 
+                    // Geometrical contact line length
+                    scalar Cll = Foam::mag (cutPoints[1] - cutPoints[0]);  
+                    // Scale Cstar with Cll 
+                    Cstar = Cstar / max(Cll, 0.1*Foam::sqrt(patchMagSf[faceI]));
+
+                } else 
+                {
+                    // Use largest possible contact line length sqrt(magSf_b)
+                    Cstar = Cstar / Foam::sqrt(patchMagSf[faceI]);
+                }
                 // Equation 31 in the manuscript. Limit change to 5.0 degrees maximum
                 scalar dtheta = min(5.0, Cstar * mag(uwall[faceI]));
                 // scalar dtheta = Cstar * mag(uwall[faceI]);
@@ -442,13 +510,12 @@ Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::theta
 }
 
 
-void Foam::fdtDynamicAlphaContactAngleFvPatchScalarField::write(Ostream& os) const
+void Foam::fdtDynamicAlphaContactAnglePlic::write(Ostream& os) const
 {
     alphaContactAngleTwoPhaseFvPatchScalarField::write(os);
     os.writeEntry("theta0", theta0_);
     os.writeEntry("thetaA", thetaA_);
     os.writeEntry("thetaR", thetaR_);
-    os.writeEntry("dxdy", dxdy_);
     writeEntry("value", os);
 }
 
@@ -460,7 +527,7 @@ namespace Foam
     makePatchTypeField
     (
         fvPatchScalarField,
-        fdtDynamicAlphaContactAngleFvPatchScalarField
+        fdtDynamicAlphaContactAnglePlic
     );
 }
 

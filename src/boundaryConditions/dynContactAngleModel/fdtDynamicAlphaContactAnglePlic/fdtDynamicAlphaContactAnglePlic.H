@@ -25,7 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::fdtDynamicAlphaContactAngleFvPatchScalarField
+    Foam::fdtDynamicAlphaContactAnglePlic
 
 Description
 
@@ -40,12 +40,12 @@ Description
     (2021): 103808., https://doi.org/10.1016/j.ijmultiphaseflow.2021.103808
 
 SourceFiles
-    fdtDynamicAlphaContactAngleFvPatchScalarField.C
+    fdtDynamicAlphaContactAnglePlic.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef fdtDynamicAlphaContactAngleFvPatchScalarField_H
-#define fdtDynamicAlphaContactAngleFvPatchScalarField_H
+#ifndef fdtDynamicAlphaContactAnglePlic_H
+#define fdtDynamicAlphaContactAnglePlic_H
 
 #include "alphaContactAngleTwoPhaseFvPatchScalarField.H"
 #include "volFields.H"
@@ -60,7 +60,7 @@ namespace Foam
                Class dynamicAlphaContactAngleFvPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class fdtDynamicAlphaContactAngleFvPatchScalarField
+class fdtDynamicAlphaContactAnglePlic
 :
     public alphaContactAngleTwoPhaseFvPatchScalarField
 {
@@ -75,9 +75,6 @@ class fdtDynamicAlphaContactAngleFvPatchScalarField
         //- Limiting receding contact angle
         scalar thetaR_;
 
-        //- Scaling factor
-        scalar dxdy_;
-
         //- Visualization 
         mutable volScalarField contactLineAngle_;
 
@@ -89,20 +86,20 @@ class fdtDynamicAlphaContactAngleFvPatchScalarField
 public:
 
     //- Runtime type information
-    TypeName("fdtHysteresis");
+    TypeName("fdtHysteresisPlic");
 
 
     // Constructors
 
         //- Construct from patch and internal field
-        fdtDynamicAlphaContactAngleFvPatchScalarField
+        fdtDynamicAlphaContactAnglePlic
         (
             const fvPatch&,
             const DimensionedField<scalar, volMesh>&
         );
 
         //- Construct from patch, internal field and dictionary
-        fdtDynamicAlphaContactAngleFvPatchScalarField
+        fdtDynamicAlphaContactAnglePlic
         (
             const fvPatch&,
             const DimensionedField<scalar, volMesh>&,
@@ -110,20 +107,20 @@ public:
         );
 
         //- Construct by mapping given
-        //  fdtDynamicAlphaContactAngleFvPatchScalarField
+        //  fdtDynamicAlphaContactAnglePlic
         //  onto a new patch
-        fdtDynamicAlphaContactAngleFvPatchScalarField
+        fdtDynamicAlphaContactAnglePlic
         (
-            const fdtDynamicAlphaContactAngleFvPatchScalarField&,
+            const fdtDynamicAlphaContactAnglePlic&,
             const fvPatch&,
             const DimensionedField<scalar, volMesh>&,
             const fvPatchFieldMapper&
         );
 
         //- Construct as copy
-        fdtDynamicAlphaContactAngleFvPatchScalarField
+        fdtDynamicAlphaContactAnglePlic
         (
-            const fdtDynamicAlphaContactAngleFvPatchScalarField&
+            const fdtDynamicAlphaContactAnglePlic&
         );
 
         //- Construct and return a clone
@@ -131,14 +128,14 @@ public:
         {
             return tmp<fvPatchScalarField>
             (
-                new fdtDynamicAlphaContactAngleFvPatchScalarField(*this)
+                new fdtDynamicAlphaContactAnglePlic(*this)
             );
         }
 
         //- Construct as copy setting internal field reference
-        fdtDynamicAlphaContactAngleFvPatchScalarField
+        fdtDynamicAlphaContactAnglePlic
         (
-            const fdtDynamicAlphaContactAngleFvPatchScalarField&,
+            const fdtDynamicAlphaContactAnglePlic&,
             const DimensionedField<scalar, volMesh>&
         );
 
@@ -150,7 +147,7 @@ public:
         {
             return tmp<fvPatchScalarField>
             (
-                new fdtDynamicAlphaContactAngleFvPatchScalarField(*this, iF)
+                new fdtDynamicAlphaContactAnglePlic(*this, iF)
             );
         }
 
