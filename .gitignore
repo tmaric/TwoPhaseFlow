@@ -32,6 +32,14 @@ core
 # lnInclude (symlink) directories - anywhere
 lnInclude
 
+# Top-level build directories
+/build/
+/platforms/
+
+# Reinstate wmake rules that might look like build directories
+!/wmake/rules/*/
+
+
 #OpenFOAM
 Cases
 CasesTri
@@ -108,4 +116,29 @@ doc/Doxygen/DTAGS
 __pychache__
 *.pyc
 env
+
+# Processing and result data 
+
+PyFoam*
+polyMesh/
+*.vtk
+*.vtp
+*.vtu
+*.foam
+VTK/
+log*
+Data_*
+# *.csv
+*.pdf
+.vscode/
+uniform/
+*_00*_*/
+processor*/
+isoFaces/
+slurm-*
+*_templateCase/
+oldData_toBeDeleted/
+*.parameter.database
+
 # end-of-file
+

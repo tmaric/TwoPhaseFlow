@@ -1,0 +1,81 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict; 
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "meshingDimensions";
+
+convertToMeters 1.00;
+
+Nz #calc "int($N*($Z1 + $Z2)/(2*$HALF_WIDTH))";
+
+vertices
+(
+    ($C0 $C1 $H_START)
+    ($C2 $C1 $H_START)
+    ($C2 $C3 $H_START)
+    ($C0 $C3 $H_START)
+    ($C0 $C1 $H_END)
+    ($C2 $C1 $H_END)
+    ($C2 $C3 $H_END)
+    ($C0 $C3 $H_END)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) ($N $N $Nz) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    bottom
+    {
+        type    patch;
+        faces
+        (
+            (3 2 1 0)
+        );
+    }
+
+    top
+    {
+        type    patch;
+        faces
+        (
+            (4 5 6 7)
+        );
+    }
+
+    mantle
+    {
+        type    patch;
+        faces
+        (
+            (0 4 7 3)
+            (2 6 5 1)
+            (0 1 5 4)
+            (7 6 2 3)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //
