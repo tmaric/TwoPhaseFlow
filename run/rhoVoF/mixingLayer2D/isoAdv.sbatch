@@ -10,4 +10,4 @@
 # #SBATCH --mail-user=jliu.fb16@gmail.com
 # #SBATCH --mail-type=all
 
-interFlow #interIsoFoam
+interFlow # -nonOrthogControl PIMPLE 

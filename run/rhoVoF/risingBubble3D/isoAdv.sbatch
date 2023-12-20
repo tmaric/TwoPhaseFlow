@@ -6,4 +6,4 @@
 #SBATCH --mem-per-cpu=8000
 #SBATCH -t 06-23:00:00
 
-srun interFlow
+srun interFlow -nonOrthogControl PIMPLE

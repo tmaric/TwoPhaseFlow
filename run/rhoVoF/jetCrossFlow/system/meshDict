@@ -19,7 +19,7 @@ FoamFile
 
 surfaceFile "flowBoxGeo/jetCrossFlowBox.fms";
 
-maxCellSize #calc "0.02/128";
+maxCellSize #calc "0.02/128"; // "0.02/128" for resolution 256x128x128; "0.02/64" for resolution 128x64x64
 
 /* boundaryCellSize 0.1;
 

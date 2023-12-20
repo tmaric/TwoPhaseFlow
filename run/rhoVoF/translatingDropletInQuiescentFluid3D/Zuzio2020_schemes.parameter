@@ -33,7 +33,7 @@ values
     // Parameters from system/blockMeshDict
     resolution 
     (   
-         16 32 64 
+         32 48 64 
     ); 
 
     CFL_num

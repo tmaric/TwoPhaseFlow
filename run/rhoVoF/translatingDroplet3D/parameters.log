@@ -1,0 +1,64 @@
+
+===============================
+54 variations with 3 parameters
+===============================
+
+
+==================
+Listing variations
+==================
+
+Variation 0 : {'resolution': 16, 'fluxSchemes': 'upwind', 'timeSchemes': 'Euler'}
+Variation 1 : {'resolution': 16, 'fluxSchemes': 'upwind', 'timeSchemes': 'CrankNicolson'}
+Variation 2 : {'resolution': 16, 'fluxSchemes': 'cubic', 'timeSchemes': 'Euler'}
+Variation 3 : {'resolution': 16, 'fluxSchemes': 'cubic', 'timeSchemes': 'CrankNicolson'}
+Variation 4 : {'resolution': 16, 'fluxSchemes': 'linear', 'timeSchemes': 'Euler'}
+Variation 5 : {'resolution': 16, 'fluxSchemes': 'linear', 'timeSchemes': 'CrankNicolson'}
+Variation 6 : {'resolution': 16, 'fluxSchemes': 'LUST', 'timeSchemes': 'Euler'}
+Variation 7 : {'resolution': 16, 'fluxSchemes': 'LUST', 'timeSchemes': 'CrankNicolson'}
+Variation 8 : {'resolution': 16, 'fluxSchemes': 'MUSCL', 'timeSchemes': 'Euler'}
+Variation 9 : {'resolution': 16, 'fluxSchemes': 'MUSCL', 'timeSchemes': 'CrankNicolson'}
+Variation 10 : {'resolution': 16, 'fluxSchemes': 'QUICK', 'timeSchemes': 'Euler'}
+Variation 11 : {'resolution': 16, 'fluxSchemes': 'QUICK', 'timeSchemes': 'CrankNicolson'}
+Variation 12 : {'resolution': 16, 'fluxSchemes': 'SuperBee', 'timeSchemes': 'Euler'}
+Variation 13 : {'resolution': 16, 'fluxSchemes': 'SuperBee', 'timeSchemes': 'CrankNicolson'}
+Variation 14 : {'resolution': 16, 'fluxSchemes': 'vanLeer', 'timeSchemes': 'Euler'}
+Variation 15 : {'resolution': 16, 'fluxSchemes': 'vanLeer', 'timeSchemes': 'CrankNicolson'}
+Variation 16 : {'resolution': 16, 'fluxSchemes': 'limitedLinearV', 'timeSchemes': 'Euler'}
+Variation 17 : {'resolution': 16, 'fluxSchemes': 'limitedLinearV', 'timeSchemes': 'CrankNicolson'}
+Variation 18 : {'resolution': 32, 'fluxSchemes': 'upwind', 'timeSchemes': 'Euler'}
+Variation 19 : {'resolution': 32, 'fluxSchemes': 'upwind', 'timeSchemes': 'CrankNicolson'}
+Variation 20 : {'resolution': 32, 'fluxSchemes': 'cubic', 'timeSchemes': 'Euler'}
+Variation 21 : {'resolution': 32, 'fluxSchemes': 'cubic', 'timeSchemes': 'CrankNicolson'}
+Variation 22 : {'resolution': 32, 'fluxSchemes': 'linear', 'timeSchemes': 'Euler'}
+Variation 23 : {'resolution': 32, 'fluxSchemes': 'linear', 'timeSchemes': 'CrankNicolson'}
+Variation 24 : {'resolution': 32, 'fluxSchemes': 'LUST', 'timeSchemes': 'Euler'}
+Variation 25 : {'resolution': 32, 'fluxSchemes': 'LUST', 'timeSchemes': 'CrankNicolson'}
+Variation 26 : {'resolution': 32, 'fluxSchemes': 'MUSCL', 'timeSchemes': 'Euler'}
+Variation 27 : {'resolution': 32, 'fluxSchemes': 'MUSCL', 'timeSchemes': 'CrankNicolson'}
+Variation 28 : {'resolution': 32, 'fluxSchemes': 'QUICK', 'timeSchemes': 'Euler'}
+Variation 29 : {'resolution': 32, 'fluxSchemes': 'QUICK', 'timeSchemes': 'CrankNicolson'}
+Variation 30 : {'resolution': 32, 'fluxSchemes': 'SuperBee', 'timeSchemes': 'Euler'}
+Variation 31 : {'resolution': 32, 'fluxSchemes': 'SuperBee', 'timeSchemes': 'CrankNicolson'}
+Variation 32 : {'resolution': 32, 'fluxSchemes': 'vanLeer', 'timeSchemes': 'Euler'}
+Variation 33 : {'resolution': 32, 'fluxSchemes': 'vanLeer', 'timeSchemes': 'CrankNicolson'}
+Variation 34 : {'resolution': 32, 'fluxSchemes': 'limitedLinearV', 'timeSchemes': 'Euler'}
+Variation 35 : {'resolution': 32, 'fluxSchemes': 'limitedLinearV', 'timeSchemes': 'CrankNicolson'}
+Variation 36 : {'resolution': 64, 'fluxSchemes': 'upwind', 'timeSchemes': 'Euler'}
+Variation 37 : {'resolution': 64, 'fluxSchemes': 'upwind', 'timeSchemes': 'CrankNicolson'}
+Variation 38 : {'resolution': 64, 'fluxSchemes': 'cubic', 'timeSchemes': 'Euler'}
+Variation 39 : {'resolution': 64, 'fluxSchemes': 'cubic', 'timeSchemes': 'CrankNicolson'}
+Variation 40 : {'resolution': 64, 'fluxSchemes': 'linear', 'timeSchemes': 'Euler'}
+Variation 41 : {'resolution': 64, 'fluxSchemes': 'linear', 'timeSchemes': 'CrankNicolson'}
+Variation 42 : {'resolution': 64, 'fluxSchemes': 'LUST', 'timeSchemes': 'Euler'}
+Variation 43 : {'resolution': 64, 'fluxSchemes': 'LUST', 'timeSchemes': 'CrankNicolson'}
+Variation 44 : {'resolution': 64, 'fluxSchemes': 'MUSCL', 'timeSchemes': 'Euler'}
+Variation 45 : {'resolution': 64, 'fluxSchemes': 'MUSCL', 'timeSchemes': 'CrankNicolson'}
+Variation 46 : {'resolution': 64, 'fluxSchemes': 'QUICK', 'timeSchemes': 'Euler'}
+Variation 47 : {'resolution': 64, 'fluxSchemes': 'QUICK', 'timeSchemes': 'CrankNicolson'}
+Variation 48 : {'resolution': 64, 'fluxSchemes': 'SuperBee', 'timeSchemes': 'Euler'}
+Variation 49 : {'resolution': 64, 'fluxSchemes': 'SuperBee', 'timeSchemes': 'CrankNicolson'}
+Variation 50 : {'resolution': 64, 'fluxSchemes': 'vanLeer', 'timeSchemes': 'Euler'}
+Variation 51 : {'resolution': 64, 'fluxSchemes': 'vanLeer', 'timeSchemes': 'CrankNicolson'}
+Variation 52 : {'resolution': 64, 'fluxSchemes': 'limitedLinearV', 'timeSchemes': 'Euler'}
+Variation 53 : {'resolution': 64, 'fluxSchemes': 'limitedLinearV', 'timeSchemes': 'CrankNicolson'}

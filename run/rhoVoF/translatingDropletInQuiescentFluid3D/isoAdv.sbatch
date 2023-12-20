@@ -6,4 +6,4 @@
 #SBATCH --mem-per-cpu=8000
 #SBATCH -t 04-23:00:00
 
-srun interFlow #interIsoFoam
+srun interFlow -nonOrthogControl PIMPLE #interIsoFoam
