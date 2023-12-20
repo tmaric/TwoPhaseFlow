@@ -129,7 +129,7 @@ class data_collector:
         if file_name.endswith('.csv'):
             df = pd.read_csv(file_name, usecols=lambda x: not ('Unnamed' in x), comment='#')
         elif file_name.endswith('.dat'):
-            df = pd.read_table(file_name, header=0)
+            df = pd.read_table(file_name, header=1)
             df.columns = [column.strip('#') for column in df.columns]
             df.columns = [column.strip(' ') for column in df.columns]
             df.columns = [column.rstrip(' ') for column in df.columns]

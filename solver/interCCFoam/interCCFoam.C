@@ -1,12 +1,52 @@
-#include "advectionSchemes.H"
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+Application
+    interCCFoam
+
+Group
+    grpMultiphaseSolvers
+
+Description
+    Solver for two incompressible, isothermal immiscible fluids using a VOF
+    (volume of fluid) phase-fraction based interface capturing approach,
+    with optional mesh motion and mesh topology changes including adaptive
+    re-meshing.
+
+\*---------------------------------------------------------------------------*/
+
 #include "fvCFD.H"
 #include "dynamicFvMesh.H"
-#include "isoAdvection.H"
+#include "CMULES.H"
 #include "EulerDdtScheme.H"
 #include "localEulerDdtScheme.H"
 #include "CrankNicolsonDdtScheme.H"
 #include "subCycle.H"
 #include "immiscibleIncompressibleTwoPhaseMixture.H"
+#include "incompressibleInterPhaseTransportModel.H"
 #include "turbulentTransportModel.H"
 #include "pimpleControl.H"
 #include "fvOptions.H"
@@ -21,23 +61,9 @@ int main(int argc, char *argv[])
     argList::addNote
     (
         "Solver for two incompressible, isothermal immiscible fluids"
-        " using isoAdvector phase-fraction based interface capturing.\n"
+        " using VOF phase-fraction based interface capturing.\n"
         "With optional mesh motion and mesh topology changes including"
-        " adaptive re-meshing.\n"
-        "The solver is derived from interFoam"
-    );
-
-    Foam::argList::addBoolOption
-    (
-        "overwrite",
-        "Update and overwrite the existing mesh useful for adaptive mesh refinement"
-    );
-
-   argList::addOption
-    (
-        "nonOrthogControl",
-        "control algorithm name",
-        "PIMPLE, ERCNOC"
+        " adaptive re-meshing."
     );
 
     #include "postProcess.H"
@@ -49,15 +75,15 @@ int main(int argc, char *argv[])
     #include "initContinuityErrs.H"
     #include "createDyMControls.H"
     #include "createFields.H"
+    #include "createAlphaFluxes.H"
     #include "initCorrectPhi.H"
     #include "createUfIfPresent.H"
 
-    const bool overwrite = args.found("overwrite");
-
-    turbulence->validate();
-
-    #include "CourantNo.H"
-    #include "setInitialDeltaT.H"
+    if (!LTS)
+    {
+        #include "CourantNo.H"
+        #include "setInitialDeltaT.H"
+    }
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     Info<< "\nStarting time loop\n" << endl;
@@ -65,17 +91,19 @@ int main(int argc, char *argv[])
     while (runTime.run())
     {
         #include "readDyMControls.H"
-        #include "CourantNo.H"
-        #include "alphaCourantNo.H"
-        #include "setDeltaT.H"
+
+        if (LTS)
+        {
+            #include "setRDeltaT.H"
+        }
+        else
+        {
+            #include "CourantNo.H"
+            #include "alphaCourantNo.H"
+            #include "setDeltaT.H"
+        }
 
         ++runTime;
-
-        if(overwrite)
-        {
-            runTime.setTime(runTime.value() - runTime.deltaTValue(), 1);
-            runTime.writeAndEnd();
-        }
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
@@ -84,22 +112,19 @@ int main(int argc, char *argv[])
         {
             if (pimple.firstIter() || moveMeshOuterCorrectors)
             {
-                advector->surf().reconstruct();
-
                 mesh.update();
 
                 if (mesh.changing())
                 {
-                    // gets recompute by surfaces forces
-                    // gh = (g & mesh.C()) - ghRef;
-                    // ghf = (g & mesh.Cf()) - ghRef;
-                    advector->surf().mapAlphaField();
-                    alpha2 = 1.0 - alpha1;
-                    alpha2.correctBoundaryConditions();
-                    rho == alpha1*rho1 + alpha2*rho2;
-                    rho.correctBoundaryConditions();
-                    rho.oldTime() = rho;
-                    alpha2.oldTime() = alpha2;
+                    // Do not apply previous time-step mesh compression flux
+                    // if the mesh topology changed
+                    if (mesh.topoChanging())
+                    {
+                        talphaPhi1Corr0.clear();
+                    }
+
+                    // gh = surfForces.acc();//(g & mesh.C()) - ghRef;
+                    // ghf = surfForces.accf();//(g & mesh.Cf()) - ghRef;
 
                     MRF.update();
 
@@ -124,16 +149,10 @@ int main(int argc, char *argv[])
                 }
             }
 
-            if(overwrite)
-            {
-                continue;
-            }
-
             #include "alphaControls.H"
             #include "alphaEqnSubCycle.H"
 
             mixture.correct();
-
             surfForces.correct();
 
             if (pimple.frozenFlow())
