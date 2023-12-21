@@ -1,0 +1,111 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2212                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format  ascii;
+    arch        "LSB;label=32;scalar=64";
+    class   dictionary;
+    location    "system";
+    object  FO_MaxNonOrthoAngle;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+functions
+{
+    MaxnonOrthoAngle
+    {
+        type coded;
+        libs (utilityFunctionObjects);
+        name MaxnonOrthoAngle;
+
+        writeControl    writeTime;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            // #include "isoAdvection.H"
+             #include "reconstructionSchemes.H"
+             #include "reconstructedDistanceFunction.H"
+        #};
+
+        codeOptions
+        #{
+            -I$(TPF_PROJECT_DIR)/src/VoF/lnInclude \
+            -I$(LIB_SRC)/finiteVolume/lnInclude \
+            -I$(LIB_SRC)/fileFormats/lnInclude \
+            -I$(LIB_SRC)/surfMesh/lnInclude \
+            -I$(LIB_SRC)/meshTools/lnInclude \
+            -I$(LIB_SRC)/sampling/lnInclude \
+            -I$(LIB_SRC)/dynamicMesh/lnInclude \
+            -I$(LIB_SRC)/transportModels/interfaceProperties/lnInclude \
+            -I$(LIB_SRC)/transportModels/twoPhaseProperties/lnInclude
+        #};
+
+        codeWrite
+        #{
+            // Info<< "###Reading/reassigning RDF field \n" << endl;
+
+            //volScalarField alpha1 = mesh().lookupObject<volScalarField>("alpha.phase1");
+            //const volVectorField& U = mesh().lookupObject<volVectorField>("U");
+            //const surfaceScalarField& phi = mesh().lookupObject<surfaceScalarField>("phi");
+            //isoAdvection advector(alpha1, phi, U);
+            reconstructionSchemes& surf = mesh().lookupObjectRef<reconstructionSchemes>("reconstructionScheme");
+            surf.reconstruct(false);
+            boolList interfaceCells = surf.interfaceCell();
+            reconstructedDistanceFunction& RDF(reconstructedDistanceFunction::New(mesh()));
+            RDF.markCellsNearSurf(interfaceCells,2);
+            const boolList& nextToInterface = RDF.nextToInterface();
+            
+            surfaceScalarField face_nonOrthoAngle
+            (
+                IOobject
+                (
+                    "face_nonOrthoAngle",
+                    "0",
+                    mesh(),
+                    IOobject::MUST_READ,
+                    IOobject::NO_WRITE
+                 ),
+                mesh()
+            );
+
+            DynamicList<scalar> localFaceNonOrthAngle(nextToInterface.size()*0.1);
+            const auto& own = mesh().faceOwner();
+            const auto& neigh = mesh().faceNeighbour();
+
+            forAll(face_nonOrthoAngle, faceI)
+            {
+                if(nextToInterface[own[faceI]] || nextToInterface[neigh[faceI]])
+                {
+                    localFaceNonOrthAngle.append(face_nonOrthoAngle[faceI]);
+                }
+            }
+
+            if (Pstream::master())
+            {
+                fileName outputFile = ("./MaxNonOrthoAngle.csv");
+                autoPtr<OFstream> outputFilePtr;
+
+                if (!exists(outputFile))
+                {
+                    OFstream is(outputFile);
+                    outputFilePtr.reset(new OFstream(outputFile));
+                    outputFilePtr() << "time" << "," << "localMaxNonOrthoAngle" << "," << "globalMaxNonOrthoAngle"<< endl;
+                }
+
+                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
+                 outputFilePtr() << mesh().time().timeName() << "," << gMax(localFaceNonOrthAngle).value() << "," << gMax(face_nonOrthoAngle) << endl;
+             }
+
+        #};
+    }
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+

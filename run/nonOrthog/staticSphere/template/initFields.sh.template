@@ -1,0 +1,35 @@
+#!/bin/sh
+# cd ${0%/*} || exit 1    # Run from this directory
+
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+# application=$(sed -ne "s/^application\s*\(.*\);/\1/p" system/controlDict)
+
+meshType="@!meshType!@"
+#./Allclean
+#restore0Dir
+#cp -r 0.org 0
+rm -r constant/polyMesh
+
+# blockMesh, perturbMesh, polyMesh
+if [[ "$meshType" = "blockMesh" ]] 
+then
+    runApplication blockMesh
+elif [[ "$meshType" = "perturbMesh" ]]
+then 
+    runApplication blockMesh
+    runApplication foamPerturbMesh -alpha 0.2 
+    rm 0/meshPhi
+    mv 0/polyMesh/points constant/polyMesh
+elif [[ "$meshType" = "polyMesh" ]]
+then
+    runApplication pMesh
+fi
+
+runApplication initAlphaField
+touch velocity.foam
+
+#sed -i '1 i\#!/bin/bash' interFlow.sbatch
+#runApplication $(getApplication)
+#decomposePar
+#sbatch Allrun.slurm
+

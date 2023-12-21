@@ -1,0 +1,13 @@
+endTime 0.1;
+
+delta_t 0.0001; 
+
+writeControl adjustableRunTime;
+
+writeInterval 0.01;
+
+nOuterLoops 4;
+
+nInnerLoops 1;
+
+// nNonOrthog  0;

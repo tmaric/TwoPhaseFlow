@@ -1,0 +1,38 @@
+values
+{
+
+    solver (interFlow);
+
+    // Parameters from constant/transportProperties
+    yRotateDeg ( 0 ); //(0 10 30 45);
+
+    resolution
+    (
+         30 60 90
+    );
+
+    meshType
+    (
+        blockMesh
+        perturbMesh
+        polyMesh
+    );
+
+    nonOrthogControl
+    (
+        PIMPLE
+        ERCNOC
+    );
+
+    nNonOrthog  (0 1 4 9);
+/*    gravityModel
+    (
+//        gravity
+//        gravityRecon
+        gravityReconImprove
+//        gravityReconImproveCP
+        //gravityDirac
+        //gravityVDirac
+    );*/
+
+}

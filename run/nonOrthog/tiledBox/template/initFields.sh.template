@@ -1,0 +1,36 @@
+#!/bin/sh
+#cd ${0%/*} || exit 1    # Run from this directory
+
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+# application=$(sed -ne "s/^application\s*\(.*\);/\1/p" system/controlDict)
+
+meshType="@!meshType!@"
+rm -r constant/polyMesh
+
+# blockMesh, perturbMesh, polyMesh
+if [[ "$meshType" = "blockMesh" ]] 
+then
+    runApplication blockMesh
+elif [[ "$meshType" = "perturbMesh" ]]
+then 
+    runApplication blockMesh
+    runApplication foamPerturbMesh -alpha 0.2 
+    rm 0/meshPhi
+    mv 0/polyMesh/points constant/polyMesh
+elif [[ "$meshType" = "polyMesh" ]]
+then
+    runApplication pMesh
+fi
+
+# cp 0/alpha.org 0/alpha.phase1
+
+runApplication transformPoints -yawPitchRoll '(0 @!yRotateDeg!@ 0)'
+runApplication initAlphaField
+
+# runApplication $(getApplication)
+
+#touch tiltedBox3D.foam
+#if [ -n "$application" ]
+#then
+#    foamToVTK -surfaceFields
+#fi
