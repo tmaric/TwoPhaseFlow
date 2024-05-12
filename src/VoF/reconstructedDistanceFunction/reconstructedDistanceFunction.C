@@ -374,10 +374,12 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
                 }
             }
         }
+
+	    // print statement
+	    Info << "nWisps this iteration: " << nWisps << endl;
+
     }
 
-    // print statement
-    Info << "nWisps this iteration: " << nWisps << endl;
 
     //--------------  LN: end of wisp detection.
 
