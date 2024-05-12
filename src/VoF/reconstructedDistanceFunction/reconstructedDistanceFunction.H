@@ -79,8 +79,8 @@ private:
     //- Return patch of all coupled faces.
     autoPtr<indirectPrimitivePatch> coupledFacesPatch() const;
 
-
-
+	// LN: wisp correction - wisp field
+	volScalarField wispField_;
 
 
 public:
@@ -115,8 +115,8 @@ public:
     const volScalarField& constructRDF
     (
         const boolList& nextToInterface,
-        const volVectorField& centre,
-        const volVectorField& normal,
+        volVectorField& centre, // LN: removed const since we are changing it
+        volVectorField& normal, // LN: removed const since we are changing it
         zoneDistribute& distribute,
         bool updateStencil=true
     );
