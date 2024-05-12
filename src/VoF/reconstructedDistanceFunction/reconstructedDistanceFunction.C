@@ -318,7 +318,6 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
     //--------------  LN: start of wisp correction
 
     // read wispLengthRatio
-
     const word dictName("fvSolution");
     IOdictionary solutionDict
     (
@@ -335,16 +334,12 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
     dictionary& alphaDict  = solversDict.subDict("alpha.*"); //TODO (LN) make this more robust for any name of the alpha field.
 
     double wispLengthRatio = (alphaDict.lookupOrDefault<double>("wispLengthRatio", 0.0));
-    //Info << "wispLengthRatio " << wispLengthRatio << endl;
-
 
     // initialize nWisps (counter for the number of wisps)
     scalar nWisps = 0;
 
-    // save normal and center before changing them
-    //
-    volVectorField oldNormal =  normal;
-    volVectorField oldCentre = centre;
+    // save normal field before changing it, will be reset at the end of the method 
+    volVectorField oldNormal = normal;
 
     // check for wispLength ratio, activate wisp filtering
     if (wispLengthRatio > 0.0)
@@ -354,12 +349,7 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
         scalarField edgeLength = fvc::surfaceSum(pow(mesh_.deltaCoeffs(), -1) * mesh_.magSf()) / fvc::surfaceSum(mesh_.magSf());
         //scalarField edgeLength = pow(mesh_.V(), 1./3.); //1st version, from cell volume
 
-        // print statements
-        //Info << "magSf: " << mesh_.magSf()<< endl;
-        //Info << "surface sum magSf: " << fvc::surfaceSum(mesh_.magSf()) << endl;
-        //Info << "normal: " << normal << endl;
-
-        // loop over all cells 
+        // loop over all nextToInterface cells 
         forAll(nextToInterface,celli)
         {
             // include only interface cells and cell next to the interface
@@ -373,9 +363,8 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
                     nWisps++;
                     wispField_[celli]=1.;
 
-                    // reset the normal and centroid of the wisp cell.
+                    // reset the normal of the wisp cell.
                     normal[celli] = vector::zero;
-                    //centre[celli] = vector::zero;
 
                     // print statments
                     //Info << "normal = " << normal[celli] << endl;
@@ -453,9 +442,8 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
 
     }
 
-    // LN added 2 lines: reset normal and centroid
+    // LN added 1 line: reset normal field
     normal = oldNormal;
-    //centre = oldCentre;
 
     forAll(reconDistFunc.boundaryField(), patchI)
     {
