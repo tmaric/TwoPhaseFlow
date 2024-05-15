@@ -315,7 +315,9 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
 
     const labelListList& stencil = distribute.getStencil();
 
-    //--------------  LN: start of wisp correction
+	//-----------------------------------------------------------------------------
+    //--------------  LN: start of wisp detection
+	//-----------------------------------------------------------------------------
 
     // read wispLengthRatio
     const word dictName("fvSolution");
@@ -333,11 +335,29 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
     dictionary& solversDict = solutionDict.subDict("solvers");
     dictionary& alphaDict  = solversDict.subDict("alpha.*"); //TODO (LN) make this more robust for any name of the alpha field.
 
+	// the length ratio to define wisps
     double wispLengthRatio = (alphaDict.lookupOrDefault<double>("wispLengthRatio", 0.0));
+
+	// flags to decide the method
+	// general method. currently just one implemented: treatAsLevel1
+	// first distance in interface cells is calculated, then corrected in wisp cells with same algorithm as level 1 cells
+	// finally distance in level 1 cells are calculated
+    word wispMethod = (alphaDict.lookupOrDefault<word>("wispMethod", "none"));
+
+	// method on how to correct the wisps
+	// per default the distance in the wisps is calculated exactly as in a level 1 cell
+	// with "excludeWispsFromWispCorr" the calculation ignores neighboring wisps.
+    word wispCorrMethod = (alphaDict.lookupOrDefault<word>("wispCorrMethod", "none"));
 
     // initialize nWisps (counter for the number of wisps)
     scalar nWisps = 0;
 
+	// reset wispField //TODO (LN) How to improve this
+	forAll(wispField_, celli)
+	{
+		wispField_[celli]=0.0;
+	}
+	
     // save normal field before changing it, will be reset at the end of the method 
     volVectorField oldNormal = normal;
 
@@ -357,14 +377,14 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
             {
                 // if interface normal is not 0 (--> interface cell) 
                 // and the ratio of interface length to edge length is below threshold
-                if (mag(normal[celli]) != 0 && (sqrt(mag(normal[celli]))/ edgeLength[celli]) < wispLengthRatio)
+                if (mag(normal[celli]) != 0.0 && (sqrt(mag(normal[celli]))/ edgeLength[celli]) < wispLengthRatio)
                 {
                     // cell is a wisp.  
                     nWisps++;
                     wispField_[celli]=1.;
 
-                    // reset the normal of the wisp cell.
-                    normal[celli] = vector::zero;
+                    // reset the normal of the wisp cell. --> disabled, was the first try of filtering wisps.
+                    // normal[celli] = vector::zero;
 
                     // print statments
                     //Info << "normal = " << normal[celli] << endl;
@@ -377,75 +397,246 @@ const Foam::volScalarField&  Foam::reconstructedDistanceFunction::constructRDF
 
 	    // print statement
 	    Info << "nWisps this iteration: " << nWisps << endl;
+		Info << "wisp method: " << wispMethod << endl;
 
     }
 
 
+	//-----------------------------------------------------------------------------
     //--------------  LN: end of wisp detection.
+	//-----------------------------------------------------------------------------
 
 
-    forAll(nextToInterface,celli)
-    {
-        if (nextToInterface[celli])
-        {
-            // in Scheufler Roenby 2019 the RDF for cells that contain an
-            // interface was weighted calculating the RDF only from an interface
-            // cell shows better performance not well resolved intefaces
-            if (mag(normal[celli]) != 0) // interface cell
-            {
-                vector n = -normal[celli]/mag(normal[celli]);
-                scalar dist = (centre[celli] - mesh_.C()[celli]) & n;
-                reconDistFunc[celli] = dist;
-            }
-            else // nextToInterfaceCell or level == 1 cell
-            {
-                scalar averageDist = 0;
-                scalar avgWeight = 0;
-                const point p = mesh_.C()[celli];
 
-                forAll(stencil[celli],i)
-                {
-                    const label& gblIdx = stencil[celli][i];
-                    vector n = -distribute.getValue(normal,mapNormal,gblIdx);
-                    if (mag(n) != 0)
-                    {
-                        n /= mag(n);
-                        vector c =
-                            distribute.getValue(centre,mapCentres,gblIdx);
-                        vector distanceToIntSeg = (c - p);
-                        scalar distToSurf = distanceToIntSeg & (n);
-                        scalar weight = 0;
+	//-----------------------------------------------------------------------------
+    //--------------  LN: RDF calculation with wisp filtering.
+	//-----------------------------------------------------------------------------
 
-                        if (mag(distanceToIntSeg) != 0)
-                        {
-                            distanceToIntSeg /= mag(distanceToIntSeg);
-                            weight = sqr(mag(distanceToIntSeg & n));
-                        }
-                        else // exactly on the center
-                        {
-                            weight = 1;
-                        }
-                        averageDist += distToSurf * weight;
-                        avgWeight += weight;
-                    }
-                }
+	if (wispMethod=="treatAsLevel1")
+	{
 
-                if (avgWeight != 0)
-                {
-                    reconDistFunc[celli] = averageDist / avgWeight;
-                }
+	    //---- 1. in all interface cells: construct RDF based on normal and centroid in cell 
+	
+	    forAll(nextToInterface,celli)
+	    {
+	        if (nextToInterface[celli])
+	        {
+	            if (mag(normal[celli]) != 0) // interface cell
+	            {
+	                vector n = -normal[celli]/mag(normal[celli]);
+	                scalar dist = (centre[celli] - mesh_.C()[celli]) & n;
+	                reconDistFunc[celli] = dist;
+	            }
+			}
+		}
+	
+	    //---- 2. in wisp cells: construct RDF based on point neighbor interface cells 
+	
+	    forAll(nextToInterface,celli)
+	    {
+	        if (nextToInterface[celli])
+	        {
+	            if ( (mag(normal[celli]) != 0) && (wispField_[celli]>0.1) ) // wisp cell. TODO: better criterion, boolean variables?
+	            {
+					// perform same RDF calculation as is done for the neighbor cells (copy paste)
+		
+	                scalar averageDist = 0;
+	                scalar avgWeight = 0;
+	                const point p = mesh_.C()[celli];
+	
+	                forAll(stencil[celli],i)
+	                {
+	                    const label& gblIdx = stencil[celli][i];
+	                    vector n = -distribute.getValue(normal,mapNormal,gblIdx);
 
-            }
-        }
-        else
-        {
-            reconDistFunc[celli] = 0;
-        }
+						// new version: include all interface cells EXCLUDING other wisp cells
+						if (wispCorrMethod=="excludeWispsFromWispCorr")
+						{
+							Info << "wispCorrMethod: " << wispCorrMethod << endl;
 
-    }
+	                    	if ( (mag(n) != 0) && (wispField_[gblIdx]<0.1) )
+	                    	{
+	                    	    n /= mag(n);
+	                    	    vector c =
+	                    	        distribute.getValue(centre,mapCentres,gblIdx);
+	                    	    vector distanceToIntSeg = (c - p);
+	                    	    scalar distToSurf = distanceToIntSeg & (n);
+	                    	    scalar weight = 0;
+	
+	                    	    if (mag(distanceToIntSeg) != 0)
+	                    	    {
+	                    	        distanceToIntSeg /= mag(distanceToIntSeg);
+	                    	        weight = sqr(mag(distanceToIntSeg & n));
+	                    	    }
+	                    	    else // exactly on the center
+	                    	    {
+	                    	        weight = 1;
+	                    	    }
+	                    	    averageDist += distToSurf * weight;
+	                    	    avgWeight += weight;
+	                    	}
+	               		}
+ 
+						// default version: include all interface cells
+						else
+						{
+	                    	if (mag(n) != 0)
+	                    	{
+	                    	    n /= mag(n);
+	                    	    vector c =
+	                    	        distribute.getValue(centre,mapCentres,gblIdx);
+	                    	    vector distanceToIntSeg = (c - p);
+	                    	    scalar distToSurf = distanceToIntSeg & (n);
+	                    	    scalar weight = 0;
+	
+	                    	    if (mag(distanceToIntSeg) != 0)
+	                    	    {
+	                    	        distanceToIntSeg /= mag(distanceToIntSeg);
+	                    	        weight = sqr(mag(distanceToIntSeg & n));
+	                    	    }
+	                    	    else // exactly on the center
+	                    	    {
+	                    	        weight = 1;
+	                    	    }
+	                    	    averageDist += distToSurf * weight;
+	                    	    avgWeight += weight;
+	                    	}
+						}
+	                }
+	
+	                if (avgWeight != 0)
+	                {
+	                    reconDistFunc[celli] = averageDist / avgWeight;
+	                }
+	            }
+			}
+		}
+	
+	    //---- 3. in interface neighbor cells: construct RDF based on point neighbor interface cells 
+	    
+	    forAll(nextToInterface,celli)
+	    {
+	        if (nextToInterface[celli])
+	        {
+	            if ( mag(normal[celli]) == 0 ) // level 1 cell
+	            {
+					// perform RDF calculation as is done for the neighbor cells (copy paste)
+		
+	                scalar averageDist = 0;
+	                scalar avgWeight = 0;
+	                const point p = mesh_.C()[celli];
+	
+	                forAll(stencil[celli],i)
+	                {
+	                    const label& gblIdx = stencil[celli][i];
+	                    vector n = -distribute.getValue(normal,mapNormal,gblIdx);
+	                    if (mag(n) != 0)
+	                    {
+	                        n /= mag(n);
+	                        vector c =
+	                            distribute.getValue(centre,mapCentres,gblIdx);
+	                        vector distanceToIntSeg = (c - p);
+	                        scalar distToSurf = distanceToIntSeg & (n);
+	                        scalar weight = 0;
+	
+	                        if (mag(distanceToIntSeg) != 0)
+	                        {
+	                            distanceToIntSeg /= mag(distanceToIntSeg);
+	                            weight = sqr(mag(distanceToIntSeg & n));
+	                        }
+	                        else // exactly on the center
+	                        {
+	                            weight = 1;
+	                        }
+	                        averageDist += distToSurf * weight;
+	                        avgWeight += weight;
+	                    }
+	                }
+	
+	                if (avgWeight != 0)
+	                {
+	                    reconDistFunc[celli] = averageDist / avgWeight;
+	                }
+	            }
+			}
+		}
 
-    // LN added 1 line: reset normal field
-    normal = oldNormal;
+	} // close if statement (LN)
+    
+	//-----------------------------------------------------------------------------
+    //--------------  LN: end of RDF calculation with wisp filtering.
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+    //--------------  LN: RDF calculation: default.
+	//-----------------------------------------------------------------------------
+	if (wispMethod=="none")
+	{
+
+		forAll(nextToInterface,celli)
+	    {
+	        if (nextToInterface[celli])
+	        {
+	            // in Scheufler Roenby 2019 the RDF for cells that contain an
+	            // interface was weighted calculating the RDF only from an interface
+	            // cell shows better performance not well resolved intefaces
+	            if (mag(normal[celli]) != 0) // interface cell
+	            {
+	                vector n = -normal[celli]/mag(normal[celli]);
+	                scalar dist = (centre[celli] - mesh_.C()[celli]) & n;
+	                reconDistFunc[celli] = dist;
+	            }
+	            else // nextToInterfaceCell or level == 1 cell
+	            {
+	                scalar averageDist = 0;
+	                scalar avgWeight = 0;
+	                const point p = mesh_.C()[celli];
+	
+	                forAll(stencil[celli],i)
+	                {
+	                    const label& gblIdx = stencil[celli][i];
+	                    vector n = -distribute.getValue(normal,mapNormal,gblIdx);
+	                    if (mag(n) != 0)
+	                    {
+	                        n /= mag(n);
+	                        vector c =
+	                            distribute.getValue(centre,mapCentres,gblIdx);
+	                        vector distanceToIntSeg = (c - p);
+	                        scalar distToSurf = distanceToIntSeg & (n);
+	                        scalar weight = 0;
+	
+	                        if (mag(distanceToIntSeg) != 0)
+	                        {
+	                            distanceToIntSeg /= mag(distanceToIntSeg);
+	                            weight = sqr(mag(distanceToIntSeg & n));
+	                        }
+	                        else // exactly on the center
+	                        {
+	                            weight = 1;
+	                        }
+	                        averageDist += distToSurf * weight;
+	                        avgWeight += weight;
+	                    }
+	                }
+	
+	                if (avgWeight != 0)
+	                {
+	                    reconDistFunc[celli] = averageDist / avgWeight;
+	                }
+	
+	            }
+	        }
+	        else
+	        {
+	            reconDistFunc[celli] = 0;
+	        }
+	
+	    }
+	} // close if statement (LN)
+
+	//-----------------------------------------------------------------------------
+    //--------------  LN: end of RDF calculation: default.
+	//-----------------------------------------------------------------------------
 
     forAll(reconDistFunc.boundaryField(), patchI)
     {
