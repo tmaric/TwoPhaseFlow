@@ -1,6 +1,9 @@
 if (finalIter)
 {
-    mesh.data::add("finalIteration", true);
+   // mesh.data::add("finalIteration", true);
+   // TODO(TM): breaks OpenFOAM-v2312, untested
+   IOdictionary& meshDataDict = mesh.data();
+   meshDataDict.add("finalIteration", true);
 }
 
 if(overwrite)
@@ -40,5 +43,8 @@ if(overwrite)
 
 if (finalIter)
 {
-    mesh.data::remove("finalIteration");
+    // mesh.data::remove("finalIteration");
+    // TODO(TM): breaks OpenFOAM-v2312, untested
+    IOdictionary& meshDataDict = mesh.data();
+    meshDataDict.remove("finalIteration");
 }
