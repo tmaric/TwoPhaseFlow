@@ -313,7 +313,7 @@ void Foam::RDF::correct()
         1e-14/pow(average(mesh.V()), 1.0/3.0)
     );
 
-    volVectorField gradRDF(fvc::grad(RDF_));
+    volVectorField gradRDF(fvc::grad(RDF_, "pointCellsLeastSquares"));
 
     gradRDF /= (mag(gradRDF)+deltaN*dimensionedScalar("0", dimLength, 1));
 
@@ -344,7 +344,9 @@ void Foam::RDF::correct()
     // Simple expression for curvature
     if (curvFromTr_)
     {
-        K_ = -tr(fvc::grad(gradRDF));
+	Info << "RDF name " << RDF_.name() << endl; // reconstructedDistanceFunction  
+	Info << "gradRDF name " << gradRDF.name() << endl; // 'grad(reconstructedDistanceFunction)
+        K_ = -tr(fvc::grad(gradRDF, "pointCellsLeastSquares"));
     }
     else
     {
