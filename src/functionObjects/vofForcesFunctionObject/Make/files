@@ -1,0 +1,3 @@
+vofForcesFunctionObject.C
+
+LIB = $(FOAM_USER_LIBBIN)/libvofForcesFunctionObject
