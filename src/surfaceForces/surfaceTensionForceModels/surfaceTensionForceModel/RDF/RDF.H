@@ -85,6 +85,8 @@ private:
         // calculates the RDF function
         reconstructedDistanceFunction& RDF_;
 
+	    volVectorField gradRDF_; 
+
     // Private Member Functions
         template <typename T>
         void distributeField(const labelList& neiProcs,Field<T>& field);

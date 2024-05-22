@@ -74,7 +74,19 @@ Foam::RDF::RDF
 
     FaceCentreField_(alpha1.mesh().nCells()),
     FaceNormalField_(alpha1.mesh().nCells()),
-    RDF_(reconstructedDistanceFunction::New(alpha1.mesh()))
+    RDF_(reconstructedDistanceFunction::New(alpha1.mesh())), 
+    gradRDF_
+    (
+        IOobject
+        (
+            "gradRDF",
+            alpha1.time().timeName(), 
+            alpha1.mesh(),
+            IOobject::NO_READ, 
+            IOobject::AUTO_WRITE
+        ),
+        fvc::grad(RDF_) 
+    )
 {
     // curvature from trace does not work with wedges
     bool wedge = false;
@@ -313,13 +325,14 @@ void Foam::RDF::correct()
         1e-14/pow(average(mesh.V()), 1.0/3.0)
     );
 
-    volVectorField gradRDF(fvc::grad(RDF_, "pointCellsLeastSquares"));
+    // TODO(TM): remove
+    //volVectorField gradRDF(fvc::grad(RDF_, "pointCellsLeastSquares"));
+    gradRDF_ = fvc::grad(RDF_);
+    gradRDF_ /= (mag(gradRDF_)+deltaN*dimensionedScalar("0", dimLength, 1));
 
-    gradRDF /= (mag(gradRDF)+deltaN*dimensionedScalar("0", dimLength, 1));
+    gradRDF_.correctBoundaryConditions();
 
-    gradRDF.correctBoundaryConditions();
-
-    surfaceVectorField interfaceVec("interfaceVec",fvc::interpolate((gradRDF)));
+    surfaceVectorField interfaceVec("interfaceVec",fvc::interpolate((gradRDF_)));
 
     surfaceVectorField normalVec("normalVec",interfaceVec/(mag(interfaceVec)+deltaN*dimensionedScalar("0", dimLength, 1))); // macht vielleicht den fehler
 
@@ -333,7 +346,7 @@ void Foam::RDF::correct()
 
         forAll(boundary, patchi)
         {
-                fvPatchVectorField& nHatp = gradRDF.boundaryFieldRef()[patchi];
+                fvPatchVectorField& nHatp = gradRDF_.boundaryFieldRef()[patchi];
                 nHatp = normalVec.boundaryFieldRef()[patchi];
         }
     }
@@ -344,9 +357,9 @@ void Foam::RDF::correct()
     // Simple expression for curvature
     if (curvFromTr_)
     {
-	Info << "RDF name " << RDF_.name() << endl; // reconstructedDistanceFunction  
-	Info << "gradRDF name " << gradRDF.name() << endl; // 'grad(reconstructedDistanceFunction)
-        K_ = -tr(fvc::grad(gradRDF, "pointCellsLeastSquares"));
+	    Info << "RDF name " << RDF_.name() << endl; // Should be "reconstructedDistanceFunction" 
+	    Info << "gradRDF name " << gradRDF_.name() << endl; // Should be "gradRDF" 
+        K_ = -tr(fvc::grad(gradRDF_));
     }
     else
     {
