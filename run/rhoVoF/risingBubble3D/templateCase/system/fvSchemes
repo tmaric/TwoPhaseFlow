@@ -28,7 +28,7 @@ gradSchemes
 divSchemes
 {   
     default         Gauss   linear;
-    div(rhoPhi,U)   Gauss   limitedLinearV 0.5;
+    div(rhoPhi,U)   Gauss   upwind;//limitedLinearV 0.5;
 }
 
 

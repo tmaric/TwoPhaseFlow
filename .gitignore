@@ -62,6 +62,9 @@ solaris*Gcc*/
 SunOS*Gcc*/
 platforms/
 
+#dynamic code from functionObject
+dynamicCode/
+
 # Reinstate wmake/rules that might look like build directories
 !wmake/rules/*/
 
@@ -116,6 +119,7 @@ doc/Doxygen/DTAGS
 __pychache__
 *.pyc
 env
+venv
 
 # Processing and result data 
 
@@ -128,7 +132,7 @@ polyMesh/
 VTK/
 log*
 Data_*
-# *.csv
+*.csv
 *.pdf
 .vscode/
 uniform/
@@ -140,5 +144,12 @@ slurm-*
 oldData_toBeDeleted/
 *.parameter.database
 
+#jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+#random test folders
+*test*/
+
+typescript
 # end-of-file
 

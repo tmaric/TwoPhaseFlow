@@ -35,7 +35,7 @@ purgeWrite      0;
 
 writeFormat     ascii;
 
-writePrecision  6;
+writePrecision  12;
 
 writeCompression off;
 
@@ -88,6 +88,6 @@ maxCapillaryNum 1e8;
      }
  }*/
 
-#include "FO_PLICInterface"
-// #include "FO_runTime"
+//#include "FO_PLICInterface"
+#include "FObubbleProcessing"
 // ************************************************************************* //

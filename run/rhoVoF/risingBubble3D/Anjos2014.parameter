@@ -13,7 +13,7 @@ values
     nu_droplet (1.453061224e-05);
 
     rho_ambient (1350);
-    nu_ambient (0.002022222 0.000948148); //0.0004);
+    nu_ambient (0.002022222 0.000948148 0.0004);
 
     surface_tension_coefficient (0.078);
 

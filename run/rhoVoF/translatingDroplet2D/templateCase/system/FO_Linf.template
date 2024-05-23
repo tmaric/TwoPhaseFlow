@@ -1,0 +1,58 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  com                                   |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      functionObject2;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+functions
+{
+    Linf_U
+    {
+        libs            ("libutilityFunctionObjects.so");
+        type            coded;
+        name            Linf_U;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+
+            dimensionedVector backgroundU{"uniformU",dimLength/dimTime, vector(0,0,@!z_velocity!@)};
+            const volVectorField& U =
+                mesh().lookupObject<volVectorField>("U");
+
+            if (Pstream::master())
+            {
+             	fileName outputFile = ("./LinfU.dat");
+                autoPtr<OFstream> outputFilePtr;    
+
+               // if (mesh().time().timeIndex()==0)
+               // {
+                if (!exists(outputFile))
+                {
+                    OFstream is(outputFile);
+                    outputFilePtr.reset(new OFstream(outputFile));
+                    outputFilePtr() << "time" << tab << "LinfU" << endl;
+                }
+               /* else
+                {
+                    
+                }
+                }*/
+                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
+                 outputFilePtr() << mesh().time().timeName() << tab << max(mag(U-backgroundU)).value() << endl;
+             }
+        #};
+    }
+}

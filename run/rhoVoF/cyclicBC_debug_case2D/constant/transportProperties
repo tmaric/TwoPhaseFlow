@@ -20,22 +20,22 @@ phases (water air);
 water
 {
     transportModel  Newtonian;
-    nu              1e-06;
+    nu              0;//1e-06;
     rho             1000;
 }
 
 air
 {
     transportModel  Newtonian;
-    nu              1.48e-05;
+    nu              0; //1.48e-05;
     rho             1;
 }
 
-sigma               1.78e-05;
+sigma               0; //1.78e-05;
 
 surfaceForces
 {
-   sigma 0.07;
+   sigma 0; //0.07;
    surfaceTensionForceModel fitParaboloid;
    accelerationForceModel gravity;
    deltaFunctionModel alphaCSF;

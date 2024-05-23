@@ -29,7 +29,7 @@ gradSchemes
 divSchemes
 {   
     default         Gauss   linear;
-    div(rhoPhi,U)   Gauss   upwind; //limitedLinearV      0; //0.5;//1;//0.0;
+    div(rhoPhi,U)   Gauss   cubic; //upwind; //limitedLinearV      0; //0.5;//1;//0.0;
 }
 
 

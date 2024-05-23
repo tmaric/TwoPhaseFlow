@@ -13,7 +13,8 @@ runApplication setAlphaField
 
 # runApplication decomposePar -cellDist
 # runParallel interIsoModiFoam
-runApplication interIsoFoam #interFlow #interIsoRhoFoam -tScheme Euler #interFlow
+rm *.dat
+runApplication interFlow #interIsoRhoFoam -tScheme Euler #interFlow #interIsoFoam #interFlow #interIsoRhoFoam -tScheme Euler #interFlow
 foamSequenceVTKFiles -vtp
 touch foam.foam
 # $(getApplication)

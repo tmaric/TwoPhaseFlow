@@ -1,0 +1,96 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2212                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    arch        "LSB;label=32;scalar=64";
+    class       dictionary;
+    location    "system";
+    object      FOsumArea;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+functions
+{
+    // **************************************************** //
+    // **** coded functionObject for bubble processing **** //
+    // **************************************************** //
+    sumArea
+    {
+        // Load the library containing the 'coded' functionObject
+        libs ("libutilityFunctionObjects.so");
+        type coded;
+        writeControl    timeStep; //adjustableRunTime;
+        writeInterval   1; //0.002;
+        // Name of on-the-fly generated functionObject
+        name sumArea;
+        // List of include search directories
+        codeOptions
+        #{
+            -I$(LIB_SRC)/sampling/lnInclude \
+            -I$(LIB_SRC)/dynamicMesh/lnInclude \
+            -I$(LIB_SRC)/surfMesh/lnInclude
+        #};
+        // List of libraries to link with
+        codeLibs
+        #{
+            -lsampling \
+            -ldynamicMesh \
+            -lsurfMesh
+        #};
+        // List of include files
+        codeInclude
+        #{
+            #include "sampledIsoSurface.H"
+            #include "vtkSurfaceWriter.H"
+
+        #};
+        // Code
+        codeWrite
+        #{
+            //Info << "----------bubblepproc----------" << endl;
+
+            // Lookup velocity field U
+//            const volVectorField& U = mesh().lookupObject<volVectorField>("U");
+
+            // Lookup liquid fraction alpha_liquid
+  //          const volScalarField& alphaLiquid = mesh().lookupObject<volScalarField>("alpha.water");
+
+             const volVectorField& interfaceSf = mesh().lookupObject<volVectorField>("interfaceNormal.water");
+             volScalarField interfacemagSf=mag(interfaceSf);
+             auto bubbleAreaPLIC = gSum(interfacemagSf);
+
+            if(Pstream::master())
+            {
+            	fileName outputFile = ("./sumArea.dat");
+            	autoPtr<OFstream> outputFilePtr;
+            	
+            	if (!exists(outputFile))
+            	{
+            		OFstream is(outputFile);
+            		outputFilePtr.reset(new OFstream(outputFile));
+            		outputFilePtr() << "time" << tab
+            				<< "bubbleAreaPLIC"  
+            				<< endl;
+            		outputFilePtr() << 0 << tab 
+            				<< bubbleAreaPLIC 
+            				<< endl;            				
+            	}
+            	
+            	outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
+            		outputFilePtr() << mesh().time().timeName() << tab 
+            				<< bubbleAreaPLIC 
+            				<< endl;  
+            }
+
+        #};
+
+    }
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

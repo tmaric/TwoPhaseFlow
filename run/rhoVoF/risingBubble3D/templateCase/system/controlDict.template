@@ -35,7 +35,7 @@ purgeWrite      @!purge_write!@;
 
 writeFormat     binary;
 
-writePrecision  6;
+writePrecision  12;
 
 writeCompression off;
 
