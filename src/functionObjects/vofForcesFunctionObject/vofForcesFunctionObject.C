@@ -166,6 +166,7 @@ bool Foam::functionObjects::vofForcesFunctionObject::execute()
 
     viscousForce_ = fvc::div(mixture_.mu() * (gradU + gradU.T()));
 
+    surfForces_.correct();
     surfaceTensionForce_ = fvc::reconstruct(surfForces_.surfaceTensionForce() * 
                                             mesh_.magSf());
 
