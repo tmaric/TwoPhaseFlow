@@ -9,7 +9,9 @@ wmake libso src/phaseChange
 wmake libso src/surfaceForces
 
 wmake libso src/postProcessing
+wmake libso functionObjects/vofForcesFunctionObject
 wmake libso src/triSurfaceImmersion
+
 
 wmake apps/setFieldfromTable
 wmake apps/initAlphaField
