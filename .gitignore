@@ -47,7 +47,7 @@ CasesTri
 0.[0-9]*
 [1-9]*
 *e-*
-processor*
+#processor*
 logs
 AlphaInit
 controlDict.orig
