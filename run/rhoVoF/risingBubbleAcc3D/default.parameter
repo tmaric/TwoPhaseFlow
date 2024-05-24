@@ -1,0 +1,46 @@
+// This file sets the default parameters for the stationary droplet 3D
+// using the best-in-class algorithms / parameters
+
+// Parameters from controlDict
+write_interval 0.001;
+adjust_deltaT yes; 
+max_Co 0.1;
+max_alphaCo 0.1; 
+max_deltaT 1e-04;
+max_capillaryNum 0.1;
+
+// Parameters from lentSolution
+reconstruction_interval 0;
+temporal_integration    Taylor; 
+cell_to_vertex          Kriging;
+curvature_model         frontTriangleSinus;
+front_to_mesh_transfer  triangleInCell;
+
+
+// Parameters from fvSolution
+p_tol                       1.0e-9;
+u_tol                       1.0e-8;
+n_outer_correctors          30;
+n_correctors                6;
+n_non_orth_correctors       0;
+phi_change_tolerance        5.0e-4;
+abs_phi_change_tolerance    1.0e-15;
+
+
+// Parameter for hex refined mesh
+n_base 32;
+
+// Parameter for cartesian ALE-RRF mesh
+// Used only when mesh is manually generated in each case with cartesianMesh.sh
+// as described in README.md
+additionalRefinementLevels 3;
+
+
+// Scale factor for the time step size computed by the explicit surface
+// tension criterion
+scale_delta_t 0.5;
+
+
+// File name of the mesh representing the domain boundary used for cfMesh
+surface_file    add_a_surface_file;
+
