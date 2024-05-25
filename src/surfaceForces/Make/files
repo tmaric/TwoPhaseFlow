@@ -14,6 +14,12 @@ surfaceTensionForceModels/surfaceTensionForceModel/constantCurvature/constantCur
 accelerationForceModel/accelerationForceModel.C
 accelerationForceModel/accelerationForceModels.C
 accelerationForceModel/gravity/gravity.C
+accelerationForceModel/gravityRecon/gravityRecon.C
+accelerationForceModel/gravityDirac/gravityDirac.C
+accelerationForceModel/gravityVDirac/gravityVDirac.C
+accelerationForceModel/gravityReconImprove/gravityReconImprove.C
+accelerationForceModel/gravityReconImproveCP/gravityReconImproveCP.C
+accelerationForceModel/gravityConstantHeight/gravityConstantHeight.C
 
 deltaFunctions/deltaFunctionModel.C
 deltaFunctions/newDeltaFunctionModel.C
