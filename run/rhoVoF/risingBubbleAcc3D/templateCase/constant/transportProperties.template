@@ -1,0 +1,54 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.3.0                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      transportProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+phases (water air);
+
+// Setting the properties as variables here first allows to set the properties
+// of the ambient fluid to those of the droplet/bubble phase by setting
+// to $rho_droplet/$nu_droplet(TT)
+rho_droplet @!rho_droplet!@;
+nu_droplet  @!nu_droplet!@;
+
+rho_ambient @!rho_ambient!@;
+nu_ambient  @!nu_ambient!@;
+
+air
+{
+    transportModel  Newtonian;
+    nu              nu [ 0 2 -1 0 0 0 0 ] $nu_droplet;
+    rho             rho [ 1 -3 0 0 0 0 0 ] $rho_droplet;
+}
+
+water
+{
+    transportModel  Newtonian;
+    nu              nu [ 0 2 -1 0 0 0 0 ] $nu_ambient;
+    rho             rho [ 1 -3 0 0 0 0 0 ] $rho_ambient;
+}
+
+sigma           sigma [ 1 0 -2 0 0 0 0 ] @!surface_tension_coefficient!@;
+
+// Entries for interFlow only
+surfaceForces
+{
+  sigma @!surface_tension_coefficient!@;
+  surfaceTensionForceModel gradAlpha;
+  accelerationForceModel gravity;
+  gravity  (0 0 @!gravity!@); //(0 -0.98 0);
+  deltaFunctionModel alphaCSF;
+}
+// ************************************************************************* //

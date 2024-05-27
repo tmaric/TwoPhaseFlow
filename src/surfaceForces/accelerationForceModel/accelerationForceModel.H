@@ -128,6 +128,7 @@ public:
         void correct()
         {
             calculateAcc();
+            // Info << "### ends at correct() ?" << endl;
         }
 
         virtual tmp<surfaceScalarField> accelerationForce() = 0;
