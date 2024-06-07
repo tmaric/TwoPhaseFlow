@@ -146,6 +146,17 @@ Foam::functionObjects::vofForcesFunctionObject::vofForcesFunctionObject
     )
 {
     read(dict);
+
+    // Compute 
+    execute(); 
+
+    // Write 
+    ddtRhoU_.write();  
+    inertialForce_.write(); 
+    viscousForce_.write();
+    surfaceTensionForce_.write();
+    accelerationForce_.write();
+    pressureForce_.write();
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
