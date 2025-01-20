@@ -62,12 +62,15 @@
 
 //    Info << "##test div(phig), max " << max(fvc::div(phig)).value() << ", min " << min(fvc::div(phig)).value() << endl;
     // Update the pressure BCs to ensure flux consistency
-    constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+    // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
     //Info << "##test div(phiHbyA), max " << max(fvc::div(phiHbyA)) << ", min " << min(fvc::div(phiHbyA)) << endl;
     if (args.get<word>("nonOrthogControl") == "PIMPLE")
     {
+         constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+
         while (pimple.correctNonOrthogonal())
         {
+            // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
             fvScalarMatrix p_rghEqn
             (
                 fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
@@ -94,25 +97,34 @@
 
     if (args.get<word>("nonOrthogControl") == "ERCNOC")
     {
+        constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+//        Info << "##bp5, timeIndex: " << mesh.time().timeIndex() << endl;
         label Nnon = 0;
         bool correctNonOrthogonality = true;
 
-        while (correctNonOrthogonality)
+        while ( correctNonOrthogonality && pimple.correctNonOrthogonal() )
         {
             ++Nnon;
+            // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+            
+           // Info << "##bp4, timeIndex: " << mesh.time().timeIndex() << endl;
             fvScalarMatrix p_rghEqn
             (
                 fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
             );
-
+            // Info << "##bp2, timeIndex: " << mesh.time().timeIndex() << endl;
             p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
-
-            auto p_rgh_performance = p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
-            correctNonOrthogonality = (p_rgh_performance.nIterations() > 0); 
+            // Info << "##bp0" <<endl;
+            p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
+            // const solverPerformance& p_rgh_performance = p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
+            const List<solverPerformance> sp = mesh.solverPerformanceDict().lookup("p_rgh");
+            // Info << "##bp1, nIterations:  "<< sp.last().nIterations() <<endl; 
+            correctNonOrthogonality = (sp.last().nIterations() > 0);//(p_rgh_performance.nIterations() > 0); 
             // p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
 
-            if (!correctNonOrthogonality)
+            if ((!correctNonOrthogonality) || pimple.finalNonOrthogonalIter())
             {
+               //  Info << "##bp3" << endl;
                 phi = phiHbyA - p_rghEqn.flux();
                 p_rgh.relax();
 

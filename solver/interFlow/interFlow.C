@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
                     if (correctPhi)
                     {
                         // Calculate absolute flux
-                        // from the mapped surface velocity
+
                         phi = mesh.Sf() & Uf();
 
                         #include "correctPhi.H"
@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
             #include "UEqn.H"
 
             // --- Pressure corrector loop
+
             while (pimple.correct())
             {
                 #include "pEqn.H"
