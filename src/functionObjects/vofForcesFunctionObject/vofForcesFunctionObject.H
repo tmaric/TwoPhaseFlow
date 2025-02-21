@@ -178,6 +178,10 @@ class vofForcesFunctionObject
     // Interface Properties
     immiscibleIncompressibleTwoPhaseMixture mixture_; 
 
+    const volScalarField& alpha1_;
+
+    volScalarField mu_;
+
     // Surface tension force
     surfaceForces surfForces_; 
 
