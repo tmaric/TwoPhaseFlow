@@ -2,8 +2,8 @@
 // using the best-in-class algorithms / parameters
 
 // Parameters from controlDict
-write_interval 0.001;
-adjust_deltaT yes; 
+write_interval 1e-3;
+adjust_deltaT no; 
 max_Co 0.1;
 max_alphaCo 0.1; 
 max_deltaT 1e-04;

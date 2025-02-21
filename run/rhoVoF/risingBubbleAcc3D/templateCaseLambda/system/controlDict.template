@@ -23,13 +23,13 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         #eval{200 * @!delta_t!@};//@!end_time!@;
+endTime         @!end_time!@;
 
 deltaT          @!delta_t!@;
 
-writeControl    timeStep;//runTime;
+writeControl    runTime;
 
-writeInterval   200; //@!write_interval!@;
+writeInterval   @!write_interval!@;
 
 purgeWrite      @!purge_write!@;
 

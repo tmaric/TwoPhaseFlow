@@ -10,21 +10,23 @@ values
 
     // Parameters from constant/transportProperties
     // Air in 20°C at atmospheric pressure: https://theengineeringmindset.com/properties-of-air-at-atmospheric-pressure/
-    rho_droplet (1.2047);
+    // rho_droplet (1.225);
+
+    gl_ratios (1e-3);
     nu_droplet (1.5111e-05);
 
     // Water in 20°C at atmospheric pressure (with 30x higher liquid viscosity): https://theengineeringmindset.com/properties-of-water-atmospheric-pressure-saturated-liquid/ 
-    rho_ambient (998.21 );
+    rho_ambient (1e4 1e5 1e6 1e7);//(997);
     nu_ambient (30.09e-06);
 
-    surface_tension_coefficient (0.0728);
+    surface_tension_coefficient (0.0);
 
     gravity (-9.80665);
 
     // Parameters from system/meshingDimensions
     // used by system/blockMeshDict
-    resolution (240 480); 
-    n_base (120);//120 160 240); //(128);//(64);
+    resolution ( 800); // 480); 
+    n_base (200);//120 160 240); //(128);//(64);
 
     // Parameter for cartesian ALE-RRF mesh
     // Used only when mesh is manually generated in each case with cartesianMesh.sh
@@ -35,36 +37,36 @@ values
     // Parameters from system/controlDict
     end_time
     (
-        0.02 // Dimensionless time in [2] is \tilde{t} =\frac{t}{\sqrt{\frac{2*radius / g}}}
+        5e-6 // 0.001 Dimensionless time in [2] is \tilde{t} =\frac{t}{\sqrt{\frac{2*radius / g}}}
     );
 
-    //delta_t: set as dependent parameter according to the time step restriction
+    // delta_t: set as dependent parameter according to the time step restriction
     // as proposed in
     //      "Numerical time-step restrictions as a result of capillary waves"
     //      Denner and van Wachem 2015
     //      equation 43
+    delta_t ( 1e-8 );//1e-9 1e-8 1e-7 1e-6);
     scale_delta_t   (0.5 ); //0.05 0.025);
 
     // Write interval in terms defined in seconds of simulated physical time
-    write_interval  (0.001);
+    adjust_deltaT (no);
+    write_interval  (6e-6);
     purge_write     (0);
 
-    // Parameters from system/lentSolution
-    reconstruction_interval (10); //10);//50);//200);
-    temporal_integration    (Euler);
-    cell_to_vertex          (cellPoint);
-    curvature_model         (compactDivGrad);
-    front_to_mesh_transfer  (triangleInCell);
-
+    // Paremeters from system/meshingDimensions
+    posxWIDTH   (10);
+    negxWIDTH   (10);
+    posyWIDTH   (10);
+    negyWIDTH   (10);
+    poszWIDTH   (10);
+    negzWIDTH   (10);
 
     // Parameters from system/fvSolution
-    p_tol                       (1.0e-9);//(1.0e-7);
+    p_tol                       (1.0e-12);//(1.0e-7);
     u_tol                       (1.0e-7);
     n_outer_correctors          (15);
     n_correctors                (4);
     n_non_orth_correctors       (0);
-    phi_change_tolerance        (1.0e-4);
-    abs_phi_change_tolerance    (1.0e-7);
 
 
     // Domain and interface geometry
@@ -74,6 +76,6 @@ values
 
     radius
     (
-        2.43e-03 //0.35e-03 0.45e-03 0.55e-03 0.65e-03 0.75e-03 0.85e-03 0.95e-03
+        2.42859e-03 //0.35e-03 0.45e-03 0.55e-03 0.65e-03 0.75e-03 0.85e-03 0.95e-03
     );
 }

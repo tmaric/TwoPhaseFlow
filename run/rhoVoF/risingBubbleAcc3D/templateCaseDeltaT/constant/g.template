@@ -9,29 +9,13 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       dictionary;
-    object      meshing; 
+    class       uniformDimensionedVectorField;
+    location    "constant";
+    object      g;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-radius  @!radius!@;
-N       @!n_base!@;
-x_centre @!x_centre!@; 
-y_centre @!y_centre!@;
-z_centre @!z_centre!@;
-
-posxHALF_WIDTH #eval{$radius * @!posxWIDTH!@};
-negxHALF_WIDTH #eval{$radius * @!negxWIDTH!@};
-posyHALF_WIDTH #eval{$radius * @!posyWIDTH!@};
-negyHALF_WIDTH #eval{$radius * @!negyWIDTH!@};
-poszHALF_WIDTH #eval{$radius * @!poszWIDTH!@};
-negzHALF_WIDTH #eval{$radius * @!negzWIDTH!@};
-
-C0 #eval{$x_centre - $negxHALF_WIDTH};
-C1 #eval{$y_centre - $negyHALF_WIDTH};
-C2 #eval{$x_centre + $posxHALF_WIDTH};
-C3 #eval{$y_centre + $posyHALF_WIDTH};
-H_START #eval{$z_centre - $negzHALF_WIDTH};
-H_END #eval{$z_centre + $poszHALF_WIDTH};
+dimensions      [0 1 -2 0 0 0 0];
+value           ( 0 0 @!gravity!@);
 
 // ************************************************************************* //
