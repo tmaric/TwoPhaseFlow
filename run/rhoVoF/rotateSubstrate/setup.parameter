@@ -23,7 +23,7 @@ values
     // Parameters from system/meshingDimensions
     // used by system/blockMeshDict
     n_base (250);//120 160 240); //(128);//(64);
-	resolution (500);
+	resolution (100);
 
     // Parameter for cartesian ALE-RRF mesh
     // Used only when mesh is manually generated in each case with cartesianMesh.sh

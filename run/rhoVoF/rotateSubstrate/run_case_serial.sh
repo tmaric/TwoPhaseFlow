@@ -5,6 +5,11 @@ SOLVER=$2
 TEMPLATECASE="${3:-templateCase}"
 # N_CASES_IN_PARALLEL=$3
 
+echo ls
+
+BASEDIR=$(dirname $0)
+echo "Script location: ${BASEDIR}"
+
 create-parameter-study.py -p "$SOLVER" -t "$TEMPLATECASE" "$PARAM_FILE_PREFIX".parameter  && \
 #bulkeval "$SOLVER"-"$PARAM_FILE_PREFIX"_000 "sed -i '1 i\#!/bin/bash' isoAdv.sbatch"
 # bulkeval "$SOLVER"-"$PARAM_FILE_PREFIX"_000 "sed -i '1 i\#!/bin/bash' hexrefinedMesh.sh"

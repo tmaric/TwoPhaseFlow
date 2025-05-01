@@ -69,10 +69,10 @@ PIMPLE
 {
     momentumPredictor no;
     nCorrectors     @!n_correctors!@;
-    nOuterCorrectors @!n_outer_correctors!@;
+    nOuterCorrectors @!n_outer_correctors!@;	//Wolfdynamics recommand a value of atleast 5 for moving bodies and to use Piso-ita or Pimple
     nNonOrthogonalCorrectors @!n_non_orth_correctors!@;
     pRefCell        0;
-    pRefValue       0;
+    pRefValue       0;			//wolfdynamics also adds "correctPhi	yes;???
 }
 
 
