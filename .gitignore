@@ -151,6 +151,9 @@ oldData_toBeDeleted/
 #random test folders
 *test*/
 
+#Ignore zone identifiers from windows
+*:Zone.Identifier
+
 typescript
 # end-of-file
 
