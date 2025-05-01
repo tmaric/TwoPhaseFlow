@@ -202,7 +202,7 @@ void Foam::gravityDirac::calculateAcc()
             }
             else
             {
-                cellFaceNormalbf[pi] = faceNormal.boundaryField().boundaryInternalField()[pi];
+                cellFaceNormalbf[pi] = faceNormal.boundaryField()[pi].patchInternalField(); //(luis) This line was before: cellFaceNormalbf[pi] = faceNormal.boundaryField().boundaryInternalField()[pi];
 
             }
         }
