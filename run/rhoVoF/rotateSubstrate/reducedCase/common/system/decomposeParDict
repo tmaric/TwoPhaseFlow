@@ -1,0 +1,41 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      decomposeParDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+// I think i already edited this to run on my machine with 8 cores only
+
+
+numberOfSubdomains 8; //100
+
+method          simple; //scotch; (eig war hier scotch drin von Jun!)
+
+coeffs
+{
+    n           (2 2 2);
+}
+
+//(luis) The following is from https://github.com/HenningScheufler/multiDimAMR/tree/master README
+constraints
+{
+    refinementHistoryMultiDim
+    {
+        //- Decompose cells such that all cell originating from single cell
+        //  end up on same processor
+        type    refinementHistoryMultiDim;
+    }
+}
+
+
+// ************************************************************************* //

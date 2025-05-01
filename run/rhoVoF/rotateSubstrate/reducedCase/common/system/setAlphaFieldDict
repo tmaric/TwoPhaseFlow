@@ -1,0 +1,30 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.0                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+//Declares "where the water should be"
+//Uses the Nf variable that was unused before
+// REFERENCES "meshingDimension"!!!
+
+#include "meshingDimensions";
+
+field "alpha.water";
+type sphere;
+radius $radius;
+origin ($x_centre $y_centre #eval{$z_centre + ($posyHALF_WIDTH + $negyHALF_WIDTH)/$Nf}); // 1 cell away from bottom patch
+
+
+// ************************************************************************* //

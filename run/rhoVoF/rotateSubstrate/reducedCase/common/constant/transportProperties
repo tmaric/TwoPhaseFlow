@@ -1,0 +1,49 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      transportProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Copied directly from jun
+//declare density and viscosity? for water and air
+
+phases (water air);
+
+water
+{
+    transportModel  Newtonian;
+    nu              1.6741e-06;
+    rho             999.94;
+}
+
+air
+{
+    transportModel  Newtonian;
+    nu              1.516e-05;
+    rho             1.204;
+}
+
+
+sigma               0.0728;		//Not sure what this is supposed to do (is "surface tension" is apparently needed for proper modeling of droplet)
+surfaceForces				//This here is nowhere to be found online. TwoPhaseFlow implementation? -> yep, keep for now, i guess...
+{
+    sigma 0.0728;
+    surfaceTensionForceModel gradAlpha; //fitParaboloid; //fitParaboloid RDF
+    accelerationForceModel gravity;
+    deltaFunctionModel alphaCSF;
+}
+
+
+
+// ************************************************************************* //
+

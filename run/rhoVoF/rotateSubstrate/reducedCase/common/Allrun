@@ -1,0 +1,15 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+#yada yada same same
+#------------------------------------------------------------------------------
+#This just executes the pre setup and then the sim, at the end tells if successful
+
+./Allrun.pre
+
+runApplication $(getApplication)
+
+result=$?
+echo $result
+
+#------------------------------------------------------------------------------
