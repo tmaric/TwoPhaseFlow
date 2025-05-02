@@ -149,7 +149,7 @@ oldData_toBeDeleted/
 .ipynb_checkpoints/
 
 #random test folders
-*test*/
+#*test*/
 
 #Ignore zone identifiers from windows
 *:Zone.Identifier
