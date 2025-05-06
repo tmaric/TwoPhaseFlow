@@ -26,7 +26,7 @@ startTime       0;
 
 stopAt          endTime; // writeNow; //endTime;
 
-endTime         1;	//@!end_time!@; //0.5; I think he maybe set a low value of 2e-3 in parameter file, cause fast for test???
+endTime         2e-3;	//@!end_time!@; //0.5; I think he maybe set a low value of 2e-3 in parameter file, cause fast for test???
 
 deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter, not sure if he did it here...
 
