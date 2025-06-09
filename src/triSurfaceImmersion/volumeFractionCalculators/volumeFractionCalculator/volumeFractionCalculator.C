@@ -25,6 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "surfaceFieldsFwd.H"
+#include "surfaceInterpolate.H"
 #include "volumeFractionCalculator.H"
 
 #include "DynamicList.H"
@@ -76,6 +78,12 @@ autoPtr<volumeFractionCalculator> volumeFractionCalculator::New(
 void volumeFractionCalculator::bulkVolumeFraction(volScalarField& alpha)
 {
     alpha = pos(this->sigDistCalc().cellSignedDist());
+}
+
+
+void volumeFractionCalculator::bulkAreaFraction(surfaceScalarField& alpha)
+{
+    alpha = pos(fvc::interpolate(this->sigDistCalc().cellSignedDist()));    
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

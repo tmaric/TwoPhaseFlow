@@ -169,8 +169,16 @@ public:
     //  at cell centres for all cells including interface cells.
     void bulkVolumeFraction(volScalarField& alpha);
 
+    //- Compute area fractions according to interpolated signed distance from cell centres.
+    //  Sets area fractions according to the sign of the signed distance
+    //  at face centres for all faces including those of interface cells.
+    void bulkAreaFraction(surfaceScalarField& alpha);
+
     //- Compute the volume fraction field alpha.
     virtual void calcVolumeFraction(volScalarField& alpha) = 0;
+
+    //- Compute the area fraction field alpha.
+    virtual void calcAreaFraction(surfaceScalarField& alpha) = 0;
 
     //- Write out additional fields used by the volume fraction calculator.
     virtual void writeFields() const = 0;

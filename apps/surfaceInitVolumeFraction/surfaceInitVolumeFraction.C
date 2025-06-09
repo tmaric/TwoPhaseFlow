@@ -114,6 +114,8 @@ int main(int argc, char* argv[])
     // Configure volume fraction calculator
     auto fieldName =
         setOptionByPrecedence<word>(initDict, args, "fieldName", "alpha.water");
+    auto surfaceFieldName =
+        setOptionByPrecedence<word>(initDict, args, "surfaceFieldName", "none");
     auto algName =
         setOptionByPrecedence<word>(initDict, args, "algorithm", "SMCI");
     setOptionByPrecedence<label>(initDict, args, "refinementLevel", -1);
@@ -141,6 +143,21 @@ int main(int argc, char* argv[])
     auto calcTime =
         std::chrono::duration_cast<std::chrono::microseconds>(ctime1 - ctime0)
             .count();
+
+    // Compute area fractions if requested
+    if (surfaceFieldName != "none")
+    {
+        Info<< "Computing area fractions" << endl;
+        auto ctime0 = std::chrono::steady_clock::now();
+        auto vofCalcPtr = volumeFractionCalculator::New(initDict, mesh);
+        vofCalcPtr->calcAreaFraction(alphaSurface);
+        auto ctime1 = std::chrono::steady_clock::now();
+        auto calcTimeAreaFractions =
+            std::chrono::duration_cast<std::chrono::microseconds>(ctime1 - ctime0)
+                .count();
+        Info<< "Computed area fractions in " << calcTimeAreaFractions/1.0e6
+            << " seconds." << endl;
+    }
 
     if (invertVolumeFraction)
     {

@@ -44,7 +44,9 @@ SourceFiles
 #include <volFieldsFwd.H>
 
 #include "AdaptiveTetCellRefinement.H"
+#include "AdaptiveTriFaceRefinement.H"
 #include "signedDistanceCalculator.H"
+#include "surfaceFieldsFwd.H"
 #include "volumeFractionCalculator.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -64,6 +66,9 @@ private:
     //- A triple containing set of indexed tetrahedra, points and sig.distances
     using cellDecompositionTuple = std::
         tuple<std::vector<indexedTet>, std::vector<point>, std::vector<scalar>>;
+    //- A triple containing set of indexed triangles, points and signed distances
+    using faceDecompositionTuple = std::
+        tuple<std::vector<indexedTri>, std::vector<point>, std::vector<scalar>>;
 
     // Private Data
     //- Pointer to the signed distance calculator holding interface information
@@ -85,12 +90,23 @@ private:
     //- Decompose the cell into tetrahedra using its centre and face centres
     cellDecompositionTuple decomposeCell(label cellID) const;
 
+    //- Decompose the face into triangles at its centroid
+    faceDecompositionTuple decomposeFace(label faceID) const;
+
     //- Number of tetrahedra a cell is decomposed into
     label nTets(label cellID) const;
+
+    //- Flag faces of interface cells by setting a negative area fraction value
+    void flagInterfaceCellFaces(surfaceScalarField& alpha) const;
 
     //- Compute volume fractions for interface cells.
     //  Returns the maximum refinement level used.
     label interfaceCellVolumeFraction(volScalarField& alpha,
+            bool writeDecomposition);
+
+    //- Compute area fractions for faces of interface cells.
+    //  Returns the maximum refinement level used.
+    label intersectedFacesAreaFraction(surfaceScalarField& alpha,
             bool writeDecomposition);
 
     //- Compute the target refinement level
@@ -123,6 +139,9 @@ public:
 
     //- Compute the volume fraction field alpha
     void calcVolumeFraction(volScalarField& alpha) override;
+
+    //- Compute the area fraction field alpha
+    void calcAreaFraction(surfaceScalarField& alpha) override;
 
     //- Find all cells which may be intersected by the interface
     void findIntersectedCells() override;
