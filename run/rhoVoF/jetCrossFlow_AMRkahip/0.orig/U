@@ -1,0 +1,81 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.x                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform (65 0 0);
+
+// NOTE: In this case, the momentum flux ratio q=7.8; the cross-flow Weber number We=144.
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           $internalField;
+    }
+
+    jetInlet
+    {
+/*        type            codedFixedValue;
+        value           uniform (0 6.36 0);
+
+        name            codedPatchBC;
+
+        code
+        #{
+            const fvPatch& patch = this->patch();
+            const vectorField& cf = patch.Cf();
+            vectorField& Ufield = *this;
+            const vector jetCenter = vector(0.0, 0.0, 0.0);
+
+            forAll(cf, i)
+            {
+                const scalar dist = mag(cf[i]-jetCenter);
+                Ufield[i] = vector(0, -21.434*pow(dist/0.001,3)+15.512*pow(dist/0.001,2)-2.5722*(dist/0.001)+8.6504, 0);
+            }
+			Ufield.writeEntry("",os);
+        #};
+*/
+		type            fixedValue;
+		value           uniform (0 6.36 0);
+    }
+
+    outlet
+    {
+        type            pressureInletOutletVelocity;
+        value           $internalField;
+    }
+
+    yMax
+    {
+        type            noSlip;
+    }
+
+    airBed
+    {
+        type            noSlip;
+    }
+
+    zMinMax
+    {
+        type            slip;
+    }
+
+}
+
+
+// ************************************************************************* //

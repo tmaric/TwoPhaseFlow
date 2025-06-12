@@ -1,7 +1,7 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  2.3.0                                 |
+|  \\    /   O peration     | Version:  2.1.1                                 |
 |   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
@@ -10,36 +10,29 @@ FoamFile
     version     2.0;
     format      ascii;
     class       dictionary;
-    location    "constant";
-    object      transportProperties;
+    location    "system";
+    object      balanceParDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-phases (water air);
+numberOfSubdomains 100;
 
-water
+method          kahip; //ptscotch; //clsutered //scotch
+
+
+simpleCoeffs
 {
-    transportModel  Newtonian;
-    nu              nu [ 0 2 -1 0 0 0 0 ] 0.001;
-    rho             rho [ 1 -3 0 0 0 0 0 ] 1;
+    n               (1 4 1);
+    delta           0.001;
 }
 
-air
+constraints
 {
-    transportModel  Newtonian;
-    nu              nu [ 0 2 -1 0 0 0 0 ] 0.001;
-    rho             rho [ 1 -3 0 0 0 0 0 ] 1;
-
+    refinementHistoryMultiDim
+    {
+        //- Decompose cells such that all cell originating from single cell
+        //  end up on same processor
+        type    refinementHistoryMultiDim;
+    }
 }
-
-sigma           sigma [ 1 0 -2 0 0 0 0 ] 1;
-surfaceForces
-{
-  sigma 1;
-  surfaceTensionForceModel RDF;//gradAlpha;
-  accelerationForceModel gravity;
-  deltaFunctionModel alphaCSF;
-}
-
-
 // ************************************************************************* //

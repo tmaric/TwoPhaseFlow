@@ -1,0 +1,125 @@
+// Values in this parameter file are adapted from
+//
+//      Popinet, Stéphane.
+//      "An accurate adaptive solver for surface-tension-driven interfacial flows."
+//      Journal of Computational Physics 228.16 (2009): 5838-5866.      
+//
+//      and have been used for the final IRTG workshop in Bad Boll, May 2018
+//
+//      Note: Abadie et al. used the same setup to perform a comprehensible
+//      comparison between different VoF and Level Set approaches in
+//
+//      Abadie, Thomas, Joelle Aubin, and Dominique Legendre.
+//      "On the combined effects of surface tension force calculation and interface advection on spurious currents within Volume of Fluid and Level Set frameworks."
+//      Journal of Computational Physics 297 (2015): 611-636.
+
+values
+{
+
+    // solver (interIsoFoam);
+    solver (lentFoam);
+
+    // Parameters from constant/transportProperties
+    rho_droplet
+    (
+        1.35336e+04 //1 10 100 1000 
+    );
+
+    nu_droplet
+    (
+        // correspond to La = [120, 1200, 12000, inf]
+        0.0 // 1.133e-07 //0.057735 0.018257 0.0057735 0.0
+    );
+
+    rho_ambient
+    (
+         1.1839 //1 
+    );
+
+    nu_ambient
+    (
+        0.0 // 1.562e-5 //$nu_droplet
+    );
+
+    surface_tension_coefficient
+    (
+        0.0 // 0.4855 //1.0
+    );
+
+    z_velocity
+    (
+        0.01
+    );
+
+    timeSchemes
+    (
+        Euler
+        CrankNicolson
+    );
+
+    fluxSchemes
+    (
+            upwind
+/*            cubic
+            linear
+            LUST
+            MUSCL
+            QUICK
+            SuperBee
+            vanLeer
+            limitedLinearV*/
+    );
+
+    
+    // Parameters from system/blockMeshDict
+    resolution 
+    (   
+        96 //16 32 64 
+    ); 
+
+    CFL_num
+    (
+        0.2 //0.005 0.01  0.2 //0.05 0.1 //0.5
+    );
+
+    // Parameters from system/controlDict
+    // Original end time from paper is 0.4s. However, to ensure this time is actually
+    // reached, use a slightly larger end time
+    end_time
+    (
+        0.1
+        // 0.0041 //droplet moves 4 diameters--JUN
+    );
+
+    // deltaT:
+    //      Time step size is a derived parameter computed by the capillary wave
+    //      stability criterion
+
+
+    // Domain and interface geometry
+    x_centre
+    (
+        0.0006250001
+    );
+
+    y_centre
+    (
+        0.0006250003
+    );
+
+    z_centre
+    (
+        0.00050007
+    );
+
+    radius
+    (
+        0.000250001
+    );
+
+    // Only required for cfMesh setup
+    surface_file
+    (
+        boundary_R0p5_H2_C0p50p5.stl
+    );
+}

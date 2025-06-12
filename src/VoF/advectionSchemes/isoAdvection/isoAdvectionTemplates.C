@@ -445,6 +445,15 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         << "%" << endl;
 
     alphaPhi_ = dVf_/mesh_.time().deltaT();
+
+    //CrankNicolson 1
+    /*
+    alphaPhi_ = dVf_/mesh_.time().deltaT();
+    alphaPhi_ = 2*alphaPhi_- alphaPhi_.oldTime();
+    */
+    //backward
+    /* alphaPhi_ = 1.5*dVf_/mesh_.time().deltaT() - 0.5*dVf_.oldTime()/mesh_.time().deltaT();*/
+
 }
 
 

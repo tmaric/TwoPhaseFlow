@@ -10,35 +10,50 @@ FoamFile
     version     2.0;
     format      ascii;
     class       dictionary;
-    location    "constant";
-    object      transportProperties;
+    location    "system";
+    object      fvSchemes;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-phases (water air);
-
-water
+ddtSchemes
 {
-    transportModel  Newtonian;
-    nu              nu [ 0 2 -1 0 0 0 0 ] 0.001;
-    rho             rho [ 1 -3 0 0 0 0 0 ] 1;
+    default         Euler;
 }
 
-air
+gradSchemes
 {
-    transportModel  Newtonian;
-    nu              nu [ 0 2 -1 0 0 0 0 ] 0.001;
-    rho             rho [ 1 -3 0 0 0 0 0 ] 1;
-
+    default         Gauss linear;
+    //grad(signedDistance) pointCellsLeastSquares;
 }
 
-sigma           sigma [ 1 0 -2 0 0 0 0 ] 1;
-surfaceForces
+divSchemes
+{   
+    default         Gauss   linear;
+    div(rhoPhi,U)   Gauss   upwind; //limitedLinearV      0; //0.5;//1;//0.0;
+}
+
+
+laplacianSchemes
 {
-  sigma 1;
-  surfaceTensionForceModel RDF;//gradAlpha;
-  accelerationForceModel gravity;
-  deltaFunctionModel alphaCSF;
+    default         Gauss linear corrected;
+}
+
+interpolationSchemes
+{
+    default         linear;
+}
+
+snGradSchemes
+{
+    default         corrected;
+}
+
+fluxRequired
+{
+    default         no;
+    p_rgh;
+    pcorr;
+	alpha.water;
 }
 
 
