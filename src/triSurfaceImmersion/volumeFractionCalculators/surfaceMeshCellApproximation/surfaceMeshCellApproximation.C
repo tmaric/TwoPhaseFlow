@@ -26,6 +26,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "AdaptiveTetCellRefinement.H"
+#include "AdaptiveTriFaceRefinement.H"
 #include "surfaceFieldsFwd.H"
 #include "surfaceMeshCellApproximation.H"
 
@@ -40,7 +41,8 @@ License
 #include "IntersectionCriteria.H"
 #include "signedDistanceCalculator.H"
 #include "tetVolumeFractionCalculator.H"
-#include "triSurfaceDistCalc.H"
+#include "triAreaFractionCalculator.H"
+// #include "triSurfaceDistCalc.H"
 
 namespace Foam::TriSurfaceImmersion
 {
@@ -205,6 +207,7 @@ label surfaceMeshCellApproximation::interfaceCellVolumeFraction(
                 signed_dist,
                 tets,
                 maxAllowedRefinementLevel_};
+
         tetVolumeFractionCalculator vofCalc{};
         alpha[cellID] =
             vofCalc.accumulatedOmegaPlusVolume(refiner.resultingTets(),
@@ -233,6 +236,7 @@ label surfaceMeshCellApproximation::intersectedFacesAreaFraction(
 )
 {
     label maxRefine = 0;
+    const auto& face_areas = this->mesh().magSf();
     
     forAll(alpha, faceID)
     {
@@ -250,22 +254,27 @@ label surfaceMeshCellApproximation::intersectedFacesAreaFraction(
                 signed_dist,
                 tris,
                 maxAllowedRefinementLevel_};
-        // TODO: enable once implemented
-        // tetVolumeFractionCalculator vofCalc{};
-        // alpha[cellID] =
-        //     vofCalc.accumulatedOmegaPlusVolume(refiner.resultingTets(),
-        //         refiner.signedDistance(),
-        //         refiner.points()) /
-        //     V[cellID];
+
+        triAreaFractionCalculator afCalc{};
+        alpha[faceID] =
+            afCalc.accumulatedOmegaPlusArea(refiner.resultingTris(),
+                refiner.signedDistance(),
+                refiner.points()) /
+            face_areas[faceID];
 
         // Bound area fraction field
         alpha[faceID] = max(min(alpha[faceID], 1.0), 0.0);
 
         maxRefine = std::max(refiner.refinementLevel(), maxRefine);
 
+        // TODO: continue here: enable the write function to also write the area
+        // fractions of the decomposed thr composed for debugging
+        // purposes. The `areaFractions(...)` member function of `afCalc` yields
+        // the required field. 
+        auto areaFractionsFace = afCalc.areaFractions(refiner.resultingTris(), refiner.signedDistance());
         if (writeDecomposition)
         {
-            refiner.writeTris(faceID);
+            refiner.writeTris(faceID, areaFractionsFace);
         }
     }
     

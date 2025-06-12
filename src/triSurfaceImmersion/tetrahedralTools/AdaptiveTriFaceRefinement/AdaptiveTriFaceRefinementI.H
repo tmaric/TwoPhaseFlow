@@ -248,7 +248,7 @@ RefinementCriterion>::decompose_and_add_new_tris
     // Triangles containing each one of the original triangle vertices
     tris_[start_id] = indexedTri{tri[0], pids[0], pids[1]};
     tris_[start_id + 1] = indexedTri{tri[1], pids[0], pids[2]};
-    tris_[start_id + 2] = indexedTri{tri[2], pids[1], pids[1]};
+    tris_[start_id + 2] = indexedTri{tri[2], pids[1], pids[2]};
 
     // Triangles consituted by three new points on the edge midpoints
     tris_[start_id + 3] = indexedTri{pids[0], pids[1], pids[2]};
@@ -276,6 +276,7 @@ save_decomposition_as_vtk
     const std::vector<point>& points,
     const std::vector<scalar>& signed_distance,
     const std::vector<label>& refinement_levels,
+    const std::vector<scalar>& area_fractions,
     std::string file_name
 ) const
 {
@@ -306,8 +307,9 @@ save_decomposition_as_vtk
     for (const auto& tri : tris)
     {
         out_file << "3 " << std::to_string(tri[0]) << " "
-                 << std::to_string(tri[1]) << " " << std::to_string(tri[2])
-                 << " " << std::to_string(tri[3]) << "\n";
+                         << std::to_string(tri[1]) << " "
+                         << std::to_string(tri[2])
+                         << "\n";
     }
     out_file << "CELL_TYPES " << std::to_string(tris.size()) << "\n";
     for (uint idx = 0; idx != tris.size(); ++idx)
@@ -333,6 +335,15 @@ save_decomposition_as_vtk
         out_file << std::to_string(alpha) << "\n";
     }
 
+    // Write elementary area fractions as cell data
+    //out_file << "CELL_DATA " << std::to_string(tris.size()) << "\n";
+    out_file << "Scalars area_fractions double 1\n";
+    out_file << "LOOKUP_TABLE default\n";
+    for (const label af : area_fractions)
+    {
+        out_file << std::to_string(af) << "\n";
+    }
+    
     out_file.close();
 }
 
@@ -496,7 +507,8 @@ RefinementCriterion>::refinementLevels(const label n_tris)
 template<class LevelSet, class RefinementCriterion>
 void adaptiveTriFaceRefinement<LevelSet, RefinementCriterion>::writeTris
 (
-    const label faceID
+    const label faceID,
+    const std::vector<scalar>& areaFractions
 )
 {
     compute_decomposition();
@@ -509,6 +521,7 @@ void adaptiveTriFaceRefinement<LevelSet, RefinementCriterion>::writeTris
         points_,
         levelSetValues_,
         refinementLevels(final_tris.size()),
+        areaFractions,
         "face-" + std::to_string(faceID) + "-decomposition.vtk"
     );
 }

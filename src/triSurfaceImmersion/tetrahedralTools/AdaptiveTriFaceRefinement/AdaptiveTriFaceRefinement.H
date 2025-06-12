@@ -161,6 +161,7 @@ private:
         const std::vector<point>& points,
         const std::vector<scalar>& signed_distance,
         const std::vector<label>& refinement_levels,
+        const std::vector<scalar>& area_fractions,
         std::string file_name) const;
 
 
@@ -195,7 +196,7 @@ public:
     std::vector<label> refinementLevels(label n_tris);
 
     //- Save the final decomposition as VTK for face faceID
-    void writeTris(label faceID);
+    void writeTris(label faceID, const std::vector<scalar>& areaFractions);
 
     //- Print infos about number of triangles and points for each level
     void printLevelInfos() const;
