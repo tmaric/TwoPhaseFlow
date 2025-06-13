@@ -47,7 +47,7 @@ adaptCriteria
         {
             type fieldBounds;
             fieldName alpha.water;
-            lowerBound 0.0001;
+            lowerBound 0.0001;		//(luis) is this the value where water vanishes?
             upperBound 2;
             maxCellLevel 1;
         }
@@ -64,7 +64,7 @@ nBufferLayers   1;
 maxRefinement   2;
 
 // Stop refinement if maxCells reached
-maxCells        15000; //15000000;
+maxCells        150000; //15000000;   start with small value and go finer later, when everything runs
 
 // Flux field and corresponding velocity field. Fluxes on changed
 // faces get recalculated by interpolating the velocity. Use 'none'

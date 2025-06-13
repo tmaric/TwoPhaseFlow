@@ -17,7 +17,7 @@ FoamFile
 //Uses codeStream to initialize the rotation condition for the velocity
 
 dimensions      [0 1 -1 0 0 0 0];
-rpm			200;	//@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800) ((Jun has 200 800 in his default file, probably missing a double dash!
+rpm			800; //200;	//@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800) ((Jun has 200 800 in his default file, probably missing a double dash!
 omega   #eval{$rpm*2*pi()/60};	//determine angular velocity!
 
 

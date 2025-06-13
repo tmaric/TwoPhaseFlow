@@ -17,13 +17,13 @@ FoamFile
 // I think i already edited this to run on my machine with 8 cores only
 
 
-numberOfSubdomains 8; //100
+numberOfSubdomains 96; //100, 96 to match the 96 core of a node
 
-method          simple; //scotch; (eig war hier scotch drin von Jun!)
+method          scotch; //scotch; (eig war hier scotch drin von Jun!)
 
 coeffs
 {
-    n           (2 2 2);
+    n           (4 2 12);
 }
 
 //(luis) The following is from https://github.com/HenningScheufler/multiDimAMR/tree/master README
