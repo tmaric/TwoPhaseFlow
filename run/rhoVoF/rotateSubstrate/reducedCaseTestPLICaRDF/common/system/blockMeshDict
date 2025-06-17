@@ -1,0 +1,84 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict; 
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+//standard mesh setup, with declaration for the names for the boundaries
+//clean up the variables here? or atleast comment what they are...
+
+#include "meshingDimensions";		//Imports from meshingDimensions, which again "should" import from setup.parameter, why the nesting?!
+
+scale 1.00;
+
+Nz #eval{floor($N*($poszHALF_WIDTH + $negzHALF_WIDTH)/($posxHALF_WIDTH + $negxHALF_WIDTH))};
+
+vertices
+(
+    ($C0 $C1 $H_START)
+    ($C2 $C1 $H_START)
+    ($C2 $C3 $H_START)
+    ($C0 $C3 $H_START)
+    ($C0 $C1 $H_END)
+    ($C2 $C1 $H_END)
+    ($C2 $C3 $H_END)
+    ($C0 $C3 $H_END)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) ($N $N $Nz) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    Bottom
+    {
+        type    patch;
+        faces
+        (
+            (3 2 1 0)
+        );
+    }
+
+    Top
+    {
+        type    patch;
+        faces
+        (
+            (4 5 6 7)
+        );
+    }
+
+    Mantle
+    {
+        type    patch;
+        faces
+        (
+            (0 4 7 3)
+            (2 6 5 1)
+            (0 1 5 4)
+            (7 6 2 3)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //

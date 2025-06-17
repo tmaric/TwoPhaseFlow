@@ -1,0 +1,60 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      meshing; 
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//THIS FILE IS REFERENCED BY blockMeshDict!!!
+//Direct copy from Jun
+//mainly calcs for the blockMeshDict script, not sure why they are separate
+//lets take it for now, and just check it out without the parameterization variabels(they are apparently a pyfoam specific notation)
+
+
+//radius  @!radius!@;
+//N       @!n_base!@; //Not used here but referenced in blockMeshDict
+//x_centre @!x_centre!@; 
+//y_centre @!y_centre!@;
+//z_centre @!z_centre!@;
+//Nf		 @!resolution!@; //Not used? Why here?! Not even used in blockMeshDict?!!!
+
+radius 0.0012; //Dingus, it s radius!0.00195, but actual exp radius is 0.0024...
+N 50; //250, (luis) not 100% certain, but does this define the initial amount of cells in each direction?
+x_centre 0.073; //Substrate impact radius, from redas pdf file with parameters
+y_centre 0;	//Does not matter, since circle
+z_centre $radius; //Jun set it in example as radius, basically directly before impact, but is that correct? No time to accelerate. Does he somewhere declare the impact velocity as init? reda pdf says 3.1m/s
+Nf 100; //used in "setAlphaField" 
+
+posxWIDTH 10;
+negxWIDTH 10;
+posyWIDTH 10;
+negyWIDTH 10;
+poszWIDTH 9;
+negzWIDTH 1;
+
+
+//DO WE TRUST THESE CALCS?
+posxHALF_WIDTH #eval{$radius * $posxWIDTH}; //@!posxWIDTH!@
+negxHALF_WIDTH #eval{$radius * $negxWIDTH}; //@!negxWIDTH!@
+posyHALF_WIDTH #eval{$radius * $posyWIDTH}; //@!posyWIDTH!@
+negyHALF_WIDTH #eval{$radius * $negyWIDTH}; //@!negyWIDTH!@
+poszHALF_WIDTH #eval{$radius * $poszWIDTH}; //@!poszWIDTH!@
+negzHALF_WIDTH #eval{$radius * $negzWIDTH}; //@!negzWIDTH!@
+
+
+C0 #eval{$x_centre - $negxHALF_WIDTH};
+C1 #eval{$y_centre - $negyHALF_WIDTH};
+C2 #eval{$x_centre + $posxHALF_WIDTH};
+C3 #eval{$y_centre + $posyHALF_WIDTH};
+H_START #eval{$z_centre - $negzHALF_WIDTH};
+H_END #eval{$z_centre + $poszHALF_WIDTH};
+
+// ************************************************************************* //

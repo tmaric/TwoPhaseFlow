@@ -1,0 +1,41 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      p_rgh;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+//For incompressible flow pressure becomes meaningless, if we dont have any gradients!
+//Also p and p_rgh usually contain the same code, so probably not both needed!
+
+dimensions      [1 -1 -2 0 0 0 0];
+
+//internalField   uniform 0; (That s why he probably just set it to zero...)
+internalField	uniform 1e5; //I however prefere sea level as baseline...
+
+boundaryField
+{
+    Top
+    {
+        type            fixedValue;
+        value           uniform 0;
+    }
+
+    "(Mantle|Bottom)" //What does he mean with Mantle? Plate? Drop? Air???
+    {
+        type            zeroGradient; //fixedValue;
+        //value           uniform 0;
+    }
+
+}
+
+// ************************************************************************* //

@@ -1,0 +1,42 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      alpha.water;
+}
+//#Copied Straight from JUN!
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+//#I m assuming that this just sets the whole field for now to 0, and later we add the droplet into it
+dimensions      [0 0 0 0 0 0 0];
+
+internalField   uniform 0;
+
+boundaryField
+{
+
+
+    "(Top|Mantle)"
+    {
+	type    zeroGradient;
+    }
+
+    Bottom
+    {
+    	type 		constantAlphaContactAngle;	// #!!!Internet does not think that constant angle will do, dynamic angle?! https://www.cfd-online.com/Forums/openfoam-pre-processing/114288-how-use-constant-alpha-contact-angle-2-1-1-a.html
+    	value 		uniform 0;
+	theta0 	        90;
+	limit 		zeroGradient;
+    }
+}
+
+// ************************************************************************* //
+
