@@ -4,6 +4,8 @@ cd "${0%/*}" || exit                                # Run from this directory
 #yada yada same same
 #------------------------------------------------------------------------------
 #This just executes the pre setup and then the sim, at the end tells if successful
+###!!!INFO!!! This script is not the correct way to start the sim, it s started via the sbatch and mpirun! Can probably be deleted...
+
 
 ./Allrun.pre
 
