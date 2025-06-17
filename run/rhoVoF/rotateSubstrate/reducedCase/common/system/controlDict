@@ -32,7 +32,7 @@ deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be se
 
 writeControl    runTime;
 
-writeInterval   5e-5;	//@!write_interval!@; // Write interval in terms defined in seconds of simulated physical time; Before: 2e-4
+writeInterval   5.0556117e-5;	//(luis) deciamals added to match the framerate of the HS camera //5e-5;	//@!write_interval!@; // Write interval in terms defined in seconds of simulated physical time; Before: 2e-4
 
 purgeWrite      0;	//@!purge_write!@; //0 indicates that there is no limit for the number of directories which can be created, otherwise this parameter sets the limit for the files which can be created before they are overridden
 
