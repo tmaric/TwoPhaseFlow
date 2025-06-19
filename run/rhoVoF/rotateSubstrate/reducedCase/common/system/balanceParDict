@@ -19,7 +19,7 @@ FoamFile
 
 numberOfSubdomains 96;  //100, 96 to match the 96 cores in node and also cover the newer 104 nodes
 
-method          ptscotch; //clsutered //scotch
+method          kahip;    //ptscotch HenningScheulfer said on multiDimAMR that ptscotch shit here and kahip better; //clsutered //scotch
 
 
 simpleCoeffs
