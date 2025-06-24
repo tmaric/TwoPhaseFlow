@@ -27,11 +27,11 @@ FoamFile
 //Nf		 @!resolution!@; //Not used? Why here?! Not even used in blockMeshDict?!!!
 
 radius 0.0012; //Dingus, it s radius!0.00195, but actual exp radius is 0.0024...
-N 50; //250, (luis) not 100% certain, but does this define the initial amount of cells in each direction?
+N 250; //50 from baseline, 250 from Jun (luis) not 100% certain, but does this define the initial amount of cells in each direction?
 x_centre 0.073; //Substrate impact radius, from redas pdf file with parameters
 y_centre 0;	//Does not matter, since circle
 z_centre $radius; //Jun set it in example as radius, basically directly before impact, but is that correct? No time to accelerate. Does he somewhere declare the impact velocity as init? reda pdf says 3.1m/s
-Nf 100; //used in "setAlphaField" 
+//This value should be not needed anymore		Nf 100; //used in "setAlphaField" 
 
 posxWIDTH 10;
 negxWIDTH 10;
