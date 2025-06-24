@@ -64,7 +64,7 @@ nBufferLayers   1;
 maxRefinement   2;
 
 // Stop refinement if maxCells reached
-maxCells        150000; //15000000;   start with small value and go finer later, when everything runs
+maxCells        15000000; //15000000;   start with small value and go finer later, when everything runs
 
 // Flux field and corresponding velocity field. Fluxes on changed
 // faces get recalculated by interpolating the velocity. Use 'none'
