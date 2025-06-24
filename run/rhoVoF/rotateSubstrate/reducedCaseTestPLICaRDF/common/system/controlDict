@@ -53,15 +53,15 @@ timePrecision   6;
 
 runTimeModifiable yes;
 
-adjustTimeStep	no;	// @!adjust_deltaT!@; //yes/no† to adjust time step according to maximum Courant number in transient simulation. 
+adjustTimeStep	yes;	//no   @!adjust_deltaT!@; //yes/no† to adjust time step according to maximum Courant number in transient simulation. 
 
 maxCo           0.1;
 
-maxAlphaCo      0.1;
+maxAlphaCo      100;	//0.1
 
-maxDeltaT       0.001;
+maxDeltaT       100;	//0.001
 
-maxCapillaryNum 0.0002; //0.5;
+maxCapillaryNum 100; //0.0002    0.5;
 
 libs
 (
