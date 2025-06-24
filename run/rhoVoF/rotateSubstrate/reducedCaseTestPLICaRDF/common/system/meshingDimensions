@@ -54,7 +54,7 @@ C0 #eval{$x_centre - $negxHALF_WIDTH};
 C1 #eval{$y_centre - $negyHALF_WIDTH};
 C2 #eval{$x_centre + $posxHALF_WIDTH};
 C3 #eval{$y_centre + $posyHALF_WIDTH};
-H_START #eval{$z_centre - $negzHALF_WIDTH};
-H_END #eval{$z_centre + $poszHALF_WIDTH};
+H_START #eval{$z_centre - $negzHALF_WIDTH}; //this results in 0!
+H_END #eval{$z_centre + $poszHALF_WIDTH};	// this results in radius * 10	
 
 // ************************************************************************* //
