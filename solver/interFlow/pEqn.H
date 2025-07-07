@@ -9,23 +9,8 @@
     }
 
     surfaceScalarField rAUf("rAUf", fvc::interpolate(rAU()));
-    /*surfaceScalarField rAUf(
-                            IOobject
-                            (
-                            "rAUf",
-                            runTime.timeName(),
-                            mesh,
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE
-                            ),
-                            mesh,
-                            dimensionedScalar("rAUf", fvc::interpolate(rAU()).ref().dimensions(), 1.0));*/
 
     volVectorField HbyA(constrainHbyA(rAU()*UEqn.H(), U, p_rgh));
-/*    Info << "##test HbyA, max " << max(HbyA) << ", min " << min(HbyA) << endl;
-    Info << "##test rAU, max " << max(rAU()) << ", min " << min(rAU()) << endl;
-    Info << "##test UEqn diag(), max " << max(UEqn.diag()) << ", min " << min(UEqn.diag()) << endl;
-    Info << "##test UEqn diag(), max " << max(UEqn.D()) << ", min " << min(UEqn.D()) << endl;*/
 
     surfaceScalarField phiHbyA
     (
@@ -51,19 +36,9 @@
           + surfForces.accelerationForce()
         )*rAUf*mesh.magSf()
     );
-    //Info << "##test rAUf, max " << max(rAUf) << ", min " << min(rAUf) << endl;
-    //Info << "##test magSf, max " << max(mesh.magSf()) << ", min " << min(mesh.magSf()) << endl;
-  //  Info << "##test st force, max " << max(surfForces.surfaceTensionForce()) << ", min " << min(surfForces.surfaceTensionForce()) << endl;
-    // Info << "##test phiHbyA, max " << max(phiHbyA) << ", min " << min(phiHbyA) << endl;
+
     phiHbyA += phig;
 
-//    volScalarField divPhig("divPhig", fvc::div(phig));
-//    divPhig.write();
-
-//    Info << "##test div(phig), max " << max(fvc::div(phig)).value() << ", min " << min(fvc::div(phig)).value() << endl;
-    // Update the pressure BCs to ensure flux consistency
-    // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
-    //Info << "##test div(phiHbyA), max " << max(fvc::div(phiHbyA)) << ", min " << min(fvc::div(phiHbyA)) << endl;
     if (args.get<word>("nonOrthogControl") == "PIMPLE")
     {
          constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
@@ -79,15 +54,12 @@
             p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
 
             p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
-            // Info << "##test (phig - p_rghEqn.flux()), max " << max(phig - p_rghEqn.flux()).value() << ", min " << min(phig - p_rghEqn.flux()).value() << endl;
 
             if (pimple.finalNonOrthogonalIter())
             {
                 phi = phiHbyA - p_rghEqn.flux();
-                //Info << "##test div(phi), max " << max(fvc::div(phi)).value() << ", min " << min(fvc::div(phi)).value() << endl;
                 p_rgh.relax();
 
-                // Info << "##test (phig - p_rghEqn.flux())/rAUf, max " << max((phig - p_rghEqn.flux())/rAUf).value() << ", min " << min((phig - p_rghEqn.flux())/rAUf).value() << endl;
                 U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
                 U.correctBoundaryConditions();
                 fvOptions.correct(U);
@@ -98,7 +70,6 @@
     if (args.get<word>("nonOrthogControl") == "ERCNOC")
     {
         constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
-//        Info << "##bp5, timeIndex: " << mesh.time().timeIndex() << endl;
         label Nnon = 0;
         bool correctNonOrthogonality = true;
 
@@ -107,24 +78,18 @@
             ++Nnon;
             // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
             
-           // Info << "##bp4, timeIndex: " << mesh.time().timeIndex() << endl;
             fvScalarMatrix p_rghEqn
             (
                 fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
             );
-            // Info << "##bp2, timeIndex: " << mesh.time().timeIndex() << endl;
             p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
-            // Info << "##bp0" <<endl;
             p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
             // const solverPerformance& p_rgh_performance = p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
-            const List<solverPerformance> sp = mesh.solverPerformanceDict().lookup("p_rgh");
-            // Info << "##bp1, nIterations:  "<< sp.last().nIterations() <<endl; 
+            const List<solverPerformance> sp = mesh.data().solverPerformanceDict().lookup("p_rgh");
             correctNonOrthogonality = (sp.last().nIterations() > 0);//(p_rgh_performance.nIterations() > 0); 
-            // p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
 
             if ((!correctNonOrthogonality) || pimple.finalNonOrthogonalIter())
             {
-               //  Info << "##bp3" << endl;
                 phi = phiHbyA - p_rghEqn.flux();
                 p_rgh.relax();
 
