@@ -1,6 +1,7 @@
 #!/bin/sh
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PYTHONMODULES=$DIR"/modules"
+export TPF_PROJECT_DIR="$( dirname $DIR )"
 
 export PYTHONPATH=$PYTHONPATH:$PYTHONMODULES
 export PATH=$PATH:$DIR
