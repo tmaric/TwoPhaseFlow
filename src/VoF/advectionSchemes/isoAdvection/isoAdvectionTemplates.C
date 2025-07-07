@@ -450,6 +450,16 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
 
     alphaPhi_ = dVf_/mesh_.time().deltaT();
 
+    tmp<fv::ddtScheme<vector>> tddtRhoU
+    (
+        fv::ddtScheme<vector>::New
+        (
+            mesh_,
+            mesh_.ddtScheme("ddt(rho, U)")
+        )
+    );
+    const fv::ddtScheme<vector>& ddtRhoU = tddtRhoU();
+
     if
     (
         isType<fv::EulerDdtScheme<vector>>(ddtRhoU)
