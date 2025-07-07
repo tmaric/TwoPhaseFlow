@@ -84,7 +84,7 @@
             );
             p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
             p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
-            // const solverPerformance& p_rgh_performance = p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
+
             const List<solverPerformance> sp = mesh.data().solverPerformanceDict().lookup("p_rgh");
             correctNonOrthogonality = (sp.last().nIterations() > 0);//(p_rgh_performance.nIterations() > 0); 
 
