@@ -24,7 +24,7 @@ FoamFile
 field "alpha.water";
 type sphere;
 radius $radius;
-origin ($x_centre $y_centre #eval{$z_centre + $radius*($H_START + $H_END)/$N}); // 1 cell away from bottom patch			 (luis): this calc was correct, but is now adapted to only reference N //#eval{$z_centre + ($posyHALF_WIDTH + $negyHALF_WIDTH)/$Nf}
+origin ($x_centre $y_centre #eval{$z_centre + 7*(26.7e-6)}); //(luis):cell on ground= radius + 7 px oben drüber  (jun): 1 cell away from bottom patch			 (luis): this calc was correct, but is now adapted to only reference N //#eval{$z_centre + ($posyHALF_WIDTH + $negyHALF_WIDTH)/$Nf}
 
-
+//we start too close to the ground with this: #eval{$z_centre + $radius*($H_START + $H_END)/$N}
 // ************************************************************************* //
