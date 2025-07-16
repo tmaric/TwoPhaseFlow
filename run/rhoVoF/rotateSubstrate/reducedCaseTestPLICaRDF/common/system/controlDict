@@ -57,11 +57,11 @@ adjustTimeStep	yes;	//no   @!adjust_deltaT!@; //yes/no† to adjust time step ac
 
 maxCo           0.1;
 
-maxAlphaCo      100;	//0.1
+maxAlphaCo      1;	//0.1
 
-maxDeltaT       100;	//0.001
+maxDeltaT       0.001;	//0.001
 
-maxCapillaryNum 100; //0.0002    0.5;
+maxCapillaryNum 1; //0.0002    0.5;
 
 libs
 (
