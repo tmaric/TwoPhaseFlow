@@ -174,6 +174,13 @@ public:
     //  at face centres for all faces including those of interface cells.
     void bulkAreaFraction(surfaceScalarField& alpha);
 
+    //- Compute area fractions of bulk faces based on signed distances
+    //  interpolated from cell centres.
+    //  Contrary to the other memer function of the same name, this one operates
+    //  on a scalarField in place of a surfaceScalarField to
+    //  simplify operation on boundary faces.
+    void bulkAreaFraction(scalarField& alpha);
+
     //- Compute the volume fraction field alpha.
     virtual void calcVolumeFraction(volScalarField& alpha) = 0;
 

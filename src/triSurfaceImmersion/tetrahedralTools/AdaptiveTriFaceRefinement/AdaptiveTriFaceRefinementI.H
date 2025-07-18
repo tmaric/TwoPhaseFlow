@@ -336,10 +336,9 @@ save_decomposition_as_vtk
     }
 
     // Write elementary area fractions as cell data
-    //out_file << "CELL_DATA " << std::to_string(tris.size()) << "\n";
     out_file << "Scalars area_fractions double 1\n";
     out_file << "LOOKUP_TABLE default\n";
-    for (const label af : area_fractions)
+    for (const scalar af : area_fractions)
     {
         out_file << std::to_string(af) << "\n";
     }

@@ -88,11 +88,12 @@ surfaceMeshCellApproximation::decomposeCell(const label cellID) const
     const auto& faces = mesh.faces();
     label face_centre_id = centre_id + 1;
     label idx_tet = 0;
+    const auto& faceCentres = mesh.faceCentres();
     for (const auto face_id : thisCell)
     {
-        points[face_centre_id] = mesh.Cf()[face_id];
+        points[face_centre_id] = faceCentres[face_id];
         sd[face_centre_id] =
-            sigDistCalcPtr_->signedDistance(mesh.Cf()[face_id]);
+            sigDistCalcPtr_->signedDistance(faceCentres[face_id]);
 
         for (const auto& anEdge : faces[face_id].edges())
         {
@@ -139,8 +140,8 @@ surfaceMeshCellApproximation::decomposeFace(label faceID) const
         sd[I] = pointSignedDist[pointID];
     }
 
-    points[points.size() - 1] = mesh.Cf()[faceID];
-    sd[sd.size() - 1] = sigDistCalcPtr_->signedDistance(mesh.Cf()[faceID]);
+    points[points.size() - 1] = mesh.faceCentres()[faceID];
+    sd[sd.size() - 1] = sigDistCalcPtr_->signedDistance(mesh.faceCentres()[faceID]);
 
     // TODO: crete indexed tris
     label face_centre_id = points.size() - 1;
@@ -171,7 +172,7 @@ label surfaceMeshCellApproximation::nTets(const label cellID) const
 }
 
 
-void surfaceMeshCellApproximation::flagInterfaceCellFaces(surfaceScalarField& alpha) const
+void surfaceMeshCellApproximation::flagInterfaceCellFaces(scalarField& fractions) const
 {
     const auto& cellFaces = this->mesh().cells();
 
@@ -181,7 +182,7 @@ void surfaceMeshCellApproximation::flagInterfaceCellFaces(surfaceScalarField& al
 
         for (auto faceI : interfaceCell)
         {
-            alpha[faceI] = -1.0;
+            fractions[faceI] = -1.0;
         }
     }
 } 
@@ -231,16 +232,16 @@ label surfaceMeshCellApproximation::interfaceCellVolumeFraction(
 
 
 label surfaceMeshCellApproximation::intersectedFacesAreaFraction(
-    surfaceScalarField& alpha,
+    scalarField& fractions,
     bool writeDecomposition
 )
 {
     label maxRefine = 0;
-    const auto& face_areas = this->mesh().magSf();
+    const auto& face_area_vectors = this->mesh().faceAreas();
     
-    forAll(alpha, faceID)
+    forAll(fractions, faceID)
     {
-        if (alpha[faceID] != -1.0)
+        if (fractions[faceID] != -1.0)
         {
             continue;
         }
@@ -256,26 +257,25 @@ label surfaceMeshCellApproximation::intersectedFacesAreaFraction(
                 maxAllowedRefinementLevel_};
 
         triAreaFractionCalculator afCalc{};
-        alpha[faceID] =
+        fractions[faceID] =
             afCalc.accumulatedOmegaPlusArea(refiner.resultingTris(),
                 refiner.signedDistance(),
                 refiner.points()) /
-            face_areas[faceID];
+            mag(face_area_vectors[faceID]);
 
         // Bound area fraction field
-        alpha[faceID] = max(min(alpha[faceID], 1.0), 0.0);
+        fractions[faceID] = max(min(fractions[faceID], 1.0), 0.0);
 
         maxRefine = std::max(refiner.refinementLevel(), maxRefine);
 
-        // TODO: continue here: enable the write function to also write the area
-        // fractions of the decomposed thr composed for debugging
-        // purposes. The `areaFractions(...)` member function of `afCalc` yields
-        // the required field. 
-        auto areaFractionsFace = afCalc.areaFractions(refiner.resultingTris(), refiner.signedDistance());
         if (writeDecomposition)
         {
+            auto areaFractionsFace = afCalc.areaFractions(refiner.resultingTris(), refiner.signedDistance());
             refiner.writeTris(faceID, areaFractionsFace);
         }
+
+        // Debug
+        Info<< "Area fraction for face " << faceID << ": " << fractions[faceID] << nl;
     }
     
     return maxRefine;
@@ -370,12 +370,15 @@ void surfaceMeshCellApproximation::calcVolumeFraction(volScalarField& alpha)
 
 void surfaceMeshCellApproximation::calcAreaFraction(surfaceScalarField& alpha)
 {
-    bulkAreaFraction(alpha);    
+    // Initialize a basic field for simplified handling of boundary faces
+    scalarField fractions(this->mesh().nFaces());
+    
+    bulkAreaFraction(fractions);    
     if (interfaceCellIDs_.size() == 0)
     {
         findIntersectedCells();
     }
-    flagInterfaceCellFaces(alpha);
+    flagInterfaceCellFaces(fractions);
     // There is no need to determine the maximum allowed refinement level.
     // Either it has been explicitly prescribed by the user, has been
     // computed for the volume fractions before hand or the auto mode is
@@ -384,11 +387,31 @@ void surfaceMeshCellApproximation::calcAreaFraction(surfaceScalarField& alpha)
     Info << "Number of cells flagged as interface cells: "
          << interfaceCellIDs_.size() << endl;
 
-    maxUsedRefinementLevel_ = intersectedFacesAreaFraction(alpha,
+    maxUsedRefinementLevel_ = intersectedFacesAreaFraction(fractions,
         this->writeGeometry());
 
+    // Transfer fractions to alpha
+    // Transfer internal face values
+    forAll(alpha, faceI)
+    {
+        alpha[faceI] = fractions[faceI];
+    }
+
+    // Transfer for boundary faces
+    auto& aboundary = alpha.boundaryFieldRef();
+
+    forAll(aboundary, patchI)
+    {
+        auto& patchField = aboundary[patchI];
+        const auto& patch = patchField.patch();
+
+        for (label faceI = 0; faceI != patch.size(); ++faceI)
+        {
+            patchField[faceI] = fractions[patch.start() + faceI];
+        }
+    }
+
     Info << "Finished volume fraction calculation" << nl << endl;
-    
 }
 
 

@@ -157,6 +157,13 @@ int main(int argc, char* argv[])
                 .count();
         Info<< "Computed area fractions in " << calcTimeAreaFractions/1.0e6
             << " seconds." << endl;
+
+        if (invertVolumeFraction)
+        {
+            alphaSurface = 1.0 - alphaSurface;
+        }
+
+        alphaSurface.write();
     }
 
     if (invertVolumeFraction)

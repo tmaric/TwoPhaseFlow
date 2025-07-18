@@ -97,7 +97,7 @@ private:
     label nTets(label cellID) const;
 
     //- Flag faces of interface cells by setting a negative area fraction value
-    void flagInterfaceCellFaces(surfaceScalarField& alpha) const;
+    void flagInterfaceCellFaces(scalarField& fractions) const;
 
     //- Compute volume fractions for interface cells.
     //  Returns the maximum refinement level used.
@@ -106,7 +106,7 @@ private:
 
     //- Compute area fractions for faces of interface cells.
     //  Returns the maximum refinement level used.
-    label intersectedFacesAreaFraction(surfaceScalarField& alpha,
+    label intersectedFacesAreaFraction(scalarField& fractions,
             bool writeDecomposition);
 
     //- Compute the target refinement level

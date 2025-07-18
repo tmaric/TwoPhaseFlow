@@ -53,8 +53,11 @@ scalar triAreaFractionCalculator::area
 }
 
 
-scalar triAreaFractionCalculator::areaFraction(
-    const indexedTri& tri, const std::vector<scalar>& signedDistance) const
+scalar triAreaFractionCalculator::areaFraction
+(
+    const indexedTri& tri,
+    const std::vector<scalar>& signedDistance
+) const
 {
     // This function implements the actual model of Detrixhe and Aslam (TT)
     scalar areaFraction = 0.0;
