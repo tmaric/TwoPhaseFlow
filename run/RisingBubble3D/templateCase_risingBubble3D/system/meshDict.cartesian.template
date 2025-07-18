@@ -1,0 +1,55 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|    _ _ _ _    |                                                              |
+| //         \\ | Creative Fields cfMeshPRO                                  |
+| | cfMeshPRO | |                                                              |
+| \\ _ _ _ _ // | Version: 0.0.99                                            |
+|               | Web: www.c-fields.com e-mail: support@c-fields.com           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version	2;
+    format	ascii;
+    class	dictionary;
+    location	"system";
+    object	meshDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+surfaceFile	"box.stl";
+
+maxCellSize	#calc "2*@!radius!@";
+refinementWidth #calc "@!refinementRadiusFactor!@ * @!radius!@";
+
+// Rename the bounding box patches.
+renameBoundary
+{
+    newPatchNames
+    {
+        zMax
+        {
+            newName top;
+            type patch;
+        }
+        zMin 
+        {
+            newName bottom;
+            type patch;
+        }
+    }
+
+    defaultType patch;
+    defaultName mantle;
+}
+
+surfaceMeshRefinement
+{
+    frontTracking
+    {
+        surfaceFile "constant/front.stl";
+        additionalRefinementLevels @!additionalRefinementLevels!@;
+        refinementThickness $refinementWidth;
+    }
+}
+
+// ************************************************************************* //

@@ -1,0 +1,77 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interFlow;
+
+startFrom       latestTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         @!end_time!@;
+
+deltaT          @!delta_t!@;
+
+writeControl    runTime;
+
+writeInterval   @!write_interval!@;
+
+purgeWrite      @!purge_write!@;
+
+writeFormat     binary;
+
+writePrecision  6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep  @!adjust_deltaT!@;
+
+maxCo @!max_Co!@; 
+maxAlphaCo @!max_alphaCo!@;
+
+maxDeltaT @!max_deltaT!@;
+maxCapillaryNum @!max_capillaryNum!@;
+/*
+libs ("libtwoPhaseValidation.so");
+
+functions
+{
+    volumeConservation 
+    {
+        type                fieldErrors;
+        fieldName           alpha.water;
+        alphaDroplet        0.0;
+    }
+
+    riseVelocity
+    {
+        type                        risingBubble;
+        phaseIndicatorFieldName     alpha.water;
+        velocityFieldName           U;
+        alphaValueDispersedPhase    0.0;
+    }
+}*/
+#include "FOsumAlpha"
+#include "FObubbleProcessing"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

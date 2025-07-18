@@ -1,0 +1,60 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  com                                   |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      functionObject2;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+functions
+{
+    SumAirV
+    {
+        libs            ("libutilityFunctionObjects.so");
+        type            coded;
+        name            SumAirV;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+
+            const volScalarField& alpha =
+                mesh().lookupObject<volScalarField>("alpha.water");
+            const volScalarField& alphaInv = 1.0 - alpha;
+	        const auto& cellVolume = mesh().V();
+            const auto& alphaV = alphaInv*cellVolume;
+            const auto& SumAirV = gSum(alphaV.ref());
+            // Info<< "##Sum of kinetic_energy = " << SumKinE << endl;
+
+            if (Pstream::master())
+            {
+             	fileName outputFile = ("./SumAirV.dat");
+                autoPtr<OFstream> outputFilePtr;
+
+               // Info << "##breakpoint0"<<endl;
+                if (!exists(outputFile))
+                {
+                 //   Info << "##breakpoint1"<<endl;
+                    OFstream is(outputFile);
+                    outputFilePtr.reset(new OFstream(outputFile));
+                   // Info <<"##breakpoint2"<<endl;
+                    outputFilePtr() << "time" << tab << "SumAirV" << endl;
+                    outputFilePtr() << "0" << tab << SumAirV <<endl;
+                }
+
+                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),true));
+                 outputFilePtr() << mesh().time().timeName() << tab << SumAirV << endl;
+             }
+        #};
+    }
+}
