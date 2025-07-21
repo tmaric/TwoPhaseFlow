@@ -1,0 +1,77 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  com                                   |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      functionObject2;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+functions
+{
+    kinetic_energy
+    {
+        libs            ("libutilityFunctionObjects.so");
+        type            coded;
+        name            kinetic_energy;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+
+            const volScalarField& rho =
+                mesh().lookupObject<volScalarField>("rho");
+            const volVectorField& U =
+                mesh().lookupObject<volVectorField>("U");
+  	        const auto& cellVolume = mesh().V();
+            const auto& e1 = 0.5*rho*cellVolume*(U&U); //magSqr(U);
+            const auto& e2 = 0.5*rho*cellVolume*rho*cellVolume*(U&U); //magSqr(rho*U);
+            const auto& SumKinE1 = gSum(e1.ref());
+            const auto& SumKinE2 = gSum(e2.ref());
+            const auto& e3 = rho*cellVolume*U;
+            const auto SumKinE3=mag(sum(e3.ref()));
+            const auto SumKinE4=sum(mag(e3.ref()));
+            /*dimensionedVector SumKinE3 ("SumKinE3", dimless, vector::zero);
+            dimensionedScalar SumKinE4 ("SumKinE4", dimless, scalar(0.0));
+
+            forAll(U, celli)
+            {
+                SumKinE3 += e3.ref()[celli];
+                SumKinE4 += mag(e3.ref()[celli]);
+            }*/
+
+            Info<< "##Sum of kinetic_energy " << endl;
+
+            if (Pstream::master())
+            {
+             	fileName outputFile = ("./SumKinE.dat");
+                autoPtr<OFstream> outputFilePtr;    
+
+               // if (mesh().time().timeIndex()==0)
+               // {
+                if (!exists(outputFile))
+                {
+                    OFstream is(outputFile);
+                    outputFilePtr.reset(new OFstream(outputFile));
+                    outputFilePtr() << "time" << tab << "SumKinE1" << tab << "SumKinE2"<< tab << "SumKinE3"<< tab << "SumKinE4" << tab <<"MOMx" << tab << "MOMy" << tab << "MOMz" << endl;
+                }
+               /* else
+                {
+                    
+                }
+                }*/
+                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
+                 outputFilePtr() << mesh().time().timeName() << tab << SumKinE1<< tab << SumKinE2 << tab << mag(SumKinE3).value()<< tab <<SumKinE4.value() << tab << sum(e3.ref()).component(0).value() << tab << sum(e3.ref()).component(1).value() << tab << sum(e3.ref()).component(2).value() << endl;
+             }
+        #};
+    }
+}

@@ -1,0 +1,63 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v1806                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      topoSetDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "meshingDimensions";
+
+//x_centre  @!x_centre!@;
+//radius  @!radius!@;
+L       #eval{$posxHALF_WIDTH + $negxHALF_WIDTH}; //d  #calc "5.0 * $radius";
+//n_fine  @!resolution!@;
+
+// This delta corresponds to a narrowband width of 4 cells
+// to ensure the part of the domain in which the interface acts
+// is uniformly resolved
+delta   #eval{4.0*$L/$N};
+
+//bmin    #calc "$x_centre - $radius - $delta";
+//bmax    #calc "$x_centre + $radius + $delta";
+xyMin        #eval{$x_centre - 0.5*$negxHALF_WIDTH - $delta};
+xyMax        #eval{$x_centre + 0.5*$posxHALF_WIDTH + $delta};
+zMin         #eval{$z_centre - 0.5*$negzHALF_WIDTH - $delta};
+zMax         #eval{$z_centre + 0.5*$poszHALF_WIDTH + $delta};
+
+actions
+(
+    {
+        name    interfaceRegionCellCorners;
+        type    pointSet;
+        action  new;
+        source  boxToPoint;
+        sourceInfo
+        {
+            box ($xyMin $xyMin $zMin) ($xyMax $xyMax $zMax);
+        }
+    }
+
+    {
+        name    interfaceRegion;
+        type    cellSet;
+        action  new;
+        source  pointToCell;
+        sourceInfo
+        {
+            set     interfaceRegionCellCorners;
+            option  any;
+        }
+    }
+);
+
+// ************************************************************************* //
+

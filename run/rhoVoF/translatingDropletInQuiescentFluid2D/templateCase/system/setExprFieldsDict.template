@@ -1,0 +1,64 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      setExprFieldsDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+expressions
+(
+    velocity
+    {
+        field       U_pre;
+        dimensions  [0 1 -1 0 0 0 0];
+
+        constants
+        {
+            centre (@!x_centre!@ @!y_centre!@ @!z_centre!@);
+        }
+
+        variables
+        (
+            "r0 = @!radius!@"
+            "r0Cubed = pow(r0, 3)"
+            "r = mag(pos() - $[(vector)constants.centre])"
+            "dx = (pos() - $[(vector)constants.centre]).x()"
+            "dy = (pos() - $[(vector)constants.centre]).y()"
+            "dz = (pos() - $[(vector)constants.centre]).z()"
+            "deltaH = 0.5*sqrt(3)*1/@!resolution!@"
+            "vinf = 0"
+            "vdrop = @!z_velocity!@"
+        );
+
+        // Consider only cells completely outside the sphere
+        condition
+        #{
+            (mag(pos() - $[(vector)constants.centre]) > (r0+deltaH))
+        #};
+
+        expression
+        #{
+            // NOTE: the power function pow(a, b) does not work if 'a' is an expression
+            // containing pos(). OpenFOAM will complain that the base field is not
+            // dimensionless.
+            // I have not figured out yet how to make the base field dimensionless. (TT)
+            vector(
+                vdrop*1.5*r0Cubed*dz*dx/(r*r*r*r*r),
+                vdrop*1.5*r0Cubed*dz*dy/(r*r*r*r*r),
+                vinf*1.0 - vdrop*0.5*r0Cubed*(r*r - 3.0*dz*dz)/(r*r*r*r*r)
+            )
+        #};
+    }
+);
+
+
+// ************************************************************************* //

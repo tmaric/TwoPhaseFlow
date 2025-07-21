@@ -1,0 +1,16 @@
+functions
+{
+    fileUpdate1
+    {
+     	type              timeActivatedFileUpdate;
+        libs              ("libutilityFunctionObjects.so");
+        writeControl	  timeStep;
+        writeInterval     1;
+        fileToUpdate	  "$FOAM_CASE/system/controlDict";
+        timeVsFile
+        (
+	        (-1 "$FOAM_CASE/system/controlDict.00")
+            (1.6 "$FOAM_CASE/system/controlDict.01")
+        );
+    }
+}

@@ -1,0 +1,38 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  com                                   |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      functionObject1;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+functions
+{
+    sumalpha
+    {
+        libs            ("libutilityFunctionObjects.so");
+        type            coded;
+        name            sumAlpha;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+
+            const volScalarField& alpha =
+                mesh().lookupObject<volScalarField>("alpha.air");
+
+            Info<< "sum of alpha_droplet = " << gSum(alpha) << endl;
+
+        #};
+    }
+}

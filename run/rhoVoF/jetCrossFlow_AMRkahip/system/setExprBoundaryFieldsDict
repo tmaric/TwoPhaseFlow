@@ -1,0 +1,35 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2212                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      setExprBoundaryFieldsDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Preload any required fields (optional)
+readFields      ( U );
+
+jetInletU
+{
+    field   U;
+
+    expressions
+    (
+        {
+            patch   jetInlet;
+            target  value;
+            expression #{ vector(0, -21.434*pow(mag(pos())/0.001,3) + 15.512*pow(mag(pos())/0.001,2) - 2.5722*(mag(pos())/0.001) + 8.6504, 0) #};
+        }
+    );
+}
+
+
+// ************************************************************************* //

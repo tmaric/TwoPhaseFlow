@@ -8,6 +8,10 @@ The available models and solvers are documentated in the paper:
 
 Scheufler, H., & Roenby, J. (2023). "TwoPhaseFlow: A Framework for Developing Two Phase Flow Solvers in OpenFOAM". OpenFOAM® Journal, 3, 200–224. https://doi.org/10.51560/ofj.v3.80
 
+Extensions for handling high density ratios are documented in: 
+
+[Liu, J., Tolle, T., Zuzio, D., Estivalèzes, J. L., Damian, S. M., & Marić, T. (2024). Inconsistencies in unstructured geometric volume-of-fluid methods for two-phase flows with high density ratios. Computers & Fluids, 281, 106375.](https://doi.org/10.1016/j.compfluid.2024.106375)
+
 ## Getting Started
 
 
@@ -28,10 +32,10 @@ OpenFOAM.org versions are not supported.
 ```bash
     git clone https://github.com/DLR-RY/TwoPhaseFlow
     cd TwoPhaseFlow
-    # To compile e.g. with OpenFOAM-v2406 checkout the appropriate branch with:
-    # git checkout of2406
+    # To compile e.g. with OpenFOAM-v2506 checkout the appropriate branch with:
+    # git checkout of2506
     ./Allwmake
-    ./get-gmsh.sh # will install gmsh version 306 as gmshv306
+    ./get-gmsh.sh # will install gmsh version 493 as gmshv493
     # for AMR
     git submodule update --init --recursive
     cd modules/multiDimAMR/
@@ -39,7 +43,7 @@ OpenFOAM.org versions are not supported.
 ```
 ### Running testsuite
 
-Make sure that the desired OpenFOAM installation is sourced e.g. v1812 and that 
+Make sure that the desired OpenFOAM installation is sourced e.g. v2506 and that 
 python is installed with a version >= 3.6 (miniconda is a great option, but anaconda works as well)
 
 ```bash
@@ -53,6 +57,12 @@ python is installed with a version >= 3.6 (miniconda is a great option, but anac
 ## Authors
 
 * **Henning Scheufler**
+
+## Contributors
+
+* **Tomislav Maric**
+* **Tobias Tolle**
+* **Jun Liu**
 
 ### adaptive mesh refinement with multiple regions
 
@@ -71,7 +81,7 @@ To fix this, apply the patch (assumes OpenFOAM is already source):
     git apply surfaceFieldValue.patch
 
 ```
-For details see:
+details see:
 
 https://develop.openfoam.com/Development/openfoam/-/issues/1676
 
@@ -79,7 +89,7 @@ https://develop.openfoam.com/Development/openfoam/-/issues/1753
 
 ## License
 
-This project is licensed under the GPL v3 License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the GPL v3 License - see the [LICENSE.md](LICENSE.md) file for details
 
 
 ## Running benchmarks

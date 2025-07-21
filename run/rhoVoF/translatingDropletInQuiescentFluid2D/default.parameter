@@ -1,0 +1,41 @@
+
+// Parameters from controlDict
+write_interval   0.002; // 0.0004;
+
+
+// Parameters from lentSolution
+smoothing_interval  0;
+
+temporal_integration Euler;
+
+cell_to_vertex  cellPoint;
+
+curvature_model compactDivGrad;
+
+front_to_mesh_transfer  triangleInCell;
+
+n_alpha_smoothing   0;
+
+
+// Parameters from fvSolution
+n_outer_correctors  25;
+
+n_correctors    5;
+
+phi_change_tolerance        1.0e-7;
+abs_phi_change_tolerance    1.0e-16;
+
+
+// Base resolution for hex refinement
+n_base  8;
+
+// Set deltaT to the specified fraction of the maximum allows time step size
+// according to the capillary wave stability criterion
+
+// original value
+scale_delta_t   0.5;
+cfl_factor 1;
+
+// new value_jun
+// scale_delta_t   10000000; // 2; //1;
+// cfl_factor 0.8;

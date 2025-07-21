@@ -1,0 +1,23 @@
+ functions
+ {
+     surfaces
+     {
+         type            surfaces;
+         libs            (geometricVoF sampling);
+         writeControl    writeTime;
+
+         surfaceFormat   vtp;
+         fields          (p U);
+
+         interpolationScheme cell;
+
+         surfaces
+         {
+             freeSurf
+             {
+                 type            interface; // sampled type
+                 interpolate     false;  // should be used to interpolate volume fields to surface points, not implemented.
+             }                           // keep it false.
+         }
+     }
+ }

@@ -1,0 +1,35 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v1806                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      topoSetDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+actions
+(
+    // This selects all mesh vertices which are inside a sphere (our interface)
+    {
+        name    interfaceRegionCellCorners;
+        type    pointSet;
+        action  new;
+        source  sphereToPoint;
+        sourceInfo
+        {
+            sphere;
+            radius  @!radius!@;
+            centre  (@!x_centre!@ @!y_centre!@ @!z_centre!@);
+        }
+    }
+);
+
+// ************************************************************************* //
+
