@@ -1,3 +1,0 @@
-interIsoRhoFoam.cpp
-
-EXE = $(FOAM_USER_APPBIN)/interIsoRhoFoam
