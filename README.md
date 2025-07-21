@@ -4,21 +4,21 @@ the TwoPhaseFlow Library adds new surface tension and phase change models to Ope
 
 ## Documentation
 
-The available models and solvers are documentated in:
+The available models and solvers are documentated in: [https://arxiv.org/abs/2103.00870](https://doi.org/10.51560/ofj.v3.80 )
 
-https://arxiv.org/abs/2103.00870
+
+Extensions for handling high density ratios are documented in: [https://doi.org/10.1016/j.compfluid.2024.106375](https://doi.org/10.1016/j.compfluid.2024.106375)
 
 ## Getting Started
 
 
 ### Prerequisites
 
-Requires OpenFOAM v1812:
+Requires OpenFOAM v2506:
 
 ```
 https://www.openfoam.com/download/release-history.php
 ```
-The branch of2106 works with of2106
 
 ### Installing
 
@@ -26,7 +26,7 @@ The branch of2106 works with of2106
     git clone https://github.com/DLR-RY/TwoPhaseFlow
     cd TwoPhaseFlow
     ./Allwmake
-    ./get-gmsh.sh # will install gmsh version 306 as gmshv306
+    ./get-gmsh.sh # will install gmsh version 493 as gmshv493
     # for AMR
     git submodule update --init --recursive
     cd modules/multiDimAMR/
@@ -34,7 +34,7 @@ The branch of2106 works with of2106
 ```
 ### running testsuite
 
-make sure that the desired openfoam installation is sourced e.g. v1812 and that 
+make sure that the desired openfoam installation is sourced e.g. v2506 and that 
 python is installed with a version >= 3.6 (miniconda is a great option, but anaconda works as well)
 
 ```bash
@@ -49,10 +49,15 @@ python is installed with a version >= 3.6 (miniconda is a great option, but anac
 
 * **Henning Scheufler**
 
+## Contributors
+
+* **Tomislav Maric**
+* **Tobias Tolle**
+* **Jun Liu**
+
 ### adaptive mesh refinement with multiple regions
 
-AMR with multiple regions does not work in version of1812 but it is fixed in newer versions.
-
+AMR with multiple regions does not work in version of2506 but it is fixed in newer versions.
 
 To fix this apply the patch (assumes openfoam is already source):
 
@@ -74,8 +79,6 @@ https://develop.openfoam.com/Development/openfoam/-/issues/1753
 ## License
 
 This project is licensed under the GPL v3 License - see the [LICENSE.md](LICENSE.md) file for details
-
-
 
 ## running Benchmarks
 
