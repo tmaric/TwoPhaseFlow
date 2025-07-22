@@ -25,6 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "surfaceFieldsFwd.H"
+#include "surfaceInterpolate.H"
 #include "volumeFractionCalculator.H"
 
 #include "DynamicList.H"
@@ -76,6 +78,48 @@ autoPtr<volumeFractionCalculator> volumeFractionCalculator::New(
 void volumeFractionCalculator::bulkVolumeFraction(volScalarField& alpha)
 {
     alpha = pos(this->sigDistCalc().cellSignedDist());
+}
+
+
+void volumeFractionCalculator::bulkAreaFraction(surfaceScalarField& alpha)
+{
+    alpha = pos(fvc::interpolate(this->sigDistCalc().cellSignedDist()));
+
+    // Compute bulk area fractions for boundary faces
+    auto& aboundary = alpha.boundaryFieldRef();
+
+    forAll(aboundary, patchI)
+    {
+        auto& patchField = aboundary[patchI];
+        const auto& patch = patchField.patch();
+        const auto& cf = patch.Cf();
+
+        forAll(patchField, faceI)
+        {
+            patchField[faceI] = pos(this->sigDistCalc().signedDistance(cf[faceI]));
+        }
+    }
+}
+
+
+void volumeFractionCalculator::bulkAreaFraction(scalarField& alpha)
+{
+    const auto& cf = mesh_.faceCentres();
+
+    auto bulkFractionsTmp = pos(fvc::interpolate(this->sigDistCalc().cellSignedDist()));
+    const auto& bulkFractions = bulkFractionsTmp.cref();
+    
+    // Transfer bulk fractions of internal faces
+    forAll(bulkFractions, faceI)
+    {
+        alpha[faceI] = bulkFractions[faceI];
+    }
+
+    // Compute bulk fractions of boundary faces
+    for (label faceI = mesh_.nInternalFaces(); faceI != alpha.size(); ++faceI)
+    {
+        alpha[faceI] = pos(this->sigDistCalc().signedDistance(cf[faceI]));
+    }
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

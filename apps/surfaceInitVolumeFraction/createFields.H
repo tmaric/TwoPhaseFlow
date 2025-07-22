@@ -12,3 +12,16 @@ volScalarField alpha
     mesh
 );
 
+surfaceScalarField alphaSurface
+(
+    IOobject
+    (
+        surfaceFieldName,
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    fvc::interpolate(alpha)
+);
+

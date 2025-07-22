@@ -33,6 +33,13 @@ argList::addOption
 
 argList::addOption
 (
+    "surfaceFieldName", 
+    "alphaSurface.water",
+    "Name of the area fraction field.\nDefault: none" 
+); 
+
+argList::addOption
+(
     "algorithm", 
     "SMCI/SMCA",
     "Name of the volume fraction calculator.\nDefault: SMCI" 
