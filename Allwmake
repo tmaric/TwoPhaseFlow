@@ -22,4 +22,5 @@ wmake apps/benchmark/reconstructInterface
 
 wmake solver/multiRegionPhaseChangeFlow
 wmake solver/interFlow
+wmake solver/interIsoRhoFoam
 wmake solver/compressibleInterFlow
