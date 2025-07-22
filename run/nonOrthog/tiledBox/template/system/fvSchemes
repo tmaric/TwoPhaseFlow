@@ -23,11 +23,14 @@ ddtSchemes
 gradSchemes
 {
     default         Gauss linear;
+    grad(U)         Gauss linear;
+    grad(alpha1)    Gauss linear;
 }
 
 divSchemes
 {
-    div(rhoPhi,U)  Gauss linear;
+    default	    Gauss linear;
+    div(rhoPhi,U)  Gauss limitedLinearV 1;
     div(phi,alpha)  Gauss vanLeer01;
     div(phirb,alpha) Gauss interfaceCompression;
     div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;
@@ -51,7 +54,7 @@ snGradSchemes
 fluxRequired
 {
     default         no;
-    p_rgh;
+    pd;
     pcorr;
     alpha1;
 }

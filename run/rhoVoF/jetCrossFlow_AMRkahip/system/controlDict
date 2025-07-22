@@ -1,0 +1,81 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interIsoFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         0.008;
+
+deltaT          5e-7;
+
+writeControl    runTime;
+
+writeInterval   1e-4;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  12;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep  yes;
+
+maxCo 0.5; 
+maxAlphaCo 0.5;
+
+maxDeltaT       0.01;
+maxCapillaryNum 0.5;
+
+libs
+(
+   "libdynamicLoadBalanceFvMesh.so"     // All AMR and LB enhancements
+);
+/*
+OptimisationSwitches
+{
+
+      //- Parallel IO file handler
+      // uncollated (default), collated or masterUncollated
+      fileHandler collated;
+
+      //- collated: thread buffer size for queued file writes.
+      // If set to 0 or not sufficient for the file size threading is not used.
+      // Default: 2e9
+      maxThreadFileBufferSize 2e12;
+
+      //- masterUncollated: non-blocking buffer size.
+      // If the file exceeds this buffer size scheduled transfer is used.
+      // Default: 2e9
+      maxMasterFileBufferSize 2e12;
+}
+*/
+#include "FO_plicInterface"
+#include "FO_visRDF"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

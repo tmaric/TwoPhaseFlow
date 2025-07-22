@@ -31,7 +31,7 @@ values
 
     resolution
     (
-         128 // 256 
+         256 // 128 256 
     );
 
     fluxSchemes

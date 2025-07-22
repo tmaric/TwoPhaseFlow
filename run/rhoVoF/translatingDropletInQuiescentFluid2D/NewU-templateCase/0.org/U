@@ -1,0 +1,105 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.x                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform (0 0 0);
+
+/*internalField   #codeStream
+{
+        codeInclude
+        #{
+            #include "fvCFD.H"
+        #};
+
+    codeOptions
+        #{
+            -I$(LIB_SRC)/finiteVolume/lnInclude \
+            -I$(LIB_SRC)/meshTools/lnInclude
+        #};
+
+    codeLibs
+        #{
+            -lmeshTools \
+            -lfiniteVolume
+        #};
+
+    code
+        #{
+            const IOdictionary& d = static_cast<const IOdictionary&>(dict);
+            const fvMesh& mesh = refCast<const fvMesh>(d.db());
+
+            vectorField U(mesh.nCells(), Zero);
+
+            volScalarField alpha
+            (
+                IOobject
+                (
+                    "alpha.water",
+                    mesh.time().timeName(),
+                    mesh,
+                    IOobject::MUST_READ,
+                    IOobject::NO_WRITE
+                ),
+                mesh
+            );
+
+            volVectorField U_pre
+            (
+                IOobject
+                (
+                    "U_pre",
+                    mesh.time().timeName(),
+                    mesh,
+                    IOobject::MUST_READ,
+                    IOobject::NO_WRITE
+                ),
+                mesh
+            );
+
+            forAll(alpha, celli)
+            {
+                if ( alpha[celli] < 1.0 && alpha[celli] > 0.0 )
+                {
+                    U[celli] = (0.0, 0.0, 10.0);//vector(0.0, 0.0, (1e6*alpha[celli]*10.0 + 1*(1-alpha[celli])*0.0)/(1e6*alpha[celli]+1*(1-alpha[celli])));
+                    //U[celli] = vector(0.0, 0.0, (1.0*alpha[celli]*10.0 + 1*(1.0-alpha[celli])*0.0)/(1*alpha[celli]+1*(1-alpha[celli]))); // densityRatio1
+                }
+                else
+                {
+                    U[celli] = U_pre[celli];
+                }
+            }
+
+            U.writeEntry("",os);
+        #};
+};*/
+
+
+boundaryField
+{
+    "(right|left|top|bottom)"
+    {
+        type            cyclic;
+    }
+    "(front|back)"
+    {
+        type            empty;
+    }
+}
+
+
+// ************************************************************************* //

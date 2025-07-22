@@ -1,0 +1,79 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 -1 0 0 0 0];
+rpm			@!rpm!@;
+omega   #eval{$rpm*2*pi()/60};
+
+internalField   #codeStream
+{
+        codeInclude
+        #{
+            #include "fvCFD.H"
+        #};
+
+	codeOptions
+        #{
+            -I$(LIB_SRC)/finiteVolume/lnInclude \
+            -I$(LIB_SRC)/meshTools/lnInclude
+        #};
+
+	codeLibs
+        #{
+            -lmeshTools \
+            -lfiniteVolume
+        #};
+
+	code
+   #{
+            const IOdictionary& d = static_cast<const IOdictionary&>(dict);
+            const fvMesh& mesh = refCast<const fvMesh>(d.db());
+
+            vectorField U(mesh.nCells(), Zero);
+
+			scalar omega = $omega;
+			vector axis = vector(0, 0, 1);
+
+            forAll(U, i)
+            {
+				U[i] = (-omega)*(mesh.C()[i] ^ (axis/mag(axis)));
+			}
+
+            U.writeEntry("",os);
+        #};
+};
+
+
+boundaryField
+{
+    "(Mantle|Top)"//left
+    {
+	type    zeroGradient;
+    }
+
+    Bottom//right
+    {
+         type            rotatingWallVelocity;
+         origin          (0 0 0);
+         axis            (0 0 1);
+         omega           $omega;
+	//type    zeroGradient;
+    }
+}
+
+// ************************************************************************* //
+
+

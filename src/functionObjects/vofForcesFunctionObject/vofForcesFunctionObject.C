@@ -65,7 +65,10 @@ Foam::functionObjects::vofForcesFunctionObject::vofForcesFunctionObject
     phi_(mesh_.lookupObject<surfaceScalarField>("phi")),
     rhoPhi_(mesh_.lookupObject<surfaceScalarField>("rhoPhi")),
     mixture_(U_, phi_),
-    surfForces_(mixture_.alpha1(), phi_, U_, mixture_),
+    alpha1_(mesh_.lookupObject<volScalarField>(mixture_.alpha1().name())),
+    mu_(mixture_.mu()),
+    surfForces_(alpha1_, phi_, U_, mixture_),
+    //surfForces_(mixture_.alpha1(), phi_, U_, mixture_),
     ddtRhoU_
     (
         IOobject
@@ -146,6 +149,17 @@ Foam::functionObjects::vofForcesFunctionObject::vofForcesFunctionObject
     )
 {
     read(dict);
+
+    // Compute 
+    execute(); 
+
+    // Write 
+    ddtRhoU_.write();  
+    inertialForce_.write(); 
+    viscousForce_.write();
+    surfaceTensionForce_.write();
+    accelerationForce_.write();
+    pressureForce_.write();
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -163,8 +177,10 @@ bool Foam::functionObjects::vofForcesFunctionObject::execute()
     inertialForce_ = fvc::div(rhoPhi_, U_);
 
     volTensorField gradU = fvc::grad(U_, "pointCellsLeastSquares");
-
-    viscousForce_ = fvc::div(mixture_.mu() * (gradU + gradU.T()));
+    mixture_.correct();
+    mu_=alpha1_*mixture_.rho1()*mixture_.nuModel1().nu()
+      + (scalar(1) - alpha1_)*mixture_.rho2()*mixture_.nuModel2().nu();
+    viscousForce_ = fvc::div(mu_ * (gradU + gradU.T()));
 
     surfForces_.correct();
     surfaceTensionForce_ = fvc::reconstruct(surfForces_.surfaceTensionForce() * 
@@ -186,6 +202,13 @@ bool Foam::functionObjects::vofForcesFunctionObject::end()
 
 bool Foam::functionObjects::vofForcesFunctionObject::write()
 {
+    // Write 
+    // ddtRhoU_.write();  
+    // inertialForce_.write(); 
+    // viscousForce_.write();
+    // surfaceTensionForce_.write();
+    // accelerationForce_.write();
+    // pressureForce_.write();
     return true;
 }
 

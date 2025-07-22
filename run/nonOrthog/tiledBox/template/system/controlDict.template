@@ -79,6 +79,12 @@ functions
 
     }
 
+    vofForcesFunctionObject
+    {
+	type vofForcesFunctionObject;
+        libs            ("libvofForcesFunctionObject.so");
+    }
+
 }
 
 functions

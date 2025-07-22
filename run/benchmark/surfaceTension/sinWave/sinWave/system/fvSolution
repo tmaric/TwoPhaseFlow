@@ -20,9 +20,9 @@ solvers
     alpha.water
     {
 
-        advectionScheme MULESScheme;
+        advectionScheme isoAdvection;//MULESScheme;
 
-	    reconstructionScheme isoSurface;
+	    reconstructionScheme plicRDF; //isoSurface;
 
 		vof2IsoTol 1e-8;
 		surfCellTol 1e-8;

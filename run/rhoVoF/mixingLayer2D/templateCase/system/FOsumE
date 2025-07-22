@@ -27,11 +27,27 @@ functions
 
         codeWrite
         #{
+             const volVectorField& U =
+                 mesh().lookupObject<volVectorField>("U");
+              // Lookup liquid fraction alpha_liquid
+              const volScalarField& alphaLiquid = mesh().lookupObject<volScalarField>("alpha.water");
+ 
+              // Compute weight (= gas fraction)
+              volScalarField weight
+              (
+                  IOobject
+                  (
+                      "weight",
+                      mesh().time().timeName(),
+                      U.mesh(),
+                      IOobject::NO_READ,
+                      IOobject::NO_WRITE
+                  ),
+                  alphaLiquid //(1-alphaLiquid)
+              );
 
             const volScalarField& rho =
                 mesh().lookupObject<volScalarField>("rho");
-            const volVectorField& U =
-                mesh().lookupObject<volVectorField>("U");
   	        const auto& cellVolume = mesh().V();
             const auto& e1 = 0.5*rho*cellVolume*(U&U); //magSqr(U);
             const auto& e2 = 0.5*rho*cellVolume*rho*cellVolume*(U&U); //magSqr(rho*U);
@@ -40,6 +56,7 @@ functions
             const auto& e3 = rho*cellVolume*U;
             const auto SumKinE3=mag(sum(e3.ref()));
             const auto SumKinE4=sum(mag(e3.ref()));
+            dimensionedScalar bubbleVolume = fvc::domainIntegrate(weight);
             /*dimensionedVector SumKinE3 ("SumKinE3", dimless, vector::zero);
             dimensionedScalar SumKinE4 ("SumKinE4", dimless, scalar(0.0));
 
@@ -62,7 +79,7 @@ functions
                 {
                     OFstream is(outputFile);
                     outputFilePtr.reset(new OFstream(outputFile));
-                    outputFilePtr() << "time" << tab << "SumKinE1" << tab << "SumKinE2"<< tab << "SumKinE3"<< tab << "SumKinE4" << tab <<"MOMx" << tab << "MOMy" << tab << "MOMz" << endl;
+                    outputFilePtr() << "time" << tab << "SumKinE1" << tab << "SumKinE2"<< tab << "SumKinE3"<< tab << "SumKinE4" << tab <<"MOMx" << tab << "MOMy" << tab << "MOMz" << tab <<"bubbleVolume" << endl;
                 }
                /* else
                 {
@@ -70,7 +87,7 @@ functions
                 }
                 }*/
                  outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
-                 outputFilePtr() << mesh().time().timeName() << tab << SumKinE1<< tab << SumKinE2 << tab << mag(SumKinE3).value()<< tab <<SumKinE4.value() << tab << sum(e3.ref()).component(0).value() << tab << sum(e3.ref()).component(1).value() << tab << sum(e3.ref()).component(2).value() << endl;
+                 outputFilePtr() << mesh().time().timeName() << tab << SumKinE1<< tab << SumKinE2 << tab << mag(SumKinE3).value()<< tab <<SumKinE4.value() << tab << sum(e3.ref()).component(0).value() << tab << sum(e3.ref()).component(1).value() << tab << sum(e3.ref()).component(2).value() << tab <<bubbleVolume.value() <<endl;
              }
         #};
     }

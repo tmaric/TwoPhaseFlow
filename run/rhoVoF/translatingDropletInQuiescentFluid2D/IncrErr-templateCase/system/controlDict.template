@@ -1,0 +1,61 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interIsoFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         @!end_time!@;
+
+deltaT          #calc "@!delta_t!@*@!CFL_num!@";
+
+writeControl    runTime;
+
+writeInterval   @!write_interval!@;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  16; //20;//6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep  no;
+
+maxCo 0.5; 
+maxAlphaCo 0.5;
+
+maxDeltaT       0.01;
+maxCapillaryNum 0.5;
+// --- Function objects -----------------------------------------------------//
+
+#include "FOsumE";
+#include "FO_visRDF";
+#include "FObubbleProcessing";
+#include "FO_PLICInterface"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

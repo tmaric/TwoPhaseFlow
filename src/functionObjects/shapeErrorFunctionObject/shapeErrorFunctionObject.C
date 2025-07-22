@@ -157,7 +157,7 @@ bool Foam::functionObjects::shapeErrorFunctionObject::execute()
 
 	volScalarField alphaDiff = mag(alphaExa_ - alpha_);
 
-	scalar shapeErr = gSum((alphaDiff*mesh_.V()).ref())/gSum((alphaExa_*mesh_.V()).ref());
+	scalar shapeErr = gSum((alphaDiff*mesh_.V()).ref())/gSum(mesh_.V());
 	alphaExa_.write();
 	Info << "### shape err: " << shapeErr << endl;
     return true;

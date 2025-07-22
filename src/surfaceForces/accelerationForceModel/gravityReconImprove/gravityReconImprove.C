@@ -43,14 +43,10 @@ Foam::vector Foam::gravityReconImprove::closestDist(const point p, const vector 
 {
     if (mag(n) != 0)
     {
-        point testIC = vector(0, 0, 0.5145);
-        // normal = vector(0,0,-1);
-        // return centre; //p - normal*((p - centre) & normal);
-        return testIC;
+         vector normal = n/mag(n);
+        return p - normal*((p - centre) & normal);
     } else {
-        point testIC = vector(0, 0, 0.5145); 
-        return testIC;
-        //return centre; 
+        return centre; 
         }
 }
 
@@ -89,19 +85,13 @@ void Foam::gravityReconImprove::calculateAcc()
         const fvMesh& mesh = acc_.mesh();
         const uniformDimensionedVectorField& g = meshObjects::gravity::New(mesh.time());
         g_.value() = g.value();
-        auto constantIC = dimensionedVector("interfaceHeight",dimLength,vector(0, 0, 0.5145));
 
-        acc_ = g_ & constantIC;
-        accf_ = g_ & constantIC;       
-/*    const fvMesh& mesh = acc_.mesh();
+    //const fvMesh& mesh = acc_.mesh();
     // zoneDistribute& exchangeFields = zoneDistribute::New(mesh);
-    // g_.value() = gravityDict_.lookup("gravity");
 
     // assume except for interface cells' faces, g&x on all other faces are equalt to zero
     acc_ = g_ & mesh.C();
     accf_ = g_ & mesh.Cf();
-    const uniformDimensionedVectorField& g = meshObjects::gravity::New(mesh.time());
-    g_.value() = g.value();
     dimensionedScalar hRef("hRef",dimLength, gravityDict_.lookupOrDefault("hRef",0));
 
 
@@ -113,8 +103,8 @@ void Foam::gravityReconImprove::calculateAcc()
     );
 
 
-//    acc_ = (g_ & mesh.C()) - ghRef;
-//    accf_ = ((g_ & mesh.Cf()) - ghRef);
+    acc_ = (g_ & mesh.C()) - ghRef;
+    accf_ = ((g_ & mesh.Cf()) - ghRef);
 
     if(mesh.foundObject<reconstructionSchemes>("reconstructionScheme"))
     {
@@ -141,23 +131,23 @@ void Foam::gravityReconImprove::calculateAcc()
 
              if (surf.interfaceCell()[ownf] && !(surf.interfaceCell()[neighf]))
             {
-                // vector closeP = faceCentre[ownf];
-                vector closeP = closestDist( Cf[fi], faceNormal[ownf], faceCentre[ownf]);
+                vector closeP = faceCentre[ownf];
+                //vector closeP = closestDist( Cf[fi], faceNormal[ownf], faceCentre[ownf]);
                 // Info << "## faceCentre of [" << ownf << "]: " << faceCentre[ownf] << "; closeP[" << fi << "]: " << closeP << endl; 
                 accf_[fi] = closeP & g_.value();
             }
             else if (surf.interfaceCell()[neighf] && surf.interfaceCell()[ownf])
             {
-                //vector closeP = 0.5*(faceCentre[ownf] + faceCentre[neighf]);
-                vector closeP = 0.5* (closestDist( Cf[fi], faceNormal[ownf], faceCentre[ownf]) 
-                                   + closestDist( Cf[fi], faceNormal[neighf], faceCentre[neighf]));
+                vector closeP = 0.5*(faceCentre[ownf] + faceCentre[neighf]);
+                //vector closeP = 0.5* (closestDist( Cf[fi], faceNormal[ownf], faceCentre[ownf]) 
+                //                   + closestDist( Cf[fi], faceNormal[neighf], faceCentre[neighf]));
                 // Info << "## faceCentre of [" << ownf << "]: " << faceCentre[ownf] << " and faceCentre of ["<< neighf << "]: " << faceCentre[neighf] << "; closeP[" << fi << "]: " << closeP << endl;
                 accf_[fi] = closeP & g_.value();
             }
             else if (surf.interfaceCell()[neighf] && !(surf.interfaceCell()[ownf])) 
             {
-                // vector closeP = faceCentre[neighf];
-                vector closeP = closestDist( Cf[fi], faceNormal[neighf], faceCentre[neighf]);
+                 vector closeP = faceCentre[neighf];
+                //vector closeP = closestDist( Cf[fi], faceNormal[neighf], faceCentre[neighf]);
                 // Info << "## faceCentre of [" << neighf << "]: " << faceCentre[neighf] << "; closeP[" << fi << "]: " << closeP << endl;
                 // Info << "## unite faceNormal of ["<< neighf << "]: " << faceNormal[neighf]/mag(faceNormal[neighf]) << endl;
                 accf_[fi] = closeP & g_.value();
@@ -190,8 +180,8 @@ void Foam::gravityReconImprove::calculateAcc()
 
                     if(surf.interfaceCell()[celli])
                     {
-                        // vector closeP = faceCentre[celli]; 
-                        vector closeP = closestDist( pCf[i], faceNormal[celli], faceCentre[celli]);
+                         vector closeP = faceCentre[celli]; 
+                        //vector closeP = closestDist( pCf[i], faceNormal[celli], faceCentre[celli]);
                         // Info << "## faceCentre of [" << celli << "]: " << faceCentre[celli] << "; closeP[" << i + paccf.patch().start() << "]: " << closeP << endl;
                         paccf[i] = closeP & g_.value();
                     }
@@ -203,7 +193,7 @@ void Foam::gravityReconImprove::calculateAcc()
     else
     {
         Info << "notFound" << endl;
-    }*/
+    }
 
 }
 

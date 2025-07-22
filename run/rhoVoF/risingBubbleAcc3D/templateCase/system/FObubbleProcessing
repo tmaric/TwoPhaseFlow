@@ -1,0 +1,154 @@
+// functionObjects
+functions
+{
+    // **************************************************** //
+    // **** coded functionObject for bubble processing **** //
+    // **************************************************** //
+    bubblepproc
+    {
+        // Load the library containing the 'coded' functionObject
+        libs ("libutilityFunctionObjects.so");
+        type coded;
+        writeControl    timeStep; //adjustableRunTime;
+        writeInterval   1; //0.002;
+        // Name of on-the-fly generated functionObject
+        name bubblepproc;
+        // List of include search directories
+        codeOptions
+        #{
+            -I$(LIB_SRC)/sampling/lnInclude \
+            -I$(LIB_SRC)/dynamicMesh/lnInclude \
+            -I$(LIB_SRC)/surfMesh/lnInclude
+        #};
+        // List of libraries to link with
+        codeLibs
+        #{
+            -lsampling \
+            -ldynamicMesh \
+            -lsurfMesh
+        #};
+        // List of include files
+        codeInclude
+        #{
+            #include "sampledIsoSurface.H"
+            #include "vtkSurfaceWriter.H"
+        #};
+        // Code
+        codeWrite
+        #{
+  //          Info << "----------bubblepproc START----------" << endl;
+
+            // Lookup velocity field U
+            const volVectorField& U = mesh().lookupObject<volVectorField>("U");
+
+            // Lookup liquid fraction alpha_liquid
+            const volScalarField& alphaLiquid = mesh().lookupObject<volScalarField>("alpha.water");
+
+            // Loopup interface center
+            const volVectorField& interfaceCenter=mesh().lookupObject<volVectorField>("interfaceCentre.water");
+            volScalarField interfaceCenterX = interfaceCenter.component(vector::X);
+            volScalarField interfaceCenterY = interfaceCenter.component(vector::Y);
+            volScalarField interfaceCenterZ = interfaceCenter.component(vector::Z);
+            scalar maxinterfaceCenterX = gMax(interfaceCenterX);
+            scalar mininterfaceCenterX = gMin(interfaceCenterX);
+            scalar maxinterfaceCenterY = gMax(interfaceCenterY);
+            scalar mininterfaceCenterY = gMin(interfaceCenterY);
+            scalar maxinterfaceCenterZ = gMax(interfaceCenterZ);
+            scalar mininterfaceCenterZ = gMin(interfaceCenterZ);
+
+            // Compute weight (= gas fraction)
+            volScalarField weight
+            (
+                IOobject
+                (
+                    "weight",
+                    mesh().time().timeName(),
+                    U.mesh(),
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE
+                ),
+                (1-alphaLiquid)
+            );
+
+            // Compute bubble volume
+            dimensionedScalar bubbleVolume = fvc::domainIntegrate(weight); // This is integral of "weight" over the volume
+            //Info << "bubble volume     = " << bubbleVolume.value() << endl;
+
+            // Compute bubble center
+            dimensionedVector Cb = fvc::domainIntegrate(weight*mesh().C())/bubbleVolume;
+            //Info << "bubble centroid   = " << Cb.value() << endl;
+
+            // Compute rising velocity
+            dimensionedVector Ub = fvc::domainIntegrate(weight*U)/bubbleVolume;
+            //Info << "bubble velocity   = " << Ub.value() << endl;
+
+            
+            if(Pstream::master())
+            {
+            	fileName outputFile = ("./bubblepproc.dat");
+            	autoPtr<OFstream> outputFilePtr;
+            	
+            	if (!exists(outputFile))
+            	{
+            		OFstream is(outputFile);
+            		outputFilePtr.reset(new OFstream(outputFile));
+            		outputFilePtr() << "time" << tab
+            		            	<< "magVelocity" << tab
+            				<< "x-Velocity" << tab
+            				<< "y-Velocity" << tab
+            				<< "z-Velocity" << tab 
+            				<< "bubbleVolume" << tab 
+            				<< "bubbleCenterx" << tab
+            				<< "bubbleCentery" << tab
+            				<< "bubbleCenterz" << tab
+            				<< "xPole1" << tab
+            				<< "xPole2" << tab
+                            << "yPole1" << tab
+                            << "yPole2" << tab
+                            << "zPole1" << tab
+            				<< "zPole2" 
+            				<< endl;
+            		outputFilePtr() << 0 << tab 
+            		            	<< 0.0 << tab
+            				<< 0.0 << tab
+            				<< 0.0 << tab
+            				<< 0.0 << tab
+            				<< bubbleVolume.value() << tab 
+            				<< 0.0 << tab
+            				<< 0.0 << tab
+            				<< 0.0 << tab
+                            << maxinterfaceCenterX << tab
+                            << mininterfaceCenterX << tab
+                            << maxinterfaceCenterY << tab
+                            << mininterfaceCenterY << tab
+                            << maxinterfaceCenterZ << tab
+                            << mininterfaceCenterZ
+            				<< endl;            				
+            	}
+            	
+            	outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
+            		outputFilePtr() << mesh().time().timeName() << tab 
+            		            	<< mag(Ub).value() << tab
+            				<< Ub.value().x() << tab
+            				<< Ub.value().y() << tab
+            				<< Ub.value().z() << tab
+            				<< bubbleVolume.value() << tab 
+            				<< Cb.value().x() << tab
+            				<< Cb.value().y() << tab
+            				<< Cb.value().z() << tab
+                            << maxinterfaceCenterX << tab
+                            << mininterfaceCenterX << tab
+                            << maxinterfaceCenterY << tab
+                            << mininterfaceCenterY << tab
+                            << maxinterfaceCenterZ << tab
+                            << mininterfaceCenterZ
+            				<< endl;  
+            }
+
+    	     
+//            Info << "----------bubblepproc STOP----------\n" << endl;
+
+        #};
+    }
+
+}

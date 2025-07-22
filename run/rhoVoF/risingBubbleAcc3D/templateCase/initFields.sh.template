@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+source hexrefinedMesh.sh
+setAlphaField
+
+nfine=@!resolution!@
+
+# Check the value of n and replace accordingly
+if [ "$nfine" == "200" ]; then
+  sed -i 's/numberOfSubdomains [0-9]\+/numberOfSubdomains 20/' system/decomposeParDict
+  sed -i 's/#SBATCH -n [0-9]\+/#SBATCH -n 20/' isoAdv.sbatch
+  sed -i 's/mpirun -np [0-9]\+/mpirun -np 20/' isoAdv.sbatch
+elif [ "$nfine" == "400" ]; then
+  sed -i 's/numberOfSubdomains [0-9]\+/numberOfSubdomains 50/' system/decomposeParDict
+  sed -i 's/#SBATCH -n [0-9]\+/#SBATCH -n 50/' isoAdv.sbatch
+  sed -i 's/mpirun -np [0-9]\+/mpirun -np 50/' isoAdv.sbatch
+elif [ "$nfine" == "800" ]; then
+  sed -i 's/numberOfSubdomains [0-9]\+/numberOfSubdomains 90/' system/decomposeParDict
+  sed -i 's/#SBATCH -n [0-9]\+/#SBATCH -n 90/' isoAdv.sbatch
+  sed -i 's/mpirun -np [0-9]\+/mpirun -np 90/' isoAdv.sbatch
+elif [ "$nfine" == "1600" ]; then
+  sed -i 's/numberOfSubdomains [0-9]\+/numberOfSubdomains 150/' system/decomposeParDict
+  sed -i 's/#SBATCH -n [0-9]\+/#SBATCH -n 150/' isoAdv.sbatch
+  sed -i 's/mpirun -np [0-9]\+/mpirun -np 150/' isoAdv.sbatch
+
+fi
+
+decomposePar -force 

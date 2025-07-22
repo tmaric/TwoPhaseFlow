@@ -30,6 +30,10 @@ License
 #include "isoAdvection.H"
 #include "fvcSurfaceIntegrate.H"
 #include "upwind.H"
+#include "EulerDdtScheme.H"
+#include "localEulerDdtScheme.H"
+#include "CrankNicolsonDdtScheme.H"
+#include "backwardDdtScheme.H"
 
 // ************************************************************************* //
 
@@ -445,6 +449,42 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         << "%" << endl;
 
     alphaPhi_ = dVf_/mesh_.time().deltaT();
+
+    tmp<fv::ddtScheme<vector>> tddtRhoU
+    (
+        fv::ddtScheme<vector>::New
+        (
+            mesh_,
+            mesh_.ddtScheme("ddt(rho, U)")
+        )
+    );
+    const fv::ddtScheme<vector>& ddtRhoU = tddtRhoU();
+
+    if
+    (
+        isType<fv::EulerDdtScheme<vector>>(ddtRhoU)
+     || isType<fv::localEulerDdtScheme<vector>>(ddtRhoU)
+    )
+    {
+         //alphaPhi_ = dVf_/mesh_.time().deltaT();
+    }
+    else if (isType<fv::CrankNicolsonDdtScheme<vector>>(ddtRhoU))
+    {
+        alphaPhi_ = 2*alphaPhi_ - alphaPhi_.oldTime();
+    }
+    else if (isType<fv::backwardDdtScheme<vector>>(ddtRhoU))
+    {
+        alphaPhi_ = 1.5*alphaPhi_ - 0.5*alphaPhi_.oldTime();
+    }
+
+    //CrankNicolson 1
+    /*
+    alphaPhi_ = dVf_/mesh_.time().deltaT();
+    alphaPhi_ = 2*alphaPhi_- alphaPhi_.oldTime();
+    */
+    //backward
+    /* alphaPhi_ = 1.5*dVf_/mesh_.time().deltaT() - 0.5*dVf_.oldTime()/mesh_.time().deltaT();*/
+
 }
 
 

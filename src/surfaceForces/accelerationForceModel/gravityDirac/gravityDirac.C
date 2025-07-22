@@ -146,6 +146,7 @@ Foam::scalar Foam::gravityDirac::calculateDiracInteg (
                 // snGradAlpha = 1; 
             }
     }
+    // Info << "### print faceid: " << faceID << ", accf " << accf << ", snGradAlpha " << snGradAlpha << endl;
     return accf;
 }
 
@@ -169,6 +170,7 @@ void Foam::gravityDirac::calculateAcc()
     accf_ = ((g_ & mesh.Cf()) - ghRef);
     snGradAlpha_ == fvc::snGrad(mesh.lookupObject<volScalarField>("alpha.phase1"));
 
+   //  Info << "### mesh.faces().size(): " << mesh.faces().size() << endl; 
 
     if(mesh.foundObject<reconstructionSchemes>("reconstructionScheme"))
     {
