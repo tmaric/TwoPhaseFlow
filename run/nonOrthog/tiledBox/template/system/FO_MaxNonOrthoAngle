@@ -100,7 +100,7 @@ functions
                 }
 
                  outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
-                 outputFilePtr() << mesh().time().timeName() << "," << gMax(localFaceNonOrthAngle).value() << "," << gMax(face_nonOrthoAngle) << endl;
+                 outputFilePtr() << mesh().time().timeName() << "," << gMax(localFaceNonOrthAngle) << "," << gMax(face_nonOrthoAngle) << endl;
              }
 
         #};

@@ -25,6 +25,8 @@ wmake $withBear apps/surfaceInitVolumeFraction
 wmake $withBear apps/benchmark/advectorVoF
 wmake $withBear apps/benchmark/reconstructInterface
 
+wmake $withBear apps/utilities/mesh/manipulation/foamPerturbMesh
+
 wmake $withBear solver/multiRegionPhaseChangeFlow
 wmake $withBear solver/interFlow
 wmake $withBear solver/compressibleInterFlow

@@ -16,6 +16,7 @@ values
         blockMesh
         perturbMesh
         polyMesh
+		tetMesh
     );
 
     nonOrthogControl

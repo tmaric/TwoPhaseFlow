@@ -1,13 +1,11 @@
 #!/bin/sh
-# cd ${0%/*} || exit 1    # Run from this directory
+#cd ${0%/*} || exit 1    # Run from this directory
 
 . $WM_PROJECT_DIR/bin/tools/RunFunctions
 # application=$(sed -ne "s/^application\s*\(.*\);/\1/p" system/controlDict)
 
 meshType="@!meshType!@"
-#./Allclean
-#restore0Dir
-#cp -r 0.org 0
+resolution="@!resolution!@"
 rm -r constant/polyMesh
 
 # blockMesh, perturbMesh, polyMesh
@@ -17,19 +15,34 @@ then
 elif [[ "$meshType" = "perturbMesh" ]]
 then 
     runApplication blockMesh
-    runApplication foamPerturbMesh -alpha 0.2 
+    runApplication foamPerturbMesh -alpha 0.4 
     rm 0/meshPhi
     mv 0/polyMesh/points constant/polyMesh
 elif [[ "$meshType" = "polyMesh" ]]
 then
     runApplication pMesh
+elif [[ "$meshType" = "tetMesh" ]]
+then 
+    runApplication tetMesh
+    runApplication foamPerturbMesh -alpha 0.4 
+    rm 0/meshPhi
+    mv 0/polyMesh/points constant/polyMesh
 fi
 
+# cp 0/alpha.org 0/alpha.phase1
+
 runApplication initAlphaField
-touch velocity.foam
 
-#sed -i '1 i\#!/bin/bash' interFlow.sbatch
-#runApplication $(getApplication)
-#decomposePar
-#sbatch Allrun.slurm
+if [[ "resolution" -eq 90 && "$meshType" = "tetMesh" ]]
+then
+    decomposePar
+fi
 
+
+# runApplication $(getApplication)
+
+#touch tiltedBox3D.foam
+#if [ -n "$application" ]
+#then
+#    foamToVTK -surfaceFields
+#fi
