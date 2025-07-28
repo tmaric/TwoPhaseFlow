@@ -33,11 +33,10 @@ int main(int argc, char *argv[])
         "Update and overwrite the existing mesh useful for adaptive mesh refinement"
     );
 
-   argList::addOption
+   argList::addBoolOption
     (
-        "nonOrthogControl",
-        "control algorithm name",
-        "PIMPLE, ERCNOC"
+        "resNon",
+        "Use residual control non-orthogonal correction algorithm"
     );
 
     #include "postProcess.H"
@@ -53,6 +52,7 @@ int main(int argc, char *argv[])
     #include "createUfIfPresent.H"
 
     const bool overwrite = args.found("overwrite");
+	const bool resNon = args.found("resNon");
 
     turbulence->validate();
 

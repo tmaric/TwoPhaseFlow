@@ -39,7 +39,41 @@
 
     phiHbyA += phig;
 
-    if (args.get<word>("nonOrthogControl") == "PIMPLE")
+    if (resNon)
+    {
+        constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+        label Nnon = 0;
+     	bool correctNonOrthogonality = true;
+
+        while ( correctNonOrthogonality && pimple.correctNonOrthogonal() )
+        {
+            ++Nnon;
+            // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+            
+            fvScalarMatrix p_rghEqn
+            (
+                fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
+            );
+            p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
+            p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
+
+            const List<solverPerformance> sp = mesh.data().solverPerformanceDict().lookup("p_rgh");
+            correctNonOrthogonality = (sp.last().nIterations() > 0);//(p_rgh_performance.nIterations() > 0); 
+
+            if ((!correctNonOrthogonality) || pimple.finalNonOrthogonalIter())
+            {
+             	phi = phiHbyA - p_rghEqn.flux();
+                p_rgh.relax();
+
+                U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
+                U.correctBoundaryConditions();
+                fvOptions.correct(U);
+            }
+	    }
+
+	    Info << "Nnon " << Nnon << endl;
+    }
+    else
     {
          constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
 
@@ -66,42 +100,6 @@
             }
         }
     }
-
-    if (args.get<word>("nonOrthogControl") == "ERCNOC")
-    {
-        constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
-        label Nnon = 0;
-        bool correctNonOrthogonality = true;
-
-        while ( correctNonOrthogonality && pimple.correctNonOrthogonal() )
-        {
-            ++Nnon;
-            // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
-            
-            fvScalarMatrix p_rghEqn
-            (
-                fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
-            );
-            p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
-            p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
-
-            const List<solverPerformance> sp = mesh.data().solverPerformanceDict().lookup("p_rgh");
-            correctNonOrthogonality = (sp.last().nIterations() > 0);//(p_rgh_performance.nIterations() > 0); 
-
-            if ((!correctNonOrthogonality) || pimple.finalNonOrthogonalIter())
-            {
-                phi = phiHbyA - p_rghEqn.flux();
-                p_rgh.relax();
-
-                U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
-                U.correctBoundaryConditions();
-                fvOptions.correct(U);
-            }
-        }
-
-        Info << "Nnon " << Nnon << endl;
-    }
-
 
     #include "continuityErrs.H"
 
