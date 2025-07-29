@@ -1,0 +1,45 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.x                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+zVelocity @!z_velocity!@;
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform (0 0 $zVelocity);
+
+// NOTE: the boundary conditions differ from those given in Popinet2009.
+// In that publication, symmetry and periodic boundary conditions
+// are used.
+boundaryField
+{
+    mantle
+    {
+        type            fixedValue;
+        value           uniform (0 0 $zVelocity);
+    }
+    outlet
+    {
+        type            zeroGradient;
+    }
+    inlet
+    {
+        type            fixedValue;
+        value           uniform (0 0 $zVelocity);
+    }
+}
+
+
+// ************************************************************************* //

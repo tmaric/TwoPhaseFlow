@@ -1,0 +1,19 @@
+
+==============================
+9 variations with 2 parameters
+==============================
+
+
+==================
+Listing variations
+==================
+
+Variation 0 : {'n_base': 64, 'nu_ambient': 0.002022222}
+Variation 1 : {'n_base': 64, 'nu_ambient': 0.000948148}
+Variation 2 : {'n_base': 64, 'nu_ambient': 0.0004}
+Variation 3 : {'n_base': 96, 'nu_ambient': 0.002022222}
+Variation 4 : {'n_base': 96, 'nu_ambient': 0.000948148}
+Variation 5 : {'n_base': 96, 'nu_ambient': 0.0004}
+Variation 6 : {'n_base': 128, 'nu_ambient': 0.002022222}
+Variation 7 : {'n_base': 128, 'nu_ambient': 0.000948148}
+Variation 8 : {'n_base': 128, 'nu_ambient': 0.0004}

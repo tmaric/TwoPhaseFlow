@@ -1,0 +1,118 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.0                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interFlow;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         @!endTime!@; //0.004;//0.1;
+
+deltaT          @!delta_t!@; //0.001;
+
+writeControl    @!writeControl!@; //timeStep; //adjustableRunTime;
+
+writeInterval    @!writeInterval!@; //1; //0.01;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  14;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   14;
+
+graphFormat     raw;
+
+runTimeModifiable no;
+
+adjustTimeStep  no;
+
+maxCo           1e6;
+maxAlphaCo      0.5;
+
+maxDeltaT   1e-3;
+maxCapillaryNum 1;
+
+// #include "FO_extremMagU"
+
+functions
+{
+    fieldMinMax
+    {
+        type            fieldMinMax;
+        libs            ("libfieldFunctionObjects.so");
+        writeControl    timeStep; //outputTime;
+        writeInterval   1;
+            // Report the location of the field extrema
+        location   no;
+
+        writePrecision 14;
+        writeToFile true;
+        useUserTime     true; // gather data to a file
+
+        fields          (U p_rgh);
+
+        // Type of extrema for rank > 0 primitives
+        mode            magnitude; // magnitude | component
+
+    }
+
+    vofForcesFunctionObject
+    {
+	type vofForcesFunctionObject;
+        libs            ("libvofForcesFunctionObject.so");
+    }
+
+}
+
+functions
+{
+
+    reconSurfaces
+    {
+        type            surfaces;
+        libs            ("libpostProcess.so");
+        writeControl    outputTime;
+        writeInterval   1;
+
+        surfaceFormat   vtp; //raw;
+        fields          (U alpha.phase1);
+
+        interpolationScheme cell;
+
+        surfaces
+        (
+
+            freeSurf
+            {
+                type            interface;
+                interpolate     false;
+            }
+
+    );
+    }
+}
+
+// ************************************************************************* //

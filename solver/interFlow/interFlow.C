@@ -33,6 +33,12 @@ int main(int argc, char *argv[])
         "Update and overwrite the existing mesh useful for adaptive mesh refinement"
     );
 
+   argList::addBoolOption
+    (
+        "resNon",
+        "Use residual control non-orthogonal correction algorithm"
+    );
+
     #include "postProcess.H"
 
     #include "addCheckCaseOptions.H"
@@ -46,6 +52,7 @@ int main(int argc, char *argv[])
     #include "createUfIfPresent.H"
 
     const bool overwrite = args.found("overwrite");
+	const bool resNon = args.found("resNon");
 
     turbulence->validate();
 
@@ -99,7 +106,7 @@ int main(int argc, char *argv[])
                     if (correctPhi)
                     {
                         // Calculate absolute flux
-                        // from the mapped surface velocity
+
                         phi = mesh.Sf() & Uf();
 
                         #include "correctPhi.H"
@@ -137,6 +144,7 @@ int main(int argc, char *argv[])
             #include "UEqn.H"
 
             // --- Pressure corrector loop
+
             while (pimple.correct())
             {
                 #include "pEqn.H"

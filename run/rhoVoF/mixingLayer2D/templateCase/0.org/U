@@ -1,0 +1,74 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   #codeStream
+{
+		codeInclude
+		#{
+		    #include "fvCFD.H"
+		#};
+
+		codeOptions
+		#{
+		    -I$(LIB_SRC)/finiteVolume/lnInclude \
+		    -I$(LIB_SRC)/meshTools/lnInclude
+		#};
+
+		codeLibs
+		#{
+		    -lmeshTools \
+		    -lfiniteVolume
+		#};
+
+		code
+		#{
+		    const IOdictionary& d = static_cast<const IOdictionary&>(dict);
+		    const fvMesh& mesh = refCast<const fvMesh>(d.db());
+
+		    vectorField U(mesh.nCells(), Zero);
+
+		    forAll(U, i)
+		    {
+			const scalar x = mesh.C()[i][0];
+			const scalar y = mesh.C()[i][1];
+
+			if (mag(y) <= 1.5e-4)
+			{ U[i] = vector(2.0, 0.01*2*sin(2*Foam::constant::mathematical::pi*x/3e-3)*exp(-magSqr(2*y/3e-4)),0.0);}
+			else
+			{ U[i] = vector(30.0, 0.01*2*sin(2*Foam::constant::mathematical::pi*x/3e-3)*exp(-magSqr(2*y/3e-4)),0.0);}
+		    }
+
+		    U.writeEntry("",os);
+		#};
+};
+
+boundaryField
+{
+    "(right|left|top|bottom)"
+    {
+        type            cyclic;
+    }
+
+    "(front|back)"
+    {
+        type            empty;
+    }
+}
+
+
+// ************************************************************************* //

@@ -1,0 +1,46 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v1806                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      topoSetDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "meshingDimensions";
+
+actions
+(
+    {
+        name    interfaceRegionCellCorners;
+        type    pointSet;
+        action  new;
+        source  boxToPoint;
+        sourceInfo
+        {
+            box (#eval{$C0 - $radius} #eval{$C1 - $radius} #eval{-1*$radius}) (#eval{$C2 + $radius} #eval{$C3 + $radius} #eval{5*$radius});
+        }
+    }
+
+    {
+        name    interfaceRegion;
+        type    cellSet;
+        action  new;
+        source  pointToCell;
+        sourceInfo
+        {
+            set     interfaceRegionCellCorners;
+            option  any;
+        }
+    }
+);
+
+// ************************************************************************* //
+

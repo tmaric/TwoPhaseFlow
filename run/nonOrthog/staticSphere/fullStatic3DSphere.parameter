@@ -1,0 +1,27 @@
+values
+{
+
+    solver (interFlow);
+
+    resolution
+    (
+         30 60 90
+    );
+
+    meshType
+    (
+        blockMesh
+        perturbMesh
+        polyMesh
+        tetMesh
+    );
+    nonOrthogControl
+    (
+        PIMPLE 
+        ERCNOC
+    );
+    nNonOrthog
+    (
+      0 1 4 9
+    );
+}

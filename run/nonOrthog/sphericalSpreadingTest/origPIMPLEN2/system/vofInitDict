@@ -1,0 +1,38 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  1.6                                   |
+|   \\  /    A nd           | Web:      http://www.OpenFOAM.org               |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      vofInitDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+fieldName       alpha.water_glycerol;
+algorithm       SMCA;
+writeGeometry   off;
+invert          off;
+writeAllFields  on;
+checkVolume     on;
+refinementLevel 4;
+relError        -1.0;
+
+distCalc
+{
+    surfaceType     levelSet;
+    surface         sphere;
+    center          (0.0025 0.0025 0.0016134);
+    radius          0.00114;
+    orientation     inward;
+    narrowBandWidth 4.0;
+    bulkValue       1.0;
+}
+
+
+// **********************l*************************************************** //

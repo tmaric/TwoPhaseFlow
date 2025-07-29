@@ -1,25 +1,33 @@
 #!/bin/bash
 
-WITH_BEAR=$1
+withBear=$1
 
-wmake $WITH_BEAR libso src/VoF
-wmake $WITH_BEAR all src/boundaryConditions
-wmake $WITH_BEAR all src/thermoDynamics
+wmake $withBear libso src/VoF
+wmake $withBear all src/boundaryConditions
+wmake $withBear all src/thermoDynamics
 
-wmake $WITH_BEAR libso src/turbulence/VoFphaseCompressibleTurbulenceModels
-wmake $WITH_BEAR libso src/phaseChange
-wmake $WITH_BEAR libso src/surfaceForces
+wmake $withBear libso src/turbulence/VoFphaseCompressibleTurbulenceModels
+wmake $withBear libso src/phaseChange
+wmake $withBear libso src/surfaceForces
 
-wmake $WITH_BEAR libso src/postProcessing
+wmake $withBear libso src/postProcessing
+wmake $withBear libso src/functionObjects/vofForcesFunctionObject
+wmake $withBear libso src/triSurfaceImmersion
 
-wmake $WITH_BEAR apps/setFieldfromTable
-wmake $WITH_BEAR apps/initAlphaField
+wmake apps/setFieldfromTable
+wmake apps/initAlphaField
+wmake apps/surfaceInitVolumeFraction
 
-wmake $WITH_BEAR apps/benchmark/advectorVoF
-wmake $WITH_BEAR apps/benchmark/reconstructInterface
-wmake $WITH_BEAR apps/benchmark/testAreaFractions
+wmake $withBear apps/setFieldfromTable
+wmake $withBear apps/initAlphaField
+wmake $withBear apps/surfaceInitVolumeFraction
 
-wmake $WITH_BEAR solver/multiRegionPhaseChangeFlow
-wmake $WITH_BEAR solver/interFlow
-wmake $WITH_BEAR solver/compressibleInterFlow
+wmake $withBear apps/benchmark/advectorVoF
+wmake $withBear apps/benchmark/reconstructInterface
+
+wmake $withBear apps/utilities/mesh/manipulation/foamPerturbMesh
+
+wmake $withBear solver/multiRegionPhaseChangeFlow
+wmake $withBear solver/interFlow
+wmake $withBear solver/compressibleInterFlow
 

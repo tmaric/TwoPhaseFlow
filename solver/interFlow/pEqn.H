@@ -9,7 +9,9 @@
     }
 
     surfaceScalarField rAUf("rAUf", fvc::interpolate(rAU()));
+
     volVectorField HbyA(constrainHbyA(rAU()*UEqn.H(), U, p_rgh));
+
     surfaceScalarField phiHbyA
     (
         "phiHbyA",
@@ -37,29 +39,65 @@
 
     phiHbyA += phig;
 
-    // Update the pressure BCs to ensure flux consistency
-    constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
-
-    while (pimple.correctNonOrthogonal())
+    if (resNon)
     {
-        fvScalarMatrix p_rghEqn
-        (
-            fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
-        );
+        constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+        label Nnon = 0;
+     	bool correctNonOrthogonality = true;
 
-        p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
-
-        p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
-
-        if (pimple.finalNonOrthogonalIter())
+        while ( correctNonOrthogonality && pimple.correctNonOrthogonal() )
         {
-            phi = phiHbyA - p_rghEqn.flux();
+            ++Nnon;
+            // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+            
+            fvScalarMatrix p_rghEqn
+            (
+                fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
+            );
+            p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
+            p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
 
-            p_rgh.relax();
+            const List<solverPerformance> sp = mesh.data().solverPerformanceDict().lookup("p_rgh");
+            correctNonOrthogonality = (sp.last().nIterations() > 0);//(p_rgh_performance.nIterations() > 0); 
 
-            U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
-            U.correctBoundaryConditions();
-            fvOptions.correct(U);
+            if ((!correctNonOrthogonality) || pimple.finalNonOrthogonalIter())
+            {
+             	phi = phiHbyA - p_rghEqn.flux();
+                p_rgh.relax();
+
+                U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
+                U.correctBoundaryConditions();
+                fvOptions.correct(U);
+            }
+	    }
+
+	    Info << "Nnon " << Nnon << endl;
+    }
+    else
+    {
+         constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+
+        while (pimple.correctNonOrthogonal())
+        {
+            // constrainPressure(p_rgh, U, phiHbyA, rAUf, MRF);
+            fvScalarMatrix p_rghEqn
+            (
+                fvm::laplacian(rAUf, p_rgh) == fvc::div(phiHbyA)
+            );
+
+            p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
+
+            p_rghEqn.solve(mesh.solver(p_rgh.select(pimple.finalInnerIter())));
+
+            if (pimple.finalNonOrthogonalIter())
+            {
+                phi = phiHbyA - p_rghEqn.flux();
+                p_rgh.relax();
+
+                U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
+                U.correctBoundaryConditions();
+                fvOptions.correct(U);
+            }
         }
     }
 

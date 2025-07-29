@@ -1,0 +1,96 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.3.0                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSchemes;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+timeSchemes CrankNicolson;
+fluxSchemes upwind; //linear;
+
+ddtSchemes
+{
+#ifeq $timeSchemes Euler
+    default	    Euler;
+#else
+    default         CrankNicolson       1;
+#endif  
+}
+
+gradSchemes
+{
+    default         Gauss linear;
+}
+
+divSchemes
+{   
+    default         Gauss   linear;
+#ifeq $fluxSchemes upwind
+    div(rhoPhi,U)   Gauss   upwind;
+#endif
+#ifeq $fluxSchemes cubic
+    div(rhoPhi,U)   Gauss cubic;
+#endif
+#ifeq $fluxSchemes linear
+    div(rhoPhi,U)   Gauss linear;
+#endif
+#ifeq $fluxSchemes LUST
+    div(rhoPhi,U)   Gauss LUST grad(U);
+#endif
+#ifeq $fluxSchemes MUSCL  
+    div(rhoPhi,U)   Gauss MUSCL;
+#endif
+#ifeq $fluxSchemes QUICK  
+    div(rhoPhi,U)   Gauss QUICK;
+#endif
+#ifeq $fluxSchemes SuperBee  
+    div(rhoPhi,U)   Gauss SuperBee;
+#endif
+#ifeq $fluxSchemes vanLeer  
+    div(rhoPhi,U)   Gauss vanLeer;
+#endif
+#ifeq $fluxSchemes limitedLinearV
+    div(rhoPhi,U)   Gauss  limitedLinearV 0.2;
+#endif
+// used by interFoam
+    div(phi,alpha)	Gauss vanLeer;
+    div(phirb,alpha)    Gauss interfaceCompression;
+// used by viscous term
+    div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;
+}
+
+
+laplacianSchemes
+{
+    default         Gauss linear corrected;
+}
+
+interpolationSchemes
+{
+    default         linear;
+}
+
+snGradSchemes
+{
+    default         corrected;
+}
+
+fluxRequired
+{
+    default         no;
+    p_rgh;
+    pcorr;
+}
+
+
+// ************************************************************************* //

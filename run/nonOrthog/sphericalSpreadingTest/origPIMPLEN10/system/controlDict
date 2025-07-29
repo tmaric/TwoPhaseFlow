@@ -1,0 +1,158 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interFlow;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         1e-4; //5e-3;
+
+deltaT          1e-7;//1e-7; //C=UdelT / delX
+
+writeControl    runTime;// adjustableRunTime;
+
+writeInterval   0.01;//0.00257;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  14;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep  no;
+
+maxCo           0.1;
+
+maxAlphaCo      0.1;
+
+maxDeltaT       0.001;
+
+maxCapillaryNum 0.0002; //0.5;
+
+libs
+(
+    "libtwoPhaseProperties.so"
+    "libnewFixedFluxPressure.so"
+);
+
+OptimisationSwitches
+{
+
+      //- Parallel IO file handler
+      // uncollated (default), collated or masterUncollated
+      fileHandler collated;
+
+      //- collated: thread buffer size for queued file writes.
+      // If set to 0 or not sufficient for the file size threading is not used.
+      // Default: 2e9
+      maxThreadFileBufferSize 2e9;
+
+      //- masterUncollated: non-blocking buffer size.
+      // If the file exceeds this buffer size scheduled transfer is used.
+      // Default: 2e9
+      maxMasterFileBufferSize 2e9;
+}
+
+#include "FOsumWettedArea"
+functions
+{
+    surfaces
+    {
+        type            surfaces;
+        libs
+        (
+            "libsampling.so"
+        );
+        writeControl   outputTime;
+
+        surfaceFormat  vtk;
+        formatOptions
+        {
+            vtk
+            {
+                legacy true;
+                format ascii;
+            } 
+        }
+        fields
+        (
+            p U alpha.water_glycerol
+        );
+        
+        interpolationScheme cellPoint;
+        
+        surfaces
+        (
+            isoAlpha
+            {
+                type        isoSurface;
+                isoField    alpha.water_glycerol;
+                isoValue    0.5;
+                interpolate true;
+            }
+        );
+    }
+    /*
+    plics
+    {
+       type surfaces; // sampled type
+       libs (geometricVoF postProcess);
+        writeControl writeTime;
+        surfaceFormat vtp;
+        fields (p U); // sampled fields
+        interpolationScheme cell; //scheme to obtain node values
+        surfaces
+        {
+                freeSurf
+                {
+                        type interface; // sampled type
+                        interpolate false; // should be used to interpolate volume fields to surface points, not
+                                                //implemented. Keep it false.
+                }
+        }
+    }
+   */
+    /*wettedArea
+    {
+	type wettedArea;
+	libs ("libwettedAreaFunctionObject.so");
+	phaseIndicator alpha.water_glycerol;
+	patchName bottom;
+    }
+    
+    contactAngleEvaluation
+    {
+     	type contactAngleEvaluation;
+        libs ("libcontactAngleEvaluationFunctionObject.so");
+        phaseIndicator alpha.water_glycerol;
+        centre (0.0025 0.0025 0.002672);
+    }*/
+}
+// ************************************************************************* //
+

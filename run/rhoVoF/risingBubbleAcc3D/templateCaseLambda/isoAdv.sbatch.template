@@ -1,0 +1,9 @@
+#!/bin/bash
+#SBATCH -J bubRisAcc
+#SBATCH -n 150
+#SBATCH -c 1
+#SBATCH --mem-per-cpu=8000
+#SBATCH -t 06-23:00:00
+#SBATCH -A special00005
+
+mpirun -np 150 interFlow  -nonOrthogControl PIMPLE -parallel #interIsoFoam -parallel 

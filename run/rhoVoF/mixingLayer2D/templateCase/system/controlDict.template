@@ -1,0 +1,59 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interIsoFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         @!endTime!@; //1e-3;
+
+deltaT          @!delta_t!@; //1e-7;
+
+writeControl    adjustable;
+
+writeInterval   @!writeInterval!@; //1e-5;
+
+purgeWrite      0;
+
+writeFormat     binary; //ascii;
+
+writePrecision  12; //6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep  no;
+
+maxCo           @!CFL_num!@; //0.05;
+
+maxAlphaCo      @!CFL_num!@;
+
+maxDeltaT       1;
+
+maxCapillaryNum 0.5;
+#include "FOsumE"  
+#include "FO_visRDF"
+// ************************************************************************* //

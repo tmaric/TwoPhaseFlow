@@ -1,0 +1,7 @@
+// Default parameters from controlDict
+adjust_deltaT no; 
+max_Co 0.1;
+max_alphaCo 0.1; 
+max_deltaT 1e-04;
+max_capillaryNum 0.5;
+

@@ -1,0 +1,134 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      lentSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+radius      @!radius!@;
+x_centre    @!x_centre!@;
+y_centre    @!y_centre!@;
+z_centre    @!z_centre!@;
+
+distanceCalculator
+{
+    type            optimizedOctree;
+    narrowBandWidth 4;
+    narrowBandPropagation
+    {
+        type            naiveNarrowBand;
+    }
+}
+
+frontReconstructionModel
+{
+    type    timeStepInterval;
+    value   @!smoothing_interval!@;
+}
+
+frontReconstructor
+{
+    type            foamIsoSurface;
+    mergeTolerance  1e-06;
+    regularization  off;
+    normalConsistency
+    {
+        type            centerNormal;
+    }
+}
+
+frontSurface
+{
+    type    sphere;
+    radius  $radius;
+    centre  ($x_centre $y_centre $z_centre);
+}
+
+frontSmoother
+{
+    relaxFactor 0.33;
+    nSweeps     3;
+    smooth      pointsAndEdges;
+}
+
+markerFieldModel
+{
+    type            tetFillingLevelAlternative;
+    cellDistance    signedDistance;
+    pointDistance   pointSignedDistance;
+    nSmoothingSteps @!n_alpha_smoothing!@;
+}
+
+frontVelocityCalculator
+{
+    type            barycentric;
+    searchAlgorithm
+    {
+        type            frontMeshSearch;
+    }
+}
+
+searchAlgorithm
+{
+    type            frontMeshSearch;
+}
+
+frontMotionSolver
+{
+    type            @!temporal_integration!@;
+    cellToVertexInterpolation @!cell_to_vertex!@;
+}
+
+surfaceTensionForceModel
+{
+    type            CSF;
+    filterField     alpha.water;
+    curvatureModel
+    {
+        <!--(if curvature_model=="compactDivGrad")-->
+            type                compactDivGrad;
+            curvatureField      signedDistance;
+            distanceCorrection  sphere;
+        <!--(elif curvature_model=="frontTriangleFitting")-->
+            type    frontTriangle;
+            normalCalculator
+            {
+                type    parabolaFitting;
+            }
+        <!--(elif curvature_model=="frontTriangleSinus")-->
+            type    frontTriangle;
+            normalCalculator
+            {
+                type    sinusEdgeLength;
+            }
+        <!--(end)-->
+
+            frontToMeshTransfer
+            {
+            <!--(if front_to_mesh_transfer=="triangleInCell")-->
+                type    triangleInCell;
+            <!--(elif front_to_mesh_transfer=="nearestTriangleVicinity")-->
+                type                    nearestTriangleVicinity;
+                markerFieldName         alpha.water;
+                searchRadiusCoefficient 1.0;
+            <!--(elif front_to_mesh_transfer=="explicitDiffusionN5")-->
+                type                    explicitDiffusion;
+                signedDistanceField     signedDistance;
+                diffusionIterations     5;
+            <!--(end)-->
+            }
+    }
+}
+
+
+// ************************************************************************* //

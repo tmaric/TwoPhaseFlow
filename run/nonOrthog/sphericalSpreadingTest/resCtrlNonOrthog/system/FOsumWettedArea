@@ -1,0 +1,69 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  com                                   |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      functionObject2;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+functions
+{
+    SumAirV
+    {
+        libs            ("libutilityFunctionObjects.so");
+        type            coded;
+        name            SumWettedArea;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+
+            const volScalarField& alpha =
+                mesh().lookupObject<volScalarField>("alpha.water_glycerol");
+            const volVectorField& U = mesh().lookupObject<volVectorField>("U");
+	        const auto& magSf = mesh().magSf();
+
+            const polyBoundaryMesh& patches = mesh().boundaryMesh();
+            const label bottomID = patches.findPatchID("bottom");
+            const auto& alphaf_bo = alpha.boundaryField()[bottomID];
+            const auto& magSf_bo =magSf.boundaryField()[bottomID];
+            scalarField wettedSf_bo = alphaf_bo*magSf_bo; 
+            scalar  gSumWettedSf_bo = gSum(wettedSf_bo);
+            volScalarField MagU = mag(U);
+            scalar  gMaxU = gMax(MagU);
+            //const auto& alphaV = alphaInv*cellVolume;
+            //const auto& SumAirV = gSum(alphaV.ref());
+            // Info<< "##Sum of kinetic_energy = " << SumKinE << endl;
+
+            if (Pstream::master())
+            {
+             	fileName outputFile = ("./SumWettedSf_bo.dat");
+                autoPtr<OFstream> outputFilePtr;
+
+               // Info << "##breakpoint0"<<endl;
+                if (!exists(outputFile))
+                {
+                 //   Info << "##breakpoint1"<<endl;
+                    OFstream is(outputFile);
+                    outputFilePtr.reset(new OFstream(outputFile));
+                   // Info <<"##breakpoint2"<<endl;
+                    outputFilePtr() << "time" << tab << "WettedArea_bottom" << tab << "maxU"<< endl;
+                    outputFilePtr() << "0" << tab << gSumWettedSf_bo << tab << gMaxU <<endl;
+                }
+
+                 outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
+                 outputFilePtr() << mesh().time().timeName() << tab << gSumWettedSf_bo << tab << gMaxU << endl;
+             }
+        #};
+    }
+}

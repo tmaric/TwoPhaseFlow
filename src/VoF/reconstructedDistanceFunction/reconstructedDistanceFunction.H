@@ -146,6 +146,7 @@ public:
         return nextToInterface_;
     }
 
+    void centerTransformation(const label& celli, const label& coupledCelli, point& center);
 };
 
 

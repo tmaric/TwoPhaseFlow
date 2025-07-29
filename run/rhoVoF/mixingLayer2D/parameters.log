@@ -1,0 +1,28 @@
+
+===============================
+18 variations with 2 parameters
+===============================
+
+
+==================
+Listing variations
+==================
+
+Variation 0 : {'timeSchemes': 'Euler', 'fluxSchemes': 'upwind'}
+Variation 1 : {'timeSchemes': 'Euler', 'fluxSchemes': 'cubic'}
+Variation 2 : {'timeSchemes': 'Euler', 'fluxSchemes': 'linear'}
+Variation 3 : {'timeSchemes': 'Euler', 'fluxSchemes': 'LUST'}
+Variation 4 : {'timeSchemes': 'Euler', 'fluxSchemes': 'MUSCL'}
+Variation 5 : {'timeSchemes': 'Euler', 'fluxSchemes': 'QUICK'}
+Variation 6 : {'timeSchemes': 'Euler', 'fluxSchemes': 'SuperBee'}
+Variation 7 : {'timeSchemes': 'Euler', 'fluxSchemes': 'vanLeer'}
+Variation 8 : {'timeSchemes': 'Euler', 'fluxSchemes': 'limitedLinearV'}
+Variation 9 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'upwind'}
+Variation 10 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'cubic'}
+Variation 11 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'linear'}
+Variation 12 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'LUST'}
+Variation 13 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'MUSCL'}
+Variation 14 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'QUICK'}
+Variation 15 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'SuperBee'}
+Variation 16 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'vanLeer'}
+Variation 17 : {'timeSchemes': 'CrankNicolson', 'fluxSchemes': 'limitedLinearV'}
