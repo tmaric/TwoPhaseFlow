@@ -1,0 +1,213 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+//script with the main controls
+//alot of control parameters, not all were parameterized, and not all have been checked for correct value by luis
+
+//add function objects for PLIC and RDF (given by Jun)
+//#include "FO_visRDF";
+//#include "FO_PLICInterface";
+
+
+application	multiRegionPhaseChangeFlow; 	//interFlow;    // @!solver!@;
+
+startFrom       startTime;    //latestTime;   //startTime;
+
+startTime       0;
+
+stopAt          endTime; // writeNow; //endTime;
+
+endTime         2e-3;	//@!end_time!@; //0.5; I think he maybe set a low value of 2e-3 in parameter file, cause fast for test???
+
+deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter, not sure if he did it here...
+
+writeControl    runTime;
+
+writeInterval   5.05e-5;        //(luis) deciamals added to match the framerate of the HS camera, this results in a difference after 0.2secs of 1.1 frames, cant add more decimals becuase deltaT already maxxed 5e-7;//-5	//@!write_interval!@; // Write interval in terms defined in seconds of simulated physical time; Before: 2e-4
+
+purgeWrite      0;	//@!purge_write!@; //0 indicates that there is no limit for the number of directories which can be created, otherwise this parameter sets the limit for the files which can be created before they are overridden
+
+writeFormat     binary; //ascii;
+
+writePrecision  14;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep	yes;	//no   @!adjust_deltaT!@; //yes/no† to adjust time step according to maximum Courant number in transient simulation. 
+
+maxCo           0.1;
+
+maxAlphaCo      1;	//0.1
+
+maxDeltaT       0.001;	//0.001
+
+maxCapillaryNum 1; //0.0002    0.5;
+
+libs
+(
+    "libtwoPhaseProperties.so"
+    "libdynamicLoadBalanceFvMesh.so" //(luis)This line is from https://github.com/HenningScheufler/multiDimAMR/tree/master README
+    "libpostProcess.so" //from Scheufler TPF
+    "libfluidThermo.so" //from Scheufler TPF
+);
+
+OptimisationSwitches
+{
+
+      //- Parallel IO file handler
+      // uncollated (default), collated or masterUncollated
+      fileHandler uncollated;//(luis): Jun set collated here, but only uncollated works with paraview...
+
+      //- collated: thread buffer size for queued file writes.
+      // If set to 0 or not sufficient for the file size threading is not used.
+      // Default: 2e9
+      maxThreadFileBufferSize 2e14;
+
+      //- masterUncollated: non-blocking buffer size.
+      // If the file exceeds this buffer size scheduled transfer is used.
+      // Default: 2e9
+      maxMasterFileBufferSize 2e14;
+}
+
+functions
+{
+    fieldMinMax1
+    {
+     	type            fieldMinMax;
+        libs            ("libfieldFunctionObjects.so");
+        writeControl    timeStep; //outputTime;
+        writeInterval   1;
+        writePrecision 14;
+        writeToFile true;
+        useUserTime     true; // gather data to a file
+
+        fields          (U);
+
+
+        // Optional entries
+
+        // Report the location of the field extrema
+        location   no;
+
+        // Type of extrema for rank > 0 primitives
+        mode            magnitude; // magnitude | component
+    }
+
+    intPsi //from Scheufler
+    {
+        type            fieldIntegrate;
+        functionObjectLibs ("libpostProcess.so");
+
+        // Write at same frequency as fields
+        writeControl    timeStep;
+        writeInterval   1;
+        region fluid;
+        field psi0_;
+    }  
+
+
+//everything below here is commented out!
+
+
+
+
+/*    surfaces
+    {
+        type            surfaces;
+        libs
+        (
+            "libsampling.so"
+        );
+        writeControl   outputTime;
+
+        surfaceFormat  vtk;
+        formatOptions
+        {
+            vtk
+            {
+                legacy true;
+                format ascii;
+            } 
+        }
+        fields
+        (
+            p U alpha.water
+        );
+        
+        interpolationScheme cellPoint;
+        
+        surfaces
+        (
+            isoAlpha
+            {
+                type        isoSurface;
+                isoField    alpha.water;
+                isoValue    0.5;
+                interpolate true;
+            }
+        );
+    }*/
+/*
+    plics
+    {
+       type surfaces; // sampled type
+       libs (geometricVoF postProcess);
+        writeControl writeTime;
+        surfaceFormat vtp;
+        fields (p U); // sampled fields
+        interpolationScheme cell; //scheme to obtain node values
+        surfaces
+        {
+                freeSurf
+                {
+                        type interface; // sampled type
+                        interpolate false; // should be used to interpolate volume fields to surface points, not
+                                                //implemented. Keep it false.
+                }
+        }
+    }
+  */ 
+/*    wettedArea
+    {
+	type wettedArea;
+	libs ("libwettedAreaFunctionObject.so");
+	phaseIndicator alpha.water;
+	patchName bottom;
+    }
+    
+    contactAngleEvaluation
+    {
+     	type contactAngleEvaluation;
+        libs ("libcontactAngleEvaluationFunctionObject.so");
+        phaseIndicator alpha.water;
+        centre (0.0025 0.0025 0.002672);
+    }
+
+*/
+}
+//add function objects for PLIC and RDF (given by Jun)
+#include "FO_visRDF";
+#include "FO_PLICInterface";
+
+// ************************************************************************* //
+

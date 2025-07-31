@@ -1,0 +1,90 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict; 
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//blockMeshDict script to set up the solid domain.
+
+//import meshingDimensions
+#include "meshingDimensions";
+
+scale 1.00;
+
+N 250; //Should match the meshing defined for the fluid setup in MeshingDimensions!
+
+//Aiming to define the vertices so that the solid domain is 10x10x3?
+//Consider that the solid domain starts BELOW the fluid domain.
+
+//Edit to Height specific variable so they lie below the fluid domain.
+H_START #eval{$H_START - 3 * $radius}; //H_START before 0
+H_END #eval{$H_END - 10 * $radius}; //H_END before 10
+
+vertices
+(
+    ($C0 $C1 $H_START)
+    ($C2 $C1 $H_START)
+    ($C2 $C3 $H_START)
+    ($C0 $C3 $H_START)
+    ($C0 $C1 $H_END)
+    ($C2 $C1 $H_END)
+    ($C2 $C3 $H_END)
+    ($C0 $C3 $H_END)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) ($N $N $N) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    Bottom
+    {
+        type    patch;
+        faces
+        (
+            (3 2 1 0)
+        );
+    }
+
+    Top
+    {
+        type    patch;
+        faces
+        (
+            (4 5 6 7)
+        );
+    }
+
+    Mantle
+    {
+        type    patch;
+        faces
+        (
+            (0 4 7 3)
+            (2 6 5 1)
+            (0 1 5 4)
+            (7 6 2 3)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //

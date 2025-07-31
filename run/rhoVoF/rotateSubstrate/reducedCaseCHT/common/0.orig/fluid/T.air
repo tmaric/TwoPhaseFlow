@@ -1,0 +1,59 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      T.air;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// (luis) just  copied from TPF
+
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   uniform 297.15; //(luis) Given by experimental data in Kelvin!
+
+boundaryField
+{
+   // Sym
+   // {
+   //     type zeroGradient;
+   // }
+
+    fluid_to_solid
+    {
+        type            compressible::turbulentTemperatureRadCoupledMixed;
+        value           uniform 297.15;
+        Tnbr            T;
+        kappaMethod     fluidThermo;
+        qrNbr           none;
+        qr              none;
+        kappa           none;
+    }
+
+    "(Mantle|Top)"
+    {
+        type zeroGradient;
+    }
+
+//in theory there should not be any other faces, just the solid, which should be covered with the "fluid_to_solid"
+
+//    bottomEmptyFaces
+//    {
+//        type empty;
+//    }
+//
+//    topEmptyFaces
+//    {
+//        type empty;
+//    }
+}
+
+// ************************************************************************* //

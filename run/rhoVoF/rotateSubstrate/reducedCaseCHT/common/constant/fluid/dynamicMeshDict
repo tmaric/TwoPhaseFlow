@@ -1,0 +1,100 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v1812                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      dynamicMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun 
+//This file is 1 to 1 the implementation from Henning Scheufler for repo "multiDimAMR" in the tutorials (luis)
+//!!!WARNING!!! Altho he recommends using other base values for the adaptCriteria and composedAdaptCriteria (luis)
+
+dynamicFvMesh	dynamicMultiDimRefineBalancedFvMesh; //(luis) line was before: dynamicFvMesh   dynamicMultiDimRefineBalancedFvMesh; //dynamicMultiDimRefineFvMesh
+//dynamicLoadBalanceFvMesh
+
+enableBalancing true;
+allowableImbalance 0.10;
+
+adaptCriteria
+{
+    // type fieldBounds;
+    // fieldName alpha.water;
+    // lowerBound 0.001;
+    // upperBound 0.999;
+
+    type composedAdaptCriteria;
+    operation or;
+    criteria
+    (
+        interface
+        {
+            type fieldBounds;
+            fieldName alpha.water;
+            lowerBound 0.0001;
+            upperBound 0.9999;
+            nLayer     2;
+        }
+        fluid
+        {
+            type fieldBounds;
+            fieldName alpha.water;
+            lowerBound 0.0001;		//(luis) is this the value where water vanishes? -> NO! Completly different thing
+            upperBound 2;
+            maxCellLevel 1;
+        }
+	Temperature			//(luis) should add refinement for the areas of changing temp
+	{
+	    type fieldBounds;
+	    fieldName T; 
+	    lowerBound 275.1501;
+	    upperBound 297.1499;
+	    nLayer 2;
+	}
+    );
+}
+// How often to refine
+refineInterval  5;
+
+
+// Have slower than 2:1 refinement
+nBufferLayers   1;
+
+// Refine cells only up to maxRefinement levels
+maxRefinement   2;
+
+// Stop refinement if maxCells reached
+maxCells        15000000; //15000000;   start with small value and go finer later, when everything runs
+
+// Flux field and corresponding velocity field. Fluxes on changed
+// faces get recalculated by interpolating the velocity. Use 'none'
+// on surfaceScalarFields that do not need to be reinterpolated.
+correctFluxes
+(
+    (phi none)
+    (nHatf none)
+    (rhoPhi none)
+    (alphaPhi0.water none)
+    (alphaPhi0 none)
+    (alphaPhiUn none)
+    (ghf none)
+    (phi0 none)
+    (dVf_ none)
+);
+
+// Write the refinement level as a volScalarField
+dumpLevel       true;
+
+
+
+
+
+// ************************************************************************* //

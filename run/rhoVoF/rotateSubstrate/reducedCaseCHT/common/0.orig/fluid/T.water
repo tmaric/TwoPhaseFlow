@@ -1,0 +1,57 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      T.water;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// (luis) just copied from TPF
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   uniform 275.15; //(luis) given by experimental data in Kelvin!
+
+boundaryField
+{
+//pretty much no BC apart from the "fluid_to_solid", auch so defined for alpha.water, donno about fluid fluid tho...
+//    Sym
+//    {
+//        type zeroGradient;
+//    }
+//
+//    fluid_to_solid
+    {
+        type            compressible::turbulentTemperatureRadCoupledMixed;
+        value           uniform 275.15;
+        Tnbr            T;
+        kappaMethod     fluidThermo;
+        qrNbr           none;
+        qr              none;
+        kappa           none;
+    }
+//
+//    top
+//    {
+//        type zeroGradient;
+//    }
+//
+//    bottomEmptyFaces
+//    {
+//        type empty;
+//    }
+//
+//    topEmptyFaces
+//    {
+//        type empty;
+//    }
+}
+
+// ************************************************************************* //

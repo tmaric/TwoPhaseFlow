@@ -1,0 +1,40 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.1.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      balanceParDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+//Balances parallel cases
+
+numberOfSubdomains 96;  //100, 96 to match the 96 cores in node and also cover the newer 104 nodes
+
+method         kahip;	// ptscotch HenningScheulfer said on multiDimAMR that ptscotch shit here and kahip better; //clsutered //scotch
+
+
+simpleCoeffs
+{
+    n               (1 4 1); // (luis) not sure if we should adapt this too
+    delta           0.001;
+}
+
+constraints
+{
+    refinementHistoryMultiDim
+    {
+        //- Decompose cells such that all cell originating from single cell
+        //  end up on same processor
+        type    refinementHistoryMultiDim;
+    }
+}
+// ************************************************************************* //

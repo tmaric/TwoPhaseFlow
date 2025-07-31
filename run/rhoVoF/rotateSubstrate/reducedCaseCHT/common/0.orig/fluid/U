@@ -1,0 +1,84 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+//Uses codeStream to initialize the rotation condition for the velocity
+
+dimensions      [0 1 -1 0 0 0 0];
+rpm			800; //200;	//@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800) ((Jun has 200 800 in his default file, probably missing a double dash!
+omega   #eval{$rpm*2*pi()/60};	//determine angular velocity!
+
+
+//from here to...
+internalField   #codeStream
+{
+        codeInclude
+        #{
+            #include "fvCFD.H"
+        #};
+
+	codeOptions
+        #{
+            -I$(LIB_SRC)/finiteVolume/lnInclude \
+            -I$(LIB_SRC)/meshTools/lnInclude
+        #};
+
+	codeLibs
+        #{
+            -lmeshTools \
+            -lfiniteVolume
+        #};
+
+	code
+   #{
+            const IOdictionary& d = static_cast<const IOdictionary&>(dict);
+            const fvMesh& mesh = refCast<const fvMesh>(d.db());				 //...to here just standard codeStream lines!
+
+            vectorField U(mesh.nCells(), Zero);						//init vectorfield with zeros
+
+			scalar omega = $omega;
+			vector axis = vector(0, 0, 1);
+
+            forAll(U, i)								//loop through all cells and set rotation, so this must just be the plate right?!
+            {
+				U[i] = (-omega)*(mesh.C()[i] ^ (axis/mag(axis)));	//apply omega to the meshcell value, and apply direction?
+			}
+
+            U.writeEntry("",os);							//standard write call
+        #};
+};
+
+
+boundaryField
+{
+    "(Mantle|Top)"//left								//BC for the hull above the plate? Why dont we set it to zero?
+    {
+	type    zeroGradient;
+    }
+
+    Bottom//right									//BC for the plate?/bottom of the case/domain?
+    {
+         type            rotatingWallVelocity;
+         origin          (0 0 0);
+         axis            (0 0 1);
+         omega           $omega;
+	//type    zeroGradient;
+    }
+}
+
+// ************************************************************************* //
+
+
+

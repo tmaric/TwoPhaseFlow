@@ -1,0 +1,17 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+#yada yada same same
+#------------------------------------------------------------------------------
+#This just executes the pre setup and then the sim, at the end tells if successful
+
+#./Allrun.pre
+
+mpirun -np 96 $(getApplication) -parallel > logfile 2>&1
+#runApplication $(getApplication)
+#runParallel $(getApplication)
+
+result=$?
+echo $result
+
+#------------------------------------------------------------------------------

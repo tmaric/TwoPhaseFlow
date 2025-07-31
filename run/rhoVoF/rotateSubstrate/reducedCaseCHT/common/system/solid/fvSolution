@@ -1,0 +1,54 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// Straight copy from Scheufler TPF, cause the settings waaay to different then our case
+
+
+solvers
+{
+    alpha.water
+    {
+        nAlphaCorr      2;
+        nAlphaSubCycles 2;
+        cAlpha          2;
+
+        MULESCorr       no;
+        nLimiterIter    5;
+
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-8;
+        relTol          0;
+        advectionScheme isoAdvection;
+        reconstructionScheme isoAlpha;
+        vof2IsoTol 1e-8;
+        surfCellTol 1e-8;
+        writeVTK true;
+    }
+
+    psiFinal
+    {
+        solver           PCG;
+        preconditioner   DIC;
+        tolerance        1e-7;
+        relTol           0.00;
+    }
+
+    rhoCpLFinal
+    {
+        solver           diagonal;
+        preconditioner   DILU;
+        tolerance        1e-7;
+        r
