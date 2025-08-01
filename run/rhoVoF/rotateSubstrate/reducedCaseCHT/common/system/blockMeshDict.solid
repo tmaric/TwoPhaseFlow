@@ -20,7 +20,7 @@ FoamFile
 
 scale 1.00;
 
-N 250; //Should match the meshing defined for the fluid setup in MeshingDimensions!
+//not needed we import it already with meshing dimensions!  N 250; //Should match the meshing defined for the fluid setup in MeshingDimensions!
 
 //Aiming to define the vertices so that the solid domain is 10x10x3?
 //Consider that the solid domain starts BELOW the fluid domain.
