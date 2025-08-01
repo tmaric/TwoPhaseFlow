@@ -18,13 +18,13 @@ dictionaryReplacement
 {
     boundary
     {
-        fluid_to_solid
+        Bottom		//fluid_to_solid	//(luis): siehe solid changeDictionaryDict
         {
             type            mappedWall;
             inGroups        1 ( wall ); //I think we need to define this differently when we do only blockmesh...
             sampleMode      nearestPatchFace;
             sampleRegion    solid;
-            samplePatch     solid_to_fluid;
+            samplePatch     Top;	//solid_to_fluid;
         }
     }
 }
