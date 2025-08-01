@@ -47,7 +47,7 @@ boundaryField
 //        value           uniform 300.0;
 //    }
 
-    solid_to_fluid
+    Top		//solid_to_fluid	//(luis): lower boundary is differently defined in blockMesh!
     {
         type            compressible::turbulentTemperatureRadCoupledMixed;
         value           uniform 298.15; //apparently this is an intial temp in K, and should match the temp of the field where it is defined? -> also hier solid temp...?

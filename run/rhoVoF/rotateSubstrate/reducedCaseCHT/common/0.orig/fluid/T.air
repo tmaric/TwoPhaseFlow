@@ -27,7 +27,7 @@ boundaryField
    //     type zeroGradient;
    // }
 
-    fluid_to_solid
+    Bottom	//fluid_to_solid	//(luis): lower boundary is differently defined in blockMesh!
     {
         type            compressible::turbulentTemperatureRadCoupledMixed;
         value           uniform 297.15;

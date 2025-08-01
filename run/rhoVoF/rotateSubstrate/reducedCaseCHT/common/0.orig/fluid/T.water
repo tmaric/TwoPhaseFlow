@@ -27,7 +27,7 @@ boundaryField
 //        type zeroGradient;
 //    }
 //
-//    fluid_to_solid
+    Bottom	//fluid_to_solid	//(luis): lower boundary is differently defined in blockMesh!
     {
         type            compressible::turbulentTemperatureRadCoupledMixed;
         value           uniform 275.15;
@@ -37,6 +37,12 @@ boundaryField
         qr              none;
         kappa           none;
     }
+
+    "(Top|Mantle)"		//(luis) apparently this cant be empty?
+    {
+        type zeroGradient;
+    } 
+
 //
 //    top
 //    {
