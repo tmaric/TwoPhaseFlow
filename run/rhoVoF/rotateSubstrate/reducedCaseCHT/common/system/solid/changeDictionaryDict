@@ -18,13 +18,13 @@ dictionaryReplacement
 {
     boundary
     {
-        solid_to_fluid
+        Top	//solid_to_fluid	//(luis): Top because upper boundary of solid domain is name Top
         {
             type            mappedWall;
             inGroups        1 ( wall );
             sampleMode      nearestPatchFace;
             sampleRegion    fluid;
-            samplePatch     fluid_to_solid;
+            samplePatch     Bottom;	//fluid_to_solid;	//(luis): Bottom becuase lower boundary of fluid domain named that way.
         }
     }
  
