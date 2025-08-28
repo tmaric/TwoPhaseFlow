@@ -1,0 +1,41 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2212                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    arch        "LSB;label=32;scalar=64";
+    class       dictionary;
+    location    "system";
+    object      FO_PLICInterface;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+ functions
+ {
+     surfaces
+     {
+         type            surfaces;
+         libs            (geometricVoF sampling);
+         writeControl    writeTime;
+
+         surfaceFormat   vtp;
+         fields          (p U);
+
+         interpolationScheme cell;
+
+         surfaces
+         {
+             freeSurf
+             {
+                 type            interface; // sampled type
+                 interpolate     false;  // should be used to interpolate volume fields to surface points, not implemented.
+             }                           // keep it false.
+         }
+     }
+ }

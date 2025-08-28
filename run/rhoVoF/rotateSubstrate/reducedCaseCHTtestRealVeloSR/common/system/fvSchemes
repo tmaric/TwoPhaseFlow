@@ -1,0 +1,71 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSchemes;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//direct copy from jun
+//this file declares the numeric schemes on how a mathmatical operation should be executed
+//NOT VERIFIED, should be good for now
+
+
+ddtSchemes
+{
+    default          Euler;
+}
+
+gradSchemes
+{
+    default          pointCellsLeastSquares; //Scheufler has here "Gauss linear"
+}
+
+divSchemes
+{
+    div(rhoPhi,U)    Gauss upwind; //limitedLinearV 1;
+    div(phi,alpha)   Gauss vanLeer;
+    div(phirb,alpha) Gauss interfaceCompression; //Scheufler has here "Gauss linear"
+    div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;
+
+    div(phi,thermo:rho.water) Gauss upwind;
+    div(phi,thermo:rho.air) Gauss upwind;
+    div(rhoPhi,T)  Gauss upwind;
+    div(rhoPhi,K)  Gauss upwind;
+    div(phi,p)      Gauss upwind;
+    div(phi,k)      Gauss upwind;
+}
+
+laplacianSchemes
+{
+    default          Gauss linear corrected; //Scheufler has here "uncorrected"
+}
+
+interpolationSchemes
+{
+    default          linear;
+}
+
+snGradSchemes
+{
+    default          corrected; // Scheufler has here "uncorrected"
+}
+
+fluxRequired
+{
+    default          no;
+    p_rgh;
+    pcorr;
+    alpha.water;
+}
+
+
+// ************************************************************************* //

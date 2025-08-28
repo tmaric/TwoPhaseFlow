@@ -1,0 +1,33 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v1806                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      changeDictionaryDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dictionaryReplacement
+{
+    boundary
+    {
+        solidTop	//solid_to_fluid	//(luis): Top because upper boundary of solid domain is name Top
+        {
+            type            mappedWall;
+            inGroups        1 ( wall );
+            sampleMode      nearestPatchFace;
+            sampleRegion    fluid;
+            samplePatch     fluidBottom;	//fluid_to_solid;	//(luis): Bottom becuase lower boundary of fluid domain named that way.
+        }
+    }
+ 
+}
+
+// ************************************************************************* //

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+#This file was sourced from happy and free range Devs from https://www.openfoam.com/documentation/guides/latest/doc/verification-validation-turbulent-flat-plate-zpg.html
+
+#the first line declared that sh or "bash" is used as terminal or to execute this script
+cd "${0%/*}" || exit                                # Run from this directory -> rather: tries to run from current dic with cd "${0%/*}" and if that fails exits the script
+. ${WM_PROJECT_DIR:?}/bin/tools/CleanFunctions      # Tutorial clean functions (. equals to "source" command)
+#------------------------------------------------------------------------------
+
+cleanCase0      #executes one of the previously sourced commands/functions
+
+#------------------------------------------------------------------------------

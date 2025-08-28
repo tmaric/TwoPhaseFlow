@@ -1,0 +1,68 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      decomposeParDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+// I think i already edited this to run on my machine with 8 cores only
+This file was a try to run an implementation without the dedicated splitting into fluid and solid domain, therefore also executing a different sbatch etc. DONT USE
+
+numberOfSubdomains 128;	//96; //100, 96 to match the 96 core of a node, now 128 to have same 96 as before for fluid
+
+//method          scotch; //scotch; (eig war hier scotch drin von Jun!)
+
+//coeffs
+//{
+//    n           (4 2 12);
+//}
+
+regions
+{
+	solid
+	{
+		numberOfSubdomains 32;
+		method scotch;	
+		coeffs
+		{
+			n (2 2 8);
+		}
+	}
+	fluid
+	{
+		numberOfSubdomains 96;
+		method scotch; 
+		coeffs
+		{
+			n (4 2 12);
+		}
+	}
+}
+
+//(luis) The following is from https://github.com/HenningScheufler/multiDimAMR/tree/master README
+constraints
+{
+    refinementHistoryMultiDim
+    {
+        //- Decompose cells such that all cell originating from single cell
+        //  end up on same processor
+        type    refinementHistoryMultiDim;
+    }
+    //preservePatches	//luis: not sure if this acutally does anythign...
+    //{
+	//type 	preserve Patches
+	//patch	name;
+    //}
+}
+
+
+// ************************************************************************* //

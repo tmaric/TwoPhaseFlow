@@ -1,0 +1,46 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # Run from this directory
+
+# Source tutorial run functions
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+#yada yada basically same shit as in CleanAll                                                                     #------------------------------------------------------------------------------                                   #this script serves to run the pre steps for the simulation, check for mesh or set it up, check it, initialize fields
+
+canCompile || exit 0 # Dynamic code (probably checks if the case works)
+
+restore0Dir
+
+if [ ! -d constant/polyMesh ]   #checks if mesh file is existent, if NOT if will try to create it in the if clause
+then
+
+	cp system/blockMeshDict.solid system/blockMeshDict
+	runApplication blockMesh
+	rm -r constant/solid/polyMesh
+	mv constant/polyMesh constant/solid/
+
+	cp system/blockMeshDict.fluid system/blockMeshDict
+	rm log.blockMesh
+	runApplication blockMesh
+	rm -r constant/fluid/polyMesh
+	mv constant/polyMesh constant/fluid/
+
+	runApplication renumberMesh -allRegions -overwrite -constant
+	#runApplication renumberMesh -region fluid -overwrite -constant
+	runApplication checkMesh -allRegions -allTopology -allGeometry -constant
+        #runApplication checkMesh -region fluid -allTopology -allGeometry -constant
+	         
+fi
+
+touch CHT.foam
+
+runApplication changeDictionary -region solid -subDict dictionaryReplacement
+rm log.changeDictionary
+runApplication changeDictionary -region fluid -subDict dictionaryReplacement
+
+#this next part is to initialize the Fields
+
+runApplication setAlphaField -region fluid
+runApplication setExprFields -region fluid
+
+runApplication decomposePar -constant -allRegions 
+#runApplication decomposePar -constant -region fluid

@@ -1,0 +1,93 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+#yada yada basically same shit as in CleanAll
+#------------------------------------------------------------------------------
+#this script serves to run the pre steps for the simulation, check for mesh or set it up, check it, initialize fields
+
+
+canCompile || exit 0    # Dynamic code (probably checks if the case works)
+
+restore0Dir             #resets the 0 directory/ initial conditions
+
+if [ ! -d constant/polyMesh ]   #checks if mesh file is existent, if NOT if will try to create it in the if clause
+then
+#	runParallel blockMesh
+    runApplication blockMesh
+#	runParallel renumberMesh -overwrite -constant
+    runApplication renumberMesh -overwrite -constant
+#	runParallel checkMesh -allTopology -allGeometry -constant
+    runApplication checkMesh -allTopology -allGeometry -constant
+fi
+
+#this next part is to initialize the Fields, function commands just copied from Jun
+#runParallel setAlphaField
+#runParallel setExprFields
+#runParallel decomposePar
+
+runApplication setAlphaField
+runApplication setExprFields
+
+runApplication decomposePar
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#------------------------------------------------------------------------------
+
+
+#---------This part below was from Jun for mesh init, but only used "blockMesh" as command--------
+#maybe just commit to keeping clean code...?
+
+#!/bin/sh
+# NOTE: it is not possible to prescribe a specific shell for interpretation
+# of this script since all comments are lost when the template parameters
+# are replaced.
+# So this script should be interpretable by all POSIX compatible shell
+
+#gmsh constant/geometry/squareSubstrate.geo -parse_and_exit
+#surfaceFeatureEdges constant/geometry/squareSubstrate.stl constant/geometry/squareSubstrate.fms
+#cartesianMesh
+#blockMesh
+# topoSet
+# refineHexMesh -overwrite interfaceRegion
+
+
+#--------The part below this is from Jun for Fields init in "initFields.sh"------------
+
+#!/bin/sh
+# NOTE: it is not possible to prescribe a specific shell for interpretation
+# of this script since all comments are lost when the template parameters
+# are replaced.
+# So this script should be interpretable by all POSIX compatible shell
+# cd ${0%/*} || exit 1    # run from this directory
+
+# Source tutorial run functions
+#. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+#./meshGen.sh
+
+#runApplication setAlphaField
+#runApplication setExprFields
+
+#runApplication decomposePar

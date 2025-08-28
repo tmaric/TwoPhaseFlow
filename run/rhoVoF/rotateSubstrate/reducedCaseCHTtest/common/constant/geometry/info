@@ -1,0 +1,5 @@
+Basically just created a basic geometry for the substrate in gmsh 
+-> results in a .geo file
+-> use a .stl version to transform to .fms to have the preferred file format for cfmesh
+
+I am not sure this file or directory is used..., since the substrate was not used in the intial case in the first place...

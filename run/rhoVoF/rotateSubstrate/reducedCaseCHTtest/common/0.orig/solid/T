@@ -1,0 +1,83 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      T;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// (luis) base setup has been copied from TPF
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   uniform 298.15;
+
+boundaryField
+{
+//    Sym
+//    {
+//        type zeroGradient;
+//    }
+//
+//    bottom
+//    {
+//        type            externalWallHeatFluxTemperature;
+//        mode            flux;
+//        q               uniform 100000;
+//        kappaMethod     solidThermo;
+//        kappa           none;
+//        value           uniform 300.0;
+//    }
+
+//    outside
+//    {
+//        type            externalWallHeatFluxTemperature;
+//        mode            coefficient;
+//        Ta              uniform 300.0;
+//        h               uniform 5;
+//        kappaMethod     solidThermo;
+//        kappa           none;
+//        value           uniform 300.0;
+//    }
+
+    solidTop		//solid_to_fluid	//(luis): lower boundary is differently defined in blockMesh!
+    {
+        type            compressible::turbulentTemperatureRadCoupledMixed;	//luis: current value suggested by solver error, probably due to setting it to incompressible. Furhtermore the previosu setting is for a certain baffle geometry type, nothing to do with the coupling, so lets keep it const right?
+	//mode		constantMass;
+        value           uniform 298.15; //apparently this is an intial temp in K, and should match the temp of the field where it is defined? -> also hier solid temp...?
+        Tnbr            T;
+        kappaMethod     solidThermo;
+        //qrNbr           none;
+        //qr              none;
+        //kappa           none;
+    }
+
+    solidMantle
+    {
+	type zeroGradient;
+    }
+
+    solidBottom
+    {
+	type zeroGradient;
+    }
+
+//    bottomEmptyFaces
+//    {
+//        type empty;
+//    }
+//
+//    topEmptyFaces
+//    {
+//        type empty;
+//    }
+}
+
+// ************************************************************************* //

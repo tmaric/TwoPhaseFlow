@@ -1,0 +1,23 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      turbulenceProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Direct copy from Jun
+//relativ Selbsterklärend
+
+simulationType  laminar;	//Why can we just assume this though? Are we this slow? ---> This setting actually, just says that we dont have any models for turbulence, not that we have no turbulence. Laminar setting results in a DNS, which is highly costly with turbulence present, this cost can be reduced with a turbulence model...!!!
+
+
+// ************************************************************************* //

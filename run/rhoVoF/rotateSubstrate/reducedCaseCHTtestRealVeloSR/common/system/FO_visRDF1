@@ -1,0 +1,102 @@
+functions
+{
+    visRDF
+    {
+        type coded;
+        libs (utilityFunctionObjects);
+        name visRDF;
+
+        writeControl    writeTime;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include "isoAdvection.H"
+        #};
+
+        codeOptions
+        #{
+            -I$TPF_PROJECT_DIR/src/VoF/lnInclude \
+            -I$(LIB_SRC)/finiteVolume/lnInclude \
+            -I$(LIB_SRC)/fileFormats/lnInclude \
+            -I$(LIB_SRC)/surfMesh/lnInclude \
+            -I$(LIB_SRC)/meshTools/lnInclude \
+            -I$(LIB_SRC)/sampling/lnInclude \
+            -I$(LIB_SRC)/dynamicMesh/lnInclude \
+            -I$(LIB_SRC)/transportModels/interfaceProperties/lnInclude \
+            -I$(LIB_SRC)/transportModels/twoPhaseProperties/lnInclude
+        #};
+
+	codeLibs
+
+        #{
+            -L$(FOAM_USER_LIBBIN) \
+            -lVoF
+        #};
+
+        codeWrite
+        #{
+            Info<< "###Reading/reassigning RDF field \n" << endl;
+
+            volScalarField alpha1 = mesh().lookupObject<volScalarField>("alpha.water");
+            const volVectorField& U = mesh().lookupObject<volVectorField>("U");
+            const surfaceScalarField& phi = mesh().lookupObject<surfaceScalarField>("phi");
+            isoAdvection advector(alpha1, phi, U);
+            word reconScheme(advector.surf().modelDict().lookup("reconstructionScheme"));
+            scalar surfCellTol = advector.surf().modelDict().lookupOrDefault("surfCellTol", 1e-8);
+            const word plicRDF("plicRDF");
+            if(reconScheme == plicRDF)
+            {
+                Info << "##reconstructionscheme is " << reconScheme << endl;
+                const volScalarField& RDF = mesh().lookupObject<volScalarField>("reconstructedDistanceFunction");
+                volScalarField visRDF
+                (
+                    IOobject
+                    (
+                        "visRDF",
+                        mesh().time().timeName(),
+                        mesh(),
+                        IOobject::NO_READ,
+                        IOobject::AUTO_WRITE 
+                     ),
+                    RDF
+                );
+                const volScalarField& cellDistLevel = mesh().lookupObject<volScalarField>("cellDistLevel_");
+
+                forAll(cellDistLevel, celli)
+                {
+                    if (cellDistLevel[celli] == -1)
+                    {
+                        if(alpha1[celli] > 1 - surfCellTol)
+                        {
+                            visRDF[celli] = 100;
+                        } 
+                        else if (alpha1[celli] < surfCellTol) 
+                        {
+                            visRDF[celli] = -100;
+                        }
+                    }
+                }
+    
+                forAll(visRDF.boundaryField(), patchI)
+                {
+                    fvPatchScalarField& pRDF = visRDF.boundaryFieldRef()[patchI];
+                    if (isA<calculatedFvPatchScalarField>(pRDF))
+                    {
+                        const polyPatch& pp = pRDF.patch().patch();
+                        forAll(pRDF, i)
+                        {
+                            const label pCellI = pp.faceCells()[i];
+                            if(cellDistLevel[pCellI] == -1)
+                            {
+                                pRDF[i] = visRDF[pCellI];
+                            }
+                        }
+                    }
+                }
+                visRDF.correctBoundaryConditions();
+                visRDF.write();
+            }
+        #};
+    }
+}

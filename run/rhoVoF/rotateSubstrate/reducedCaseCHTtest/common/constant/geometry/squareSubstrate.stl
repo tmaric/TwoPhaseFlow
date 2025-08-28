@@ -1,0 +1,90 @@
+solid Bottom
+facet normal -0 0 -1
+  outer loop
+    vertex 0.083 0.01 0
+    vertex 0.063 -0.01 0
+    vertex 0.063 0.01 0
+  endloop
+endfacet
+facet normal 0 -0 -1
+  outer loop
+    vertex 0.083 0.01 0
+    vertex 0.083 -0.01 0
+    vertex 0.063 -0.01 0
+  endloop
+endfacet
+endsolid Bottom
+solid Mantle
+facet normal -1 0 0
+  outer loop
+    vertex 0.063 -0.01 0.01
+    vertex 0.063 0.01 0
+    vertex 0.063 -0.01 0
+  endloop
+endfacet
+facet normal -1 0 0
+  outer loop
+    vertex 0.063 -0.01 0.01
+    vertex 0.063 0.01 0.01
+    vertex 0.063 0.01 0
+  endloop
+endfacet
+facet normal 1 0 0
+  outer loop
+    vertex 0.083 -0.01 0.01
+    vertex 0.083 -0.01 0
+    vertex 0.083 0.01 0
+  endloop
+endfacet
+facet normal 1 -0 0
+  outer loop
+    vertex 0.083 -0.01 0.01
+    vertex 0.083 0.01 0
+    vertex 0.083 0.01 0.01
+  endloop
+endfacet
+facet normal 0 -1 -0
+  outer loop
+    vertex 0.083 -0.01 0.01
+    vertex 0.063 -0.01 0
+    vertex 0.083 -0.01 0
+  endloop
+endfacet
+facet normal -0 -1 0
+  outer loop
+    vertex 0.083 -0.01 0.01
+    vertex 0.063 -0.01 0.01
+    vertex 0.063 -0.01 0
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex 0.083 0.01 0.01
+    vertex 0.083 0.01 0
+    vertex 0.063 0.01 0
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex 0.083 0.01 0.01
+    vertex 0.063 0.01 0
+    vertex 0.063 0.01 0.01
+  endloop
+endfacet
+endsolid Mantle
+solid Top
+facet normal 0 0 1
+  outer loop
+    vertex 0.083 0.01 0.01
+    vertex 0.063 0.01 0.01
+    vertex 0.063 -0.01 0.01
+  endloop
+endfacet
+facet normal 0 0 1
+  outer loop
+    vertex 0.083 0.01 0.01
+    vertex 0.063 -0.01 0.01
+    vertex 0.083 -0.01 0.01
+  endloop
+endfacet
+endsolid Top

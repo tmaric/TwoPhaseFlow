@@ -1,0 +1,64 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      T;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// (luis) just  copied from TPF
+#include "../../system/meshingDimensions"
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   uniform 297.15; //(luis) Given by experimental data in Kelvin!
+
+boundaryField
+{
+   // Sym
+   // {
+   //     type zeroGradient;
+   // }
+
+    fluidBottom	//fluid_to_solid	//(luis): lower boundary is differently defined in blockMesh!
+    {
+        type            compressible::turbulentTemperatureRadCoupledMixed;
+        value           uniform 297.15; //maybe 298.15 cause solid?
+	Tnbr            T;
+        //thickness	uniform #eval{3*$radius};	//luis: i assume this is plate thickness?
+	//cp		uniform 763;
+	//rhoName_	"rho";//rho;
+	//rho_		uniform 3970;
+	//Tnbr            T;
+        kappaMethod     fluidThermo;
+        //qrNbr           none;
+        //qr              none;
+        //kappa           none;
+    }
+
+    "(fluidMantle|fluidTop)"
+    {
+        type zeroGradient;
+    }
+
+//in theory there should not be any other faces, just the solid, which should be covered with the "fluid_to_solid"
+
+//    bottomEmptyFaces
+//    {
+//        type empty;
+//    }
+//
+//    topEmptyFaces
+//    {
+//        type empty;
+//    }
+}
+
+// ************************************************************************* //
