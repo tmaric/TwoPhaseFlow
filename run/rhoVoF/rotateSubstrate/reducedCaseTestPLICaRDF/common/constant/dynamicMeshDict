@@ -14,12 +14,10 @@ FoamFile
     object      dynamicMeshDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun 
 //This file is 1 to 1 the implementation from Henning Scheufler for repo "multiDimAMR" in the tutorials (luis)
 //!!!WARNING!!! Altho he recommends using other base values for the adaptCriteria and composedAdaptCriteria (luis)
 
-dynamicFvMesh	dynamicMultiDimRefineBalancedFvMesh; //(luis) line was before: dynamicFvMesh   dynamicMultiDimRefineBalancedFvMesh; //dynamicMultiDimRefineFvMesh
-//dynamicLoadBalanceFvMesh
+dynamicFvMesh	dynamicMultiDimRefineBalancedFvMesh;
 
 enableBalancing true;
 allowableImbalance 0.10;
@@ -47,7 +45,7 @@ adaptCriteria
         {
             type fieldBounds;
             fieldName alpha.water;
-            lowerBound 0.0001;		//(luis) is this the value where water vanishes?
+            lowerBound 0.0001;
             upperBound 2;
             maxCellLevel 1;
         }

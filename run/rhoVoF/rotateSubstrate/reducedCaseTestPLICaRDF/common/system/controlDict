@@ -14,14 +14,8 @@ FoamFile
     object      controlDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //script with the main controls
 //alot of control parameters, not all were parameterized, and not all have been checked for correct value by luis
-
-//add function objects for PLIC and RDF (given by Jun)
-//#include "FO_visRDF";
-//#include "FO_PLICInterface";
-
 
 application	interFlow;    // @!solver!@;
 
@@ -31,15 +25,15 @@ startTime       0;
 
 stopAt          endTime; // writeNow; //endTime;
 
-endTime         2e-3;	//@!end_time!@; //0.5; I think he maybe set a low value of 2e-3 in parameter file, cause fast for test???
+endTime         2e-3;	//@!end_time!@; //0.5;
 
-deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter, not sure if he did it here...
+deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter...
 
 writeControl    runTime;
 
 writeInterval   5.05e-5;        //(luis) deciamals added to match the framerate of the HS camera, this results in a difference after 0.2secs of 1.1 frames, cant add more decimals becuase deltaT already maxxed 5e-7;//-5	//@!write_interval!@; // Write interval in terms defined in seconds of simulated physical time; Before: 2e-4
 
-purgeWrite      0;	//@!purge_write!@; //0 indicates that there is no limit for the number of directories which can be created, otherwise this parameter sets the limit for the files which can be created before they are overridden
+purgeWrite      0;	//@!purge_write!@; //0 indicates that there is no limit for the number of directories which can be created, otherwise this parameter sets the limit for the files which can be created before they are overwritten
 
 writeFormat     binary; //ascii;
 
@@ -112,7 +106,7 @@ functions
     }
 
 
-//everything below here is commented out!
+//everything below here is commented out! (apart from function objects!)
 
 
 

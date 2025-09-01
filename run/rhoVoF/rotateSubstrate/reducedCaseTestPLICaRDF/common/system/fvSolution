@@ -14,9 +14,7 @@ FoamFile
     object      fvSolution;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //script declares the solving algos for the specific field variables
-//NONE HAVE BEEN VERIFIED, only parameterization lifted...
 
 solvers
 {
@@ -39,7 +37,7 @@ solvers
     {
         solver          PCG;
         preconditioner  DIC;
-        tolerance       1e-10;	//Why has this one not a parameterization (luis)
+        tolerance       1e-10;
         relTol          0;
     }
 

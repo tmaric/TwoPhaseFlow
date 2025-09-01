@@ -1,3 +1,5 @@
+//Function Object provided by MMA to generate visRDF interfaces as output, needs to source a specific bashrc from TwoPhaseFlow, see sbatch script for file path to it
+
 functions
 {
     visRDF

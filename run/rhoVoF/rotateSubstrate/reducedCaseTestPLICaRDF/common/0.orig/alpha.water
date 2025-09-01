@@ -12,7 +12,6 @@ FoamFile
     class       volScalarField;
     object      alpha.water;
 }
-//#Copied Straight from JUN!
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 //#I m assuming that this just sets the whole field for now to 0, and later we add the droplet into it

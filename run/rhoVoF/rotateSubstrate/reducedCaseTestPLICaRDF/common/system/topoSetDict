@@ -13,8 +13,7 @@ FoamFile
     object      topoSetDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
-//!!! I'm NOT 100% sure this script does anything, since only to sets are selected, but nothing is done with them
+//!!! I'm NOT 100% sure this script does anything, since only two sets are selected, but nothing is done with them, was given to luis with the case
 
 #include "meshingDimensions";
 

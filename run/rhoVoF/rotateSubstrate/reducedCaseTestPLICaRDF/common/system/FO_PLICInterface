@@ -15,7 +15,7 @@ FoamFile
     object      FO_PLICInterface;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+//Function Object provided by MMA to generate PLIC interfaces as output, needs to be imported differently than normal into paraview, see paraview state files for PLIC 
  functions
  {
      surfaces

@@ -13,11 +13,9 @@ FoamFile
     object      blockMeshDict; 
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //standard mesh setup, with declaration for the names for the boundaries
-//clean up the variables here? or atleast comment what they are...
 
-#include "meshingDimensions";		//Imports from meshingDimensions, which again "should" import from setup.parameter, why the nesting?!
+#include "meshingDimensions";		//Imports from meshingDimensions, which again "should" import from setup.parameter, but this was removed by luis, adds unnecessary compexity, just define what you need in meshingDimensions...
 
 scale 1.00;
 
