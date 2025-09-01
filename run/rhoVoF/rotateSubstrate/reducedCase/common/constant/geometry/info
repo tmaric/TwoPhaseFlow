@@ -1,3 +1,5 @@
 Basically just created a basic geometry for the substrate in gmsh 
 -> results in a .geo file
 -> use a .stl version to transform to .fms to have the preferred file format for cfmesh
+
+-> I think this functionality is not used, everything is defined by blockMesh! (came with the case from Jun)

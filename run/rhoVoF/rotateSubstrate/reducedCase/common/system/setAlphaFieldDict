@@ -14,9 +14,7 @@ FoamFile
     object      fvSolution;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
-//Declares "where the water should be"
-//Uses the Nf variable that was unused before
+//Declares "where the droplet should be"
 // REFERENCES "meshingDimension"!!!
 
 #include "meshingDimensions";

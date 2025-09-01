@@ -13,7 +13,6 @@ FoamFile
     object      setExprFieldsDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //Not verified or edited, basically
 
 // Preload any required fields (optional)
@@ -38,7 +37,7 @@ expressions
 
         fieldMask
         #{
-          alpha.water > $[(scalar)constants.limit] //I think this one just calles the the value of limit which is defined in constants whic is a scalar, and checks which cells have a value of alpha.water which is below this threshold
+          alpha.water > $[(scalar)constants.limit] //I think this one just calles the the value of limit which is defined in constants whic is a scalar, and checks which cells have a value of alpha.water which is above this threshold
         #};
 
         expression

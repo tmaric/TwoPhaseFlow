@@ -14,8 +14,7 @@ FoamFile
     object      g;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
-//relativ selbsterklärend würde ich sagen
+//pretty self explanatory...
 
 
 dimensions      [0 1 -2 0 0 0 0];

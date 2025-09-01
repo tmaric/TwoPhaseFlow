@@ -1,15 +1,15 @@
 #!/bin/sh
 cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
-#yada yada same same
 #------------------------------------------------------------------------------
 #This just executes the pre setup and then the sim, at the end tells if successful
 ###!!!INFO!!! This script is not the correct way to start the sim, it s started via the sbatch and mpirun! Can probably be deleted...
+### ---> If you run locally, e.g. not on a cluster, you dont use sbatch! Use this or execute manually the pre and solver!
 
 
 ./Allrun.pre
 
-runApplication $(getApplication)
+runApplication $(getApplication)	#This is a single core start command, check other cases for parallel command!
 
 result=$?
 echo $result
