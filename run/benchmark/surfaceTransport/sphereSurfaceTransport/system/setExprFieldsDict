@@ -1,0 +1,51 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2506                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      setExprFieldsDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+readFields ( interfaceCentre.water );
+
+expressions
+(
+  cSigma // Surfactant concentration evaluated at cell centers. 
+  {
+    field       cSigma;              // volScalarField
+    dimensions  [0 0 0 0 0 0 0];         // dimensionless
+    create      yes;
+
+    // Tunables (purely geometric)
+    variables
+    (
+      "sphereCentre = vector(0,0,0)"     // droplet center
+      "zAxis        = vector(0,1,0)"     // 'north' axis (need not be unit)
+      "t0           = 0"                 // time for Eq.(44)
+      "Pe_s         = 1"                 // surface Peclet
+
+      // Geometry from cell centers:
+      // pos() returns the cell-center position vector for each cell
+      "rc           = pos() - sphereCentre"
+      "rcmag        = mag(rc) + 1e-16"
+      "cosThetaRaw  = (rc & zAxis)/rcmag"
+      "cosTheta     = max(min(cosThetaRaw, 1 - 1e-12), -1 + 1e-12)"
+
+      // Eq. (44) at cell centers
+      "cSigma = 0.5*(1 - exp(-2*t0/Pe_s)*cosTheta)"
+    );
+
+    // Paint only near the interface shell if band>0, otherwise everywhere
+    expression #{ cSigma #};
+  }
+);
+
+// ************************************************************************* //
