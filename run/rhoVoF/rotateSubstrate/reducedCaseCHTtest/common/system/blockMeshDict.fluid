@@ -13,14 +13,13 @@ FoamFile
     object      blockMeshDict; 
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
-//standard mesh setup, with declaration for the names for the boundaries
-//clean up the variables here? or atleast comment what they are...
+//blockMeshDict script to set up the fluid domain. This file is used to overwrite the general blockMeshDict file, when the case is executed!
 
-#include "meshingDimensions";		//Imports from meshingDimensions, which again "should" import from setup.parameter, why the nesting?!
+#include "meshingDimensions";		//Imports from meshingDimensions
 
 scale 1.00;
 
+//performs calculation to determine the number of cells in z-direction, using variables defined in "meshingDimensions"
 Nz #eval{floor($N*($poszHALF_WIDTH + $negzHALF_WIDTH)/($posxHALF_WIDTH + $negxHALF_WIDTH))};
 
 vertices

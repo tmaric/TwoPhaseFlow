@@ -13,8 +13,8 @@ FoamFile
     object      setExprFieldsDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //Not verified or edited, basically
+//I think this file is not used, because each domain has their own files, needs to be checked...
 
 // Preload any required fields (optional)
 readFields      ( U alpha.water);

@@ -13,7 +13,7 @@ FoamFile
     object      fvSolution;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// Straight copy from Scheufler TPF, cause the settings waaay to different then our case
+// Straight copy from Scheufler TPF CoffeePot example, cause the settings waaay to different than initial reduced case
 
 
 solvers

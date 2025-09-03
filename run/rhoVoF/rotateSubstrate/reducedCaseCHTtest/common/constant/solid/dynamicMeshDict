@@ -14,14 +14,12 @@ FoamFile
     object      dynamicMeshDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun 
 //This file is 1 to 1 the implementation from Henning Scheufler for repo "multiDimAMR" in the tutorials (luis)
 //!!!WARNING!!! Altho he recommends using other base values for the adaptCriteria and composedAdaptCriteria (luis)
 
-dynamicFvMesh	dynamicMultiDimRefineBalancedFvMesh; //(luis) line was before: dynamicFvMesh   dynamicMultiDimRefineBalancedFvMesh; //dynamicMultiDimRefineFvMesh
-//dynamicLoadBalanceFvMesh
+dynamicFvMesh	dynamicMultiDimRefineBalancedFvMesh;
 
-enableBalancing false;	//true;
+enableBalancing false;	//true;		//crashes solver if set "true", maybe because the coupling links of the BC break once the domain parts are redistributed onto different CPUs?
 allowableImbalance 0.10;
 
 adaptCriteria
@@ -35,7 +33,7 @@ adaptCriteria
     operation or;
     criteria
     (
-	Temperature			//(luis) should add refinement for the areas of changing temp
+	Temperature			//(luis) should add refinement for the areas of changing temp (not sure if it does...)
 	{
 	    type fieldBounds;
 	    fieldName T; 

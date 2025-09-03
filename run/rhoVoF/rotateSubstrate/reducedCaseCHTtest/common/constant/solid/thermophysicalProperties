@@ -13,6 +13,7 @@ FoamFile
     object      thermophysicalProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//luis: Originally from TPF CoffeePot example
 
 thermoType
 {
@@ -34,18 +35,18 @@ mixture
 
     transport
     {
-        kappa   40;	//235;
+        kappa   40;
     }
 
     thermodynamics
     {
         Hf      0;
-        Cp      763;	//897;
+        Cp      763;
     }
 
     equationOfState
     {
-        rho     3970;	//2700;
+        rho     3970;
     }
 }
 

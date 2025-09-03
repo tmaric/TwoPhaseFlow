@@ -14,9 +14,8 @@ FoamFile
     object      fvSchemes;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//direct copy from jun
 //this file declares the numeric schemes on how a mathmatical operation should be executed
-//NOT VERIFIED, should be good for now
+//the standard file from reduced case has been expanded by the settings from the CoffeePot example
 
 
 ddtSchemes

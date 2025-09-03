@@ -14,10 +14,8 @@ FoamFile
     object      fvSchemes;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//direct copy from jun
 //this file declares the numeric schemes on how a mathmatical operation should be executed
-//NOT VERIFIED, should be good for now
-
+//I think is not used as well, cause each domain has their own one, needs to be tested...
 
 ddtSchemes
 {

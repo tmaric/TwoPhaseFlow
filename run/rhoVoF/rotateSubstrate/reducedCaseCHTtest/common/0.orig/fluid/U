@@ -13,11 +13,10 @@ FoamFile
     object      U;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //Uses codeStream to initialize the rotation condition for the velocity
 
 dimensions      [0 1 -1 0 0 0 0];
-rpm			800; //200;	//@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800) ((Jun has 200 800 in his default file, probably missing a double dash!
+rpm			800; //200;	//@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800)
 omega   #eval{$rpm*2*pi()/60};	//determine angular velocity!
 
 
@@ -51,7 +50,7 @@ internalField   #codeStream
 			scalar omega = $omega;
 			vector axis = vector(0, 0, 1);
 
-            forAll(U, i)								//loop through all cells and set rotation, so this must just be the plate right?!
+            forAll(U, i)								//loop through all cells
             {
 				U[i] = (-omega)*(mesh.C()[i] ^ (axis/mag(axis)));	//apply omega to the meshcell value, and apply direction?
 			}
@@ -63,12 +62,12 @@ internalField   #codeStream
 
 boundaryField
 {
-    "(fluidMantle|fluidTop)"//left								//BC for the hull above the plate? Why dont we set it to zero?
+    "(fluidMantle|fluidTop)"								//BC for the hull above the plate
     {
 	type    zeroGradient;
     }
 
-    fluidBottom//right									//BC for the plate?/bottom of the case/domain?
+    fluidBottom										//BC for the plate?/bottom of the case/domain?
     {
          type            rotatingWallVelocity;
          origin          (0 0 0);

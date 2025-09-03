@@ -14,6 +14,8 @@ FoamFile
     object      regionProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//luis: Originally from TPF CoffeePot example
+//assigns names to the respective regions
 
 regions
 (

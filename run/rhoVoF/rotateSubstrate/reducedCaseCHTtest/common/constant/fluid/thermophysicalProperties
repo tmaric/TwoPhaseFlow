@@ -14,12 +14,7 @@ FoamFile
     object      thermophysicalProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// direct copy from TPF, might need edits to limits and to type, away from phase?
-
-//thermoType
-//{
-//	type	
-
+//luis: Originally from TPF CoffeePot example
 
 phases (water air);
 
@@ -33,7 +28,7 @@ TMax            TMax [0 0 0 1 0 0 0] 500.0;
 
 water
 {
-    type pureMovingPhaseModel;	//luis: pureStaticPhaseModel
+    type pureMovingPhaseModel;	//luis: pureStaticPhaseModel, open investigation if this too can be used?
 }
 
 air
@@ -43,7 +38,7 @@ air
 
 surfaceForces
 {
-  sigma 0.0;
+  sigma 0.0;	//luis: should this be 0?
   surfaceTensionForceModel gradAlpha;
   accelerationForceModel gravity;
   deltaFunctionModel alphaCSF;

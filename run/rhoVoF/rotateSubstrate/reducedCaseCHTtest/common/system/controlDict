@@ -14,14 +14,8 @@ FoamFile
     object      controlDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //script with the main controls
 //alot of control parameters, not all were parameterized, and not all have been checked for correct value by luis
-
-//add function objects for PLIC and RDF (given by Jun)
-//#include "FO_visRDF";
-//#include "FO_PLICInterface";
-
 
 application	multiRegionPhaseChangeFlow; 	//interFlow;    // @!solver!@;
 
@@ -31,9 +25,9 @@ startTime       0;
 
 stopAt          endTime; // writeNow; //endTime;
 
-endTime         2e-3;	//@!end_time!@; //0.5; I think he maybe set a low value of 2e-3 in parameter file, cause fast for test???
+endTime         2e-3;	//@!end_time!@; //0.5;
 
-deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter, not sure if he did it here...
+deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter...
 
 writeControl    runTime;
 
@@ -113,7 +107,7 @@ functions
         mode            magnitude; // magnitude | component
     }
 
-    //intPsi //luis: from Scheufler, breaking the solver, hopefully not needed...
+    //intPsi //luis: from Scheufler TPF CoffeePot example, breaking the solver...
     //{
     //    type            fieldIntegrate;
     //    functionObjectLibs ("libpostProcess.so");
@@ -126,7 +120,7 @@ functions
     //}  
 
 
-//everything below here is commented out!
+//everything below here is commented out! (apart from function objects!)
 
 
 

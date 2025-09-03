@@ -13,17 +13,16 @@ FoamFile
     object      decomposeParDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
-// I think i already edited this to run on my machine with 8 cores only
+//This decomposes the domain into the defined number of subdomains, needed for parallelization
 
 
 numberOfSubdomains 96; //100, 96 to match the 96 core of a node
 
-method          scotch; //scotch; (eig war hier scotch drin von Jun!)
+method          scotch;
 
 coeffs
 {
-    n           (4 4 6);
+    n           (4 4 6);	//luis: different splitting than usual to avoid rebalancing issues
 }
 
 //(luis) The following is from https://github.com/HenningScheufler/multiDimAMR/tree/master README
@@ -36,7 +35,7 @@ constraints
         type    refinementHistoryMultiDim;
     }
     
-    preservePatches
+    preservePatches	//luis: again for rebalance issues, does not really work...
     {
 	type	preservePatches;
 	patches	(solidTop);

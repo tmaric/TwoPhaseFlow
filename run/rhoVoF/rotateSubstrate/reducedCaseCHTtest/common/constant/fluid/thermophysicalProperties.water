@@ -14,6 +14,7 @@ FoamFile
     object      thermophysicalProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//luis: Originally from TPF CoffeePot example
 
 thermoType
 {
@@ -35,20 +36,19 @@ mixture
     equationOfState
     {
         //R           1024;
-        rho0        999.94;	//958.4;
-        T0          275.15;	//373;
+        rho0        999.94;
+        T0          275.15;
         beta        6.9e-4;	//luis: current value from Scheufler TPF, probably needs to be adapted to match our water...
     }
     thermodynamics
     {
-        Cp          4210;	//4216.0;
+        Cp          4210;
         Hf          0;
     }
     transport
     {
-        mu          0.001674;	//0.00028176;
-        Pr          4.9;	//1.7703430104321904;		//luis: probably not correct value as well...   jetzt schon
-        //Pr          0.17703430104321904; 
+        mu          0.001674;
+        Pr          4.9;
     }
 }
 
