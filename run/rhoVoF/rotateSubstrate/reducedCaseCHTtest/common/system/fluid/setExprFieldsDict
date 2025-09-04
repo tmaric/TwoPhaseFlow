@@ -13,6 +13,7 @@ FoamFile
     object      setExprFieldsDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//luis: This file sets the initial speed of the droplet
 //Not verified or edited, basically
 
 // Preload any required fields (optional)
