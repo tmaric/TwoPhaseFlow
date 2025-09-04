@@ -13,11 +13,12 @@ FoamFile
     object      setExprFieldsDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
-//Not verified or edited, basically
+//luis: This file sets the initial speed of the droplet
+//luis: The speed is further edited for the z-axis compared to the previous cases, since the actual droplet velocity is probably not 3.1m/s
+//luis: Additional velocity in y-axis to try the new approach for "substrate rotation", where the fluid is moved instead of the solid.
 
 // do some speed calcs
-rpm                   800; //200;     //@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800) ((Jun has 200 800 in his default file, probably missing a double dash!
+rpm                   800; //200;     //@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800)
 omega   #eval{$rpm*2*pi()/60};        //determine angular velocity!
 
 
@@ -43,13 +44,17 @@ expressions
 
         fieldMask
         #{
-          alpha.water > $[(scalar)constants.limit] //I think this one just calles the the value of limit which is defined in constants whic is a scalar, and checks which cells have a value of alpha.water which is below this threshold
+          alpha.water > $[(scalar)constants.limit] //I think this one just calles the the value of limit which is defined in constants whic is a scalar, and checks which cells have a value of alpha.water which is above this threshold
         #};
 
         expression
         #{
-           vector (0.0, -6.12, -4.15)	//-3.1 luis: meassured from pics -5.2, but too fast now, maybe middle? Do we even have gravity still applied on the droplet if we basically here do a setFlow operation?
-        #};
+           vector (0.0, -6.12, -4.15)	//-3.1; 
+	
+		//luis: meassured from pics -5.2, but too fast now, maybe middle? Do we even have gravity still applied on the droplet if we basically here do a setFlow operation? -> Needs to be investigated
+		//value of -6.12 is based on the estimate from the rotation of the plate into a linear velocity. THIS VECTOR CREATES A LINEAR MOTION, NOT A CIRCULAR ONE, NOT PERFECT MATCH TO EXPERIMENT!!!
+        
+	#};
     }
 );
 

@@ -13,7 +13,7 @@ FoamFile
     object      T.air;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// (luis) just  copied from TPF
+// (luis) Originally from TPF CoffeePot example, for the coupling BC all in the example defined additional values were unnecessary to run the case and this minimal setup is left.
 
 
 dimensions      [0 0 0 1 0 0 0];
@@ -22,23 +22,13 @@ internalField   uniform 297.15; //(luis) Given by experimental data in Kelvin!
 
 boundaryField
 {
-   // Sym
-   // {
-   //     type zeroGradient;
-   // }
 
     fluidBottom	//fluid_to_solid	//(luis): lower boundary is differently defined in blockMesh!
     {
         type          	compressible::turbulentTemperatureRadCoupledMixed;	//luis: siehe fluid/T
-	//mode		constantMass;
         value           uniform 297.15;
 	Tnbr            T;
-        //thickness	0;
-	//Tnbr            T;
         kappaMethod     fluidThermo;
-        //qrNbr           none;
-        //qr              none;
-        //kappa           none;
     }
 
     "(fluidMantle|fluidTop)"
@@ -46,17 +36,6 @@ boundaryField
         type zeroGradient;
     }
 
-//in theory there should not be any other faces, just the solid, which should be covered with the "fluid_to_solid"
-
-//    bottomEmptyFaces
-//    {
-//        type empty;
-//    }
-//
-//    topEmptyFaces
-//    {
-//        type empty;
-//    }
 }
 
 // ************************************************************************* //

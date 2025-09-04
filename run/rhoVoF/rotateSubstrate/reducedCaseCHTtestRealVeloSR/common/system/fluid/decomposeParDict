@@ -13,15 +13,14 @@ FoamFile
     object      decomposeParDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
-// I think i already edited this to run on my machine with 8 cores only
+//This decomposes the domain into the defined number of subdomains, needed for parallelization
 
 
 numberOfSubdomains 96; //100, 96 to match the 96 core of a node
 
-method          scotch; //scotch; (eig war hier scotch drin von Jun!)
+method          scotch;
 
-coeffs
+coeffs		//sets the amount of "splits" into each direction of the domain, 4 in x, 2 in y, 12 in z, this multiplied needs/should to match the number of subdomains -> 96!
 {
     n           (4 4 6);	//luis: this is just splitting of DOMAIN into processor parts, does not change cell sizes!
 }
@@ -35,7 +34,7 @@ constraints
         //  end up on same processor
         type    refinementHistoryMultiDim;
     }
-    preservePatches
+    preservePatches	//luis: This is an attempt to enable the rebalancing for mesh refinement, dont think it works, needs to be tested...
     {
 	type 	preservePatches;
 	patches (fluidBottom);

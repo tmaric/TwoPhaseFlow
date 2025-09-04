@@ -13,39 +13,31 @@ FoamFile
     object      p_rgh;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //For incompressible flow pressure becomes meaningless, if we dont have any gradients!
-//Also p and p_rgh usually contain the same code, so probably not both needed!
+// --->>> NOT THE CASE ANYMORE, CHT IS COMPRESSIBLE!!!
 
 dimensions      [1 -1 -2 0 0 0 0];
 
-//internalField   uniform 0; (That s why he probably just set it to zero...)
-internalField	uniform 1e5; //I however prefere sea level as baseline...
+internalField	uniform 1e5; //sea level as baseline...
 
 boundaryField
 {
     fluidTop
     {
-        type            totalPressure;	//fixedValue;
+        type            totalPressure;
 	p0		uniform 1e5;
-        value           uniform 1e5; 	//uniform 0;
+        value           uniform 1e5;
     }
 
-    fluidBottom //What does he mean with Mantle? Plate? Drop? Air???
+    fluidBottom
     {
-        type            fixedFluxPressure;	//zeroGradient; //fixedValue;
-        //value           uniform 0;
+        type            fixedFluxPressure;	//luis: setting is part of the coupling taken from CoffeePot!
     }
 
     fluidMantle
     {
 	type 		zeroGradient; 
     }
-
-//    Bottom	//fluid_to_solid	//luis: might be needed later
-//    {
-//        type fixedFluxPressure;
-//    }
 
 }
 

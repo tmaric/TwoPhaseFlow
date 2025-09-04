@@ -14,13 +14,12 @@ FoamFile
     object      balanceParDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
+//luis: relatively sure that this file does nothing anymore, since there are separat files now for this in their respective fluid and solid folders, needs testing if really not needed
 //Balances parallel cases
 
 numberOfSubdomains 128; //96;  //100, 96 to match the 96 cores in node and also cover the newer 104 nodes
 
-method         kahip;	// ptscotch HenningScheulfer said on multiDimAMR that ptscotch shit here and kahip better; //clsutered //scotch
-
+method         kahip;	// ptscotch HenningScheulfer said on multiDimAMR that ptscotch does not work here and kahip better;
 
 simpleCoeffs
 {

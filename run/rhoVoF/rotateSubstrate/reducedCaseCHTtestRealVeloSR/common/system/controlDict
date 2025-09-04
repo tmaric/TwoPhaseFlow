@@ -14,16 +14,13 @@ FoamFile
     object      controlDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //script with the main controls
 //alot of control parameters, not all were parameterized, and not all have been checked for correct value by luis
 
-//add function objects for PLIC and RDF (given by Jun)
-//#include "FO_visRDF";
-//#include "FO_PLICInterface";
 
-// do some speed calcs
-rpm                   800; //200;     //@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800) ((Jun has 200 800 in his default file, probably missing a double dash!
+
+// do some speed calcs, to use with the FO "setFlow", this FO can set a flow field including a circular one, but it seems to overwrite any other field calculation, therefore deactivated further down...
+rpm                   800; //200;     //@!rpm!@; <- This was a parameterization placeholder! (Other values can be 200,400, 600, 800)
 omega   #eval{$rpm*2*pi()/60};        //determine angular velocity!
 
 
@@ -38,9 +35,9 @@ startTime       0;
 
 stopAt          endTime; // writeNow; //endTime;
 
-endTime         2e-3;	//@!end_time!@; //0.5; I think he maybe set a low value of 2e-3 in parameter file, cause fast for test???
+endTime         2e-3;	//@!end_time!@; //0.5;
 
-deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter, not sure if he did it here...
+deltaT          5e-7;	//@!delta_t!@; //C=UdelT / delX "apparently this can be set as a dependent parameter...
 
 writeControl    runTime;
 
@@ -120,7 +117,7 @@ functions
         mode            magnitude; // magnitude | component
     }
 
-    //intPsi //luis: from Scheufler, breaking the solver, hopefully not needed...
+    //intPsi //luis: from Scheufler TPF CoffeePot example, breaking the solver...
     //{
     //    type            fieldIntegrate;
     //    functionObjectLibs ("libpostProcess.so");
@@ -144,7 +141,6 @@ functions
 
 	// Optional entries (runtime modifiable)
     	U           U;
-	//phi	    none;//maybe keep as original "phi"??
 
 	// When mode=rotation
     	omega       -$omega;
@@ -155,7 +151,7 @@ functions
 	// Optional (inherited) entries
     	region          fluid;
 	writeControl	writeTime;
-	enabled         false;
+	enabled         false;		//luis: false disables the whole FO!
     }
 
 //everything below here is commented out!

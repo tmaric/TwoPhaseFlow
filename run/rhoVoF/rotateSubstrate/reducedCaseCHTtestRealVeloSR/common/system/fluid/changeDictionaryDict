@@ -13,18 +13,19 @@ FoamFile
     object      changeDictionaryDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//sets up the coupling between the solidTop patch and the fluidBottom patch
 
 dictionaryReplacement
 {
     boundary
     {
-        fluidBottom		//fluid_to_solid	//(luis): siehe solid changeDictionaryDict
+        fluidBottom		//(luis): see solid changeDictionaryDict
         {
             type            mappedWall;
-            inGroups        1 ( wall ); //I think we need to define this differently when we do only blockmesh...
+            inGroups        1 ( wall );
             sampleMode      nearestPatchFace;
             sampleRegion    solid;
-            samplePatch     solidTop;	//solid_to_fluid;
+            samplePatch     solidTop;
         }
     }
 }

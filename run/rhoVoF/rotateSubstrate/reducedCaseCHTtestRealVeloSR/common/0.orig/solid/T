@@ -13,50 +13,21 @@ FoamFile
     object      T;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// (luis) base setup has been copied from TPF
+// (luis) Originally from TPF CoffeePot example, for the coupling BC all in the example defined additional values were unnecessary to run the case and this minimal setup is left.
 
 dimensions      [0 0 0 1 0 0 0];
 
-internalField   uniform 298.15;
+internalField   uniform 298.15;		//(luis) Given by experimental data in Kelvin!
 
 boundaryField
 {
-//    Sym
-//    {
-//        type zeroGradient;
-//    }
-//
-//    bottom
-//    {
-//        type            externalWallHeatFluxTemperature;
-//        mode            flux;
-//        q               uniform 100000;
-//        kappaMethod     solidThermo;
-//        kappa           none;
-//        value           uniform 300.0;
-//    }
-
-//    outside
-//    {
-//        type            externalWallHeatFluxTemperature;
-//        mode            coefficient;
-//        Ta              uniform 300.0;
-//        h               uniform 5;
-//        kappaMethod     solidThermo;
-//        kappa           none;
-//        value           uniform 300.0;
-//    }
 
     solidTop		//solid_to_fluid	//(luis): lower boundary is differently defined in blockMesh!
     {
-        type            compressible::turbulentTemperatureRadCoupledMixed;	//luis: current value suggested by solver error, probably due to setting it to incompressible. Furhtermore the previosu setting is for a certain baffle geometry type, nothing to do with the coupling, so lets keep it const right?
-	//mode		constantMass;
-        value           uniform 298.15; //apparently this is an intial temp in K, and should match the temp of the field where it is defined? -> also hier solid temp...?
+        type            compressible::turbulentTemperatureRadCoupledMixed;	//luis: coupling BC between solid and fluid domain, only one alternative exists!
+        value           uniform 298.15; //apparently this is an intial temp in K, and should match the temp of the field where it is defined? -> so here solid temp...?
         Tnbr            T;
         kappaMethod     solidThermo;
-        //qrNbr           none;
-        //qr              none;
-        //kappa           none;
     }
 
     solidMantle
@@ -69,15 +40,6 @@ boundaryField
 	type zeroGradient;
     }
 
-//    bottomEmptyFaces
-//    {
-//        type empty;
-//    }
-//
-//    topEmptyFaces
-//    {
-//        type empty;
-//    }
 }
 
 // ************************************************************************* //

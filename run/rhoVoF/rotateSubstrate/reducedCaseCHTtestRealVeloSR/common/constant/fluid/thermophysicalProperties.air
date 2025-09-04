@@ -14,6 +14,7 @@ FoamFile
     object      thermophysicalProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//definition of thermo properties of air. In comparison to the coffeePot example the entry in table format of some properties has been lifted
 
 thermoType
 {
@@ -30,11 +31,11 @@ mixture
 {
     specie
     {
-        molWeight   28.96;	//18.0;
+        molWeight   28.96;
     }
     thermodynamics
     {
-        Cp          1004.4;	//2030;
+        Cp          1004.4;
         Hf          0;
         Sf          0;
         //CpFile      "thermo/cp.dat";
@@ -45,7 +46,7 @@ mixture
     }
     transport
     {
-        mu	    1.516e-05;	//MuFile         "thermo/mu.dat";
+        mu	    1.516e-05;	//"thermo/mu.dat";
         kappa   0.02617;	//   "thermo/kappa.dat"; //luis: supposed to be 26.17 mW/m K
         //nPoints     100;
         //TMin  1;

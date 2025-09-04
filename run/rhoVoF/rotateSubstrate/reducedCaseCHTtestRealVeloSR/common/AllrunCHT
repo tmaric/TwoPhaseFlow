@@ -4,7 +4,8 @@ cd ${0%/*} || exit 1    # Run from this directory
 # Source tutorial run functions
 . $WM_PROJECT_DIR/bin/tools/RunFunctions
 
-#yada yada basically same shit as in CleanAll                                                                     #------------------------------------------------------------------------------                                   #this script serves to run the pre steps for the simulation, check for mesh or set it up, check it, initialize fields
+#------------------------------------------------------------------------------
+#this script serves to run the pre steps for the simulation, check for mesh or set it up, check it, initialize fields
 
 canCompile || exit 0 # Dynamic code (probably checks if the case works)
 
@@ -12,12 +13,14 @@ restore0Dir
 
 if [ ! -d constant/polyMesh ]   #checks if mesh file is existent, if NOT if will try to create it in the if clause
 then
-
+	
+	#copy blockMeshDict.solid into blockMeshDict to execute blockMesh for solid region, then clean up commands so it can be done for the fluid domain next.
 	cp system/blockMeshDict.solid system/blockMeshDict
 	runApplication blockMesh
 	rm -r constant/solid/polyMesh
 	mv constant/polyMesh constant/solid/
-
+	
+	#doing blockMesh for fluid domain
 	cp system/blockMeshDict.fluid system/blockMeshDict
 	rm log.blockMesh
 	runApplication blockMesh
@@ -25,7 +28,7 @@ then
 	mv constant/polyMesh constant/fluid/
 
 	runApplication renumberMesh -allRegions -overwrite -constant
-	#runApplication renumberMesh -region fluid -overwrite -constant
+	#runApplication renumberMesh -region fluid -overwrite -constant		#with this you could perform renumberMesh only for fluid region
 	runApplication checkMesh -allRegions -allTopology -allGeometry -constant
         #runApplication checkMesh -region fluid -allTopology -allGeometry -constant
 	         
@@ -33,6 +36,7 @@ fi
 
 touch CHT.foam
 
+#this needs to be done to establish the coupling between the two touching patches of two the domains, see system/fluid/changeDictionaryDict
 runApplication changeDictionary -region solid -subDict dictionaryReplacement
 rm log.changeDictionary
 runApplication changeDictionary -region fluid -subDict dictionaryReplacement
@@ -43,4 +47,3 @@ runApplication setAlphaField -region fluid
 runApplication setExprFields -region fluid
 
 runApplication decomposePar -constant -allRegions 
-#runApplication decomposePar -constant -region fluid

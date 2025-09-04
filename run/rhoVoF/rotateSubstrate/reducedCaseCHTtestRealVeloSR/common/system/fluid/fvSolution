@@ -14,9 +14,8 @@ FoamFile
     object      fvSolution;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-//Direct copy from Jun
 //script declares the solving algos for the specific field variables
-//NONE HAVE BEEN VERIFIED, only parameterization lifted...
+//file has been expaned by the settings from the CoffeePot example
 
 solvers
 {
@@ -35,7 +34,7 @@ solvers
                            // reads it during construction.
     }
 
-    psi		//psiFinal
+    psi		//psiFinal	//luis: solver demands psi here instead of psiFinal...
     {
         solver           PCG;
         preconditioner   DIC;
@@ -84,7 +83,7 @@ solvers
     {
         solver          PCG;
         preconditioner  DIC;
-        tolerance       1e-10;	//Why has this one not a parameterization (luis)
+        tolerance       1e-10;
         relTol          0;
     }
 
@@ -92,7 +91,7 @@ solvers
     {
         solver          GAMG;
         smoother        DICGaussSeidel;
-        tolerance       1.0e-9;	//@!p_tol!@;
+        tolerance       1.0e-9;
         relTol          0.001;
 	nCellsInCoarsestLevel 500;	//https://www.wolfdynamics.com/wiki/tipsandtricks.pdf luis: otherwise explodes the sim
     }
@@ -100,7 +99,7 @@ solvers
     p_rghFinal //Scheufler has very different settings for this solver!
     {
         $p_rgh;
-        tolerance       1.0e-9;	//@!p_tol!@;
+        tolerance       1.0e-9;
         relTol          0;
     }
 
@@ -108,7 +107,7 @@ solvers
     {
         solver          PBiCGStab;
         preconditioner  DILU;
-        tolerance       1.0e-8;	//@!u_tol!@;
+        tolerance       1.0e-8;
         relTol          0;
     }
 
