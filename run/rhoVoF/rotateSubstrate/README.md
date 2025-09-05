@@ -115,13 +115,13 @@ To create a new sequencing script a new state can be saved in .py format and edi
 	print(tsteps)
 	for t in tsteps:
 	    tk.Time=tsteps[i]   #(luis) changes the timestep
-	    rpm800_Layer2_Set40180 = CreateTexture(filename='/home/lm74veso/ExperimentalData/ExperimentsLuis/BW800RPM/Rpm800_Layer2_Set40'+str(p)+'.png')
+	    rpm800_Layer2_Set40180 = CreateTexture(filename='/FILEPATH_EXPERIMENTAL_PICS/BW800RPM/Rpm800_Layer2_Set40'+str(p)+'.png')
 ```
 and
 
 ```bash
 	print(i)
-	SaveScreenshot("/home/lm74veso/Results/PICs_SYNCCEDtoLOCAL_/HighCellcountvisRDF/HighCellvisRDFContour"+str(i)+".png")
+	SaveScreenshot("/FILEPATH_OUTPUT_FOLDER/HighCellvisRDFContour"+str(i)+".png")
 	i=i+1
 	p=p+5
 ```
