@@ -15,7 +15,7 @@ FoamFile
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 //THIS FILE IS REFERENCED BY blockMeshDict!!!
 //mainly calcs for the blockMeshDict script, not sure why they are separate
-/the parameterization variabels are @!...!@ (they are apparently a pyfoam specific notation), they are not used!
+//the parameterization variabels are @!...!@ (they are apparently a pyfoam specific notation), they are not used!
 
 
 //radius  @!radius!@;
