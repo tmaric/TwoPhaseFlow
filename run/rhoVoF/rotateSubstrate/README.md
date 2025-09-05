@@ -6,18 +6,18 @@ This collection of cases was generated as part of the master thesis " Computatio
 
 Contained within this directory are the 4 stages of case development namely:
 	
-	* **reducedCase**: Initial case after parameterization script setup was lifted.
-	* **reducedCaseTestPLICaRDF**: Initial case adapted with function objects for PLIC and visRDF outputs, and parallelization setup for high cell count runs.
-	* **reducedCaseCHTtest**: Addition of Conjugate Heat Transfer to the adapted case, with imperfect modelling of the substrate rotation.
-	* **reducedCaseCHTtestRealVeloSR**: Exploratory setup with higher impact velocity and new modelling approach for substrate rotation.
+* **reducedCase**: Initial case after parameterization script setup was lifted.
+* **reducedCaseTestPLICaRDF**: Initial case adapted with function objects for PLIC and visRDF outputs, and parallelization setup for high cell count runs.
+* **reducedCaseCHTtest**: Addition of Conjugate Heat Transfer to the adapted case, with imperfect modelling of the substrate rotation.
+* **reducedCaseCHTtestRealVeloSR**: Exploratory setup with higher impact velocity and new modelling approach for substrate rotation.
 
 Furthermore a selection of ParaView pipelines to analyse the results of the simulation:
 	
-	* **ParaViewPipeline**
+* **ParaViewPipeline**
 
 and a sbatch script file to replicate the start up process on the Lichtenberg supercomputer
 
-	* **SBATCHscriptForCluster**
+* **SBATCHscriptForCluster**
 
 ## Requirements
 
@@ -83,8 +83,8 @@ Finally in the provided sbatch file are also environmental source calls for Open
 
 Attention for the cases should be placed on:
 
-	* **0.orig/U**	In here the RPM for the case can be set.
-	* **system/setAlphaFieldDict** Depending on the set RPM the placement of the droplet should be adapted, since the experimental data varies in it's resolution.
+* **0.orig/U**	In here the RPM for the case can be set.
+* **system/setAlphaFieldDict** Depending on the set RPM the placement of the droplet should be adapted, since the experimental data varies in it's resolution.
 
 Further details on the other files can be either found in the master thesis or directly in the comment files.
 
