@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# First definitions here for the SLURM process of the cluster
+
+# Give reqs in a manner that does not constrict slurm too much, i02 + 104 + 1 node is veeery specific, while with 96 + 1 you can calc on both Ausbaustufen
+#SBATCH -J FullRun
+#SBATCH --mail-type=NONE
+#SBATCH -n 96              #Number of processes you want to run(= demand of CPUs, here value of 96 would result in one node, but may be split on separate nodes if not specified!)
+#SBATCH --mem-per-cpu=2G     # RAM in MByte per MPI-Task, 4G cause 512/104=4,9
+#SBATCH -t 00-23:00:00          # in days, hours, minutes and seconds, or '#SBATCH -t 10' - only minutes
+# SBATCH -C i02		#i02 to get 104 cores
+# -------------------------------
+
+# Below here actual executions of the processes
+# This script assume that you START IT FROM YOUR CASE DIRECTORY!!!
+
+# #reset the module cache, because it keeps crashing...
+mv $HOME/.cache/lmod $HOME/.cache/lmod_X
+rm -rf $HOME/.cache/lmod_X
+
+# purging and loading of necessary environment
+module purge			#purge, so we have replicatable env
+module load gcc/10.2.0 		#think gcc baseline as compiler
+module load openmpi/4.0.7	#req for OF.
+
+# source the OF and TwoPhaseFlow environments
+source ~/Repos/OpenFOAM/OpenFOAM-v2412/etc/bashrc		#to load OF env
+source ~/Repos/TwoPhaseFlow/scripts/bashrc			#to load env for TwoPhaseFlow PLIC and RDF
+
+
+#Add location of Apps installed by me to PATH
+export PATH=~/Apps/bin:$PATH
+
+#Add Apps/include files to "PATH"
+export CPATH=~Apps/include:$CPATH
+
+#Add location of shared libraries to PATH?
+export LD_LIBRARY_PATH=~/Apps/lib64:$LD_LIBRARY_PATH
+
+
+# run local clean and pre files, on single process
+mpirun -np 1 ./Allclean
+#mpirun -np 1 ./Allrun.pre	#for non-CHT only!
+mpirun -np 1 ./AllrunCHT
+
+
+# Run case with in controlDict defined solver 
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+
+mpirun -np 96 $(getApplication) -parallel > logfile 2>&1
+
