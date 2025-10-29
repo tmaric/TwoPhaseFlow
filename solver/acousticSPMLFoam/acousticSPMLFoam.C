@@ -24,26 +24,20 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-   acousticFoam
+   acousticSPMLFoam
 
 Group
     grpAcousticSolvers
 
 Description
-    Acoustic solver solving the acoustic pressure wave equation.
+    Acoustic solver solving the acoustic pressure wave equation and calculating acoustic radiation pressure, 
+    considering inhomogenous scattering and non-reflective PML.
 
-    \f[
-        \ddt2{pa} - c^2 \laplacian{pa} = 0
-    \f]
-
-    where
-    \vartable
-        c       | Sound speed
-        pa      | Acoustic pressure
-    \endvartable
-
+Author
+    Jun Liu, MMA, TU Darmstadt
+    Email: liu@mma.tu-darmstadt.de
 SourceFiles
-    acousticFoam.C
+    acousticSPMLFoam.C
 
 \*---------------------------------------------------------------------------*/
 
