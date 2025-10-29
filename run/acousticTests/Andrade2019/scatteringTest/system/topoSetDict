@@ -1,0 +1,50 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v1806                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      topoSetDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+
+// This delta corresponds to a narrowband width of 4 cells
+// to ensure the part of the domain in which the interface acts
+// is uniformly resolved
+
+actions
+(
+    {
+        name    domain;
+        type    cellSet;
+        action  subtract;
+        source  boxToCell;
+        boxes
+        (
+           (10 0 -0.2) (48 10 0.2)
+           (19 17.64 -0.2) (39 27.64 0.2)
+        );
+    }
+
+/*    {
+        name    interfaceRegion;
+        type    cellSet;
+        action  new;
+        source  pointToCell;
+        sourceInfo
+        {
+            set     interfaceRegionCellCorners;
+            option  any;
+        }
+    }*/
+);
+
+// ************************************************************************* //
+

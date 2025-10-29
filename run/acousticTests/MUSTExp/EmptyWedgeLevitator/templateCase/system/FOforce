@@ -1,0 +1,46 @@
+SumFrefl
+{
+	libs            ("libutilityFunctionObjects.so");
+	type            coded;
+	name            SumFrefl;
+	writeControl    timeStep;
+	writeInterval   1;
+
+	codeWrite
+	#{
+
+	    const volScalarField& pr =
+	        mesh().lookupObject<volScalarField>("pr");
+	    label   patchID = mesh().boundaryMesh().findPatchID("reflector1");
+	        const auto& Sfrefl = mesh().Sf().boundaryField()[patchID];
+	    const auto& Frefl = pr.boundaryField()[patchID]*Sfrefl;
+	    vector   sumFrefl = 180*gSum(Frefl);
+	    
+	    const auto& FreflOld = pr.oldTime().boundaryField()[patchID]*Sfrefl;
+	    vector   sumFreflOld = 180*gSum(FreflOld);
+	    scalar   relErr = ("relErr", mag(sumFrefl - sumFreflOld)/mag(sumFrefl));
+	    setResult("sumFrefl", sumFrefl);
+	    setResult("relErr", relErr);
+	    setResult("time", mesh().time().value());
+
+	    if (Pstream::master())
+	    {
+	     	fileName outputFile = ("./SumFrefl.dat");
+	        autoPtr<OFstream> outputFilePtr;
+
+	       // Info << "##breakpoint0"<<endl;
+	        if (!exists(outputFile))
+	        {
+	         //   Info << "##breakpoint1"<<endl;
+	            OFstream is(outputFile);
+	            outputFilePtr.reset(new OFstream(outputFile));
+	           // Info <<"##breakpoint2"<<endl;
+	            outputFilePtr() << "time" << tab << "force_x" << tab << "force_y"<< tab << "force_z"<< tab << "relErr" << endl;
+	            //outputFilePtr() << "0" << tab << SumAirV <<endl;
+	        }
+
+	         outputFilePtr.reset(new OFstream(outputFile,IOstreamOption(),IOstreamOption::APPEND));
+	         outputFilePtr() << mesh().time().timeName() << tab << sumFrefl.x()<< tab << sumFrefl.y()<< tab << sumFrefl.z() << tab << relErr << endl;
+	     }
+	#};
+    }

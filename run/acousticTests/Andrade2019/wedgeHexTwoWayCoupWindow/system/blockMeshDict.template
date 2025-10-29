@@ -1,0 +1,92 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict; }
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+radius  @!radius!@;
+
+w #calc "$radius * 5";
+h #calc "$radius * 10"; // in differentFluidsCases lent, droplet moves 3 diameters (radius * 10 here), but 2 in argo(radius *8) 
+yLen #calc "$radius/@!resolution!@";
+
+scale 1.00;
+
+vertices
+(
+    (0    0    0)
+    ($w   0    0)
+    ($w   $yLen   0)
+    (0    $yLen   0)
+    (0    0    $h)
+    ($w   0    $h)
+    ($w   $yLen   $h)
+    (0    $yLen   $h)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (@!resolution!@ 1 #calc "int(2*@!resolution!@)") simpleGrading (1 1 1) // in lent z-direction resolution*2, in argo resolution*1.2
+);
+
+edges
+(
+);
+
+boundary
+(
+    inlet
+    {
+        type    patch;
+        faces
+        (
+            (3 2 1 0)
+        );
+    }
+
+    outlet
+    {
+        type    patch;
+        faces
+        (
+            (4 5 6 7)
+        );
+    }
+
+    mantle
+    {
+        type    patch;
+        faces
+        (
+            (0 4 7 3)
+            (2 6 5 1)
+            //(0 1 5 4)
+            //(7 6 2 3)
+        );
+    }
+
+    frontBack
+    {
+        type    empty;
+        faces
+        (
+            (0 1 5 4)
+            (7 6 2 3)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //

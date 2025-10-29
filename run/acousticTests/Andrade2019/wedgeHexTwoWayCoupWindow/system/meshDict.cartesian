@@ -1,0 +1,28 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|    _ _ _ _    |                                                              |
+| //         \\ | Creative Fields cfMeshPRO                                  |
+| | cfMeshPRO | |                                                              |
+| \\ _ _ _ _ // | Version: 0.0.99                                            |
+|               | Web: www.c-fields.com e-mail: support@c-fields.com           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+version	2;
+format	ascii;
+class	dictionary;
+location	"system";
+object	meshDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+surfaceFile	"../template_copy_cartesian/polyMeshFiles/boundary_R0p5_H2_C0p50p5.stl";
+
+maxCellSize	#calc "0.000250001*4/96";
+
+renameBoundary
+{
+    defaultType patch;
+}
+
+// ************************************************************************* //

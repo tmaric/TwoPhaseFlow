@@ -1,0 +1,132 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.0.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     mySonicLiquidFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         200e-3; // 2e-7; //50e-6;
+
+deltaT          2e-7; //2e-8;//2e-9; 
+
+writeControl    runTime; //timeStep;
+
+writeInterval   4e-4; //1000; //5; //1000;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  8;
+
+writeCompression uncompressed;
+
+timeFormat      general;
+
+timePrecision   8;
+
+runTimeModifiable yes;
+
+adjustTimeStep  yes;
+
+maxCo           0.25;
+
+maxDeltaT       5e-6;
+
+// ************************************************************************* //
+
+libs (
+      "libOpenFOAM.so"
+//      "libgroovyBC.so"
+      "libsoundHarmonicVelocity.so"
+      "libsoundHarmonicPressure.so"
+      "libsoundPressureRadiation.so"
+      "libsoundPressureSource.so"
+      "libacousticDampingSourceNew.so"
+     );
+
+
+functions
+{
+    fieldAverage1
+    {
+        type            fieldAverage;
+        functionObjectLibs ( "libfieldFunctionObjects.so" );
+//        enabled         false;
+//		  cleanRestart		true;
+        writeControl   writeTime;
+//        outputControl   outputTime;
+//        outputInterval  1;
+        fields
+        (
+            U
+            {
+                mean        on;
+                prime2Mean  off;
+                base        time;
+            }
+
+            /*p_rgh
+            {
+                mean        on;
+                prime2Mean  on;
+                base        time;
+            }*/
+        );
+    }
+
+fieldsMinMax
+{
+    // Mandatory entries (unmodifiable)
+    type        fieldMinMax;
+    libs        (fieldFunctionObjects);
+
+    // Mandatory entries (runtime modifiable)
+    mode        magnitude;
+    fields      (pa U);
+
+    // Optional entries (runtime modifiable)
+    location    no;
+/*
+    // Optional (inherited) entries
+    writePrecision  8;
+    writeToFile     true;
+    useUserTime     true;
+    region          region0;
+    enabled         true;
+    log             true;
+    timeStart       0;
+    timeEnd         1000;
+    executeControl  timeStep;
+    executeInterval 1;
+    writeControl    timeStep;
+    writeInterval   1;*/
+}
+}
+
+functions
+{
+    #include "FOforce"//"forceCoeffs"
+//    #include "fieldAverage"
+//    #include "referencePressure"
+    #include "runTimeControls"
+}
+

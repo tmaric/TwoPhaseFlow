@@ -1,0 +1,105 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open Source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interALFlow;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         18e-2; // <-- lent 3 diameters moving; original argo 2 diameters-->0.1;
+
+deltaT          1e-7; // 0.0013020885416666669;
+
+writeControl    runTime;
+
+writeInterval   4e-4;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  12;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+adjustTimeStep  yes;
+
+maxCo 0.2; 
+maxAlphaCo 0.2;
+
+maxDeltaT       1e-6;
+maxCapillaryNum 10000000;
+
+functions
+{
+    ARFAverage
+    {
+        type                fieldAverage;
+        libs                (fieldFunctionObjects);
+	writeControl    writeTime;
+        
+        fields
+        (
+            pr
+            {
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      exact;
+                window          #eval{2/25250};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
+            }
+
+            momFlux
+            {
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      exact;
+                window          #eval{2/25250};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
+            }
+
+            pa
+            {
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      exact;
+                window          #eval{2/25250};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
+            }
+
+	);
+	}
+}
+
+#include "FObubbleProcessing"
+#include "FO_visRDF"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
