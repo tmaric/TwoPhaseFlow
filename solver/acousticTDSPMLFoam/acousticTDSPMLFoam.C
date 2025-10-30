@@ -24,20 +24,20 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-   acousticSPMLFoam
+   acousticTDSPMLFoam
 
 Group
     grpAcousticSolvers
 
 Description
-    Acoustic solver solving the acoustic pressure wave equation and calculating acoustic radiation pressure, 
+    Time domain acoustic solver solving the acoustic pressure wave equation and calculating acoustic radiation pressure, 
     considering inhomogenous scattering and non-reflective PML.
 
 Author
     Jun Liu, MMA, TU Darmstadt
     Email: liu@mma.tu-darmstadt.de
 SourceFiles
-    acousticSPMLFoam.C
+    acousticTDSPMLFoam.C
 
 \*---------------------------------------------------------------------------*/
 

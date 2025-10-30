@@ -1,3 +1,0 @@
-acousticSPMLFoam.C
-
-EXE = $(FOAM_USER_APPBIN)/acousticSPMLFoam
