@@ -50,7 +50,11 @@ To build OpenFOAM v2412 with it's ThirdParty directory follow these steps
 	./Allwmake					#should build OpenFOAM
 ```
 
-To install further ThirdParty libraries like kahip or scotch, clone their respective online repository into your local ThirdParty folder, rename it according to the folder name listed by the ./Allwmake process during building and rebuild ThirdParty, afterwards rebuild OpenFOAM.
+
+
+To install further needed ThirdParty libraries like kahip or scotch, clone their respective online repository into your local ThirdParty folder, rename it according to the folder name listed by the ./Allwmake process during building and rebuild ThirdParty, afterwards rebuild OpenFOAM. DO NOT SKIP THIS STEP, YOU'LL NEED THESE MODULES FOR PARALLEL RUNS!
+
+
 
 To install TwoPhaseFlow run the following
 
@@ -59,7 +63,8 @@ To install TwoPhaseFlow run the following
 	cd $HOME					#go to your main directory
 	git clone https://github.com/tmaric/TwoPhaseFlow.git				#download/mirror TwoPhaseFlow
 	cd TwoPhaseFlow && git checkout feature/density-ratio-DropImpactRotatingPlate	#go into folder and go to this branch
-	./Allwmake					#build TPF with this setup
+	cd modules/multiDimAMR && ./Allwmake						#go into AMR folder and build
+	cd ../.. && ./Allwmake								#build TPF with this setup
 	
 	cd $HOME/OpenFOAM/OpenFOAM-v2412 && ./Allwmake	#rebuild OpenFOAM
 ```
@@ -81,12 +86,24 @@ A sbatch file is only used to execute the cases on a cluster, if run locally jus
 
 Finally in the provided sbatch file are also environmental source calls for OpenFOAM and TwoPhaseFlow which NEED to be included into the local workflow to run the cases properly (an example of this can be found in the previous code sample).
 
+The source calls need to be executed every time you restart your terminal!
+
 Attention for the cases should be placed on:
 
 * **0.orig/U**	In here the RPM for the case can be set.
 * **system/setAlphaFieldDict** Depending on the set RPM the placement of the droplet should be adapted, since the experimental data varies in it's resolution.
 
 Further details on the other files can be either found in the master thesis or directly in the comment files.
+
+Sometimes the compilation of the included Function Objects for the case **reducedCaseTestPLICaRDF** fails while starting the run for a simulation. Try deleting the "PolyMesh" file in the "constant" directory and restart the case, the folder should be automatically replaced with a new one and the Function Object compiled properly.
+
+## Parallelization
+
+Of the provided setups all apart from **reducedCase** are capable of parallel running the case on multiple CPU cores. You need to ensure that the value for "fileHandler" in controlDict is "uncollated" to generate the correct file setup for the respective amount of CPUs. Furthermore, the files "decompoaseParDict" and "balanceParDict" need to be adapted to the respective amount of CPU cores available.
+
+All commands aimed at running the case in parallel need to be executed with "mpirun -np 8" before them (where 8 can be replace by any arbitrary number of available cores).
+For example you would use "mpirun -np 1 ./Allrun.pre" to set up a non-CHT case for a parallel run and afterward execute it with "mpirun -np 96 $(getApplication) -parallel > logfile 2>&1". 
+Further examples can be found in the file "SBATCHscriptForCluster".
 
 ## ParaView workflow
 
