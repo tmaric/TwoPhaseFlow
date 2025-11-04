@@ -15,9 +15,9 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     mySonicLiquidFoam;
+application     acousticTDSPMLFoam;
 
-startFrom       latestTime;//startTime;
+startFrom       startTime;
 
 startTime       0;
 
@@ -53,18 +53,6 @@ maxDeltaT       5e-6;
 
 // ************************************************************************* //
 
-libs (
-      "libOpenFOAM.so"
-//      "libgroovyBC.so"
-      "libsoundHarmonicVelocity.so"
-      "libsoundHarmonicPressure.so"
-      "libsoundPressureRadiation.so"
-      "libsoundPressureSource.so"
-      "libacousticDampingSourceNew.so"
-      "libsoundVelocity.so"
-     );
-
-
 #include "FOforce"
 functions
 {
@@ -92,6 +80,42 @@ functions
                 prime2Mean  on;
                 base        time;
             }*/
+        );
+    }
+
+    ARFAverage
+    {
+        type            fieldAverage;
+        functionObjectLibs ( "libfieldFunctionObjects.so" );
+//        enabled         false;
+//                cleanRestart          true;
+        writeControl   writeTime;
+//        outputControl   outputTime;
+//        outputInterval  1;
+        fields
+        (
+            prT
+            {
+                mean            on;
+                prime2Mean      off;
+               base            time;
+               windowType      approximate;
+                window          #eval{5/25250};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
+            }
+
+            momFluxT
+            {
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      approximate;
+                window          #eval{5/25250};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
+            }
+
         );
     }
 

@@ -83,6 +83,21 @@ volScalarField AcousticForcePotential
     );
 */
 // radiation force pressure
+volScalarField prT
+     (
+       IOobject
+        (
+            "prT",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        mesh,
+         dimensionedScalar("prT", dimPressure,
+         0) 
+    );
+
 volScalarField pr
      (
        IOobject
@@ -97,6 +112,20 @@ volScalarField pr
          dimensionedScalar("pr", dimPressure,
          0) 
     );
+
+volTensorField momFluxT
+(
+      IOobject
+      (
+          "momFluxT",
+          runTime.timeName(),
+          mesh,
+          IOobject::NO_READ,
+          IOobject::AUTO_WRITE
+       ),
+       mesh,
+       dimensionedTensor("momFluxT", dimDensity*dimVelocity*dimVelocity, tensor::zero) 
+ );
 
 volTensorField momFlux
 (

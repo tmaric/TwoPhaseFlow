@@ -14,7 +14,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     acousticFoam;//rhoPimpleFoam;
+application     acousticTDSPMLFoam;//rhoPimpleFoam;
 
 startFrom       latestTime;//startTime;
 
@@ -50,15 +50,6 @@ maxCo           0.3;
 
 maxDeltaT       1;
 
-libs (
-      "libOpenFOAM.so"
-//      "libgroovyBC.so"
-      "libsoundHarmonicVelocity.so"
-      "libsoundHarmonicPressure.so"
-      "libsoundPressureRadiation.so"
-      "libsoundPressureSource.so"
-     );
-
 functions
 {
 	fieldsMinMax
@@ -74,34 +65,42 @@ functions
 	    // Optional entries (runtime modifiable)
 	    location    no;
 	}
-}
-
-/*functions
-{
-    fieldAverage
+    ARFAverage
     {
         type            fieldAverage;
-        libs            (fieldFunctionObjects);
-        writeControl    writeTime;
+        functionObjectLibs ( "libfieldFunctionObjects.so" );
+//        enabled         false;
+//                cleanRestart          true;
+        writeControl   writeTime;
+//        outputControl   outputTime;
+//        outputInterval  1;
         fields
         (
-            U
+            prT
             {
-                mean        on;
-                prime2Mean  off;
-                base        time;
+                mean            on;
+                prime2Mean      off;
+               base            time;
+               windowType      approximate;
+                window          #eval{5/40000};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
             }
 
-            p
+            momFluxT
             {
-                mean        on;
-                prime2Mean  off;
-                base        time;
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      approximate;
+                window          #eval{5/40000};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
             }
 
         );
     }
-}*/
 
+}
 
 // ************************************************************************* //

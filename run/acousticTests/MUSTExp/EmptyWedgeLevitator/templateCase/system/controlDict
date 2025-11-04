@@ -53,43 +53,41 @@ maxDeltaT       5e-6;
 
 // ************************************************************************* //
 
-libs (
-      "libOpenFOAM.so"
-//      "libgroovyBC.so"
-      "libsoundHarmonicVelocity.so"
-      "libsoundHarmonicPressure.so"
-      "libsoundPressureRadiation.so"
-      "libsoundPressureSource.so"
-      "libacousticDampingSourceNew.so"
-     );
-
-
 functions
 {
-    fieldAverage1
+    ARFAverage
     {
         type            fieldAverage;
         functionObjectLibs ( "libfieldFunctionObjects.so" );
 //        enabled         false;
-//		  cleanRestart		true;
+//                cleanRestart          true;
         writeControl   writeTime;
 //        outputControl   outputTime;
 //        outputInterval  1;
         fields
         (
-            U
+            prT
             {
-                mean        on;
-                prime2Mean  off;
-                base        time;
+                mean            on;
+                prime2Mean      off;
+               base            time;
+               windowType      approximate;
+                window          #eval{5/40000};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
             }
 
-            /*p_rgh
+            momFluxT
             {
-                mean        on;
-                prime2Mean  on;
-                base        time;
-            }*/
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      approximate;
+                window          #eval{5/40000};
+                //windowName      movingAverageWindow;
+                allowRestart    no;
+            }
+
         );
     }
 

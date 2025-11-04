@@ -63,7 +63,7 @@ functions
         
         fields
         (
-            pr
+            prT
             {
                 mean            on;
                 prime2Mean      off;
@@ -74,18 +74,7 @@ functions
                 allowRestart    no;
             }
 
-            momFlux
-            {
-                mean            on;
-                prime2Mean      off;
-                base            time;
-                windowType      exact;
-                window          #eval{2/25250};
-                //windowName      movingAverageWindow;
-                allowRestart    no;
-            }
-
-            pa
+            momFluxT
             {
                 mean            on;
                 prime2Mean      off;

@@ -12,5 +12,5 @@ runApplication changeDictionary
 
 restore0Dir
 
-runApplication acousticSPMLFoam
+runApplication acousticTDSPMLFoam
 #------------------------------------------------------------------------------

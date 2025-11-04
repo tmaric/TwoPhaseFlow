@@ -93,8 +93,54 @@ int main(int argc, char *argv[])
 
         iter=iter+1.0;
 //        AcousticForcePotential == (iter - 1)/iter * AcousticForcePotential + 1/iter * (2*Foam::constant::mathematical::pi*pow(R,3)*( 1/(3.0*rho*sqr(cg))*p*p - rho/2*(U&U)));
-        pr == (iter - 1)/iter * pr + 1/iter * ( 1.0/(2.0*rho*sqr(cg))*p*p - rho/2.0*(U&U));
-        momFlux == (iter - 1)/iter * momFlux + 1/iter * ( rho*(U*U));
+        prT == 0.5*(kl*alpha1 + kg*(1-alpha1))*p*p - 0.5*rho*(U&U);
+        momFluxT == rho*(U*U);
+        if(runTime.timeIndex() > runTime.startTimeIndex() + 1)
+        {
+            if(mesh.foundObject<volScalarField>("prTMean") && mesh.foundObject<volTensorField>("momFluxTMean"))
+            {
+                pr == mesh.lookupObject<volScalarField>("prTMean");
+                momFlux == mesh.lookupObject<volTensorField>("momFluxTMean");
+            }
+            else
+            {
+                        FatalErrorInFunction
+                            << "Did not find field prTMean and momFluxTMean, please check if add below functionObject to controlDict: "
+                            << nl
+                            << "functions { " << nl
+                            << "ARFAverage" << nl
+                            << "    type            fieldAverage;" << nl
+                            << "    libs            (fieldFunctionObjects);" << nl
+                            << "    writeControl    writeTime;" << nl
+                            << "" << nl
+                            << "    fields" << nl
+                            << "    (" << nl
+                            << "        prT" << nl
+                            << "        {" << nl
+                            << "            mean            on;" << nl
+                            << "            prime2Mean      off;" << nl
+                            << "            base            time;" << nl
+                            << "            windowType      approximate; // approximation of averaging a window, can save a lot space for old time fields." << nl
+                            << "        window        #eval{$N/$f}; // set the average of field in last N periods. f is the frequency." << nl 
+                            << "            windowName      movingAverageprTWindow;" << nl
+                            << "            allowRestart    no;" << nl
+                            << "        }" << nl
+                            << "" << nl
+                            << "        momFluxT" << nl
+                            << "        {" << nl
+                            << "            mean            on;" << nl
+                            << "            prime2Mean      off;" << nl
+                            << "            base            time;" << nl
+                            << "            windowType      approximate;" << nl
+                            << "        window        #eval{$N/$f};" << nl
+                            << "            windowName      movingAverageWindow;" << nl
+                            << "            allowRestart    no;" << nl
+                            << "        } ); }" << nl
+                            << nl           
+                        
+                            << exit(FatalError);
+            }
+        }
         runTime.write();
 
         runTime.printExecutionTime(Info);

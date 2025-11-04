@@ -18,5 +18,5 @@ runApplication mirrorMesh -overwrite
 
 restore0Dir
 
-runApplication acousticSPMLFoam
+runApplication acousticTDSPMLFoam
 #------------------------------------------------------------------------------
