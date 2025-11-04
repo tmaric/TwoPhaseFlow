@@ -34,7 +34,7 @@ Description
     considering inhomogenous scattering and non-reflective PML.
 
 Author
-    Jun Liu, MMA, TU Darmstadt
+    Jun Liu, MMA, TU Darmstadt, 30. Oct. 2025
     Email: liu@mma.tu-darmstadt.de
 SourceFiles
     acousticTDSPMLFoam.C
