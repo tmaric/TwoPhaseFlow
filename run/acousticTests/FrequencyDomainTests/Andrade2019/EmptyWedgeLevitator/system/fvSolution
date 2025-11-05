@@ -1,0 +1,66 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.0.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    "alpha.*"
+    {
+        // This required bei InterIsoRhoFoam, but not by InterIsoFoam, why? (TT)
+        nAlphaCorr      2;
+
+        isoFaceTol      1e-8;
+        surfCellTol     1e-8;
+        nAlphaBounds    3;
+        snapTol         0;
+        clip            false;
+        cAlpha          1;
+        nAlphaSubCycles 1;
+        advectionScheme isoAdvection;
+        reconstructionScheme plicRDF;        
+    }
+
+    "P.*"
+    {
+          solver          PCG;
+          preconditioner  DIC;
+          tolerance       1e-6;
+          relTol          0.0;
+    }
+}
+
+SIMPLE
+{
+    nNonOrthogonalCorrectors 2;
+    pRefCell        0;
+    pRefValue       0;
+}
+
+relaxationFactors
+{
+fields
+{
+    Pre         0.05;
+    Pim         0.05;
+}
+equations
+{
+        ".*"            0;
+}
+}
+
+
+// ************************************************************************* //
