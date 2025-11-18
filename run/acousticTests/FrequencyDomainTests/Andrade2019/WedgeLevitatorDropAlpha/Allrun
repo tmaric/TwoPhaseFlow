@@ -9,8 +9,9 @@ gmsh -0 constant/levitatorWedgeHex.geo
 runApplication gmshToFoam  constant/levitatorWedgeHex.msh
 rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
-
+runApplication setAlphaField
 runApplication decomposePar
+
 runParallel $(getApplication)
 
 #------------------------------------------------------------------------------

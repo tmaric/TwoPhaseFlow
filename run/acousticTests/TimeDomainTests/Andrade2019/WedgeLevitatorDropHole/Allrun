@@ -2,15 +2,19 @@
 cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
 #------------------------------------------------------------------------------
+
 ./Allclean
 restore0Dir
 
 gmsh -0 constant/levitatorWedgeHex.geo
 runApplication gmshToFoam  constant/levitatorWedgeHex.msh
 rm constant/levitatorWedgeHex.msh
-runApplication changeDictionary
 
+runApplication -s 1 changeDictionary -dict system/changeDictionaryDict1
+runApplication topoSet
+runApplication subsetMesh -overwrite c0 -patch dropWall
+runApplication -s 2 changeDictionary -dict system/changeDictionaryDict2
 runApplication decomposePar
-runParallel $(getApplication)
 
+runParallel acousticTDSPMLFoam
 #------------------------------------------------------------------------------

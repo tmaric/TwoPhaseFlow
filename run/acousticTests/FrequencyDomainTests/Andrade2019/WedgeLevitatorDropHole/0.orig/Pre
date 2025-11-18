@@ -27,10 +27,10 @@ boundaryField
     }
     transducer1
     {
-         type            fixedGradient;
-         gradient           uniform #eval{-2*pi()*25250*1.2*1.0};
+        type            fixedGradient;
+        gradient            uniform 0;
     }
-    "(transducer2|reflector2|reflector1)"
+    "(transducer2|reflector2|reflector1|dropWall)"
     {
         type            zeroGradient;
     }

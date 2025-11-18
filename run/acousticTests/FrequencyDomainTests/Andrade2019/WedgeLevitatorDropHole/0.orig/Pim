@@ -14,7 +14,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [1 -1 -2 0 0 0 0]; 
+dimensions      [1 -1 -2 0 0 0 0];
 
 internalField   uniform 0;
 
@@ -30,7 +30,8 @@ boundaryField
          type            fixedGradient;
          gradient           uniform #eval{-2*pi()*25250*1.2*1.0};
     }
-    "(transducer2|reflector2|reflector1)"
+
+    "(transducer2|reflector2|reflector1|dropWall)"
     {
         type            zeroGradient;
     }
