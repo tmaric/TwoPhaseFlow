@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     mySonicLiquidFoam;
+application     acousticTDSPMLFoam;
 
 startFrom       startTime;
 
