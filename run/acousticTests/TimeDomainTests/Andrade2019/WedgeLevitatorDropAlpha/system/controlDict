@@ -23,7 +23,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         200e-3; 
+endTime         5e-3; 
 
 deltaT          1e-7; 
 
@@ -37,7 +37,7 @@ writeFormat     binary;
 
 writePrecision  12;
 
-writeCompression uncompressed;
+writeCompression off;
 
 timeFormat      general;
 
@@ -59,7 +59,7 @@ functions
     fieldAverage1
     {
         type            fieldAverage;
-        functionObjectLibs ( "libfieldFunctionObjects.so" );
+        libs ( "libfieldFunctionObjects.so" );
 //        enabled         false;
 //		  cleanRestart		true;
         writeControl   writeTime;
@@ -86,7 +86,7 @@ functions
     ARFAverage
     {
         type            fieldAverage;
-        functionObjectLibs ( "libfieldFunctionObjects.so" );
+        libs ( "libfieldFunctionObjects.so" );
 //        enabled         false;
 //                cleanRestart          true;
         writeControl   writeTime;

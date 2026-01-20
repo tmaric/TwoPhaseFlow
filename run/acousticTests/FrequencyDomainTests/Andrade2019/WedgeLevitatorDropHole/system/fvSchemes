@@ -46,7 +46,7 @@ divSchemes
 
 laplacianSchemes
 {
-    default         Gauss linear orthogonal; //corrected;
+    default         Gauss linear corrected; //corrected;
     laplacian((rho0*(1|A(U))),p) Gauss linear corrected;
     laplacian(mu,U) Gauss linear corrected;
     laplacian(mu,U) Gauss linear corrected;
@@ -61,7 +61,7 @@ interpolationSchemes
 
 snGradSchemes
 {
-    default         orthogonal; //corrected;
+    default         corrected; //corrected;
 }
 
 /*fluxRequired

@@ -31,3 +31,7 @@ wmake $withBear solver/multiRegionPhaseChangeFlow
 wmake $withBear solver/interFlow
 wmake $withBear solver/compressibleInterFlow
 
+wmake $withBear solver/acousticTDSPMLFoam
+wmake $withBear solver/acousticFDSPMLFoam
+wmake $withBear solver/interALFlow
+

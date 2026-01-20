@@ -6,14 +6,14 @@ cd "${0%/*}" || exit                                # Run from this directory
 ./Allclean
 restore0Dir
 
-gmsh -0 constant/levitatorWedgeHex.geo
-runApplication gmshToFoam  constant/levitatorWedgeHex.msh
-rm constant/levitatorWedgeHex.msh
+gmsh -0 constant/levitatorSphereWedgeHex_refine.geo
+runApplication gmshToFoam  constant/levitatorSphereWedgeHex_refine.msh
+rm constant/levitatorSphereWedgeHex_refine.msh
 
 runApplication -s 1 changeDictionary -dict system/changeDictionaryDict1
-runApplication topoSet
-runApplication subsetMesh -overwrite c0 -patch dropWall
-runApplication -s 2 changeDictionary -dict system/changeDictionaryDict2
+#runApplication topoSet
+#runApplication subsetMesh -overwrite c0 -patch dropWall
+#runApplication -s 2 changeDictionary -dict system/changeDictionaryDict2
 runApplication decomposePar
 
 runParallel acousticTDSPMLFoam
