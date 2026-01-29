@@ -10,7 +10,7 @@ l=c/f;
 D = 0.00744;//1.586*l;
 // mesh size
 lc=1.0;
-N=200;
+N=400;
 gs=l/N;
 
 //geometry

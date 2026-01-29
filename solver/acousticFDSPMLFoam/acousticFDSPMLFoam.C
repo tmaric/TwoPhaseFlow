@@ -77,49 +77,43 @@ int main(int argc, char *argv[])
 
         while (simple.correctNonOrthogonal())
         {
-
-            fvScalarMatrix PreEqn
-            (
-                sqr(2*pi*f/cg)*fvm::Sp( 1 + ((kl - kg)/kg) * alpha1, Pre) 
-                    + fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
-                //fvm::laplacian(Pre) + fvm::Sp(k * k, Pre) 
-            );
-
-//            PreEqn.relax();
-//	      PreEqn.solve();
-            solve( 
-                PreEqn ==
-                   (SC0 * Pre) //fvm::SuSp(SC0, Pre)
-                -  (SC1 * Pim)
-                -  fvc::div(
-                   (TC0 & fvc::grad(Pre))
-                +  (TC1 & fvc::grad(Pim)) 
-                )
-            );
-//	    Pre.relax();
-
             fvScalarMatrix PimEqn
             (
                 sqr(2*pi*f/cg)*fvm::Sp( 1 + ((kl - kg)/kg) * alpha1, Pim) 
                 + fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
-                // fvm::laplacian(Pim) + fvm::Sp(k * k, Pim)
             );
 
-//            PimEqn.relax();
-//            PimEqn.solve();
             solve (
                 PimEqn ==
-                       (SC0 * Pim) //fvm::SuSp(SC0, Pim)
+                       (SC0 * Pim) 
                     +  (SC1 * Pre)
                     -  fvc::div(
                        (TC0 & fvc::grad(Pim))
                     -  (TC1 & fvc::grad(Pre)) 
                     )
 
+
                 );
 
+            fvScalarMatrix PreEqn
+            (
+                sqr(2*pi*f/cg)*fvm::Sp( 1 + ((kl - kg)/kg) * alpha1, Pre) 
+                    + fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
+            );
+
+            solve( 
+                PreEqn ==
+                   (SC0 * Pre) 
+                -  (SC1 * Pim)
+                -  fvc::div(
+                   (TC0 & fvc::grad(Pre))
+                +  (TC1 & fvc::grad(Pim)) 
+                )
+            );
+  
+            Pim.relax();         
             Pre.relax();
-            Pim.relax();
+
         }
 
         Ure == 1/(2*pi*f*rho) * fvc::grad(Pim);

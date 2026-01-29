@@ -35,11 +35,23 @@ solvers
 
     "P.*"
     {
-          solver          PCG;
-          preconditioner  DIC;
-          tolerance       1e-8;
-          relTol          0.1;
-          // debug           1;
+        solver          petsc;
+        petsc
+        {
+            options
+            {
+                ksp_type      gmres;
+                pc_type       gamg;
+            }
+            use_petsc_residual_norm false;
+            caching
+            {
+                matrix          auto;
+                preconditioner  auto;
+            }
+        }
+        tolerance       1e-8;
+        relTol          1e-3;
     }
 
 }

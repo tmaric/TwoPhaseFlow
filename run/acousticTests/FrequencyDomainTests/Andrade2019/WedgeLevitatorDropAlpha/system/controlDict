@@ -58,3 +58,10 @@ maxDeltaT       5e-6;
 //    #include "runTimeControls"
 //}
 //
+
+libs
+(
+   "libtwoPhaseMixtureThermo.so"
+   "libmovingBeamModels.so"
+   "libpetscFoam.so"
+);
