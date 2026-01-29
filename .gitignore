@@ -154,3 +154,6 @@ oldData_toBeDeleted/
 typescript
 # end-of-file
 
+run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/controlDict
+run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/decomposeParDict
+run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/fvSolution

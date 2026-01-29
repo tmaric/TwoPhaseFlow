@@ -10,7 +10,7 @@ l=c/f;
 D = 0.00744;//1.586*l;
 // mesh size
 lc=1.0;
-N=400;
+N=200;
 gs=l/N;
 
 //geometry
@@ -72,7 +72,7 @@ Plane Surface(28)={27};
 Curve Loop(29)={16,9,10,-15};
 Plane Surface(30)={29};
 
-Rotate{ {0,1,0}, {0,0,0}, - Pi*1/180} {Surface{20, 22, 24, 26 , 28 , 30};}
+Rotate{ {0,1,0}, {0,0,0}, - Pi*0.125/180} {Surface{20, 22, 24, 26 , 28 , 30};}
 
 Transfinite Line {19, 21} = Round(rT/gs);//{1, 11} = Round(rT/gs);
 Transfinite Line {23, 25, 35} = Round((rR-rT)/gs); //{2, 15, 9} = Round((rR-rT)/gs);
@@ -83,9 +83,7 @@ Transfinite Line {32,34,36,26,28}=Round(hS/gs); //{10,16,7,3,5}=Round(hS/gs);
 Transfinite Surface "*"; //{20, 22, 24, 26 , 28 , 30};
 Recombine Surface "*"; //{20, 22, 24, 26 , 28 , 30};
 
-// Rotate{ {0,1,0}, {0,0,0}, - Pi*1/180} {Surface{20, 22, 24, 26 , 28 , 30}; }
-
-surfaceVector[] = Extrude {{0,1,0}, {0,0,0}, Pi*2/180} {
+surfaceVector[] = Extrude {{0,1,0}, {0,0,0}, Pi*0.25/180} {
 	 Surface{20, 22, 24, 26 , 28 , 30};
 	 Layers{1};
 	 Recombine;

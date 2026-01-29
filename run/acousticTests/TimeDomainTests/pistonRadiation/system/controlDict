@@ -15,46 +15,71 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     acousticFDSPMLFoam;
+application     acousticTDSPMLFoam;
 
 startFrom       startTime;
-
 startTime       0;
-
 stopAt          endTime;
+endTime         5e-3;
 
-endTime         8000;
+deltaT          1e-7;
 
-deltaT          1;
-
-writeControl    runTime; 
-
-writeInterval   50;
+writeControl    runTime;
+writeInterval   1e-4;
 
 purgeWrite      0;
-
 writeFormat     binary;
-
 writePrecision  12;
-
 writeCompression off;
 
 timeFormat      general;
-
 timePrecision   8;
 
 runTimeModifiable yes;
 
-adjustTimeStep  no;
-
+adjustTimeStep  yes;
 maxCo           0.25;
-
 maxDeltaT       5e-6;
 
+functions
+{
+    ARFAverage
+    {
+        type            fieldAverage;
+        libs            ("libfieldFunctionObjects.so");
+        writeControl    writeTime;
+        fields
+        (
+            prT
+            {
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      approximate;
+                window          #eval{5/25250};
+                allowRestart    no;
+            }
+
+            momFluxT
+            {
+                mean            on;
+                prime2Mean      off;
+                base            time;
+                windowType      approximate;
+                window          #eval{5/25250};
+                allowRestart    no;
+            }
+        );
+    }
+
+    fieldMinMax
+    {
+        type        fieldMinMax;
+        libs        (fieldFunctionObjects);
+        mode        magnitude;
+        fields      (U p pr);
+        location    no;
+    }
+}
+
 // ************************************************************************* //
-//functions
-//{
-//    #include "FOforce"
-//    #include "runTimeControls"
-//}
-//

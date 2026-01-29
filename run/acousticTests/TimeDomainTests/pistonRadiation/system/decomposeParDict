@@ -1,8 +1,8 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
-| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  v2012                                 |
-|   \\  /    A nd           | Website:  www.openfoam.com                      |
+| \\      /  F ield         | foam-extend: Open Source CFD                    |
+|  \\    /   O peration     | Version:     3.1                                |
+|   \\  /    A nd           | Web:         http://www.extend-project.de       |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
 FoamFile
@@ -16,12 +16,13 @@ FoamFile
 
 numberOfSubdomains 4;
 
-method          scotch; //simple;
+//method          simple;
+method          scotch;
 
-coeffs
-{
-    n           (2 2 2);
-}
+distributed     no;
 
+roots
+(
+);
 
 // ************************************************************************* //

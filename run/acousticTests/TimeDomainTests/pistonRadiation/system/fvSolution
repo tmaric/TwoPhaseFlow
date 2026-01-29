@@ -19,7 +19,7 @@ solvers
 {
     "alpha.*"
     {
-        // This required bei InterIsoRhoFoam, but not by InterIsoFoam, why? (TT)
+        // This required by calculating alphaf
         nAlphaCorr      2;
 
         isoFaceTol      1e-8;
@@ -30,39 +30,48 @@ solvers
         cAlpha          1;
         nAlphaSubCycles 1;
         advectionScheme isoAdvection;
-        reconstructionScheme plicRDF;        
+        reconstructionScheme plicRDF;
     }
 
-    "P.*"
+    "p.*"
     {
-          solver          PCG;
-          preconditioner  DIC;
-          tolerance       1e-8;
-          relTol          0.1;
-          // debug           1;
+        solver          GAMG; //PCG;
+        smoother        DICGaussSeidel; //preconditioner  DIC;
+        tolerance       1e-10;
+        relTol          0.0;
     }
 
+    "(U.*|v.*|u.*)"
+    {
+        solver          diagonal;
+    }
 }
 
-SIMPLE
+PIMPLE
 {
-    nNonOrthogonalCorrectors 0;
-    pRefCell        0;
-    pRefValue       0;
+    momentumPredictor   no;
+    nOuterCorrectors    2;
+    nCorrectors         2;
+    nNonOrthogonalCorrectors 2;
+    residualControl
+    {
+        p
+        {
+            tolerance  1e-10;
+            relTol     0.0;
+        }
+    }
 }
 
 relaxationFactors
 {
-fields
-{
-    Pre         0.01;//1;//0.1;
-    Pim         0.01;//1;//0.1;
+    fields
+    {
+    }
+    equations
+    {
+        ".*" 1;
+    }
 }
-equations
-{
-        ".*"            0;
-}
-}
-
 
 // ************************************************************************* //
