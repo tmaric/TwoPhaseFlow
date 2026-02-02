@@ -1,85 +1,92 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  2.0.1                                 |
-|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|  \\    /   O peration     | Version:  2506                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 FoamFile
 {
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    location    "system";
-    object      controlDict;
+    version         2;
+    format          ascii;
+    class           dictionary;
+    location        "system";
+    object          controlDict;
 }
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 application     acousticTDSPMLFoam;
 
 startFrom       startTime;
-startTime       0;
-stopAt          endTime;
-endTime         5e-3;
 
-deltaT          1e-7;
+startTime       0;
+
+stopAt          endTime;
+
+endTime         0.001252;
+
+deltaT          1e-07;
 
 writeControl    runTime;
-writeInterval   1e-4;
+
+writeInterval   1e-05;
 
 purgeWrite      0;
+
 writeFormat     binary;
+
 writePrecision  12;
+
 writeCompression off;
 
 timeFormat      general;
+
 timePrecision   8;
 
 runTimeModifiable yes;
 
 adjustTimeStep  yes;
+
 maxCo           0.25;
-maxDeltaT       5e-6;
+
+maxDeltaT       5e-06;
 
 functions
 {
     ARFAverage
     {
         type            fieldAverage;
-        libs            ("libfieldFunctionObjects.so");
+        libs            ( "libfieldFunctionObjects.so" );
         writeControl    writeTime;
-        fields
-        (
-            prT
-            {
-                mean            on;
-                prime2Mean      off;
-                base            time;
-                windowType      approximate;
-                window          #eval{5/25250};
-                allowRestart    no;
-            }
-
-            momFluxT
-            {
-                mean            on;
-                prime2Mean      off;
-                base            time;
-                windowType      approximate;
-                window          #eval{5/25250};
-                allowRestart    no;
-            }
-        );
+        fields          ( prT { mean on ; prime2Mean off ; base time ; windowType approximate ; window 0.00019802 ; allowRestart no ; } momFluxT { mean on ; prime2Mean off ; base time ; windowType approximate ; window 0.00019802 ; allowRestart no ; } );
     }
-
     fieldMinMax
     {
-        type        fieldMinMax;
-        libs        (fieldFunctionObjects);
-        mode        magnitude;
-        fields      (U p pr);
-        location    no;
+        type            fieldMinMax;
+        libs            ( fieldFunctionObjects );
+        mode            magnitude;
+        fields          ( U p pr );
+        location        no;
+    }
+    probes
+    {
+        type            probes;
+        libs            ( "libsampling.so" );
+        writeControl    runTime;
+        writeInterval   1e-06;
+        fields          ( p );
+        probeLocations  ( ( 0.025 0.025 0 ) );
+    }
+    verificationProbes
+    {
+        type            probes;
+        libs            ( "libsampling.so" );
+        writeControl    runTime;
+        writeInterval   1e-06;
+        fields          ( p );
+        probeLocations  ( ( 0 0.0025 0 ) ( 0 0.00541667 0 ) ( 0 0.00833333 0 ) ( 0 0.01125 0 ) ( 0 0.0141667 0 ) ( 0 0.0170833 0 ) ( 0 0.02 0 ) ( 0 0.025 0 ) ( 0.00487726 0.0245196 0 ) ( 0.00956709 0.023097 0 ) ( 0.0138893 0.0207867 0 ) ( 0.0176777 0.0176777 0 ) ( 0.0207867 0.0138893 0 ) ( 0.023097 0.00956709 0 ) ( 0.0245196 0.00487726 0 ) ( 0.025 1.53081e-18 0 ) );
     }
 }
+
 
 // ************************************************************************* //

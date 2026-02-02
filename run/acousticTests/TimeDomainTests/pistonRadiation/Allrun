@@ -12,6 +12,11 @@ pmlThickness=$(foamDictionary -entry pmlThickness -value constant/transportPrope
 soundSpeed=$(foamDictionary -entry soundSpeed -value constant/transportProperties)
 frequency=$(foamDictionary -entry f -value constant/transportProperties)
 cellsPerLambda=$(foamDictionary -entry cellsPerLambda -value constant/transportProperties)
+probeCoord=$(python3 - <<PY
+R = float(${domainRadius})
+print(f"{0.5*R} {0.5*R} 0")
+PY
+)
 
 sed -e "s/@PISTON_RADIUS@/${pistonRadius}/g" \
     -e "s/@DOMAIN_RADIUS@/${domainRadius}/g" \
@@ -23,6 +28,10 @@ sed -e "s/@PISTON_RADIUS@/${pistonRadius}/g" \
     > constant/pistonRadiation.geo
 
 foamDictionary -entry pistonRadius -set "${pistonRadius}" system/topoSetDict >/dev/null
+foamDictionary -entry functions.probes.probeLocations -set "((${probeCoord}))" system/controlDict >/dev/null
+python3 generate_verification_probes.py >/dev/null
+probeList=$(tr '\n' ' ' < system/verificationProbesLocations | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+foamDictionary -entry functions.verificationProbes.probeLocations -set "(${probeList})" system/controlDict >/dev/null
 
 gmsh -0 constant/pistonRadiation.geo
 runApplication gmshToFoam  constant/pistonRadiation.msh
@@ -32,5 +41,21 @@ runApplication topoSet
 runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
 runApplication decomposePar
-runParallel acousticTDSPMLFoam
+runParallel acousticTDSPMLFoam &
+solverPid=$!
+python3 monitor_amplitude.py \
+    --case . \
+    --field p \
+    --frequency "${frequency}" \
+    --cycles 5 \
+    --tol 1e-3 \
+    --pid "${solverPid}" \
+    --check-interval 2 \
+    --endtime-buffer 0 &
+monitorPid=$!
+wait "${solverPid}"
+kill "${monitorPid}" 2>/dev/null || true
+
+# Verification + plots
+python3 verify_piston_radiation.py --plots
 #------------------------------------------------------------------------------
