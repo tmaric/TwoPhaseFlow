@@ -65,13 +65,67 @@ Info<< "Creating PML coefficients fields \n" << endl;
     (
       "L", dimless, transportProperties
     );
-//PML max x, y ,z
-    dimensionedVector PMLMax
-    (
-      "PMLMax", dimless, transportProperties
-    );
-//PML min x, y, z
-    dimensionedVector PMLMin
-    (
-      "PMLMin", dimless, transportProperties
-    );
+
+enum PMLType
+{
+    RECTANGLE,
+    // SPHERICAL,
+    CYLINDRICAL,
+    UNDEFINED // A state for "not set" or "error"
+};
+
+const word PMLTypeWord = transportProperties.get<word>("PMLType");
+
+PMLType selectedModel = UNDEFINED; // Default to undefined
+
+if (PMLTypeWord == "rectangle")
+{
+    selectedModel = RECTANGLE;
+}
+/*else if (PMLTypeWord == "spherical")
+{
+    selectedModel = SPHERICAL;
+}*/
+else if (PMLTypeWord == "cylindrical")
+{
+    selectedModel = CYLINDRICAL;
+}
+else
+{
+    FatalErrorInFunction
+        << "Unknown PMLType '" << PMLTypeWord
+        << "' in transportProperties." << nl
+        << "Valid types are: rectangle, spherical, cylindrical."
+        << exit(FatalError);
+}
+
+// PML parameters (resolved by model)
+dimensionedVector PMLMax;
+dimensionedVector PMLMin;
+dimensionedScalar Rmin;
+dimensionedScalar Rmax;
+dimensionedVector origin;
+
+switch (selectedModel)
+{
+    case RECTANGLE:
+    {
+        transportProperties.lookup("PMLMax") >> PMLMax;
+        transportProperties.lookup("PMLMin") >> PMLMin;
+        break;
+    }
+    case CYLINDRICAL:
+    {
+        transportProperties.lookup("Rmin") >> Rmin;
+        transportProperties.lookup("Rmax") >> Rmax;
+        transportProperties.lookup("origin") >> origin;
+        break;
+    }
+    case UNDEFINED:
+    {
+        FatalErrorInFunction
+            << "Internal error: PML type is undefined."
+            << exit(FatalError);
+        break;
+    }
+}

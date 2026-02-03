@@ -15,33 +15,45 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-//All properies are in T=25 C and P=100 kPa 
+// Fluid properties (air, 25 C)
 transportModel  Newtonian;
-soundSpeed  343;
+soundSpeed      343;
 
 mu              [ 1 -1 -1 0 0 0 0 ] 0.0;
-
 psi             [ 0 -2 2 0 0 0 0 ] 8.5e-6;
-
 rho0            [ 1 -3 0 0 0 0 0 ] 1.2;
 
-R 1.51e-3;
-p0  0.0;
+R               1.51e-3;
+p0              0.0;
 
-c0 $soundSpeed;
-//frequency
-f 25250;
-// physical properties at 20°C
-rhol 998.3;
-rhog 1.2;
-cg 343;
-cl 1480; 
-kg #eval{1.0/($rhog*$cg*$cg)};
-kl #eval{1.0/($rhol*$cl*$cl)};
-k       #eval{2.0*pi()*$f/$soundSpeed};
-L  0.008;
+c0              $soundSpeed;
 
-PMLType rectangle;
-PMLMax   (#eval{0.029+5*$cg/($f*400)} #eval{0.01744+5*$cg/($f*400)} 100);//(100 100 100);//(0.028995583 0.01744 100);
-PMLMin  (-100 #eval{-0.01-5*$cg/($f*400)} -100); //(-100 -100 -100);//(-100 -0.01 -100);
+// Physical properties for radiation pressure
+rhol            998.3;
+rhog            1.2;
+cg              343;
+cl              1480;
+kg              #eval{1.0/($rhog*$cg*$cg)};
+kl              #eval{1.0/($rhol*$cl*$cl)};
+
+// Piston radiation setup
+pistonRadius    0.005;  // [m]
+domainRadius    0.05;   // [m] PML starts here
+pmlThickness    0.01;   // [m]
+
+// Mesh control (used in .geo template)
+cellsPerLambda  100;
+
+// Acoustic frequency
+f               25250;
+wl              #eval{$c0/$f};
+cellSize        #eval{$wl/$cellsPerLambda};
+
+// PML settings (spherical via radial distance)
+PMLType         cylindrical;
+L               $pmlThickness;
+origin          (0 0 0);
+Rmin            $domainRadius;
+Rmax            #eval{$domainRadius + $pmlThickness + 10*$cellSize};
+
 // ************************************************************************* //

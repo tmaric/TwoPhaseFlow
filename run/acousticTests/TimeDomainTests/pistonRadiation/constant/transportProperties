@@ -42,16 +42,18 @@ domainRadius    0.05;   // [m] PML starts here
 pmlThickness    0.02;   // [m]
 
 // Mesh control (used in .geo template)
-cellsPerLambda  20;
+cellsPerLambda  50;
 
 // Acoustic frequency
 f               25250;
+wl              #eval{$c0/$f};
+cellSize        #eval{$wl/$cellsPerLambda};
 
 // PML settings (spherical via radial distance)
 PMLType         cylindrical;
 L               $pmlThickness;
 origin          (0 0 0);
 Rmin            $domainRadius;
-Rmax            #eval{$domainRadius + $pmlThickness};
+Rmax            #eval{$domainRadius + $pmlThickness + 5*$cellSize};
 
 // ************************************************************************* //

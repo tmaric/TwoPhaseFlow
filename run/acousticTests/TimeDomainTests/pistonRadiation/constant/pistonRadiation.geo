@@ -8,8 +8,8 @@ c = 343;
 lambda = c/f;
 
 // Mesh resolution
-N = 20; // cells per wavelength
-gr=1.02;
+N = 50; // cells per wavelength
+gr=1.00;
 gs = lambda/N;
 
 // Geometry parameters

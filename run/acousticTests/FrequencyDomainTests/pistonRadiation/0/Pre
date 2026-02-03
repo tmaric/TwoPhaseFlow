@@ -1,0 +1,49 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | foam-extend: Open Source CFD                    |
+|  \\    /   O peration     | Version:     3.1                                |
+|   \\  /    A nd           | Web:         http://www.extend-project.de       |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      Pre;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [1 -1 -2 0 0 0 0];
+
+internalField   uniform 0;
+
+// Keep frequency and velocity consistent with constant/transportProperties
+pistonFrequency 25250;
+pistonVelocity  1.0;
+
+boundaryField
+{
+    piston
+    {
+        type            fixedGradient;
+        gradient        uniform 0;
+    }
+
+    bottom
+    {
+        type            zeroGradient;
+    }
+
+    openAir
+    {
+        type            zeroGradient;
+    }
+
+    "(front|back)"
+    {
+        type            wedge;
+    }
+}
+
+// ************************************************************************* //
