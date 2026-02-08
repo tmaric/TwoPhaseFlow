@@ -41,24 +41,48 @@ solvers
             options
             {
                 ksp_type      fgmres;
-                ksp_gmres_restart "50";
+                ksp_gmres_restart "100";
                 pc_type       gamg;
+                pc_gamg_type  agg;
+                pc_gamg_agg_nsmooths "2";
+                pc_gamg_reuse_interpolation true;
+                pc_gamg_square_graph "10";
+                pc_gamg_threshold "0.05" ;
+                mg_levels_ksp_type chebyshev;
+                mg_levels_ksp_max_it "2";
+                mg_levels_pc_type jacobi; 
+                mg_coarse_pc_type redundant;
+                mg_coarse_redundant_pc_type lu;
             }
+
             use_petsc_residual_norm false;
             caching
             {
-                matrix          auto;
-                preconditioner  auto;
+                matrix
+                {
+                    update always;
+                }
+                preconditioner
+                {
+                    update always;
+                }
             }
+
         }
-        tolerance       1e-8;
-        relTol          0.1;
+        tolerance       1e-12;
+        relTol          1e-1;
+        maxIter         1000;
     }
 }
 
 SIMPLE
 {
     nNonOrthogonalCorrectors 0;
+    residualControl
+    {
+        Pre 1e-5;
+        Pim 1e-5;
+    }
     pRefCell        0;
     pRefValue       0;
 }
@@ -67,8 +91,8 @@ relaxationFactors
 {
 fields
 {
-    Pre         0.1;//1;//0.1;
-    Pim         0.1;//1;//0.1;
+    Pre         0.05;//1;//0.1;
+    Pim         0.05;//1;//0.1;
 }
 equations
 {

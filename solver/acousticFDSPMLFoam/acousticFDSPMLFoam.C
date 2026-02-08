@@ -95,6 +95,8 @@ int main(int argc, char *argv[])
 
                 );
 
+            
+
             fvScalarMatrix PreEqn
             (
                 sqr(2*pi*f/cg)*fvm::Sp( 1 + ((kl - kg)/kg) * alpha1, Pre) 
@@ -110,14 +112,15 @@ int main(int argc, char *argv[])
                 +  (TC1 & fvc::grad(Pim)) 
                 )
             );
-  
-            Pim.relax();         
+            
+            Pim.relax();
             Pre.relax();
 
         }
 
         Ure == 1/(2*pi*f*rho) * fvc::grad(Pim);
         Uim == -1/(2*pi*f*rho) * fvc::grad(Pre);
+        pa == Foam::sqrt(Pim*Pim + Pre*Pre);
         pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim) - 0.25*rho*((Ure&Ure) + (Uim&Uim));
         momFlux == 0.5*rho*(Ure*Ure + Uim*Uim);
         

@@ -52,16 +52,14 @@ maxCo           0.25;
 maxDeltaT       5e-6;
 
 // ************************************************************************* //
-//functions
-//{
-//    #include "FOforce"
-//    #include "runTimeControls"
-//}
-//
+functions
+{
+    #include "FOforce"
+    #include "runTimeControls"
+}
+
 
 libs
 (
-   "libtwoPhaseMixtureThermo.so"
-   "libmovingBeamModels.so"
    "libpetscFoam.so"
 );

@@ -44,7 +44,5 @@ maxDeltaT       5e-6;
 // ************************************************************************* //
 libs
 (
-   "libtwoPhaseMixtureThermo.so"
-   "libmovingBeamModels.so"
    "libpetscFoam.so"
 );

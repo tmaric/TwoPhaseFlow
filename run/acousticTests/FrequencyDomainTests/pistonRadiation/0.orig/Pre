@@ -37,7 +37,8 @@ boundaryField
 
     openAir
     {
-        type            zeroGradient;
+        type            fixedValue;
+        value           uniform 0;
     }
 
     "(front|back)"
