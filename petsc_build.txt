@@ -1,0 +1,36 @@
+Here’s a clean, repeatable way to build a new PETSc with Hypre + direct solvers (MUMPS, SuperLU_dist, ScaLAPACK), in your own prefix so it won’t disturb the existing ThirdParty build.
+
+Commands (from the PETSc source dir):
+
+cd /home/minkowski/ThirdParty-v2312/sources/petsc-3.19.2
+
+# clean old build artifacts (optional but recommended)
+make distclean
+
+# configure a new install prefix
+./configure \
+  --with-debugging=0 \
+  --with-64-bit-indices=0 \
+  --with-precision=double \
+  --COPTFLAGS=-O3 --CXXOPTFLAGS=-O3 --FOPTFLAGS=-O3 \
+  --prefix=/home/minkowski/ThirdParty-v2312/platforms/linux64GccDPInt32/petsc-3.19.2-hypre-mumps \
+  --download-openblas \
+  --download-hypre \
+  --download-mumps \
+  --download-superlu_dist \
+  --download-scalapack
+
+# build + install
+make all
+make install
+
+Notes:
+- This enables Hypre + MUMPS + SuperLU_dist + ScaLAPACK (direct + AMG).
+- Keep Fortran enabled (default) because MUMPS/SuperLU_dist typically need it.
+- The install ends up in /home/minkowski/ThirdParty-v2312/platforms/linux64GccDPInt32/petsc-3.19.2-hypre-mumps.
+
+Then to use it:
+
+export PETSC_DIR=/home/minkowski/ThirdParty-v2312/platforms/linux64GccDPInt32/petsc-3.19.2-hypre-mumps
+export PETSC_ARCH=
+export LD_LIBRARY_PATH=$PETSC_DIR/lib:$LD_LIBRARY_PATH

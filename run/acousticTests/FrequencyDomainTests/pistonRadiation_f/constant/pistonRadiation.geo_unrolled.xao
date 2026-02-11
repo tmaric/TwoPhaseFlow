@@ -167,10 +167,10 @@ Co
 +1 0 ]]></shape>
     <topology>
       <vertices count="4">
-        <vertex index="0" name="" reference="7" meshsize="0.000952778"/>
-        <vertex index="1" name="" reference="8" meshsize="0.000952778"/>
-        <vertex index="2" name="" reference="10" meshsize="0.000952778"/>
-        <vertex index="3" name="" reference="15" meshsize="0.000952778"/>
+        <vertex index="0" name="" reference="7" meshsize="0.0001715"/>
+        <vertex index="1" name="" reference="8" meshsize="0.0001715"/>
+        <vertex index="2" name="" reference="10" meshsize="0.0001715"/>
+        <vertex index="3" name="" reference="15" meshsize="0.0001715"/>
       </vertices>
       <edges count="7">
         <edge index="0" name="" reference="6"/>

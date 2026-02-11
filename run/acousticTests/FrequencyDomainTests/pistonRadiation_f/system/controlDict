@@ -15,12 +15,12 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     fpmlFoam;
+application     freBlockCoupledFoam;
 
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
-endTime         6000;
+endTime         3;
 
 deltaT          1;
 

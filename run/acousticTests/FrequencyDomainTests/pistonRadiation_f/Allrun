@@ -31,7 +31,9 @@ rm constant/pistonRadiation.msh
 runApplication topoSet
 runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
-runApplication decomposePar
-runParallel $(getApplication)
+#runApplication decomposePar
+#runParallel $(getApplication)
+export FOAM_USER_APPBIN=/home/minkowski/TwoPhaseFlow/bin
+runApplication $(getApplication)
 
 #------------------------------------------------------------------------------

@@ -4,7 +4,11 @@ PYTHONMODULES=$DIR"/modules"
 export TPF_PROJECT_DIR="$( dirname $DIR )"
 
 export PYTHONPATH=$PYTHONPATH:$PYTHONMODULES
-export PATH=$PATH:$DIR
+export PATH=$PATH:$DIR:$TPF_PROJECT_DIR/bin
+
+# PETSc (ThirdParty) runtime libs
+export PETSC_DIR=/home/minkowski/ThirdParty-v2312/platforms/linux64GccDPInt32/petsc-3.19.2
+export LD_LIBRARY_PATH=$TPF_PROJECT_DIR/lib:$PETSC_DIR/lib:$LD_LIBRARY_PATH
 
 # Export here to load path in notebook
 export TWOPHASEFLOW_PYTHON_MODULES=$PYTHONMODULES

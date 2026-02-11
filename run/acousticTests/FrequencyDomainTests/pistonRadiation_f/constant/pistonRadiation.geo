@@ -3,12 +3,12 @@ SetFactory("OpenCASCADE");
 Geometry.OCCSewFaces = 0;
 
 // Acoustic parameters
-f = 6000;
+f = 20000;
 c = 343;
 lambda = c/f;
 
 // Mesh resolution
-N = 60; // cells per wavelength
+N = 100; // cells per wavelength
 gr=1.00;
 gs = lambda/N;
 

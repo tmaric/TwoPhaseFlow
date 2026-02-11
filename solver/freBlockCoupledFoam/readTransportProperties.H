@@ -53,6 +53,8 @@
         transportProperties
     );
 
+    // Optional diagonal shift for Helmholtz stabilization (1/length^2)
+
     Info<< "Creating PML coefficients fields \n" << endl;
     // PML thickness
     dimensionedScalar L

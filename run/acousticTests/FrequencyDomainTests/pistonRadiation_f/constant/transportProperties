@@ -44,20 +44,19 @@ pmlThickness    0.04;   // [m]
 
 
 // Mesh control (used in .geo template)
-cellsPerLambda  60;
+cellsPerLambda  100;
 
 // Acoustic frequency
-f               6000;
+f               20000;
 wl              #eval{$c0/$f};
 cellSize        #eval{$wl/$cellsPerLambda};
 
 // PML settings (spherical via radial distance)
 PMLType         cylindrical;
 L               $pmlThickness;
-sigmaMax        60000;    // [1/s] PML peak damping
+sigmaMax        3000;    // [1/s] PML peak damping
 p               3;       // polynomial order
 alphaPml        0;       // [1/s] CFS-PML frequency shift
-sigmaShift      0;     // [1/s] global damping shift
 origin          (0 0 0);
 Rmin            $domainRadius;
 Rmax            #eval{$domainRadius + $pmlThickness};
