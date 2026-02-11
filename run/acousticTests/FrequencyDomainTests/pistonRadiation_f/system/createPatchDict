@@ -1,22 +1,36 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  2312                                  |
+|  \\    /   O peration     | Version:  v2312                                 |
 |   \\  /    A nd           | Website:  www.openfoam.com                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 FoamFile
 {
-    version         2;
-    format          ascii;
-    class           dictionary;
-    object          topoSetDict;
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      createPatchDict;
 }
 
-actions         ( { name piston ; type faceSet ; action new ; source patchToFace ; sourceInfo { patch bottom ; } } { name piston ; type faceSet ; action subset ; source cylinderToFace ; sourceInfo { p1 ( 0 -0.0001 0 ) ; p2 ( 0 0.0001 0 ) ; radius 0.005 ; } } );
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-pistonRadius    0.005;
+pointSync false;
+
+patches
+(
+    {
+        name    piston;
+        patchInfo
+        {
+            type patch;   
+        }
+
+        constructFrom set;
+        set      piston;
+
+    }
+);
 
 
 // ************************************************************************* //

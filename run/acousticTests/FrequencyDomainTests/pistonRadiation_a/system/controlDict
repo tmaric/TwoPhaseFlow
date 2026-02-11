@@ -25,7 +25,7 @@ endTime         6000;
 deltaT          1;
 
 writeControl    runTime;
-writeInterval   10;
+writeInterval   1;
 
 purgeWrite      0;
 writeFormat     binary;

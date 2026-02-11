@@ -36,22 +36,25 @@ cl              1480;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 
+
 // Piston radiation setup
 pistonRadius    0.005;  // [m]
-domainRadius    0.05;   // [m] PML starts here
-pmlThickness    0.01;   // [m]
+domainRadius    0.2;   // [m] PML starts here
+pmlThickness    0.04;   // [m]
+
 
 // Mesh control (used in .geo template)
-cellsPerLambda  100;
+cellsPerLambda  60;
 
 // Acoustic frequency
-f               25250;
+f               6000;
 wl              #eval{$c0/$f};
 cellSize        #eval{$wl/$cellsPerLambda};
 
 // PML settings (spherical via radial distance)
 PMLType         cylindrical;
 L               $pmlThickness;
+
 origin          (0 0 0);
 Rmin            $domainRadius;
 Rmax            #eval{$domainRadius + $pmlThickness + 10*$cellSize};

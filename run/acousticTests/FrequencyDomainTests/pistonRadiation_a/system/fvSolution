@@ -33,46 +33,55 @@ solvers
         reconstructionScheme plicRDF;        
     }
 
-    "P.*" 
-    {
-        solver          petsc;
-        petsc
-        {
-            options
-            {
-                ksp_type      fgmres;
-                ksp_gmres_restart "100";
-                pc_type       gamg;
-                pc_gamg_type  agg;
-                pc_gamg_agg_nsmooths "2";
-                pc_gamg_reuse_interpolation true;
-                pc_gamg_square_graph "10";
-                pc_gamg_threshold "0.05" ;
-                mg_levels_ksp_type chebyshev;
-                mg_levels_ksp_max_it "2";
-                mg_levels_pc_type jacobi; 
-                mg_coarse_pc_type redundant;
-                mg_coarse_redundant_pc_type lu;
-            }
+  "P.*"
+  {
+      solver          petsc;
+      petsc
+      {
+          options
+          {
+              ksp_type      fgmres;
+              ksp_gmres_restart "100";
+              pc_type       gamg;
+              pc_gamg_type  agg;
+              pc_gamg_agg_nsmooths "2";
+              pc_gamg_reuse_interpolation true;
+              pc_gamg_square_graph "10";
+              pc_gamg_threshold "0.05" ;
+              mg_levels_ksp_type chebyshev;
+              mg_levels_ksp_max_it "3";
+              mg_levels_pc_type jacobi;
+              mg_coarse_pc_type redundant;
+              mg_coarse_redundant_pc_type lu;
+          }
 
-            use_petsc_residual_norm false;
-            caching
-            {
-                matrix
-                {
-                    update always;
-                }
-                preconditioner
-                {
-                    update always;
-                }
-            }
+          use_petsc_residual_norm false;
+          caching
+          {
+              matrix
+              {
+                  update always;
+              }
+              preconditioner
+              {
+                  update always;
+              }
+          }
 
-        }
-        tolerance       1e-12;
-        relTol          1e-1;
-        maxIter         1000;
-    }
+      }
+      tolerance       1e-12;
+      relTol          1e-2;
+      maxIter         1000;
+  }
+
+// "P.*"
+// {
+//     solver          PCG;
+//     preconditioner  DIC;
+//     tolerance       1e-12;
+//     relTol          1e-1;
+// }
+
 }
 
 SIMPLE
@@ -91,8 +100,8 @@ relaxationFactors
 {
 fields
 {
-    Pre         0.05;//1;//0.1;
-    Pim         0.05;//1;//0.1;
+    Pre         0.1;//1;//0.1;
+    Pim         0.1;//1;//0.1;
 }
 equations
 {
