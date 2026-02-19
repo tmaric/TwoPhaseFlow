@@ -9,4 +9,5 @@ rm -rf dynamicCode
 rm -rf constant/coarseMesh
 rm -f system/coarseMesh/decomposeParDict
 rm -f *.dat
+rm -f constant/*unrolled*
 #------------------------------------------------------------------------------

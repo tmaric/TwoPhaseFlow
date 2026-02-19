@@ -10,8 +10,8 @@ runApplication gmshToFoam  constant/levitatorWedgeHex.msh
 rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
 runApplication setAlphaField
-runApplication decomposePar
-
-runParallel $(getApplication)
+#runApplication decomposePar
+export FOAM_USER_APPBIN=/home/minkowski/TwoPhaseFlow/bin
+runApplication $(getApplication)
 
 #------------------------------------------------------------------------------
