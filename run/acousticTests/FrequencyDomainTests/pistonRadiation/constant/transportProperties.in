@@ -24,24 +24,24 @@ rho0            [ 1 -3 0 0 0 0 0 ] 1.2;
 R               1.51e-3;
 p0              0.0;
 
-rhol            998.3;                  // fluid density
-rhog            1.2;                  // air density
-cg              343;                    // air sound speed
-cl              1480;                    // water sound speed
+rhol            __RHOL__;                  // fluid density
+rhog            __RHOG__;                  // air density
+cg              __CG__;                    // air sound speed
+cl              __CL__;                    // water sound speed
 kg              #eval{1.0/($rhog*$cg*$cg)}; // air compressibility
 kl              #eval{1.0/($rhol*$cl*$cl)}; // water compressibility
 
-f               10000;               // Driven frequency
-sigmaMax        10000;             // [1/s] PML peak damping
-po              3;                    // polynomial order
-cellsPerLambda  50;
+f               __DRIVE_F__;               // Driven frequency
+sigmaMax        __SIGMA_MAX__;             // [1/s] PML peak damping
+po              __PO__;                    // polynomial order
+cellsPerLambda  __MESH_CELLS_PER_LAMBDA__;
 wl              #eval{$cg/$f};             // wavelength
 cellSize        #eval{$wl/$cellsPerLambda};
 
 PMLType         spherical;
-L               0.08;                 // PML thickness
+L               __PML_L__;                 // PML thickness
 origin          (0 0 0);                   // origin of sphere
-Rmin            0.2;              // inner radius of PML
+Rmin            __PML_RMIN__;              // inner radius of PML
 Rmax            #eval{$Rmin + $L};         // outer radius of PML
 
 // ************************************************************************* //

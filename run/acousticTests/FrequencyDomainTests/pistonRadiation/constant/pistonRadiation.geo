@@ -2,45 +2,33 @@
 SetFactory("OpenCASCADE");
 Geometry.OCCSewFaces = 0;
 
-// Acoustic parameters
-f = 6000;
-c = 343;
-lambda = c/f;
+f = 10000;                    // driven frequency
+c = 343;                         // air sound speed
+lambda = c/f;                       // wave length
 
-// Mesh resolution
-N = 50; // cells per wavelength
-gr=1.00;
-gs = lambda/N;
+N = 50;      // cells per wavelength
+gs = lambda/N;                      // cell size
+gr = 1.0;                   // transfinite progression ratio
 
-// Geometry parameters
-// piston radius
-ap = 0.005;
-// acoustic domain radius (PML starts here)
-R0 = 0.2;
-// PML thickness
-L = 0.08;
-// outer radius
-R = R0 + L;
+R0 = 0.2;                  // acoustic domain radius (PML starts here)
+L = 0.08;                      // PML thickness
+R = R0 + L;                         // outer radius
 
 // Wedge angle (axisymmetric)
 angle = 2*Pi/180;
 rotateHalf = -angle/2;
 
-// Points (x, y, z) with y = 0 plane
 Point(1) = {0, 0, 0, gs};
 Point(2) = {R, 0, 0, gs};
 Point(3) = {0, R, 0, gs};
 
-// Curves
-Line(1) = {1, 2}; // piston (z=0, r<=ap)
-Line(2) = {1, 3}; // symmetry axis (r=0), outer segment
-Circle(3) = {2, 1, 3}; // outer spherical boundary (quarter circle)
+Line(1) = {1, 2};
+Line(2) = {1, 3};
+Circle(3) = {2, 1, 3};
 
-// Surfaces: inner fan (unstructured) + outer quad ring (structured)
 Curve Loop(1) = {1, 3, -2};
 Plane Surface(1) = {1};
 
-// Center the wedge around the symmetry plane
 Rotate{ {0,1,0}, {0,0,0}, rotateHalf } { Surface{1}; }
 
 Transfinite Curve {1,3} = Round(R/gs) Using Progression gr;
@@ -54,8 +42,6 @@ out1[] = Extrude {{0,1,0}, {0,0,0}, angle} {
   Recombine;
 };
 
-
-// Boundary patches (explicit IDs to avoid multi-physical surface merges)
 Physical Surface("front") = {1};
 Physical Surface("back") = {4};
 Physical Surface("bottom") = {2};

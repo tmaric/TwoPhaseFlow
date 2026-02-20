@@ -61,31 +61,28 @@
     (
         "L", dimless, transportProperties
     );
-    // PML damping profile parameters (used by cylindrical CFS-PML)
+    // PML damping profile parameters
     dimensionedScalar sigmaMax
     (
         "sigmaMax",
         dimless/dimTime,
         transportProperties.lookupOrDefault<scalar>("sigmaMax", 0.0)
     );
-    dimensionedScalar p
+    dimensionedScalar po
     (
-        "p",
+        "po",
         dimless,
-        transportProperties.lookupOrDefault<scalar>("p", 2.0)
-    );
-    // CFS-PML frequency shift parameter
-    dimensionedScalar alphaPml
-    (
-        "alphaPml",
-        dimless/dimTime,
-        transportProperties.lookupOrDefault<scalar>("alphaPml", 0.0)
+        transportProperties.lookupOrDefault<scalar>
+        (
+            "po",
+            transportProperties.lookupOrDefault<scalar>("p", 2.0)
+        )
     );
 
     enum PMLType
     {
         RECTANGLE,
-        CYLINDRICAL,
+        SPHERICAL,
         UNDEFINED
     };
 
@@ -97,16 +94,16 @@
     {
         selectedModel = RECTANGLE;
     }
-    else if (PMLTypeWord == "cylindrical")
+    else if (PMLTypeWord == "spherical")
     {
-        selectedModel = CYLINDRICAL;
+        selectedModel = SPHERICAL;
     }
     else
     {
         FatalErrorInFunction
             << "Unknown PMLType '" << PMLTypeWord
             << "' in transportProperties." << nl
-            << "Valid types are: rectangle, cylindrical."
+            << "Valid types are: rectangle, spherical."
             << exit(FatalError);
     }
 
@@ -125,7 +122,7 @@
             transportProperties.lookup("PMLMin") >> PMLMin;
             break;
         }
-        case CYLINDRICAL:
+        case SPHERICAL:
         {
             transportProperties.lookup("Rmin") >> Rmin;
             transportProperties.lookup("Rmax") >> Rmax;

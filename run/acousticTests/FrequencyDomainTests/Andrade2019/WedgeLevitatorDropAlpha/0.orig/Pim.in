@@ -10,7 +10,7 @@ FoamFile
     version     2.0;
     format      ascii;
     class       volScalarField;
-    object      Pre;
+    object      p;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -20,21 +20,19 @@ internalField   uniform 0;
 
 boundaryField
 {
-    piston
+   openAir
     {
         type            zeroGradient;
     }
-
-    bottom
+    transducer1
+    {
+         type            fixedGradient;
+         gradient        uniform #eval{-2*pi()*__DRIVE_F__*__RHOG__*__PISTON_U__};
+    }
+    "(transducer2|reflector2|reflector1)"
     {
         type            zeroGradient;
     }
-
-    openAir
-    {
-        type            zeroGradient;
-    }
-
     "(front|back)"
     {
         type            wedge;

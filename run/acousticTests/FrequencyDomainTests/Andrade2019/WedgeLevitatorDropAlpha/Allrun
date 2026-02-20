@@ -3,6 +3,7 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
 #------------------------------------------------------------------------------
 ./Allclean
+./prepareCase
 restore0Dir
 
 gmsh -0 constant/levitatorWedgeHex.geo
@@ -11,7 +12,6 @@ rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
 runApplication setAlphaField
 #runApplication decomposePar
-export FOAM_USER_APPBIN=/home/minkowski/TwoPhaseFlow/bin
 runApplication $(getApplication)
 
 #------------------------------------------------------------------------------

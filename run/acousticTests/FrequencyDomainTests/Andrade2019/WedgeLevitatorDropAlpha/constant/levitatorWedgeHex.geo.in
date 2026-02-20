@@ -2,24 +2,24 @@
 SetFactory("OpenCASCADE");
 
 // frequency
-f = 25250;
+f = __DRIVE_F__;
 // sound speed
-c = 343;
+c = __SOUND_SPEED__;
 // wavelength
 l = c/f;
 
 // distance
-D = 0.00764;
+D = __D__;
 // mesh size controls
-lc = 1.0;
-N = 200;
+lc = __MESH_LC__;
+N = __MESH_N__;
 gs = l/N;
 
 // geometry
-rT = 0.01; // radius of transducer
-rR = 0.019; // radius of reflector
-bu = 0.01; // air buffer
-hS = 0.01; // height of reflector/transducer stand
+rT = __RT__; // radius of transducer
+rR = __RR__; // radius of reflector
+bu = __BU__; // air buffer
+hS = __HS__; // height of reflector/transducer stand
 
 // points
 Point(1) = {0, 0, 0, lc};
@@ -74,7 +74,7 @@ Plane Surface(28)={27};
 Curve Loop(29)={16,9,10,-15};
 Plane Surface(30)={29};
 
-Rotate{ {0,1,0}, {0,0,0}, - Pi*0.5/180} {Surface{20, 22, 24, 26 , 28 , 30};}
+Rotate{ {0,1,0}, {0,0,0}, - Pi*__ROTATE_HALF_DEG__/180} {Surface{20, 22, 24, 26 , 28 , 30};}
 
 Transfinite Line {19, 21} = Round(rT/gs);
 Transfinite Line {23, 25, 35} = Round((rR-rT)/gs);
@@ -85,7 +85,7 @@ Transfinite Line {32,34,36,26,28}=Round(hS/gs);
 Transfinite Surface "*";
 Recombine Surface "*";
 
-surfaceVector[] = Extrude {{0,1,0}, {0,0,0}, Pi*1.0/180} {
+surfaceVector[] = Extrude {{0,1,0}, {0,0,0}, Pi*__WEDGE_DEG__/180} {
      Surface{20, 22, 24, 26 , 28 , 30};
      Layers{1};
      Recombine;

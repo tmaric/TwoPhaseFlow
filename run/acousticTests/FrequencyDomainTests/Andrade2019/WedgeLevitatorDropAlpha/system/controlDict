@@ -47,12 +47,64 @@ runTimeModifiable yes;
 
 adjustTimeStep  no;
 
-maxCo           0.25;
-
-maxDeltaT       5e-6;
-
 // ************************************************************************* //
 libs
 (
    "libpetscFoam.so"
 );
+
+// FO outputs the acoustic radiation force on the reflector
+functions
+{
+    reflectorForce
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            reflectorForce;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("reflector1");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'reflector1' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+            const vector forceVec = gSum(pB*Sf);
+            const vector areaVec = gSum(Sf);
+            const vector nHat = areaVec/(mag(areaVec) + VSMALL);
+            const scalar Fn = (forceVec & nHat);
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"reflectorForce"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"force.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# time"
+                        << tab << "Fn" << nl;
+                }
+                os  << mesh.time().timeName()
+                    << tab << Fn << nl;
+            }
+        #};
+    }
+}

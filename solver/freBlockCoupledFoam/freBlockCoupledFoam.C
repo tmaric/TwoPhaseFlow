@@ -25,11 +25,11 @@ Application
     freBlockCoupledFoam
 
 Group
-    grpAcousticSolvers
+    AcousticSolvers
 
 Description
     Block-coupled frequency-domain acoustic solver (Pre/Pim) using PETSc.
-    Cylindrical PML with isotropic damping, scalar PML coefficients.
+    Rectangle/spherical PML with scalar damping coefficients.
 \*---------------------------------------------------------------------------*/
 
 #include <petscksp.h>
@@ -48,7 +48,11 @@ Description
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
-// Add boundary source contributions (scalar-only helper)
+// ------------------------------------------------------------------------- //
+// Matrix/source helpers
+// ------------------------------------------------------------------------- //
+
+// Add scalar boundary source contributions from boundary coefficients.
 static void addBoundarySourceSimple
 (
     const fvScalarMatrix& M,
@@ -87,7 +91,7 @@ static void addBoundarySourceSimple
     }
 }
 
-// Insert an fvScalarMatrix (ldu) into PETSc block matrix
+// Insert an fvScalarMatrix (ldu form) into one PETSc block position.
 static void insertScalarOpIntoBlock
 (
     Mat& M,
@@ -140,6 +144,179 @@ static void insertScalarOpIntoBlock
     }
 }
 
+static scalarField sourceWithBoundary
+(
+    const fvScalarMatrix& M
+)
+{
+    scalarField source(M.source());
+    addBoundarySourceSimple(M, source);
+    return source;
+}
+
+static void assembleBlockSystem
+(
+    Mat& M,
+    const globalIndex& globalCells,
+    const PetscInt N,
+    fvScalarMatrix& AopPim,
+    fvScalarMatrix& AopPre,
+    fvScalarMatrix& B1Pre,
+    fvScalarMatrix& B2Pre,
+    fvScalarMatrix& B1Pim,
+    fvScalarMatrix& B2Pim
+)
+{
+    // Apply boundary contributions to matrices before insertion.
+    AopPre.boundaryManipulate(AopPre.psi().boundaryFieldRef());
+    AopPim.boundaryManipulate(AopPim.psi().boundaryFieldRef());
+    B1Pre.boundaryManipulate(B1Pre.psi().boundaryFieldRef());
+    B2Pre.boundaryManipulate(B2Pre.psi().boundaryFieldRef());
+    B1Pim.boundaryManipulate(B1Pim.psi().boundaryFieldRef());
+    B2Pim.boundaryManipulate(B2Pim.psi().boundaryFieldRef());
+
+    // Coupled system:
+    // [ A  -(B1 + B2) ] [Pim] = [bPim]
+    // [ (B1 + B2)  A ] [Pre]  [bPre]
+    insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
+    insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0);
+    insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, -1.0);
+
+    insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0);
+    insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, +1.0);
+    insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
+}
+
+static void setBlockRhs
+(
+    Vec& b,
+    const globalIndex& globalCells,
+    const PetscInt N,
+    const scalarField& bPim,
+    const scalarField& bPre
+)
+{
+    forAll(bPim, i)
+    {
+        const PetscInt gi = globalCells.toGlobal(i);
+        VecSetValue(b, gi + 0, (PetscScalar)bPim[i], INSERT_VALUES);
+        VecSetValue(b, gi + N, (PetscScalar)bPre[i], INSERT_VALUES);
+    }
+}
+
+// ------------------------------------------------------------------------- //
+// PETSc lifecycle and diagnostics
+// ------------------------------------------------------------------------- //
+
+static void initializePetscSystem
+(
+    const PetscInt nLocal,
+    const PetscInt N,
+    Mat& M,
+    Vec& x,
+    Vec& b,
+    KSP& ksp
+)
+{
+    MatCreate(PETSC_COMM_WORLD, &M);
+    MatSetSizes(M, 2*nLocal, 2*nLocal, 2*N, 2*N);
+    MatSetType(M, (Pstream::nProcs() == 1) ? MATSEQAIJ : MATMPIAIJ);
+    MatSetUp(M);
+
+    VecCreate(PETSC_COMM_WORLD, &x);
+    VecSetSizes(x, 2*nLocal, 2*N);
+    VecSetFromOptions(x);
+    VecDuplicate(x, &b);
+
+    KSPCreate(PETSC_COMM_WORLD, &ksp);
+    KSPSetOperators(ksp, M, M);
+
+    // Helmholtz-friendly defaults (can be overridden by PETSc options).
+    PetscOptionsSetValue(nullptr, "-ksp_type", "preonly");
+    PetscOptionsSetValue(nullptr, "-pc_type", "lu");
+    PetscOptionsSetValue
+    (
+        nullptr,
+        "-pc_factor_mat_solver_type",
+        (Pstream::nProcs() == 1) ? "petsc" : "mumps"
+    );
+    KSPSetFromOptions(ksp);
+}
+
+static void reportMatrixStats
+(
+    Mat& M,
+    Vec& b
+)
+{
+    PetscReal n1 = 0.0, ninf = 0.0, nfrob = 0.0;
+    PetscBool isSym = PETSC_FALSE;
+    MatNorm(M, NORM_1, &n1);
+    MatNorm(M, NORM_INFINITY, &ninf);
+    MatNorm(M, NORM_FROBENIUS, &nfrob);
+    MatIsSymmetric(M, 1e-12, &isSym);
+
+    Vec d;
+    VecDuplicate(b, &d);
+    MatGetDiagonal(M, d);
+    PetscReal dmin = 0.0, dmax = 0.0;
+    PetscInt imin = 0, imax = 0;
+    VecMin(d, &imin, &dmin);
+    VecMax(d, &imax, &dmax);
+    VecDestroy(&d);
+
+    PetscReal bNorm0 = 0.0;
+    VecNorm(b, NORM_2, &bNorm0);
+
+    Info<< "Matrix stats: ||A||1=" << n1
+        << " ||A||inf=" << ninf
+        << " ||A||F=" << nfrob
+        << " diag[min,max]=(" << dmin << "," << dmax << ")"
+        << " symmetric=" << (isSym ? "yes" : "no")
+        << " rhsNorm=" << bNorm0 << nl;
+}
+
+static void reportKspStats
+(
+    KSP& ksp,
+    Vec& b
+)
+{
+    PetscInt kspIters = 0;
+    PetscReal kspRes = 0.0;
+    PetscReal bNorm = 0.0;
+    KSPConvergedReason kspReason;
+    KSPGetIterationNumber(ksp, &kspIters);
+    KSPGetResidualNorm(ksp, &kspRes);
+    KSPGetConvergedReason(ksp, &kspReason);
+    VecNorm(b, NORM_2, &bNorm);
+    Info<< "KSP iters: " << kspIters
+        << " residual: " << kspRes
+        << " rhsNorm: " << bNorm
+        << " reason: " << kspReason << nl;
+}
+
+static void scatterBlockSolution
+(
+    Vec& x,
+    const globalIndex& globalCells,
+    const PetscInt N,
+    volScalarField& Pim,
+    volScalarField& Pre
+)
+{
+    // Block ordering in x: [Pim block, Pre block]
+    const PetscScalar* xArr = nullptr;
+    VecGetArrayRead(x, &xArr);
+    forAll(Pim, i)
+    {
+        const PetscInt gi = globalCells.toGlobal(i);
+        Pim[i] = (scalar)PetscRealPart(xArr[gi + 0]);
+        Pre[i] = (scalar)PetscRealPart(xArr[gi + N]);
+    }
+    VecRestoreArrayRead(x, &xArr);
+}
+
 int main(int argc, char *argv[])
 {
     #include "postProcess.H"
@@ -165,39 +342,7 @@ int main(int argc, char *argv[])
     KSP ksp;
     bool dumpedMatrixStats = false;
 
-    MatCreate(PETSC_COMM_WORLD, &M);
-    MatSetSizes(M, 2*nLocal, 2*nLocal, 2*N, 2*N);
-    if (Pstream::nProcs() == 1)
-    {
-        MatSetType(M, MATSEQAIJ);
-    }
-    else
-    {
-        MatSetType(M, MATMPIAIJ);
-    }
-    MatSetUp(M);
-
-    VecCreate(PETSC_COMM_WORLD, &x);
-    VecSetSizes(x, 2*nLocal, 2*N);
-    VecSetFromOptions(x);
-    VecDuplicate(x, &b);
-
-    KSPCreate(PETSC_COMM_WORLD, &ksp);
-    KSPSetOperators(ksp, M, M);
-    // Helmholtz-friendly defaults (can be overridden by PETSc options)
-    PetscOptionsSetValue(nullptr, "-ksp_type", "preonly");
-    PetscOptionsSetValue(nullptr, "-pc_type", "lu");
-    if (Pstream::nProcs() == 1)
-    {
-        // Use PETSc's built-in sequential LU (no external solver required)
-        PetscOptionsSetValue(nullptr, "-pc_factor_mat_solver_type", "petsc");
-    }
-    else
-    {
-        // Requires PETSc built with MUMPS for parallel LU
-        PetscOptionsSetValue(nullptr, "-pc_factor_mat_solver_type", "mumps");
-    }
-    KSPSetFromOptions(ksp);
+    initializePetscSystem(nLocal, N, M, x, b, ksp);
 
     Info<< "\nStarting time loop\n" << endl;
 
@@ -229,58 +374,37 @@ int main(int argc, char *argv[])
               + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
             );
 
-            // Coupling operators for Pre (used in Pim equation)
-            fvScalarMatrix B1Pre(fvm::laplacian(TC1, Pre));
-            fvScalarMatrix B2Pre(fvm::Sp(SC1, Pre));
+            // Coupling operators built from the opposite field:
+            // Pim-row couples to Pre via (laplacian(TC1,Pre) + Sp(SC1,Pre))
+            fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));
+            fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));
 
-            // Coupling operators for Pim (used in Pre equation)
-            fvScalarMatrix B1Pim(fvm::laplacian(TC1, Pim));
-            fvScalarMatrix B2Pim(fvm::Sp(SC1, Pim));
+            // Pre-row couples to Pim via (laplacian(TC1,Pim) + Sp(SC1,Pim))
+            fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));
+            fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));
 
-            // Apply boundary contributions to matrices
-            AopPre.boundaryManipulate(Pre.boundaryFieldRef());
-            AopPim.boundaryManipulate(Pim.boundaryFieldRef());
-            B1Pre.boundaryManipulate(Pre.boundaryFieldRef());
-            B2Pre.boundaryManipulate(Pre.boundaryFieldRef());
-            B1Pim.boundaryManipulate(Pim.boundaryFieldRef());
-            B2Pim.boundaryManipulate(Pim.boundaryFieldRef());
-
-            // Assemble blocks:
-            // [ A  -(B1 + B2) ] [Pim] = [bPim]
-            // [ (B1 + B2)  A ] [Pre]  [bPre]
-            insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
-            insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0);
-            insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, -1.0);
-
-            insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0);
-            insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, +1.0);
-            insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
+            assembleBlockSystem
+            (
+                M, globalCells, N,
+                AopPim, AopPre,
+                couplingLaplPre, couplingMassPre,
+                couplingLaplPim, couplingMassPim
+            );
 
             // RHS from source terms (includes BC contributions)
-            scalarField bPim(AopPim.source());
-            addBoundarySourceSimple(AopPim, bPim);
-            scalarField bB1Pre(B1Pre.source());
-            addBoundarySourceSimple(B1Pre, bB1Pre);
-            scalarField bB2Pre(B2Pre.source());
-            addBoundarySourceSimple(B2Pre, bB2Pre);
-            bPim -= bB1Pre;
-            bPim -= bB2Pre;
+            scalarField bPim(sourceWithBoundary(AopPim));
+            scalarField bCouplingLaplPre(sourceWithBoundary(couplingLaplPre));
+            scalarField bCouplingMassPre(sourceWithBoundary(couplingMassPre));
+            bPim -= bCouplingLaplPre;
+            bPim -= bCouplingMassPre;
 
-            scalarField bPre(AopPre.source());
-            addBoundarySourceSimple(AopPre, bPre);
-            scalarField bB1Pim(B1Pim.source());
-            addBoundarySourceSimple(B1Pim, bB1Pim);
-            scalarField bB2Pim(B2Pim.source());
-            addBoundarySourceSimple(B2Pim, bB2Pim);
-            bPre += bB1Pim;
-            bPre += bB2Pim;
+            scalarField bPre(sourceWithBoundary(AopPre));
+            scalarField bCouplingLaplPim(sourceWithBoundary(couplingLaplPim));
+            scalarField bCouplingMassPim(sourceWithBoundary(couplingMassPim));
+            bPre += bCouplingLaplPim;
+            bPre += bCouplingMassPim;
 
-            forAll(bPim, i)
-            {
-                const PetscInt gi = globalCells.toGlobal(i);
-                VecSetValue(b, gi + 0, (PetscScalar)bPim[i], INSERT_VALUES);
-                VecSetValue(b, gi + N, (PetscScalar)bPre[i], INSERT_VALUES);
-            }
+            setBlockRhs(b, globalCells, N, bPim, bPre);
 
             MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY);
             MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY);
@@ -290,59 +414,12 @@ int main(int argc, char *argv[])
             if (!dumpedMatrixStats)
             {
                 dumpedMatrixStats = true;
-
-                PetscReal n1 = 0.0, ninf = 0.0, nfrob = 0.0;
-                PetscBool isSym = PETSC_FALSE;
-                MatNorm(M, NORM_1, &n1);
-                MatNorm(M, NORM_INFINITY, &ninf);
-                MatNorm(M, NORM_FROBENIUS, &nfrob);
-                MatIsSymmetric(M, 1e-12, &isSym);
-
-                Vec d;
-                VecDuplicate(b, &d);
-                MatGetDiagonal(M, d);
-                PetscReal dmin = 0.0, dmax = 0.0;
-                PetscInt imin = 0, imax = 0;
-                VecMin(d, &imin, &dmin);
-                VecMax(d, &imax, &dmax);
-                VecDestroy(&d);
-
-                PetscReal bNorm0 = 0.0;
-                VecNorm(b, NORM_2, &bNorm0);
-
-                Info<< "Matrix stats: ||A||1=" << n1
-                    << " ||A||inf=" << ninf
-                    << " ||A||F=" << nfrob
-                    << " diag[min,max]=(" << dmin << "," << dmax << ")"
-                    << " symmetric=" << (isSym ? "yes" : "no")
-                    << " rhsNorm=" << bNorm0 << nl;
+                reportMatrixStats(M, b);
             }
 
             KSPSolve(ksp, b, x);
-
-            PetscInt kspIters = 0;
-            PetscReal kspRes = 0.0;
-            PetscReal bNorm = 0.0;
-            KSPConvergedReason kspReason;
-            KSPGetIterationNumber(ksp, &kspIters);
-            KSPGetResidualNorm(ksp, &kspRes);
-            KSPGetConvergedReason(ksp, &kspReason);
-            VecNorm(b, NORM_2, &bNorm);
-            Info<< "KSP iters: " << kspIters
-                << " residual: " << kspRes
-                << " rhsNorm: " << bNorm
-                << " reason: " << kspReason << nl;
-
-            // Scatter back to fields
-            const PetscScalar* xArr = nullptr;
-            VecGetArrayRead(x, &xArr);
-            forAll(Pim, i)
-            {
-                const PetscInt gi = globalCells.toGlobal(i);
-                Pim[i] = (scalar)PetscRealPart(xArr[gi + 0]);
-                Pre[i] = (scalar)PetscRealPart(xArr[gi + N]);
-            }
-            VecRestoreArrayRead(x, &xArr);
+            reportKspStats(ksp, b);
+            scatterBlockSolution(x, globalCells, N, Pim, Pre);
 
             Pre.correctBoundaryConditions();
             Pim.correctBoundaryConditions();

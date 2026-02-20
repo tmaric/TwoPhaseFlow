@@ -31,7 +31,7 @@
                         scalar s = (L.value() - distCmpt)/L.value();
                         s = min(max(s, scalar(0)), scalar(1));
                         DpFunc.component(cmpt) =
-                            sigmaMax.value()*Foam::pow(s, p.value());
+                            sigmaMax.value()*Foam::pow(s, po.value());
                     }
                 }
 
@@ -55,7 +55,7 @@
                 break;
             }
 
-            case CYLINDRICAL:
+            case SPHERICAL:
             {
                 const scalar Dist = mag(Ccs[i] - origin.value());
                 scalar sigmaLocal = 0.0;
@@ -64,15 +64,14 @@
                 {
                     scalar s = (L.value() - (Rmax.value() - Dist))/L.value();
                     s = min(max(s, scalar(0)), scalar(1));
-                    sigmaLocal = sigmaMax.value()*Foam::pow(s, p.value());
+                    sigmaLocal = sigmaMax.value()*Foam::pow(s, po.value());
                 }
 
                 sigma[i] = sigmaLocal;
 
-                const scalar omega2 = sqr(Omega) + sqr(alphaPml.value());
-                const scalar denom = sqr(sigmaLocal) + omega2;
-                const scalar sigmaCubeOverOmega = (omega2 > VSMALL)
-                    ? (sigmaLocal*sigmaLocal*sigmaLocal*Omega/omega2)
+                const scalar denom = sqr(sigmaLocal) + sqr(Omega);
+                const scalar sigmaCubeOverOmega = (mag(Omega) > VSMALL)
+                    ? (sigmaLocal*sigmaLocal*sigmaLocal/Omega)
                     : 0.0;
                 const scalar tc1 = (sigmaLocal > 0 || Omega > 0)
                     ? (sigmaCubeOverOmega + Omega*sigmaLocal)/(denom + VSMALL)
@@ -138,7 +137,7 @@ forAll(patches, pi)
                             scalar s = (L.value() - distCmpt)/L.value();
                             s = min(max(s, scalar(0)), scalar(1));
                             DpFunc.component(cmpt) =
-                                sigmaMax.value()*Foam::pow(s, p.value());
+                                sigmaMax.value()*Foam::pow(s, po.value());
                         }
                     }
 
@@ -164,7 +163,7 @@ forAll(patches, pi)
                     break;
                 }
 
-                case CYLINDRICAL:
+                case SPHERICAL:
                 {
                     const scalar Dist = mag(Cf.boundaryField()[pi][fi] - origin.value());
                     scalar sigmaLocal = 0.0;
@@ -173,15 +172,14 @@ forAll(patches, pi)
                     {
                         scalar s = (L.value() - (Rmax.value() - Dist))/L.value();
                         s = min(max(s, scalar(0)), scalar(1));
-                        sigmaLocal = sigmaMax.value()*Foam::pow(s, p.value());
+                        sigmaLocal = sigmaMax.value()*Foam::pow(s, po.value());
                     }
 
                     sigma.boundaryFieldRef()[pi][fi] = sigmaLocal;
 
-                    const scalar omega2 = sqr(Omega) + sqr(alphaPml.value());
-                    const scalar denom = sqr(sigmaLocal) + omega2;
-                    const scalar sigmaCubeOverOmega = (omega2 > VSMALL)
-                        ? (sigmaLocal*sigmaLocal*sigmaLocal*Omega/omega2)
+                    const scalar denom = sqr(sigmaLocal) + sqr(Omega);
+                    const scalar sigmaCubeOverOmega = (mag(Omega) > VSMALL)
+                        ? (sigmaLocal*sigmaLocal*sigmaLocal/Omega)
                         : 0.0;
                     const scalar tc1 = (sigmaLocal > 0 || Omega > 0)
                         ? (sigmaCubeOverOmega + Omega*sigmaLocal)/(denom + VSMALL)
