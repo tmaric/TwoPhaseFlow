@@ -61,32 +61,82 @@
     (
         "L", dimless, transportProperties
     );
-    // PML damping profile parameters (COMSOL-like polynomial ramp)
+    // PML damping profile parameters (used by cylindrical CFS-PML)
     dimensionedScalar sigmaMax
     (
-        "sigmaMax", dimless/dimTime, transportProperties
+        "sigmaMax",
+        dimless/dimTime,
+        transportProperties.lookupOrDefault<scalar>("sigmaMax", 0.0)
     );
     dimensionedScalar p
     (
-      "p", dimless, transportProperties
+        "p",
+        dimless,
+        transportProperties.lookupOrDefault<scalar>("p", 2.0)
     );
     // CFS-PML frequency shift parameter
     dimensionedScalar alphaPml
     (
-      "alphaPml", dimless/dimTime, transportProperties
+        "alphaPml",
+        dimless/dimTime,
+        transportProperties.lookupOrDefault<scalar>("alphaPml", 0.0)
     );
-    // global damping shift for high-frequency stabilization
 
-    // Cylindrical PML parameters
-    dimensionedScalar Rmin
-    (
-        "Rmin", dimLength, transportProperties
-    );
-    dimensionedScalar Rmax
-    (
-        "Rmax", dimLength, transportProperties
-    );
-    dimensionedVector origin
-    (
-        "origin", dimLength, transportProperties
-    );
+    enum PMLType
+    {
+        RECTANGLE,
+        CYLINDRICAL,
+        UNDEFINED
+    };
+
+    const word PMLTypeWord = transportProperties.get<word>("PMLType");
+
+    PMLType selectedModel = UNDEFINED;
+
+    if (PMLTypeWord == "rectangle")
+    {
+        selectedModel = RECTANGLE;
+    }
+    else if (PMLTypeWord == "cylindrical")
+    {
+        selectedModel = CYLINDRICAL;
+    }
+    else
+    {
+        FatalErrorInFunction
+            << "Unknown PMLType '" << PMLTypeWord
+            << "' in transportProperties." << nl
+            << "Valid types are: rectangle, cylindrical."
+            << exit(FatalError);
+    }
+
+    // PML parameters (resolved by model)
+    dimensionedVector PMLMax;
+    dimensionedVector PMLMin;
+    dimensionedScalar Rmin;
+    dimensionedScalar Rmax;
+    dimensionedVector origin;
+
+    switch (selectedModel)
+    {
+        case RECTANGLE:
+        {
+            transportProperties.lookup("PMLMax") >> PMLMax;
+            transportProperties.lookup("PMLMin") >> PMLMin;
+            break;
+        }
+        case CYLINDRICAL:
+        {
+            transportProperties.lookup("Rmin") >> Rmin;
+            transportProperties.lookup("Rmax") >> Rmax;
+            transportProperties.lookup("origin") >> origin;
+            break;
+        }
+        case UNDEFINED:
+        {
+            FatalErrorInFunction
+                << "Internal error: PML type is undefined."
+                << exit(FatalError);
+            break;
+        }
+    }

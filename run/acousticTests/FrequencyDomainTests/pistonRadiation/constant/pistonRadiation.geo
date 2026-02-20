@@ -3,12 +3,12 @@ SetFactory("OpenCASCADE");
 Geometry.OCCSewFaces = 0;
 
 // Acoustic parameters
-f = 20000;
+f = 6000;
 c = 343;
 lambda = c/f;
 
 // Mesh resolution
-N = 100; // cells per wavelength
+N = 50; // cells per wavelength
 gr=1.00;
 gs = lambda/N;
 
@@ -18,7 +18,7 @@ ap = 0.005;
 // acoustic domain radius (PML starts here)
 R0 = 0.2;
 // PML thickness
-L = 0.04;
+L = 0.08;
 // outer radius
 R = R0 + L;
 

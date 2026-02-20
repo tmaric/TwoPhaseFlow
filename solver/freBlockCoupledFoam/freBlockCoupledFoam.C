@@ -245,15 +245,15 @@ int main(int argc, char *argv[])
             B1Pim.boundaryManipulate(Pim.boundaryFieldRef());
             B2Pim.boundaryManipulate(Pim.boundaryFieldRef());
 
-            // Assemble blocks (matching fpmlFoam signs):
-            // [ A   (B1 + B2) ] [Pim] = [bPim]
-            // [-(B1 + B2)  A ] [Pre]  [bPre]
+            // Assemble blocks:
+            // [ A  -(B1 + B2) ] [Pim] = [bPim]
+            // [ (B1 + B2)  A ] [Pre]  [bPre]
             insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
-            insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, +1.0);
-            insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, +1.0);
+            insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0);
+            insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, -1.0);
 
-            insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, -1.0);
-            insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, -1.0);
+            insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0);
+            insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, +1.0);
             insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
 
             // RHS from source terms (includes BC contributions)
@@ -263,8 +263,8 @@ int main(int argc, char *argv[])
             addBoundarySourceSimple(B1Pre, bB1Pre);
             scalarField bB2Pre(B2Pre.source());
             addBoundarySourceSimple(B2Pre, bB2Pre);
-            bPim += bB1Pre;
-            bPim += bB2Pre;
+            bPim -= bB1Pre;
+            bPim -= bB2Pre;
 
             scalarField bPre(AopPre.source());
             addBoundarySourceSimple(AopPre, bPre);
@@ -272,8 +272,8 @@ int main(int argc, char *argv[])
             addBoundarySourceSimple(B1Pim, bB1Pim);
             scalarField bB2Pim(B2Pim.source());
             addBoundarySourceSimple(B2Pim, bB2Pim);
-            bPre -= bB1Pim;
-            bPre -= bB2Pim;
+            bPre += bB1Pim;
+            bPre += bB2Pim;
 
             forAll(bPim, i)
             {

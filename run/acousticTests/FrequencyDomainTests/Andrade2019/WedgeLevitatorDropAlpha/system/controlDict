@@ -23,7 +23,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         2;
+endTime         1;
 
 deltaT          1;
 
@@ -52,13 +52,6 @@ maxCo           0.25;
 maxDeltaT       5e-6;
 
 // ************************************************************************* //
-functions
-{
-    #include "FOforce"
-    #include "runTimeControls"
-}
-
-
 libs
 (
    "libpetscFoam.so"

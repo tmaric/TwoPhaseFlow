@@ -22,13 +22,11 @@ boundaryField
 {
    openAir
     {
-        type            fixedValue;
-        value            uniform 0;
+        type            zeroGradient;
     }
     transducer1
     {
-        type            fixedGradient;
-        gradient            uniform 0;
+        type            zeroGradient;
     }
 
     "(transducer2|reflector2|reflector1)"

@@ -20,7 +20,7 @@ application     freBlockCoupledFoam;
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
-endTime         3;
+endTime         1;
 
 deltaT          1;
 
@@ -38,8 +38,8 @@ timePrecision   8;
 runTimeModifiable yes;
 
 adjustTimeStep  no;
-maxCo           0.25;
-maxDeltaT       5e-6;
+//maxCo           0.25;
+//maxDeltaT       5e-6;
 
 // ************************************************************************* //
 libs
