@@ -1,0 +1,17 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+#------------------------------------------------------------------------------
+./Allclean
+./prepareCase
+restore0Dir
+
+gmsh -0 constant/levitatorWedgeHex.geo
+runApplication gmshToFoam  constant/levitatorWedgeHex.msh
+rm constant/levitatorWedgeHex.msh
+runApplication changeDictionary
+runApplication setAlphaField
+#runApplication decomposePar
+runApplication $(getApplication)
+
+#------------------------------------------------------------------------------
