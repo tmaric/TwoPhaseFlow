@@ -10,7 +10,7 @@ FoamFile
     version     2.0;
     format      ascii;
     class       volScalarField;
-    object      Pim;
+    object      Pre;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -18,16 +18,11 @@ dimensions      [1 -1 -2 0 0 0 0];
 
 internalField   uniform 0;
 
-f   6000; // driven frequency
-u   1; // driven velocity amplitude
-rho 1.2;    // air density
-
 boundaryField
 {
     piston
     {
-        type            fixedGradient;
-        gradient        uniform #eval{-2*pi()*$f*$rho*$u};
+        type            zeroGradient;
     }
 
     bottom

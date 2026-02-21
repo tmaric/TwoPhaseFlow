@@ -2,7 +2,7 @@
 SetFactory("OpenCASCADE");
 Geometry.OCCSewFaces = 0;
 
-f = 10000;                    // driven frequency
+f = 6000;                    // driven frequency
 c = 343;                         // air sound speed
 lambda = c/f;                       // wave length
 

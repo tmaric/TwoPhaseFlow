@@ -9,8 +9,8 @@ Edit one file and regenerate all dependent inputs automatically.
 - `prepareCase`: renders templates using values from `caseParams.sh`.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
 - `constant/pistonRadiation.geo.in`: template for `constant/pistonRadiation.geo`.
-- `0.orig/Pim.in`: template for `0.orig/Pim`.
-- `Allrun`: full workflow (clean, render, mesh, convert, patch, solve).
+- `templates/Pim.in`: template for `0.orig/Pim`.
+- `Allrun`: single-rank shared-memory workflow (`freBlockCoupledFoam` + threaded direct solve).
 
 ## Typical usage
 
@@ -20,6 +20,20 @@ Edit one file and regenerate all dependent inputs automatically.
    - `./Allrun`
 
 `Allrun` already calls `./prepareCase`, so manual rendering is not required.
+
+## Solver execution
+
+`Allrun` executes `freBlockCoupledFoam` on one MPI rank and uses threaded
+direct solve. Set `OMP_NUM_THREADS` to control CPU threading.
+
+```bash
+# optional, default is all local cores
+export OMP_NUM_THREADS=8
+./Allrun
+```
+
+Log file:
+- `log.freBlockCoupledFoam`
 
 ## Optional: render-only step
 

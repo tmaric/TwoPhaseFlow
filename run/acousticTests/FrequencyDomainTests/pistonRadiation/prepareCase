@@ -28,4 +28,4 @@ render()
 
 render constant/transportProperties.in constant/transportProperties
 render constant/pistonRadiation.geo.in constant/pistonRadiation.geo
-render 0.orig/Pim.in 0.orig/Pim
+render templates/Pim.in 0.orig/Pim

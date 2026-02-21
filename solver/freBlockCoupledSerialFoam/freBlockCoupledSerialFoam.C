@@ -22,7 +22,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-    freBlockCoupledFoam
+    freBlockCoupledSerialFoam
 
 Group
     AcousticSolvers
@@ -331,14 +331,6 @@ int main(int argc, char *argv[])
     simpleControl simple(mesh);
 
     PetscInitialize(&argc, &argv, nullptr, nullptr);
-
-    if (Pstream::parRun())
-    {
-        FatalErrorInFunction
-            << "freBlockCoupledFoam uses serial assembly. "
-            << "Run on one MPI rank and use OMP_NUM_THREADS for multicore."
-            << exit(FatalError);
-    }
 
     // Global indexing for block system
     globalIndex globalCells(mesh.nCells());

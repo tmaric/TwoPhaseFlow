@@ -14,7 +14,7 @@
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
-DRIVE_F=10000
+DRIVE_F=6000
 # Piston normal velocity amplitude used in 0.orig/Pim gradient BC [m/s].
 PISTON_U=1
 

@@ -3,6 +3,10 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
 #------------------------------------------------------------------------------
 
+# Single-rank shared-memory direct solve using freBlockCoupledFoam.
+: "${OMP_NUM_THREADS:=$(nproc)}"
+export OMP_NUM_THREADS
+
 ./Allclean
 ./prepareCase
 restore0Dir
@@ -14,7 +18,8 @@ rm constant/pistonRadiation.msh
 runApplication topoSet
 runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
-#runApplication decomposePar
-runApplication $(getApplication)
+
+echo "Running freBlockCoupledFoam with OMP_NUM_THREADS=${OMP_NUM_THREADS}"
+freBlockCoupledFoam > log.freBlockCoupledFoam 2>&1
 
 #------------------------------------------------------------------------------
