@@ -63,3 +63,17 @@ Then execute:
 # from this case directory
 ./Allrun
 ```
+
+## Analytical comparison (COMSOL-style on-axis)
+
+After a solve, run:
+
+```bash
+python3 postprocess_compare.py
+```
+
+Outputs are written to:
+
+- `postProcessing/analyticalCompare/<latestTime>/onAxisComparison.png`
+- `postProcessing/analyticalCompare/<latestTime>/onAxisComparison.csv`
+- `postProcessing/analyticalCompare/<latestTime>/metrics.txt`

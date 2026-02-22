@@ -14,7 +14,7 @@
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
-DRIVE_F=6000
+DRIVE_F=10000
 # Piston normal velocity amplitude used in 0.orig/Pim gradient BC [m/s].
 PISTON_U=1
 
@@ -34,7 +34,7 @@ CL=1480
 # PML parameters (spherical PML)
 # ---------------------------------------------------------------------------
 # Maximum damping strength sigmaMax [1/s].
-SIGMA_MAX=10000
+SIGMA_MAX=5000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Inner radius of PML region [m].

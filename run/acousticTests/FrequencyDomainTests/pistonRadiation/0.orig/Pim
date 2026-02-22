@@ -18,7 +18,7 @@ dimensions      [1 -1 -2 0 0 0 0];
 
 internalField   uniform 0;
 
-f   6000; // driven frequency
+f   10000; // driven frequency
 u   1; // driven velocity amplitude
 rho 1.2;    // air density
 

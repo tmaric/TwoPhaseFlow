@@ -31,8 +31,8 @@ cl              1480;                    // water sound speed
 kg              #eval{1.0/($rhog*$cg*$cg)}; // air compressibility
 kl              #eval{1.0/($rhol*$cl*$cl)}; // water compressibility
 
-f               6000;               // Driven frequency
-sigmaMax        10000;             // [1/s] PML peak damping
+f               10000;               // Driven frequency
+sigmaMax        5000;             // [1/s] PML peak damping
 po              3;                    // polynomial order
 cellsPerLambda  50;
 wl              #eval{$cg/$f};             // wavelength

@@ -1,0 +1,22 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object sampleDict;
+}
+setFormat raw;
+surfaceFormat none;
+interpolationScheme cellPoint;
+fields (Pre Pim);
+sets
+(
+    axisLine
+    {
+        type    uniform;
+        axis    distance;
+        start   (0 1e-6 0);
+        end     (0 0.18 0);
+        nPoints 400;
+    }
+);
