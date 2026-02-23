@@ -16,7 +16,7 @@
 # Driven acoustic frequency [Hz].
 DRIVE_F=25250
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
-PISTON_U=0.1
+PISTON_U=0.05
 
 # ---------------------------------------------------------------------------
 # Fluid / acoustic medium properties

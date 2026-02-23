@@ -72,8 +72,16 @@ After a solve, run:
 python3 postprocess_compare.py
 ```
 
+Optional far-field fit radii (inside non-PML region):
+
+```bash
+python3 postprocess_compare.py --r-src 0.2 --r-far 4.0
+```
+
 Outputs are written to:
 
 - `postProcessing/analyticalCompare/<latestTime>/onAxisComparison.png`
 - `postProcessing/analyticalCompare/<latestTime>/onAxisComparison.csv`
+- `postProcessing/analyticalCompare/<latestTime>/farFieldPatternComparison.png`
+- `postProcessing/analyticalCompare/<latestTime>/farFieldPatternComparison.csv`
 - `postProcessing/analyticalCompare/<latestTime>/metrics.txt`

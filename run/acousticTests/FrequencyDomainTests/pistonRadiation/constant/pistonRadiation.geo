@@ -6,7 +6,7 @@ f = 10000;                    // driven frequency
 c = 343;                         // air sound speed
 lambda = c/f;                       // wave length
 
-N = 50;      // cells per wavelength
+N = 60;      // cells per wavelength
 gs = lambda/N;                      // cell size
 gr = 1.0;                   // transfinite progression ratio
 
