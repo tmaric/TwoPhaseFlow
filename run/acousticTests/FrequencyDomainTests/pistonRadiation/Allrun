@@ -3,9 +3,9 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
 #------------------------------------------------------------------------------
 
-# Single-rank shared-memory direct solve using freBlockCoupledFoam.
-: "${OMP_NUM_THREADS:=$(nproc)}"
-export OMP_NUM_THREADS
+# MPI run for freBCMFoam.
+# Override with: NPROCS=<n> ./Allrun
+: "${NPROCS:=8}"
 
 ./Allclean
 ./prepareCase
@@ -19,7 +19,8 @@ runApplication topoSet
 runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
 
-echo "Running freBlockCoupledFoam with OMP_NUM_THREADS=${OMP_NUM_THREADS}"
-freBlockCoupledFoam > log.freBlockCoupledFoam 2>&1
+runApplication decomposePar -force
+runParallel freBCMFoam 
+runApplication reconstructPar -latestTime
 
 #------------------------------------------------------------------------------
