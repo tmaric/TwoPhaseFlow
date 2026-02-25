@@ -20,7 +20,7 @@ application     freBlockCoupledFoam;
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
-endTime         2;
+endTime         1;
 
 deltaT          1;
 

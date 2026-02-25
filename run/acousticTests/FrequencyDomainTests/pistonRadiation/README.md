@@ -10,7 +10,7 @@ Edit one file and regenerate all dependent inputs automatically.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
 - `constant/pistonRadiation.geo.in`: template for `constant/pistonRadiation.geo`.
 - `templates/Pim.in`: template for `0.orig/Pim`.
-- `Allrun`: single-rank shared-memory workflow (`freBlockCoupledFoam` + threaded direct solve).
+- `Allrun`: switchable workflow for serial reference or MPI solver.
 
 ## Typical usage
 
@@ -23,17 +23,27 @@ Edit one file and regenerate all dependent inputs automatically.
 
 ## Solver execution
 
-`Allrun` executes `freBlockCoupledFoam` on one MPI rank and uses threaded
-direct solve. Set `OMP_NUM_THREADS` to control CPU threading.
+`Allrun` supports both modes:
 
 ```bash
-# optional, default is all local cores
-export OMP_NUM_THREADS=8
+# serial reference (default)
 ./Allrun
+# or explicitly
+RUN_MODE=serial ./Allrun
+
+# MPI/decomposed run
+RUN_MODE=mpi ./Allrun
+# optional override for MPI ranks
+NPROCS=8 RUN_MODE=mpi ./Allrun
 ```
 
-Log file:
+Default mode is set in `caseParams.sh` via `RUN_MODE`.
+
+Serial log file:
 - `log.freBlockCoupledFoam`
+
+MPI log file:
+- `log.freBCMFoam`
 
 ## Optional: render-only step
 

@@ -11,6 +11,15 @@
 # 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
+# Run mode
+# ---------------------------------------------------------------------------
+# Solver mode used by Allrun:
+# - serial: freBlockCoupledFoam
+# - mpi:    freBCMFoam with decomposePar
+# Can still be overridden at launch, e.g. RUN_MODE=mpi ./Allrun
+: "${RUN_MODE:=mpi}"
+
+# ---------------------------------------------------------------------------
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
@@ -34,7 +43,8 @@ CL=1480
 # PML parameters (spherical PML)
 # ---------------------------------------------------------------------------
 # Maximum damping strength sigmaMax [1/s].
-SIGMA_MAX=3000
+# Reference serial:3000; mpi:100000
+SIGMA_MAX=100000 
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Inner radius of PML region [m].

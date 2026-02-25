@@ -11,6 +11,15 @@
 # 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
+# Run mode
+# ---------------------------------------------------------------------------
+# Solver mode used by Allrun:
+# - serial: interFALFlow
+# - mpi:    interMPIALFlow with decomposePar
+# Can still be overridden at launch, e.g. RUN_MODE=mpi ./Allrun
+: "${RUN_MODE:=mpi}"
+
+# ---------------------------------------------------------------------------
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
@@ -38,7 +47,7 @@ CL=1480
 # PML thickness [m].
 PML_L=0.008
 # Max damping strength sigmaMax [1/s].
-SIGMA_MAX=5000
+SIGMA_MAX=100000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Rectangle bounds for PML logic in transportProperties.

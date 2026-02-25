@@ -4,13 +4,12 @@ static void addBoundarySourceSimple
 (
     const fvScalarMatrix& M,
     scalarField& source,
-    const bool includeProcessorCoupled
+    const bool couples = true
 )
 {
     const auto& bpsi = M.psi().boundaryField();
     const auto& bcoeffs = M.boundaryCoeffs();
     const auto& addr = M.lduAddr();
-    const polyBoundaryMesh& patches = M.psi().mesh().boundaryMesh();
 
     forAll(bpsi, patchi)
     {
@@ -27,17 +26,13 @@ static void addBoundarySourceSimple
                 source[paddr[facei]] += pbc[facei];
             }
         }
-        else
+        else if (couples)
         {
-            const bool isProcessor = isA<processorPolyPatch>(patches[patchi]);
-            if (includeProcessorCoupled || !isProcessor)
+            const tmp<Field<scalar>> tpnf = ptf.patchNeighbourField();
+            const Field<scalar>& pnf = tpnf();
+            forAll(paddr, facei)
             {
-                const tmp<Field<scalar>> tpnf = ptf.patchNeighbourField();
-                const Field<scalar>& pnf = tpnf();
-                forAll(paddr, facei)
-                {
-                    source[paddr[facei]] += pbc[facei]*pnf[facei];
-                }
+                source[paddr[facei]] += pbc[facei]*pnf[facei];
             }
         }
     }
@@ -46,11 +41,11 @@ static void addBoundarySourceSimple
 static scalarField sourceWithBoundary
 (
     const fvScalarMatrix& M,
-    const bool includeProcessorCoupled
+    const bool includeCoupled
 )
 {
     scalarField source(M.source());
-    addBoundarySourceSimple(M, source, includeProcessorCoupled);
+    addBoundarySourceSimple(M, source, includeCoupled);
     return source;
 }
 
@@ -60,9 +55,10 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
     const globalIndex& globalCells
 )
 {
-    const fvMesh& mesh = op.psi().mesh();
     const auto& bpsi = op.psi().boundaryField();
-    const polyBoundaryMesh& patches = mesh.boundaryMesh();
+    const lduAddressing& addr = op.lduAddr();
+    const polyBoundaryMesh& patches = op.psi().mesh().boundaryMesh();
+
     List<labelList> neighbGlobals(bpsi.size());
 
     if (!Pstream::parRun())
@@ -70,51 +66,59 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
         return neighbGlobals;
     }
 
-    const label nInternalFaces = mesh.nInternalFaces();
-    const label nBoundaryFaces = mesh.nBoundaryFaces();
-    const labelList& faceOwner = mesh.faceOwner();
+    PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
 
-    labelList neighbByBFace(nBoundaryFaces, -1);
-    for (label bFacei = 0; bFacei < nBoundaryFaces; ++bFacei)
-    {
-        const label facei = nInternalFaces + bFacei;
-        neighbByBFace[bFacei] = globalCells.toGlobal(faceOwner[facei]);
-    }
-
-    syncTools::swapBoundaryFaceList(mesh, neighbByBFace);
-
-    forAll(patches, patchi)
+    forAll(bpsi, patchi)
     {
         if (!bpsi[patchi].coupled() || !isA<processorPolyPatch>(patches[patchi]))
         {
             continue;
         }
 
-        const polyPatch& pp = patches[patchi];
-        const label start = pp.start() - nInternalFaces;
-        neighbGlobals[patchi].setSize(pp.size());
-        forAll(neighbGlobals[patchi], facei)
+        const processorPolyPatch& procPatch =
+            refCast<const processorPolyPatch>(patches[patchi]);
+        const labelUList& paddr = addr.patchAddr(patchi);
+
+        labelList sendIds(paddr.size());
+        forAll(paddr, facei)
         {
-            neighbGlobals[patchi][facei] = neighbByBFace[start + facei];
+            sendIds[facei] = globalCells.toGlobal(paddr[facei]);
         }
+
+        UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
+        toNbr << sendIds;
+    }
+
+    pBufs.finishedSends();
+
+    forAll(bpsi, patchi)
+    {
+        if (!bpsi[patchi].coupled() || !isA<processorPolyPatch>(patches[patchi]))
+        {
+            continue;
+        }
+
+        const processorPolyPatch& procPatch =
+            refCast<const processorPolyPatch>(patches[patchi]);
+        UIPstream fromNbr(procPatch.neighbProcNo(), pBufs);
+        fromNbr >> neighbGlobals[patchi];
     }
 
     return neighbGlobals;
 }
 
-static void appendScalarOpTriplets
+static void insertScalarOpIntoBlock
 (
+    Mat& M,
     const fvScalarMatrix& op,
     const globalIndex& globalCells,
     const PetscInt rowOffset,
     const PetscInt colOffset,
-    const scalar scale,
-    labelList& rows,
-    labelList& cols,
-    scalarField& vals
+    const PetscScalar scale
 )
 {
     const lduMatrix& L = op;
+
     const scalarField& diag = L.diag();
     scalarField diagWithProc(diag);
 
@@ -122,17 +126,15 @@ static void appendScalarOpTriplets
     const labelUList& owner = addr.lowerAddr();
     const labelUList& neigh = addr.upperAddr();
 
-    if (Pstream::parRun())
+    List<labelList> neighbGlobals;
+    if (Pstream::parRun() && rowOffset == colOffset)
     {
         const auto& bpsi = op.psi().boundaryField();
         const auto& bcoeffs = op.boundaryCoeffs();
         const auto& icoeffs = op.internalCoeffs();
         const lduAddressing& baddr = op.lduAddr();
         const polyBoundaryMesh& patches = op.psi().mesh().boundaryMesh();
-        const List<labelList> neighbGlobals
-        (
-            gatherProcessorPatchNeighbourGlobals(op, globalCells)
-        );
+        neighbGlobals = gatherProcessorPatchNeighbourGlobals(op, globalCells);
 
         forAll(bpsi, patchi)
         {
@@ -143,25 +145,38 @@ static void appendScalarOpTriplets
 
             const labelUList& paddr = baddr.patchAddr(patchi);
             const Field<scalar>& pbc = bcoeffs[patchi];
-            const Field<scalar>& pic = icoeffs[patchi];
             const labelList& nbrIds = neighbGlobals[patchi];
+
+            if (nbrIds.size() != paddr.size())
+            {
+                FatalErrorInFunction
+                    << "Processor patch exchange size mismatch on patch "
+                    << patches[patchi].name()
+                    << ": local faces " << paddr.size()
+                    << " neighbour ids " << nbrIds.size()
+                    << exit(FatalError);
+            }
+
+            const Field<scalar>& pic = icoeffs[patchi];
 
             forAll(paddr, facei)
             {
-                const label own = paddr[facei];
-                diagWithProc[own] += pic[facei];
-                rows.append(globalCells.toGlobal(own) + rowOffset);
-                cols.append(nbrIds[facei] + colOffset);
-                vals.append(-scale*pbc[facei]);
+                const PetscInt cNbr = nbrIds[facei] + colOffset;
+                const label ownCell = paddr[facei];
+                const PetscInt r = globalCells.toGlobal(ownCell) + rowOffset;
+
+                // Rebuild processor-face implicit stencil in matrix form.
+                diagWithProc[ownCell] += pic[facei];
+                MatSetValue(M, r, cNbr, -scale*pbc[facei], INSERT_VALUES);
             }
         }
     }
 
     forAll(diagWithProc, i)
     {
-        rows.append(globalCells.toGlobal(i) + rowOffset);
-        cols.append(globalCells.toGlobal(i) + colOffset);
-        vals.append(scale*diagWithProc[i]);
+        PetscInt r = globalCells.toGlobal(i) + rowOffset;
+        PetscInt c = globalCells.toGlobal(i) + colOffset;
+        MatSetValue(M, r, c, scale*diagWithProc[i], INSERT_VALUES);
     }
 
     if (L.hasUpper())
@@ -173,47 +188,133 @@ static void appendScalarOpTriplets
         {
             const label i = owner[f];
             const label j = neigh[f];
+
+            const PetscInt ri = globalCells.toGlobal(i) + rowOffset;
+            const PetscInt rj = globalCells.toGlobal(j) + rowOffset;
+
+            const PetscInt ci = globalCells.toGlobal(i) + colOffset;
+            const PetscInt cj = globalCells.toGlobal(j) + colOffset;
+
             const scalar upperVal = upper[f];
             const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
 
-            rows.append(globalCells.toGlobal(i) + rowOffset);
-            cols.append(globalCells.toGlobal(j) + colOffset);
-            vals.append(scale*upperVal);
-
-            rows.append(globalCells.toGlobal(j) + rowOffset);
-            cols.append(globalCells.toGlobal(i) + colOffset);
-            vals.append(scale*lowerVal);
+            MatSetValue(M, ri, cj, scale*upperVal, INSERT_VALUES);
+            MatSetValue(M, rj, ci, scale*lowerVal, INSERT_VALUES);
         }
     }
 }
 
-static void appendBlockTriplets
+static void insertScalarOpTransposeIntoBlock
 (
+    Mat& M,
+    const fvScalarMatrix& op,
+    const globalIndex& globalCells,
+    const PetscInt rowOffset,
+    const PetscInt colOffset,
+    const PetscScalar scale
+)
+{
+    const lduMatrix& L = op;
+    const scalarField& diag = L.diag();
+    const lduAddressing& addr = L.lduAddr();
+    const labelUList& owner = addr.lowerAddr();
+    const labelUList& neigh = addr.upperAddr();
+
+    forAll(diag, i)
+    {
+        const PetscInt r = globalCells.toGlobal(i) + rowOffset;
+        const PetscInt c = globalCells.toGlobal(i) + colOffset;
+        MatSetValue(M, r, c, scale*diag[i], INSERT_VALUES);
+    }
+
+    if (L.hasUpper())
+    {
+        const scalarField& upper = L.upper();
+        const scalarField* lowerPtr = L.hasLower() ? &L.lower() : nullptr;
+
+        forAll(upper, f)
+        {
+            const label i = owner[f];
+            const label j = neigh[f];
+
+            const PetscInt ri = globalCells.toGlobal(i) + rowOffset;
+            const PetscInt rj = globalCells.toGlobal(j) + rowOffset;
+
+            const PetscInt ci = globalCells.toGlobal(i) + colOffset;
+            const PetscInt cj = globalCells.toGlobal(j) + colOffset;
+
+            const scalar upperVal = upper[f];
+            const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
+
+            MatSetValue(M, ri, cj, scale*lowerVal, INSERT_VALUES);
+            MatSetValue(M, rj, ci, scale*upperVal, INSERT_VALUES);
+        }
+    }
+}
+
+static void assembleBlockSystem
+(
+    Mat& M,
     const globalIndex& globalCells,
     const PetscInt N,
     fvScalarMatrix& AopPim,
     fvScalarMatrix& AopPre,
-    fvScalarMatrix& B1Pre,
-    fvScalarMatrix& B2Pre,
-    fvScalarMatrix& B1Pim,
-    fvScalarMatrix& B2Pim,
-    labelList& rows,
-    labelList& cols,
-    scalarField& vals
+    fvScalarMatrix& BPre
 )
 {
     AopPre.boundaryManipulate(AopPre.psi().boundaryFieldRef());
     AopPim.boundaryManipulate(AopPim.psi().boundaryFieldRef());
-    B1Pre.boundaryManipulate(B1Pre.psi().boundaryFieldRef());
-    B2Pre.boundaryManipulate(B2Pre.psi().boundaryFieldRef());
-    B1Pim.boundaryManipulate(B1Pim.psi().boundaryFieldRef());
-    B2Pim.boundaryManipulate(B2Pim.psi().boundaryFieldRef());
+    BPre.boundaryManipulate(BPre.psi().boundaryFieldRef());
 
-    appendScalarOpTriplets(AopPim, globalCells, 0, 0, +1.0, rows, cols, vals);
-    appendScalarOpTriplets(B1Pre, globalCells, 0, N, -1.0, rows, cols, vals);
-    appendScalarOpTriplets(B2Pre, globalCells, 0, N, -1.0, rows, cols, vals);
+    insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
+    insertScalarOpIntoBlock(M, BPre, globalCells, 0, N, -1.0);
 
-    appendScalarOpTriplets(B1Pim, globalCells, N, 0, +1.0, rows, cols, vals);
-    appendScalarOpTriplets(B2Pim, globalCells, N, 0, +1.0, rows, cols, vals);
-    appendScalarOpTriplets(AopPre, globalCells, N, N, +1.0, rows, cols, vals);
+    // A10 = -A01^T, with A01 = -BPre.
+    insertScalarOpTransposeIntoBlock(M, BPre, globalCells, N, 0, +1.0);
+    insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
+}
+
+static void setBlockRhs
+(
+    Vec& b,
+    const globalIndex& globalCells,
+    const PetscInt N,
+    const scalarField& bPim,
+    const scalarField& bPre
+)
+{
+    forAll(bPim, i)
+    {
+        const PetscInt gi = globalCells.toGlobal(i);
+        VecSetValue(b, gi + 0, (PetscScalar)bPim[i], INSERT_VALUES);
+        VecSetValue(b, gi + N, (PetscScalar)bPre[i], INSERT_VALUES);
+    }
+}
+
+static void scatterBlockSolution
+(
+    Vec& x,
+    const globalIndex& globalCells,
+    const PetscInt N,
+    volScalarField& Pim,
+    volScalarField& Pre
+)
+{
+    Vec xAll = nullptr;
+    VecScatter allScatter = nullptr;
+    VecScatterCreateToAll(x, &allScatter, &xAll);
+    VecScatterBegin(allScatter, x, xAll, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(allScatter, x, xAll, INSERT_VALUES, SCATTER_FORWARD);
+
+    const PetscScalar* xArr = nullptr;
+    VecGetArrayRead(xAll, &xArr);
+    forAll(Pim, i)
+    {
+        const PetscInt gi = globalCells.toGlobal(i);
+        Pim[i] = (scalar)PetscRealPart(xArr[gi + 0]);
+        Pre[i] = (scalar)PetscRealPart(xArr[gi + N]);
+    }
+    VecRestoreArrayRead(xAll, &xArr);
+    VecScatterDestroy(&allScatter);
+    VecDestroy(&xAll);
 }
