@@ -34,7 +34,7 @@ CL=1480
 # PML parameters (spherical PML)
 # ---------------------------------------------------------------------------
 # Maximum damping strength sigmaMax [1/s].
-SIGMA_MAX=100000
+SIGMA_MAX=3000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Inner radius of PML region [m].

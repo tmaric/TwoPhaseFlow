@@ -11,7 +11,11 @@ runApplication gmshToFoam  constant/levitatorWedgeHex.msh
 rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
 runApplication setAlphaField
-#runApplication decomposePar
-runApplication $(getApplication)
+rm -f 0/Pim.in
+
+rm -f log.interMPIALFlow
+runApplication decomposePar -force
+runParallel interMPIALFlow
+runApplication reconstructPar -latestTime
 
 #------------------------------------------------------------------------------

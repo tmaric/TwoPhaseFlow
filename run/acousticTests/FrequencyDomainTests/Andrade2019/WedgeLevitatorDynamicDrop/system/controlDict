@@ -1,19 +1,19 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  2.0.1                                 |
-|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|  \\    /   O peration     | Version:  2312                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 FoamFile
 {
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    location    "system";
-    object      controlDict;
+    version         2;
+    format          ascii;
+    class           dictionary;
+    location        "system";
+    object          controlDict;
 }
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 application     interFALFlow;
 
@@ -25,9 +25,9 @@ stopAt          endTime;
 
 endTime         2e-1;
 
-deltaT          2e-5;
+deltaT          2e-05;
 
-writeControl    runTime; 
+writeControl    runTime;
 
 writeInterval   2e-4;
 
@@ -46,8 +46,14 @@ timePrecision   8;
 runTimeModifiable yes;
 
 adjustTimeStep  off;
+
 maxCo           0.2;
+
 maxAlphaCo      0.2;
-maxDeltaT       1e-6;
+
+maxDeltaT       1e-06;
+
 maxCapillaryNum 10000000;
+
+
 // ************************************************************************* //

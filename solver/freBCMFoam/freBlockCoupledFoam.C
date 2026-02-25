@@ -33,6 +33,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include <petscksp.h>
+#include <cmath>
 #include "fvCFD.H"
 #include "fvOptions.H"
 #include "simpleControl.H"
@@ -45,6 +46,7 @@ Description
 #include "upwind.H"
 #include "processorPolyPatch.H"
 #include "processorBC.H"
+#include "syncTools.H"
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
@@ -147,10 +149,9 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
     const globalIndex& globalCells
 )
 {
+    const fvMesh& mesh = op.psi().mesh();
     const auto& bpsi = op.psi().boundaryField();
-    const lduAddressing& addr = op.lduAddr();
-    const polyBoundaryMesh& patches = op.psi().mesh().boundaryMesh();
-
+    const polyBoundaryMesh& patches = mesh.boundaryMesh();
     List<labelList> neighbGlobals(bpsi.size());
 
     if (!Pstream::parRun())
@@ -158,44 +159,36 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
         return neighbGlobals;
     }
 
-    PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
+    const label nInternalFaces = mesh.nInternalFaces();
+    const label nBoundaryFaces = mesh.nBoundaryFaces();
+    const labelList& faceOwner = mesh.faceOwner();
 
-    // Send local owner-cell global ids on each processor patch.
-    forAll(bpsi, patchi)
+    // Boundary-face field containing owner-cell global ids.
+    labelList neighbByBFace(nBoundaryFaces, -1);
+    for (label bFacei = 0; bFacei < nBoundaryFaces; ++bFacei)
     {
-        if (!bpsi[patchi].coupled() || !isA<processorPolyPatch>(patches[patchi]))
-        {
-            continue;
-        }
-
-        const processorPolyPatch& procPatch =
-            refCast<const processorPolyPatch>(patches[patchi]);
-        const labelUList& paddr = addr.patchAddr(patchi);
-
-        labelList sendIds(paddr.size());
-        forAll(paddr, facei)
-        {
-            sendIds[facei] = globalCells.toGlobal(paddr[facei]);
-        }
-
-        UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
-        toNbr << sendIds;
+        const label facei = nInternalFaces + bFacei;
+        neighbByBFace[bFacei] = globalCells.toGlobal(faceOwner[facei]);
     }
 
-    pBufs.finishedSends();
+    // Swap to neighbour side using OpenFOAM's patch-face mapping.
+    syncTools::swapBoundaryFaceList(mesh, neighbByBFace);
 
-    // Receive neighbour owner-cell global ids (same face ordering).
-    forAll(bpsi, patchi)
+    // Slice back per patch.
+    forAll(patches, patchi)
     {
         if (!bpsi[patchi].coupled() || !isA<processorPolyPatch>(patches[patchi]))
         {
             continue;
         }
 
-        const processorPolyPatch& procPatch =
-            refCast<const processorPolyPatch>(patches[patchi]);
-        UIPstream fromNbr(procPatch.neighbProcNo(), pBufs);
-        fromNbr >> neighbGlobals[patchi];
+        const polyPatch& pp = patches[patchi];
+        const label start = pp.start() - nInternalFaces;
+        neighbGlobals[patchi].setSize(pp.size());
+        forAll(neighbGlobals[patchi], facei)
+        {
+            neighbGlobals[patchi][facei] = neighbByBFace[start + facei];
+        }
     }
 
     return neighbGlobals;
@@ -264,17 +257,17 @@ static void insertScalarOpIntoBlock
     const labelUList& owner = addr.lowerAddr();
     const labelUList& neigh = addr.upperAddr();
 
-    // Processor-patch couplings are not in lower/upper arrays in parallel.
-    // Rebuild their implicit contributions explicitly.
-    List<labelList> neighbGlobals;
-    if (Pstream::parRun() && rowOffset == colOffset)
+    if (Pstream::parRun())
     {
         const auto& bpsi = op.psi().boundaryField();
         const auto& bcoeffs = op.boundaryCoeffs();
         const auto& icoeffs = op.internalCoeffs();
         const lduAddressing& baddr = op.lduAddr();
         const polyBoundaryMesh& patches = op.psi().mesh().boundaryMesh();
-        neighbGlobals = gatherProcessorPatchNeighbourGlobals(op, globalCells);
+        const List<labelList> neighbGlobals
+        (
+            gatherProcessorPatchNeighbourGlobals(op, globalCells)
+        );
 
         forAll(bpsi, patchi)
         {
@@ -285,30 +278,17 @@ static void insertScalarOpIntoBlock
 
             const labelUList& paddr = baddr.patchAddr(patchi);
             const Field<scalar>& pbc = bcoeffs[patchi];
-            const labelList& nbrIds = neighbGlobals[patchi];
-
-            if (nbrIds.size() != paddr.size())
-            {
-                FatalErrorInFunction
-                    << "Processor patch exchange size mismatch on patch "
-                    << patches[patchi].name()
-                    << ": local faces " << paddr.size()
-                    << " neighbour ids " << nbrIds.size()
-                    << exit(FatalError);
-            }
-
             const Field<scalar>& pic = icoeffs[patchi];
+            const labelList& nbrIds = neighbGlobals[patchi];
 
             forAll(paddr, facei)
             {
+                const label own = paddr[facei];
+                const PetscInt r = globalCells.toGlobal(own) + rowOffset;
                 const PetscInt cNbr = nbrIds[facei] + colOffset;
-                const label ownCell = paddr[facei];
-                const PetscInt r = globalCells.toGlobal(ownCell) + rowOffset;
 
-                // Rebuild processor-face implicit stencil in matrix form:
-                // diagonal contribution from internalCoeff and neighbour
-                // coupling from boundaryCoeff.
-                diagWithProc[ownCell] += pic[facei];
+                // Convert processor-face contributions to fully implicit form.
+                diagWithProc[own] += -pic[facei];
                 MatSetValue(M, r, cNbr, -scale*pbc[facei], INSERT_VALUES);
             }
         }
@@ -348,56 +328,6 @@ static void insertScalarOpIntoBlock
     }
 }
 
-// Insert transpose(op) into one PETSc block position.
-static void insertScalarOpTransposeIntoBlock
-(
-    Mat& M,
-    const fvScalarMatrix& op,
-    const globalIndex& globalCells,
-    const PetscInt rowOffset,
-    const PetscInt colOffset,
-    const PetscScalar scale
-)
-{
-    const lduMatrix& L = op;
-    const scalarField& diag = L.diag();
-    const lduAddressing& addr = L.lduAddr();
-    const labelUList& owner = addr.lowerAddr();
-    const labelUList& neigh = addr.upperAddr();
-
-    forAll(diag, i)
-    {
-        const PetscInt r = globalCells.toGlobal(i) + rowOffset;
-        const PetscInt c = globalCells.toGlobal(i) + colOffset;
-        MatSetValue(M, r, c, scale*diag[i], INSERT_VALUES);
-    }
-
-    if (L.hasUpper())
-    {
-        const scalarField& upper = L.upper();
-        const scalarField* lowerPtr = L.hasLower() ? &L.lower() : nullptr;
-
-        forAll(upper, f)
-        {
-            const label i = owner[f];
-            const label j = neigh[f];
-
-            const PetscInt ri = globalCells.toGlobal(i) + rowOffset;
-            const PetscInt rj = globalCells.toGlobal(j) + rowOffset;
-
-            const PetscInt ci = globalCells.toGlobal(i) + colOffset;
-            const PetscInt cj = globalCells.toGlobal(j) + colOffset;
-
-            const scalar upperVal = upper[f];
-            const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
-
-            // Transpose swaps upper/lower contributions.
-            MatSetValue(M, ri, cj, scale*lowerVal, INSERT_VALUES);
-            MatSetValue(M, rj, ci, scale*upperVal, INSERT_VALUES);
-        }
-    }
-}
-
 static scalarField sourceWithBoundary
 (
     const fvScalarMatrix& M,
@@ -416,23 +346,29 @@ static void assembleBlockSystem
     const PetscInt N,
     fvScalarMatrix& AopPim,
     fvScalarMatrix& AopPre,
-    fvScalarMatrix& BPre
+    fvScalarMatrix& B1Pre,
+    fvScalarMatrix& B2Pre,
+    fvScalarMatrix& B1Pim,
+    fvScalarMatrix& B2Pim
 )
 {
     // Apply boundary contributions to matrices before insertion.
     AopPre.boundaryManipulate(AopPre.psi().boundaryFieldRef());
     AopPim.boundaryManipulate(AopPim.psi().boundaryFieldRef());
-    BPre.boundaryManipulate(BPre.psi().boundaryFieldRef());
+    B1Pre.boundaryManipulate(B1Pre.psi().boundaryFieldRef());
+    B2Pre.boundaryManipulate(B2Pre.psi().boundaryFieldRef());
+    B1Pim.boundaryManipulate(B1Pim.psi().boundaryFieldRef());
+    B2Pim.boundaryManipulate(B2Pim.psi().boundaryFieldRef());
 
     // Coupled system:
     // [ A  -(B1 + B2) ] [Pim] = [bPim]
     // [ (B1 + B2)  A ] [Pre]  [bPre]
     insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
-    insertScalarOpIntoBlock(M, BPre, globalCells, 0, N, -1.0);
+    insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0);
+    insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, -1.0);
 
-    // Enforce skew block structure from one coupling operator:
-    // A10 = -A01^T, with A01 = -BPre.
-    insertScalarOpTransposeIntoBlock(M, BPre, globalCells, N, 0, +1.0);
+    insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0);
+    insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, +1.0);
     insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
 }
 
@@ -495,8 +431,7 @@ static void initializePetscSystem
 static void reportMatrixStats
 (
     Mat& M,
-    Vec& b,
-    const PetscInt N
+    Vec& b
 )
 {
     PetscReal n1 = 0.0, ninf = 0.0, nfrob = 0.0;
@@ -518,44 +453,114 @@ static void reportMatrixStats
     PetscReal bNorm0 = 0.0;
     VecNorm(b, NORM_2, &bNorm0);
 
-    PetscReal n01 = 0.0, n10 = 0.0, nSkew = 0.0, nSym = 0.0;
-    IS is0 = nullptr, is1 = nullptr;
-    Mat M01 = nullptr, M10 = nullptr, M01T = nullptr, Mtmp = nullptr;
-    ISCreateStride(PETSC_COMM_WORLD, N, 0, 1, &is0);
-    ISCreateStride(PETSC_COMM_WORLD, N, N, 1, &is1);
-    MatCreateSubMatrix(M, is0, is1, MAT_INITIAL_MATRIX, &M01);
-    MatCreateSubMatrix(M, is1, is0, MAT_INITIAL_MATRIX, &M10);
-    MatNorm(M01, NORM_FROBENIUS, &n01);
-    MatNorm(M10, NORM_FROBENIUS, &n10);
-    MatTranspose(M01, MAT_INITIAL_MATRIX, &M01T);
-
-    // Symmetry/skew diagnostics for off-diagonal blocks.
-    MatDuplicate(M10, MAT_COPY_VALUES, &Mtmp);
-    MatAXPY(Mtmp, -1.0, M01T, DIFFERENT_NONZERO_PATTERN); // M10 - M01^T
-    MatNorm(Mtmp, NORM_FROBENIUS, &nSym);
-    MatDestroy(&Mtmp);
-
-    MatDuplicate(M10, MAT_COPY_VALUES, &Mtmp);
-    MatAXPY(Mtmp, +1.0, M01T, DIFFERENT_NONZERO_PATTERN); // M10 + M01^T
-    MatNorm(Mtmp, NORM_FROBENIUS, &nSkew);
-    MatDestroy(&Mtmp);
-
-    MatDestroy(&M01);
-    MatDestroy(&M10);
-    MatDestroy(&M01T);
-    ISDestroy(&is0);
-    ISDestroy(&is1);
-
     Info<< "Matrix stats: ||A||1=" << n1
         << " ||A||inf=" << ninf
         << " ||A||F=" << nfrob
-        << " ||A01||F=" << n01
-        << " ||A10||F=" << n10
-        << " ||A10-A01T||F=" << nSym
-        << " ||A10+A01T||F=" << nSkew
         << " diag[min,max]=(" << dmin << "," << dmax << ")"
         << " symmetric=" << (isSym ? "yes" : "no")
         << " rhsNorm=" << bNorm0 << nl;
+}
+
+static void reportMatrixActionChecksum
+(
+    Mat& M,
+    const globalIndex& globalCells,
+    const PetscInt nLocal,
+    const PetscInt N
+)
+{
+    Vec x, y;
+    VecCreate(PETSC_COMM_WORLD, &x);
+    VecSetSizes(x, 2*nLocal, 2*N);
+    VecSetFromOptions(x);
+    VecDuplicate(x, &y);
+
+    for (label i = 0; i < nLocal; ++i)
+    {
+        const PetscInt gi = globalCells.toGlobal(i);
+        const PetscScalar v0 = std::sin(0.001*(gi + 1)) + 0.1*std::cos(0.013*(gi + 3));
+        const PetscScalar v1 = std::cos(0.002*(gi + 2)) - 0.05*std::sin(0.017*(gi + 5));
+        VecSetValue(x, gi + 0, v0, INSERT_VALUES);
+        VecSetValue(x, gi + N, v1, INSERT_VALUES);
+    }
+    VecAssemblyBegin(x);
+    VecAssemblyEnd(x);
+
+    MatMult(M, x, y);
+
+    PetscReal yNorm2 = 0.0;
+    VecNorm(y, NORM_2, &yNorm2);
+
+    VecAbs(y);
+    PetscReal yNorm1 = 0.0;
+    VecNorm(y, NORM_1, &yNorm1);
+
+    Info<< "Matrix action checksum: ||A*x||2=" << yNorm2
+        << " ||A*x||1(abs)=" << yNorm1 << nl;
+
+    VecDestroy(&x);
+    VecDestroy(&y);
+}
+
+static void reportCouplingEntrySample
+(
+    Mat& M,
+    const PetscInt N
+)
+{
+    PetscInt rStart = 0, rEnd = 0;
+    MatGetOwnershipRange(M, &rStart, &rEnd);
+
+    bool printed = false;
+    for (PetscInt r = rStart; r < rEnd && !printed; ++r)
+    {
+        if (r >= N) { break; }
+
+        PetscInt ncols = 0;
+        const PetscInt* cols = nullptr;
+        const PetscScalar* vals = nullptr;
+        MatGetRow(M, r, &ncols, &cols, &vals);
+        for (PetscInt k = 0; k < ncols; ++k)
+        {
+            const PetscInt c = cols[k];
+            if (c < N || c >= 2*N) { continue; }
+
+            PetscScalar a01 = vals[k];
+            if (mag(PetscRealPart(a01)) < 1e-18) { continue; }
+
+            Pout<< "Coupling sample proc=" << Pstream::myProcNo()
+                << " row=" << r
+                << " col=" << c
+                << " A01=" << PetscRealPart(a01) << nl;
+            printed = true;
+            break;
+        }
+        MatRestoreRow(M, r, &ncols, &cols, &vals);
+    }
+
+    if (!printed)
+    {
+        Pout<< "Coupling sample proc=" << Pstream::myProcNo()
+            << " none in owned rows" << nl;
+    }
+}
+
+static void reportRequestedCouplingEntries(Mat& M)
+{
+    const PetscInt rows[2] = {58717, 95250};
+    const PetscInt cols[2] = {154072, 190494};
+    PetscInt rStart = 0, rEnd = 0;
+    MatGetOwnershipRange(M, &rStart, &rEnd);
+
+    for (int i = 0; i < 2; ++i)
+    {
+        if (rows[i] < rStart || rows[i] >= rEnd) { continue; }
+        PetscScalar a = 0.0;
+        MatGetValues(M, 1, &rows[i], 1, &cols[i], &a);
+        Pout<< "Requested entry proc=" << Pstream::myProcNo()
+            << " A(" << rows[i] << "," << cols[i] << ")="
+            << PetscRealPart(a) << nl;
+    }
 }
 
 static void reportKspStats
@@ -669,45 +674,48 @@ int main(int argc, char *argv[])
             // Pim-row couples to Pre via (laplacian(TC1,Pre) + Sp(SC1,Pre))
             fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));
             fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));
-            fvScalarMatrix couplingPre(couplingLaplPre + couplingMassPre);
 
             // Pre-row couples to Pim via (laplacian(TC1,Pim) + Sp(SC1,Pim))
             fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));
             fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));
-            fvScalarMatrix couplingPim(couplingLaplPim + couplingMassPim);
 
             if (!dumpedOpStats)
             {
                 reportFvMatrixBreakdown("AopPre beforeBoundaryManipulate", AopPre);
                 reportFvMatrixBreakdown("AopPim beforeBoundaryManipulate", AopPim);
-                reportFvMatrixBreakdown("BPre beforeBoundaryManipulate", couplingPre);
+                reportFvMatrixBreakdown("B1Pre beforeBoundaryManipulate", couplingLaplPre);
+                reportFvMatrixBreakdown("B2Pre beforeBoundaryManipulate", couplingMassPre);
             }
 
             assembleBlockSystem
             (
                 M, globalCells, N,
                 AopPim, AopPre,
-                couplingPre
+                couplingLaplPre, couplingMassPre,
+                couplingLaplPim, couplingMassPim
             );
 
             if (!dumpedOpStats)
             {
                 reportFvMatrixBreakdown("AopPre afterBoundaryManipulate", AopPre);
                 reportFvMatrixBreakdown("AopPim afterBoundaryManipulate", AopPim);
-                reportFvMatrixBreakdown("BPre afterBoundaryManipulate", couplingPre);
+                reportFvMatrixBreakdown("B1Pre afterBoundaryManipulate", couplingLaplPre);
+                reportFvMatrixBreakdown("B2Pre afterBoundaryManipulate", couplingMassPre);
                 dumpedOpStats = true;
             }
 
             // RHS from source terms (includes BC contributions)
-            // Keep processor-coupled interfaces implicit in matrix so the
-            // decomposed equation matches the undecomposed serial form.
             scalarField bPim(sourceWithBoundary(AopPim, false));
-            scalarField bCouplingPre(sourceWithBoundary(couplingPre, false));
-            bPim -= bCouplingPre;
+            scalarField bCouplingLaplPre(sourceWithBoundary(couplingLaplPre, false));
+            scalarField bCouplingMassPre(sourceWithBoundary(couplingMassPre, false));
+            bPim -= bCouplingLaplPre;
+            bPim -= bCouplingMassPre;
 
             scalarField bPre(sourceWithBoundary(AopPre, false));
-            scalarField bCouplingPim(sourceWithBoundary(couplingPim, false));
-            bPre += bCouplingPim;
+            scalarField bCouplingLaplPim(sourceWithBoundary(couplingLaplPim, false));
+            scalarField bCouplingMassPim(sourceWithBoundary(couplingMassPim, false));
+            bPre += bCouplingLaplPim;
+            bPre += bCouplingMassPim;
 
             setBlockRhs(b, globalCells, N, bPim, bPre);
 
@@ -719,7 +727,10 @@ int main(int argc, char *argv[])
             if (!dumpedMatrixStats)
             {
                 dumpedMatrixStats = true;
-                reportMatrixStats(M, b, N);
+                reportMatrixStats(M, b);
+                reportMatrixActionChecksum(M, globalCells, nLocal, N);
+                reportCouplingEntrySample(M, N);
+                reportRequestedCouplingEntries(M);
             }
 
             KSPSolve(ksp, b, x);
