@@ -4,5 +4,7 @@ cd "${0%/*}" || exit                                # Run from this directory
 #------------------------------------------------------------------------------
 
 cleanCase0
-
+rm -f constant/*unrolled*
+rm -rf postProcessing
+rm -rf sweepResults
 #------------------------------------------------------------------------------

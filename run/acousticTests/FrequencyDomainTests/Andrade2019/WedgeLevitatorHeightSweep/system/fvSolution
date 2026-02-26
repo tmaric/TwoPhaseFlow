@@ -33,28 +33,57 @@ solvers
         reconstructionScheme plicRDF;        
     }
 
-    "P.*"
+    "P.*" 
     {
-          solver          PCG;
-          preconditioner  DIC;
-          tolerance       1e-6;
-          relTol          0.0;
+        solver          petsc;
+        petsc
+        {
+            options
+            {
+                ksp_type      fgmres;
+                pc_type       gamg;
+            }
+
+            use_petsc_residual_norm false;
+            caching
+            {
+                matrix
+                {
+                    update always;
+                }
+                preconditioner
+                {
+                    update always;
+                }
+            }
+
+        }
+        tolerance       1e-12;
+        relTol          1e-1;
+        maxIter         1000;
     }
+
 }
 
 SIMPLE
 {
-    nNonOrthogonalCorrectors 2;
+    nNonOrthogonalCorrectors 0;
+    residualControl
+    {
+        Pre 1e-5;
+        Pim 1e-5;
+    }
     pRefCell        0;
     pRefValue       0;
 }
+
 
 relaxationFactors
 {
 fields
 {
-    Pre         0.05;
-    Pim         0.05;
+    Pre         0.01;//1;//0.1;
+    Pim         0.01;//1;//0.1;
 }
 equations
 {

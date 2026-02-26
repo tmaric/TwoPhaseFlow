@@ -30,16 +30,12 @@ gradSchemes
 {
     default         Gauss linear;
     grad(p)         Gauss linear;
-    //grad(pa)        pointCellsLeastSquares;
-    //grad(VC0)	pointCellsLeastSquares;
+    grad(pa)        pointCellsLeastSquares;
 }
 
 divSchemes
 {
     default         Gauss linear;
-    div((TC0&fvc::grad(Pre))+(TC1&fvc::grad(Pim))) Gauss upwind;
-    div((TC0&fvc::grad(Pim))-(TC1&fvc::grad(Pre))) Gauss upwind;
-
     div(rAU*rho,acousticForce)          Gauss linear;
     div(phi,U)      Gauss limitedLinearV 1;
     div(phid,p)     Gauss limitedLinear 1;

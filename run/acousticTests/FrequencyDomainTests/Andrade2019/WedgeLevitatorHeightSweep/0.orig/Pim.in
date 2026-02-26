@@ -14,7 +14,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [1 -1 -2 0 0 0 0]; 
+dimensions      [1 -1 -2 0 0 0 0];
 
 internalField   uniform 0;
 
@@ -22,13 +22,12 @@ boundaryField
 {
    openAir
     {
-        type            fixedValue;
-        value            uniform 0;
+        type            zeroGradient;
     }
     transducer1
     {
-        type            fixedGradient;
-        gradient            uniform 0;
+         type            fixedGradient;
+         gradient        uniform #eval{-2*pi()*__DRIVE_F__*__RHOG__*__PISTON_U__};
     }
     "(transducer2|reflector2|reflector1)"
     {

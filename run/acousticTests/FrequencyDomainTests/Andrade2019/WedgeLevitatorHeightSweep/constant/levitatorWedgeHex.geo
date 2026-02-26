@@ -1,19 +1,21 @@
-// Gmsh project created on Tue Apr 15 14:40:01 2025
+// Gmsh project created for Andrade2019 levitator wedge case
 SetFactory("OpenCASCADE");
-// frequency
-f=25250;
-// sound speed
-c=343;
-// wavelength 
-l=c/f;
-// distance 
-D = 0.00744;//1.586*l;
-// mesh size
-lc=1.0;
-N=400;
-gs=l/N;
 
-//geometry
+// frequency
+f = 25250;
+// sound speed
+c = 343;
+// wavelength
+l = c/f;
+
+// distance
+D = 0.0203762376237;
+// mesh size controls
+lc = 1.0;
+N = 200;
+gs = l/N;
+
+// geometry
 rT = 0.01; // radius of transducer
 rR = 0.019; // radius of reflector
 bu = 0.01; // air buffer
@@ -42,7 +44,7 @@ Line(4) = {4,5};
 Line(5) = {5,6};
 Line(6) = {6,7};
 Line(7) = {7,8};
-Line(8) = {8,9};//{8,9};
+Line(8) = {8,9};
 Line(9) = {9,10};
 Line(10) = {10,11};
 Line(11) = {11,12};
@@ -72,44 +74,33 @@ Plane Surface(28)={27};
 Curve Loop(29)={16,9,10,-15};
 Plane Surface(30)={29};
 
-Rotate{ {0,1,0}, {0,0,0}, - Pi*1/180} {Surface{20, 22, 24, 26 , 28 , 30};}
+Rotate{ {0,1,0}, {0,0,0}, - Pi*0.5/180} {Surface{20, 22, 24, 26 , 28 , 30};}
 
-Transfinite Line {19, 21} = Round(rT/gs);//{1, 11} = Round(rT/gs);
-Transfinite Line {23, 25, 35} = Round((rR-rT)/gs); //{2, 15, 9} = Round((rR-rT)/gs);
-Transfinite Line {22,20,24,30}=Round(D/gs); //{12,13,14,6}=Round(D/gs);
-Transfinite Line {27,29,31,33}=Round(bu/gs); //{4,18,17,8}=Round(bu/gs);
-Transfinite Line {32,34,36,26,28}=Round(hS/gs); //{10,16,7,3,5}=Round(hS/gs);
+Transfinite Line {19, 21} = Round(rT/gs);
+Transfinite Line {23, 25, 35} = Round((rR-rT)/gs);
+Transfinite Line {22,20,24,30}=Round(D/gs);
+Transfinite Line {27,29,31,33}=Round(bu/gs);
+Transfinite Line {32,34,36,26,28}=Round(hS/gs);
 
-Transfinite Surface "*"; //{20, 22, 24, 26 , 28 , 30};
-Recombine Surface "*"; //{20, 22, 24, 26 , 28 , 30};
+Transfinite Surface "*";
+Recombine Surface "*";
 
-// Rotate{ {0,1,0}, {0,0,0}, - Pi*1/180} {Surface{20, 22, 24, 26 , 28 , 30}; }
+surfaceVector[] = Extrude {{0,1,0}, {0,0,0}, Pi*1.0/180} {
+     Surface{20, 22, 24, 26 , 28 , 30};
+     Layers{1};
+     Recombine;
+    };
 
-surfaceVector[] = Extrude {{0,1,0}, {0,0,0}, Pi*2/180} {
-	 Surface{20, 22, 24, 26 , 28 , 30};
-	 Layers{1};
-	 Recombine;
-	};
-//+
 Physical Surface("transducer1") = {33};
-//+
 Physical Surface("transducer2") = {52};
-//+
 Physical Surface("openAir") = {51, 48,47,44,41, 40};
-//+
 Physical Surface("reflector1") = {35,31};
-//+
 Physical Surface("reflector2") = {39};
-//+
 Physical Surface("front") = {20, 22, 24, 26, 28, 30};
-//+
 Physical Surface("back") = {34, 38, 53, 50, 46, 43};
 
 Physical Volume("internal")={1,2,3,4,5, 6 };
 
-
-
 Mesh.ElementOrder = 1;
 Mesh 3;
 Save "levitatorWedgeHex.msh";
-
