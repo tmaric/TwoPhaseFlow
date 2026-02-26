@@ -1,8 +1,6 @@
 {
-// Update alpha1
 #include "alphaSuSp.H"
-advector->advect(Sp,(Su + divU*min(alpha1(), scalar(1)))()); //advector->advect(Sp,Su);//(Sp,(Su + divU*min(alpha1(), scalar(1)))());
-// advector->advect();
+advector->advect(Sp, (Su + divU*min(alpha1(), scalar(1)))());
 #include "rhofs.H"
 rhoPhi = advector->getRhoPhi(rho1f, rho2f);
 const auto& alphaPhi = advector->alphaPhi();
@@ -10,7 +8,6 @@ divAlphaPhi = fvc::div(alphaPhi).ref();
 
 
 alpha2 = 1.0 - alpha1;
-// mixture.correct();
 
 }
 

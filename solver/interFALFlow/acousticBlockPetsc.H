@@ -1,5 +1,14 @@
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
+// NOTE:
+// This header provides the serial acoustic block assembly used by interFALFlow.
+// It follows the same block layout as freBlockCoupledFoam:
+//   row 0..N-1   : Pim equation
+//   row N..2N-1  : Pre equation
+//   col 0..N-1   : Pim unknowns
+//   col N..2N-1  : Pre unknowns
+// Keep this as the reference formulation when comparing against MPI variants.
+
 static void addBoundarySourceSimple
 (
     const fvScalarMatrix& M,

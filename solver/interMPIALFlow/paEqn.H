@@ -12,11 +12,13 @@ while (pimple.correctNonOrthogonal())
      if (pimple.finalNonOrthogonalIter())
     {
         pa.relax();
-        solve (fvm::ddt(rho, Ua) == //- fvc::grad(pa));
-		  fvc::reconstruct((- fvc::snGrad(pa)) * mesh.magSf())
-            );
+        solve
+        (
+            fvm::ddt(rho, Ua)
+         ==
+            fvc::reconstruct((-fvc::snGrad(pa))*mesh.magSf())
+        );
 
     }
 }
-
 

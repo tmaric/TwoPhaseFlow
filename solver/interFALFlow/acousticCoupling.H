@@ -1,5 +1,11 @@
 {
-    // Frequency-domain block-coupled acoustic solve (ported from freBlockCoupledFoam)
+    // Acoustic coupling sequence for each outer flow iteration:
+    // 1) Recompute alpha-face transport and PML coefficients.
+    // 2) Assemble real-valued 2x2 block system for complex pressure:
+    //      [ A  -(B1 + B2) ] [Pim] = [bPim]
+    //      [ (B1 + B2)  A ] [Pre]   [bPre]
+    // 3) Solve once with PETSc and update Pre/Pim.
+    // 4) Reconstruct pa/pr/momFlux used by interfacial flow forcing.
     #include "computeAlphaf.H"
     #include "computePMLCoefs.H"
 

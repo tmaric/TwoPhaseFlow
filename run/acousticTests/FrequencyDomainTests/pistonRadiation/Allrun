@@ -1,8 +1,38 @@
 #!/bin/sh
+set -e
 cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
 . ./caseParams.sh                                   # Case parameters (includes RUN_MODE)
 #------------------------------------------------------------------------------
+
+need_cmd()
+{
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "Error: required command '$1' not found in PATH" >&2
+        exit 1
+    fi
+}
+
+ensure_solver()
+{
+    solverName="$1"
+    solverDir="$2"
+    if command -v "${solverName}" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo "Solver '${solverName}' not found, building ${solverDir} ..."
+    repoRoot="$(cd ../../../../ && pwd)"
+    (
+        cd "${repoRoot}" || exit 1
+        wmake "solver/${solverDir}"
+    )
+
+    if ! command -v "${solverName}" >/dev/null 2>&1; then
+        echo "Error: solver '${solverName}' is still unavailable after build." >&2
+        exit 1
+    fi
+}
 
 # Quick switch:
 #   RUN_MODE=serial ./Allrun   -> freBlockCoupledFoam (reference)
@@ -10,6 +40,7 @@ cd "${0%/*}" || exit                                # Run from this directory
 # Optional for mpi:
 #   NPROCS=<n> RUN_MODE=mpi ./Allrun
 : "${RUN_MODE:=serial}"
+need_cmd gmsh
 
 if [ "${RUN_MODE}" = "mpi" ]; then
     if [ -z "${NPROCS:-}" ]; then
@@ -31,10 +62,12 @@ runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
 
 if [ "${RUN_MODE}" = "mpi" ]; then
+    ensure_solver freBCMFoam freBCMFoam
     runApplication decomposePar -force
     runParallel freBCMFoam
     runApplication reconstructPar -latestTime
 else
+    ensure_solver freBlockCoupledFoam freBlockCoupledFoam
     runApplication freBlockCoupledFoam
 fi
 

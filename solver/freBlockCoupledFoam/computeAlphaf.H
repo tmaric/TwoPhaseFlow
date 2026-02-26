@@ -1,30 +1,11 @@
-// rhof == fvc::interpolate(rho);
-// rhof == upwind<scalar>(phi.mesh(), phi).interpolate(rho);
 {
-// Correct faces which are part of an interface cell (0 < alpha < 1)
 const auto& faceOwner = mesh.owner();
-// const auto& faceNeighbour = mesh.neighbour();
 const cellList& cellFaces = mesh.cells();
 
 alphaf == upwind<scalar>(phi.mesh(), phi).interpolate(alpha1);
 
-//Jun: reference to reconstructionSchemes
-
-// const reconstructionSchemes& surf = advector.surf();-->
-// stop reconstructing and see the different alphaPhi/phi and alphaf
-
-// reconstructionSchemes& surf = advector.surf();
-//alpha1_cr == 0.5*(alpha1 + alpha1.oldTime());
-//alpha1_cr == alpha1;
-//advector_cr.surf().reconstruct();
-
  reconstructionSchemes& surf = mesh.lookupObjectRef<reconstructionSchemes>("reconstructionScheme");
  surf.reconstruct(true);
-
-/*----------compute Rhof---------------*/
-// const boolList& isASurfaceCell = surf.interfaceCell();
-
-//-----> compute Rhof in internal field
 
 const scalarField& phiIn = phi.primitiveField();
 const scalarField& magSfIn = mesh.magSf().primitiveField();
@@ -78,7 +59,6 @@ forAll(interfaceLabels, i)
     }
 }
 
-//-----> compute Rhof in boundary field
 const polyBoundaryMesh& boundaryMesh = mesh.boundaryMesh();
 const surfaceScalarField::Boundary& phib = phi.boundaryField();
 const surfaceScalarField::Boundary& magSfb = mesh.magSf().boundaryField();
@@ -118,7 +98,6 @@ forAll(bsFaces, i)
             cutFace.calcSubFace(facei, bsn0[i], bsx0[i]);
             alphafb[patchi][patchFacei] = mag(cutFace.subFaceArea()) / magSf;
 
-            // Handling upwind cyclic boundary patches
             const cyclicPolyPatch* cpp = isA<cyclicPolyPatch>(pp);
             if (cpp)
             {
@@ -126,8 +105,6 @@ forAll(bsFaces, i)
                 alphafb[neiPatchID][patchFacei] = alphafb[patchi][patchFacei];
             }
 
-            // Check if the face is on processor patch and append it to
-            // the list if necessary
             if(isA<processorPolyPatch>(pp) && pp.size())
             {
                 surfaceCellFacesOnProcPatches[patchi].append(patchFacei);
@@ -135,7 +112,6 @@ forAll(bsFaces, i)
         }
     }
 }
-//#include"processorBC.H"
 syncProcPatches(mesh, procPatchLabels, surfaceCellFacesOnProcPatches, alphaf, phi);
 bsFaces.clear();
 bsx0.clear();
@@ -146,7 +122,3 @@ Info<< "### display alphaf: "
                 << "  Min(" << alphaf.name() << ") = " << min(alphaf).value()
                 << "  Max(" << alphaf.name() << ") = " << max(alphaf).value()
                 << endl;
-
-//rhof == alphaf*rho1 + (1 - alphaf)*rho2;
-//muf == alphaf*rho1*nu1 + (1 - alphaf)*rho2*nu2;
-//rhoPhi == rhof*phi;

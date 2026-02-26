@@ -28,8 +28,19 @@ Group
     AcousticSolvers
 
 Description
-    Block-coupled frequency-domain acoustic solver (Pre/Pim) using PETSc.
-    Rectangle/spherical PML with scalar damping coefficients.
+    Block-coupled frequency-domain acoustic solver for a single, non-
+    decomposed mesh. The real/imaginary pressure pair is solved as one
+    2x2 block Helmholtz system:
+
+        [ A  -(B1 + B2) ] [Pim] = [bPim]
+        [ (B1 + B2)  A ] [Pre]   [bPre]
+
+    where A is the main Helmholtz operator and B1/B2 are PML-induced
+    coupling operators. Matrix assembly is local/serial in OpenFOAM and
+    the PETSc solve uses a direct backend (default: MUMPS via LU).
+
+    This solver intentionally aborts in decomposed MPI runs. Use it as the
+    serial reference for equation form and damping behavior.
 \*---------------------------------------------------------------------------*/
 
 #include <petscksp.h>

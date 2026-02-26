@@ -41,7 +41,6 @@ const dimensionedScalar& rho1 = mixture.rho1();
 const dimensionedScalar& rho2 = mixture.rho2();
 
 
-// Need to store rho for ddt(rho, U)
 volScalarField rho
 (
     IOobject
@@ -57,7 +56,6 @@ volScalarField rho
 rho.oldTime();
 
 
-// Mass flux
 surfaceScalarField rhoPhi
 (
     IOobject
@@ -71,7 +69,6 @@ surfaceScalarField rhoPhi
     fvc::interpolate(rho)*phi
 );
 
-// volume flux
 volScalarField divAlphaPhi
 (
     IOobject
@@ -80,12 +77,11 @@ volScalarField divAlphaPhi
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
-        IOobject::NO_WRITE //IOobject::AUTO_WRITE
+        IOobject::NO_WRITE
     ),
     fvc::div(phi)
 );
 
-// Construct incompressible turbulence model
 autoPtr<incompressible::turbulenceModel> turbulence
 (
     incompressible::turbulenceModel::New(U, phi, mixture)
@@ -108,9 +104,6 @@ IOdictionary transportProperties
 surfaceForces surfForces(alpha1,phi,U,transportProperties);
 
 
-//#include "readGravitationalAcceleration.H"
-//#include "readhRef.H"
-//#include "gh.H"
 const volScalarField& gh = surfForces.acc();
 
 
@@ -177,5 +170,4 @@ volVectorField Fr
 );
 
 #include "createAcousticFields.H"
-
 

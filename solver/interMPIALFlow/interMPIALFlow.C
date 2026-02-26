@@ -27,7 +27,10 @@ Application
    interMPIALFlow
 
 Description
-    Two-phase flow solver coupled with acoustic wave fields.
+    Two-phase VOF solver coupled to a frequency-domain acoustic block solve.
+    Flow equations run on the decomposed mesh; the acoustic block is also
+    assembled/solved with PETSc in distributed form using processor-interface
+    contributions from the decomposed OpenFOAM operators.
 
 Author
     Jun Liu, MMA, TU Darmstadt
@@ -74,7 +77,8 @@ int main(int argc, char *argv[])
         " using isoAdvector phase-fraction based interface capturing.\n"
         "With optional mesh motion and mesh topology changes including"
         " adaptive re-meshing.\n"
-        "Acoustic-flow coupling skeleton for interMPIALFlow."
+        "Acoustic-flow coupling for interMPIALFlow.\n"
+        "Acoustics are assembled/solved in distributed PETSc mode."
     );
 
     Foam::argList::addBoolOption
@@ -135,9 +139,7 @@ int main(int argc, char *argv[])
 
                 if (mesh.changing())
                 {
-                    // gets recompute by surfaces forces
-                    // gh = (g & mesh.C()) - ghRef;
-                    // ghf = (g & mesh.Cf()) - ghRef;
+                    // Update mapped interface and dependent material fields
                     advector->surf().mapAlphaField();
                     alpha2 = 1.0 - alpha1;
                     alpha2.correctBoundaryConditions();
@@ -150,8 +152,7 @@ int main(int argc, char *argv[])
 
                     if (correctPhi)
                     {
-                        // Calculate absolute flux
-                        // from the mapped surface velocity
+                        // Calculate absolute flux from mapped surface velocity
                         phi = mesh.Sf() & Uf();
 
                         #include "correctPhi.H"
@@ -169,7 +170,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            if(overwrite)
+            if (overwrite)
             {
                 continue;
             }
@@ -189,13 +190,11 @@ int main(int argc, char *argv[])
             #include "acousticCoupling.H"
             #include "UEqn.H"
 
-            // --- Pressure corrector loop
+            // Pressure corrector loop
             while (pimple.correct())
             {
                 #include "pEqn.H"
             }
-
-//            #include "computeTimeAverage.H"
 
             if (pimple.turbCorr())
             {

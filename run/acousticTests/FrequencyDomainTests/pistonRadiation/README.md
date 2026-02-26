@@ -14,12 +14,34 @@ Edit one file and regenerate all dependent inputs automatically.
 
 ## Typical usage
 
-1. Edit parameters:
+1. Load environment (required):
+   - `source ~/TwoPhaseFlow/scripts/bashrc`
+   - `source ~/openfoam/etc/bashrc`
+2. Edit parameters:
    - `caseParams.sh`
-2. Run full case:
+3. Run full case:
    - `./Allrun`
 
 `Allrun` already calls `./prepareCase`, so manual rendering is not required.
+`Allrun` also checks `gmsh` and auto-builds the solver if the executable is missing.
+
+## Contributor quick check (recommended)
+
+Run these once before first case run:
+
+```bash
+source ~/TwoPhaseFlow/scripts/bashrc
+source ~/openfoam/etc/bashrc
+cd /home/minkowski/TwoPhaseFlow
+wmake solver/freBlockCoupledFoam
+wmake solver/freBCMFoam
+```
+
+Then in this case directory:
+
+```bash
+./Allrun
+```
 
 ## Solver execution
 
@@ -44,6 +66,8 @@ Serial log file:
 
 MPI log file:
 - `log.freBCMFoam`
+
+Note: the MPI-capable solver in this repository is named `freBCMFoam`.
 
 ## Optional: render-only step
 

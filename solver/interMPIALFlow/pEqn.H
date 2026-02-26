@@ -9,13 +9,12 @@
     }
 
     surfaceScalarField rAUf("rAUf", fvc::interpolate(rAU()));
-    volVectorField HbyA(constrainHbyA(rAU()*UEqn.H(), U, p_rgh)); // adjust BC for HbyA
+    volVectorField HbyA(constrainHbyA(rAU()*UEqn.H(), U, p_rgh));
     surfaceScalarField phiHbyA
     (
         "phiHbyA",
         fvc::flux(HbyA)
-       + MRF.zeroFilter(fvc::interpolate(rho*rAU())*fvc::ddtCorr(U, phi, Uf)) // correct deviation of fvc::flux(U) from phi
-       // + MRF.zeroFilter(fvc::interpolate(rAU())*fvc::ddtCorr(rho, U, rhoPhi, Uf))
+       + MRF.zeroFilter(fvc::interpolate(rho*rAU())*fvc::ddtCorr(U, phi, Uf))
     );
     MRF.makeRelative(phiHbyA);
 
@@ -29,14 +28,11 @@
     surfaceScalarField phig
     (
         (
-          //  mixture.surfaceTensionForce()
           surfForces.surfaceTensionForce()
-          //- ghf*fvc::snGrad(rho)
           + surfForces.accelerationForce()
           + fvc::interpolate((pr+pa))*fvc::snGrad(alpha1)
           + fvc::interpolate(pMomFlux)*fvc::snGrad(alpha1)
         )*rAUf*mesh.magSf()
-        //+ rAUf*fvc::flux(Fr)
     );
 
     phiHbyA += phig;
@@ -65,10 +61,6 @@
             U.correctBoundaryConditions();
             fvOptions.correct(U);
         }
-/*        if(runTime.writeTime())
-        {
-            p_rghEqn.flux().ref().write();
-        }*/
     }
 
     #include "continuityErrs.H"
@@ -91,15 +83,6 @@
         );
         p_rgh = p - rho*gh;
     }
-
-/*    if(runTime.writeTime())
-    {
-        rAU().write();
-        rAUf.write();
-        UEqn.H().ref().write();
-        HbyA.write();
-        phiHbyA.write();
-    }*/
 
     if (!correctPhi)
     {

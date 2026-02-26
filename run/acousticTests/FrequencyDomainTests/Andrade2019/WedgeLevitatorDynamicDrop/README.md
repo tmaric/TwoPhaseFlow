@@ -14,12 +14,34 @@ Edit one file and regenerate all dependent inputs automatically.
 
 ## Typical usage
 
-1. Edit parameters in:
+1. Load environment (required):
+   - `source ~/TwoPhaseFlow/scripts/bashrc`
+   - `source ~/openfoam/etc/bashrc`
+2. Edit parameters in:
    - `caseParams.sh`
-2. Run full case:
+3. Run full case:
    - `./Allrun`
 
 `Allrun` already calls `./prepareCase`, so manual rendering is optional.
+`Allrun` also checks `gmsh` and auto-builds the selected solver if needed.
+
+## Contributor quick check (recommended)
+
+Run these once before first case run:
+
+```bash
+source ~/TwoPhaseFlow/scripts/bashrc
+source ~/openfoam/etc/bashrc
+cd /home/minkowski/TwoPhaseFlow
+wmake solver/interFALFlow
+wmake solver/interMPIALFlow
+```
+
+Then in this case directory:
+
+```bash
+./Allrun
+```
 
 ## Solver execution modes
 

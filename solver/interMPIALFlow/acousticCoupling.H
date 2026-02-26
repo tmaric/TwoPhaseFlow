@@ -1,4 +1,11 @@
 {
+    // Acoustic coupling sequence for each outer flow iteration:
+    // 1) Recompute alpha-face transport and PML coefficients from alpha1.
+    // 2) Assemble distributed 2x2 block Helmholtz system:
+    //      [ A  -(B1 + B2) ] [Pim] = [bPim]
+    //      [ (B1 + B2)  A ] [Pre]   [bPre]
+    // 3) Solve with PETSc in distributed mode and scatter solution fields.
+    // 4) Recompute pa/pr/momFlux to feed the flow-side forcing terms.
     #include "computeAlphaf.H"
     #include "computePMLCoefs.H"
 
@@ -12,61 +19,54 @@
     globalIndex globalCells(mesh.nCells());
     const PetscInt N = (PetscInt)globalCells.size();
 
-    fvScalarMatrix AopPre
+    fvScalarMatrix mainOpPre
     (
         fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
       + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
     );
 
-    fvScalarMatrix AopPim
+    fvScalarMatrix mainOpPim
     (
         fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
       + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
     );
 
-    // Coupling operators built from opposite field.
+    // Cross-coupling operators are built from the opposite field.
     fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));
     fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));
-    fvScalarMatrix couplingPre(couplingLaplPre + couplingMassPre);
+    fvScalarMatrix couplingOpPre(couplingLaplPre + couplingMassPre);
 
     fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));
     fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));
-    fvScalarMatrix couplingPim(couplingLaplPim + couplingMassPim);
+    fvScalarMatrix couplingOpPim(couplingLaplPim + couplingMassPim);
 
     const PetscInt nLocal = (PetscInt)mesh.nCells();
     Mat M;
     Vec x, b;
     KSP ksp;
-
-    MatCreate(PETSC_COMM_WORLD, &M);
-    MatSetSizes(M, 2*nLocal, 2*nLocal, 2*N, 2*N);
-    MatSetType(M, MATAIJ);
-    MatSetUp(M);
-
-    VecCreate(PETSC_COMM_WORLD, &x);
-    VecSetSizes(x, 2*nLocal, 2*N);
-    VecSetFromOptions(x);
-    VecDuplicate(x, &b);
+    initializeAcousticPetscSystem(nLocal, N, M, x, b, ksp);
 
     assembleBlockSystem
     (
         M,
         globalCells,
         N,
-        AopPim,
-        AopPre,
-        couplingPre
+        mainOpPim,
+        mainOpPre,
+        couplingOpPre
     );
 
-    // Keep processor-coupled interfaces implicit in matrix so decomposed
-    // algebra follows the freBCMFoam path.
-    scalarField bPim(sourceWithBoundary(AopPim, false));
-    scalarField bCouplingPre(sourceWithBoundary(couplingPre, false));
-    bPim -= bCouplingPre;
-
-    scalarField bPre(sourceWithBoundary(AopPre, false));
-    scalarField bCouplingPim(sourceWithBoundary(couplingPim, false));
-    bPre += bCouplingPim;
+    scalarField bPim;
+    scalarField bPre;
+    buildAcousticRhs
+    (
+        mainOpPim,
+        mainOpPre,
+        couplingOpPre,
+        couplingOpPim,
+        bPim,
+        bPre
+    );
 
     setBlockRhs(b, globalCells, N, bPim, bPre);
 
@@ -74,13 +74,6 @@
     MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY);
     VecAssemblyBegin(b);
     VecAssemblyEnd(b);
-
-    KSPCreate(PETSC_COMM_WORLD, &ksp);
-    KSPSetOperators(ksp, M, M);
-    PetscOptionsSetValue(nullptr, "-ksp_type", "preonly");
-    PetscOptionsSetValue(nullptr, "-pc_type", "lu");
-    PetscOptionsSetValue(nullptr, "-pc_factor_mat_solver_type", "mumps");
-    KSPSetFromOptions(ksp);
 
     KSPSolve(ksp, b, x);
 
@@ -94,11 +87,17 @@
     Pre.correctBoundaryConditions();
     Pim.correctBoundaryConditions();
 
-    const tmp<volVectorField> Ure = 1/(twoPi()*f*rho) * fvc::grad(Pim);
-    const tmp<volVectorField> Uim = -1/(twoPi()*f*rho) * fvc::grad(Pre);
-
-    pa == Foam::sqrt(Pim*Pim + Pre*Pre);
-    pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
-        - 0.25*rho*((Ure()&Ure()) + (Uim()&Uim()));
-    momFlux == 0.5*rho*(Ure()*Ure() + Uim()*Uim());
+    updateDerivedAcousticFields
+    (
+        pa,
+        pr,
+        momFlux,
+        Pim,
+        Pre,
+        alpha1,
+        rho,
+        f,
+        kl,
+        kg
+    );
 }

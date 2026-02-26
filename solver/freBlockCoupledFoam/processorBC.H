@@ -15,7 +15,6 @@ Foam::DynamicList<Foam::label> syncProcPatches
     {
         PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
 
-        // Send
         forAll(procPatchLabels_, i)
         {
             const label patchi = procPatchLabels_[i];
@@ -41,7 +40,6 @@ Foam::DynamicList<Foam::label> syncProcPatches
         pBufs.finishedSends();
 
 
-        // Receive and combine
         forAll(procPatchLabels_, patchLabeli)
         {
             const label patchi = procPatchLabels_[patchLabeli];
@@ -64,43 +62,14 @@ Foam::DynamicList<Foam::label> syncProcPatches
                 syncedFaces.append(syncedFaceI);
             }
 
-           /* if (debug)
-            {
-                Pout<< "Received at time = " << mesh_.time().value()
-                    << ": surfCellFacesOnProcPatch = " << faceIDs << nl
-                    << "Received at time = " << mesh_.time().value()
-                    << ": dVfPatch = " << nbrdVfs << endl;
-            }*/
-
-            // Combine fluxes
             scalarField& localFlux = dVf.boundaryFieldRef()[patchi];
 
             forAll(faceIDs, i)
             {
                 const label facei = faceIDs[i];
                 localFlux[facei] = nbrdVfs[i];
-           /*     if (debug && mag(localFlux[facei] + nbrdVfs[i]) > 10*SMALL)
-                {
-                    Pout<< "localFlux[facei] = " << localFlux[facei]
-                        << " and nbrdVfs[i] = " << nbrdVfs[i]
-                        << " for facei = " << facei << endl;
-                }*/
             }
         }
-
-/*        if (debug)
-        {
-            // Write out results for checking
-            forAll(procPatchLabels_, patchLabeli)
-            {
-                const label patchi = procPatchLabels_[patchLabeli];
-                const scalarField& localFlux = dVf.boundaryField()[patchi];
-                Pout<< "time = " << mesh_.time().value() << ": localFlux = "
-                    << localFlux << endl;
-            }
-        }*/
-
-        // Reinitialising list used for minimal parallel communication
         forAll(surfaceCellFacesOnProcPatches_, patchi)
         {
             surfaceCellFacesOnProcPatches_[patchi].clear();
