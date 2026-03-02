@@ -2,6 +2,10 @@
 set -euo pipefail
 
 # PETSc + petsc4Foam installer for TwoPhaseFlow.
+# Summary:
+# - Clones/updates PETSc under this repo, builds it with required packages.
+# - Ensures a suitable CMake (downloads via PETSc if needed).
+# - Clones/builds petsc4Foam and wires it to OpenFOAM.
 #
 # Default behavior:
 # 1) Clone/update PETSc in $HOME/petsc
@@ -113,6 +117,7 @@ cmake_version_ok()
 }
 
 if [[ "${SKIP_PETSC}" -eq 0 ]]; then
+    # Ensure we have a modern CMake; if not, let PETSc download one.
     if ! cmake_version_ok; then
         DOWNLOAD_CMAKE=1
         echo "CMake >= 3.26.0 not found; PETSc will download its own CMake." >&2
@@ -128,6 +133,7 @@ if [[ "${SKIP_PETSC}" -eq 0 ]]; then
 
     cd "${PETSC_DIR}"
 
+    # Configure PETSc with MPI + commonly used solver packages.
     ./configure \
         --PETSC_ARCH="${PETSC_ARCH}" \
         --with-debugging=0 \
@@ -150,6 +156,8 @@ if [[ "${SKIP_PETSC}" -eq 0 ]]; then
 fi
 
 if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
+    # Preserve the PETSc settings passed into this script
+    # (the sourced bashrc files may override them).
     PETSC_DIR_SCRIPT="${PETSC_DIR}"
     PETSC_ARCH_SCRIPT="${PETSC_ARCH}"
 
@@ -174,6 +182,9 @@ if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
         exit 1
     fi
 
+    # Source required environments for OpenFOAM and TwoPhaseFlow.
+    # Disable -e/-u temporarily because OpenFOAM bashrc may return nonzero
+    # or reference variables that aren't set yet.
     # shellcheck disable=SC1090
     set +eu
     source "${TWOPHASEFLOW_BASHRC}"
@@ -181,6 +192,7 @@ if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
     set -eu
     PETSC_DIR="${PETSC_DIR_SCRIPT}"
     PETSC_ARCH="${PETSC_ARCH_SCRIPT}"
+    # Restore PETSc paths after sourcing and export for petsc4Foam detection.
     export PETSC_DIR
     export PETSC_ARCH
     export PETSC_ARCH_PATH="${PETSC_DIR_SCRIPT}"
@@ -196,6 +208,7 @@ if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
     fi
 
     cd "${SCRIPT_DIR}/external/petsc4Foam"
+    # Clean first to avoid stale include paths from previous PETSc locations.
     ./Allwclean
     ./Allwmake
 fi
