@@ -7,7 +7,7 @@ export PYTHONPATH=$PYTHONPATH:$PYTHONMODULES
 export PATH=$PATH:$DIR:$TPF_PROJECT_DIR/bin
 
 # PETSc runtime libs
-export PETSC_DIR=/home/minkowski/petsc
+export PETSC_DIR=$TPF_PROJECT_DIR/petsc
 export PETSC_ARCH=arch-linux-c-opt
 export LD_LIBRARY_PATH=$TPF_PROJECT_DIR/lib:$PETSC_DIR/$PETSC_ARCH/lib:$LD_LIBRARY_PATH
 
