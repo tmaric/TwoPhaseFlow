@@ -14,10 +14,11 @@
 # Run mode
 # ---------------------------------------------------------------------------
 # Solver mode used by Allrun:
-# - serial: freBlockCoupledFoam
+# - serial: freBlockCoupledFoam (reference)
+# - serial_it: freITBCFoam (iterative PETSc block-coupled)
 # - mpi:    freBCMFoam with decomposePar
 # Can still be overridden at launch, e.g. RUN_MODE=mpi ./Allrun
-: "${RUN_MODE:=mpi}"
+: "${RUN_MODE:=serial}"
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -47,6 +48,9 @@ CL=1480
 SIGMA_MAX=100000 
 # Polynomial profile order (po), typically 2-4.
 PO=3
+# Shifted-Laplacian strength beta (dimensionless).
+# Used by freITBCFoam preconditioner only.
+SHIFTED_LAPLACIAN_BETA=0.2
 # Inner radius of PML region [m].
 PML_RMIN=0.2
 # PML thickness [m]. Outer radius is Rmin + L.

@@ -34,6 +34,7 @@ kl              #eval{1.0/($rhol*$cl*$cl)}; // water compressibility
 f               __DRIVE_F__;               // Driven frequency
 sigmaMax        __SIGMA_MAX__;             // [1/s] PML peak damping
 po              __PO__;                    // polynomial order
+shiftedLaplacianBeta __SHIFTED_LAPLACIAN_BETA__; // preconditioner shift (freITBCFoam)
 cellsPerLambda  __MESH_CELLS_PER_LAMBDA__;
 wl              #eval{$cg/$f};             // wavelength
 cellSize        #eval{$wl/$cellsPerLambda};

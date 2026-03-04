@@ -18,6 +18,7 @@ render()
         -e "s|__CL__|$CL|g" \
         -e "s|__SIGMA_MAX__|$SIGMA_MAX|g" \
         -e "s|__PO__|$PO|g" \
+        -e "s|__SHIFTED_LAPLACIAN_BETA__|$SHIFTED_LAPLACIAN_BETA|g" \
         -e "s|__PML_RMIN__|$PML_RMIN|g" \
         -e "s|__PML_L__|$PML_L|g" \
         -e "s|__MESH_CELLS_PER_LAMBDA__|$MESH_CELLS_PER_LAMBDA|g" \

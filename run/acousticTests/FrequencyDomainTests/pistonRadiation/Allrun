@@ -35,7 +35,8 @@ ensure_solver()
 }
 
 # Quick switch:
-#   RUN_MODE=serial ./Allrun   -> freBlockCoupledFoam (reference)
+#   RUN_MODE=serial ./Allrun      -> freBlockCoupledFoam (reference)
+#   RUN_MODE=serial_it ./Allrun   -> freITBCFoam (iterative PETSc)
 #   RUN_MODE=mpi ./Allrun      -> freBCMFoam on decomposed case
 # Optional for mpi:
 #   NPROCS=<n> RUN_MODE=mpi ./Allrun
@@ -66,9 +67,16 @@ if [ "${RUN_MODE}" = "mpi" ]; then
     runApplication decomposePar -force
     runParallel freBCMFoam
     runApplication reconstructPar -latestTime
-else
+elif [ "${RUN_MODE}" = "serial" ]; then
     ensure_solver freBlockCoupledFoam freBlockCoupledFoam
     runApplication freBlockCoupledFoam
+elif [ "${RUN_MODE}" = "serial_it" ]; then
+    ensure_solver freITBCFoam freITBCFoam
+    runApplication freITBCFoam
+else
+    echo "Error: unsupported RUN_MODE='${RUN_MODE}'." >&2
+    echo "Valid modes: serial, serial_it, mpi." >&2
+    exit 1
 fi
 
 python3 postprocess_compare.py 
