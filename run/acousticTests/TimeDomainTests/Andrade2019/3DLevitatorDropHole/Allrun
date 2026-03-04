@@ -1,0 +1,121 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+#------------------------------------------------------------------------------
+
+./Allclean
+restore0Dir
+rm -rf constant/polyMesh
+
+gmsh -2 constant/levitator3D.geo -format msh2 -o constant/levitator.msh
+
+mkdir -p constant/triSurface
+
+# Convert Gmsh MSH (with Physical Surfaces) to per-patch STL
+python3 - <<'PY'
+from pathlib import Path
+import math
+
+case = Path("constant")
+msh = case / "levitator.msh"
+out_dir = case / "triSurface"
+
+phys = {}
+nodes = {}
+triangles = {}
+
+with msh.open() as f:
+    it = iter(f)
+    for line in it:
+        if line.startswith("$PhysicalNames"):
+            n = int(next(it))
+            for _ in range(n):
+                parts = next(it).split()
+                dim = int(parts[0]); pid = int(parts[1])
+                name = parts[2].strip().strip('"')
+                if dim == 2:
+                    phys[pid] = name
+            next(it)  # $EndPhysicalNames
+        elif line.startswith("$Nodes"):
+            n = int(next(it))
+            for _ in range(n):
+                parts = next(it).split()
+                nid = int(parts[0])
+                nodes[nid] = tuple(float(x) for x in parts[1:4])
+            next(it)  # $EndNodes
+        elif line.startswith("$Elements"):
+            n = int(next(it))
+            for _ in range(n):
+                parts = next(it).split()
+                etype = int(parts[1])
+                if etype != 2:  # triangle
+                    continue
+                num_tags = int(parts[2])
+                tags = [int(t) for t in parts[3:3+num_tags]]
+                phys_id = tags[0] if tags else None
+                n1, n2, n3 = map(int, parts[3+num_tags:3+num_tags+3])
+                if phys_id is None or phys_id not in phys:
+                    continue
+                triangles.setdefault(phys_id, []).append((n1, n2, n3))
+            next(it)  # $EndElements
+
+def normal(p1, p2, p3):
+    ux, uy, uz = (p2[i]-p1[i] for i in range(3))
+    vx, vy, vz = (p3[i]-p1[i] for i in range(3))
+    nx = uy*vz - uz*vy
+    ny = uz*vx - ux*vz
+    nz = ux*vy - uy*vx
+    mag = math.sqrt(nx*nx + ny*ny + nz*nz) or 1.0
+    return (nx/mag, ny/mag, nz/mag)
+
+for pid, tris in triangles.items():
+    name = phys[pid]
+    out = out_dir / f"levitator_{name}.stl"
+    with out.open("w") as f:
+        f.write(f"solid {name}\n")
+        for n1, n2, n3 in tris:
+            p1, p2, p3 = nodes[n1], nodes[n2], nodes[n3]
+            nx, ny, nz = normal(p1, p2, p3)
+            f.write(f"facet normal {nx} {ny} {nz}\n")
+            f.write("  outer loop\n")
+            f.write(f"    vertex {p1[0]} {p1[1]} {p1[2]}\n")
+            f.write(f"    vertex {p2[0]} {p2[1]} {p2[2]}\n")
+            f.write(f"    vertex {p3[0]} {p3[1]} {p3[2]}\n")
+            f.write("  endloop\nendfacet\n")
+        f.write(f"endsolid {name}\n")
+PY
+
+# Merge per-patch STL into a multi-solid STL for cfMesh
+python3 - <<'PY'
+from pathlib import Path
+
+case = Path("constant")
+tri = case / "triSurface"
+order = [
+    "levitator_openAir.stl",
+    "levitator_transducer1.stl",
+    "levitator_transducer2.stl",
+    "levitator_reflector1.stl",
+    "levitator_reflector2.stl",
+    "levitator_dropWall.stl",
+]
+out = case / "levitator_multi.stl"
+with out.open("w") as w:
+    for name in order:
+        p = tri / name
+        if not p.exists():
+            raise SystemExit(f"missing {p}")
+        w.write(p.read_text())
+        if not p.read_text().endswith("\n"):
+            w.write("\n")
+PY
+
+runApplication cartesianMesh
+
+# Cleanup intermediate geometry files (keep levitator_multi.stl)
+rm -rf constant/triSurface
+rm -f constant/levitator.msh
+rm -f constant/levitator_*.stl
+#runApplication decomposePar
+#runParallel freBlockCoupledFoam
+#------------------------------------------------------------------------------

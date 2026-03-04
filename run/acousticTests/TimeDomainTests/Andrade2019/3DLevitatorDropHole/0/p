@@ -1,0 +1,53 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | foam-extend: Open Source CFD                    |
+|  \\    /   O peration     | Version:     3.1                                |
+|   \\  /    A nd           | Web:         http://www.extend-project.de       |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      p;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [1 -1 -2 0 0 0 0]; 
+
+internalField   uniform 0;
+
+boundaryField
+{
+   openAir
+    {
+         type            acousticWaveTransmissive;
+         advectiveSpeed  343;
+         value           $internalField;
+
+    }
+
+    transducer1
+    {
+             type            uniformFixedGradient;
+             uniformGradient     cosine;
+             uniformGradientCoeffs
+          {
+              frequency       constant 25250;
+              scale           constant #eval{-1.2*2*pi()*25250};
+              level           constant 0;
+          }
+          value           $internalField;
+    }
+    "(transducer2|reflector2|reflector1|dropWall)"
+    {
+        type            zeroGradient;
+    }
+    "(front|back)"
+    {
+        type            wedge;
+    }
+}
+
+// ************************************************************************* //

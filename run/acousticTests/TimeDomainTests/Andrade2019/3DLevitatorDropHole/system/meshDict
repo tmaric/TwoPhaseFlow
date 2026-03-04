@@ -1,0 +1,51 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                |
+| \\      /  F ield         | cfMesh: A library for mesh generation          |
+|  \\    /   O peration     |                                                |
+|   \\  /    A nd           | Author: Franjo Juretic                         |
+|    \\/     M anipulation  | E-mail: franjo.juretic@c-fields.com            |
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+    version   2.0;
+    format    ascii;
+    class     dictionary;
+    location  "system";
+    object    meshDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+surfaceFile "constant/levitator_multi.stl";
+
+maxCellSize #eval{0.01/20};
+
+boundaryLayers
+{
+    nLayers     1;
+
+    patchBoundaryLayers
+    {
+
+         "(transducer.*|reflector)"
+         {
+              nLayers    3;
+              thicknessRatio     1.2;
+         }
+     }
+
+     optimiseLayer 1;
+
+     optimisationParameters
+     {
+         nSmoothNormals      5;
+         relThicknessTol     0.15;
+         featureSizeFactor   0.3;
+         reCalculateNormals  1;
+         maxNumIterations    5;
+     }
+}
+
+
+// ************************************************************************* //
