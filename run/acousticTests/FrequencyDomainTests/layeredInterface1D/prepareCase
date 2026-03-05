@@ -1,0 +1,40 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+sed \
+  -e "s|__DRIVE_F__|${DRIVE_F}|g" \
+  -e "s|__PISTON_U__|${PISTON_U}|g" \
+  -e "s|__RHOG__|${RHOG}|g" \
+  -e "s|__CG__|${CG}|g" \
+  -e "s|__RHOL__|${RHOL}|g" \
+  -e "s|__CL__|${CL}|g" \
+  -e "s|__SIGMA_MAX__|${SIGMA_MAX}|g" \
+  -e "s|__PO__|${PO}|g" \
+  -e "s|__PML_L__|${PML_L}|g" \
+  -e "s|__PML_XMAX__|${PML_XMAX}|g" \
+  constant/transportProperties.in > constant/transportProperties
+
+sed \
+  -e "s|__DRIVE_F__|${DRIVE_F}|g" \
+  -e "s|__PISTON_U__|${PISTON_U}|g" \
+  -e "s|__RHOG__|${RHOG}|g" \
+  0.orig/Pim.in > 0.orig/Pim
+
+sed \
+  -e "s|__X_MIN__|${X_MIN}|g" \
+  -e "s|__X_MAX__|${X_MAX}|g" \
+  -e "s|__Y_HALF__|${Y_HALF}|g" \
+  -e "s|__Z_HALF__|${Z_HALF}|g" \
+  -e "s|__NX__|${NX}|g" \
+  -e "s|__NY__|${NY}|g" \
+  -e "s|__NZ__|${NZ}|g" \
+  system/blockMeshDict.in > system/blockMeshDict
+
+sed \
+  -e "s|__X_INTERFACE__|${X_INTERFACE}|g" \
+  -e "s|__X_MAX__|${X_MAX}|g" \
+  -e "s|__Y_HALF__|${Y_HALF}|g" \
+  -e "s|__Z_HALF__|${Z_HALF}|g" \
+  system/setFieldsDict.in > system/setFieldsDict

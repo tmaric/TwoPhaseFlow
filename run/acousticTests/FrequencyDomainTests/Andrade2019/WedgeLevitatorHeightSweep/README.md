@@ -1,6 +1,6 @@
 # WedgeLevitatorHeightSweep
 
-Frequency-domain empty-levitator sweep for `freBlockCoupledFoam`.
+Frequency-domain empty-levitator sweep for `acousticHelmholtzFoam`.
 
 This case reuses the parameterized setup of `WedgeLevitatorDropAlpha`, but with
 an empty cavity (`alpha.water = 0`) and a sweep in reflector height ratio:

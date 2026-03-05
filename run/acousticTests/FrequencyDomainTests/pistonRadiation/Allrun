@@ -35,7 +35,7 @@ ensure_solver()
 }
 
 # Quick switch:
-#   RUN_MODE=serial ./Allrun      -> freBlockCoupledFoam (reference)
+#   RUN_MODE=serial ./Allrun      -> acousticHelmholtzFoam (reference)
 #   RUN_MODE=serial_it ./Allrun   -> freITBCFoam (iterative PETSc)
 #   RUN_MODE=mpi ./Allrun      -> freBCMFoam on decomposed case
 # Optional for mpi:
@@ -68,8 +68,8 @@ if [ "${RUN_MODE}" = "mpi" ]; then
     runParallel freBCMFoam
     runApplication reconstructPar -latestTime
 elif [ "${RUN_MODE}" = "serial" ]; then
-    ensure_solver freBlockCoupledFoam freBlockCoupledFoam
-    runApplication freBlockCoupledFoam
+    ensure_solver acousticHelmholtzFoam acousticHelmholtzFoam
+    runApplication acousticHelmholtzFoam
 elif [ "${RUN_MODE}" = "serial_it" ]; then
     ensure_solver freITBCFoam freITBCFoam
     runApplication freITBCFoam

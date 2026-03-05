@@ -33,7 +33,7 @@ Run these once before first case run:
 source ~/TwoPhaseFlow/scripts/bashrc
 source ~/openfoam/etc/bashrc
 cd /home/minkowski/TwoPhaseFlow
-wmake solver/freBlockCoupledFoam
+wmake solver/acousticHelmholtzFoam
 wmake solver/freBCMFoam
 ```
 
@@ -62,7 +62,7 @@ NPROCS=8 RUN_MODE=mpi ./Allrun
 Default mode is set in `caseParams.sh` via `RUN_MODE`.
 
 Serial log file:
-- `log.freBlockCoupledFoam`
+- `log.acousticHelmholtzFoam`
 
 MPI log file:
 - `log.freBCMFoam`

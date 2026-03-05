@@ -159,3 +159,4 @@ run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/syste
 run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/fvSolution
 
 .ccls-cache/
+preprint_acousticHelmholtzFoam/

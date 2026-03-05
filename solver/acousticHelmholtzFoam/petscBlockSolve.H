@@ -1,4 +1,4 @@
-// PETSc lifecycle/solve helpers for freBlockCoupledFoam.
+// PETSc lifecycle/solve helpers for acousticHelmholtzFoam.
 
 static void initializePetscSystem
 (

@@ -29,7 +29,7 @@ Group
 
 Description
     MPI-capable block-coupled frequency-domain acoustic solver.
-    Uses the same pressure block structure as freBlockCoupledFoam:
+    Uses the same pressure block structure as acousticHelmholtzFoam:
 
         [ A  -(B1 + B2) ] [Pim] = [bPim]
         [ (B1 + B2)  A ] [Pre]   [bPre]
@@ -39,8 +39,8 @@ Description
     PETSc then solves the global distributed linear system (default:
     preonly+lu+mumps).
 
-    Practical difference to freBlockCoupledFoam:
-    - freBlockCoupledFoam: serial OpenFOAM assembly only (reference).
+    Practical difference to acousticHelmholtzFoam:
+    - acousticHelmholtzFoam: serial OpenFOAM assembly only (reference).
     - freBCMFoam: distributed OpenFOAM assembly + distributed PETSc solve.
 \*---------------------------------------------------------------------------*/
 

@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     freBlockCoupledFoam;
+application     acousticHelmholtzFoam;
 
 startFrom       startTime;
 startTime       0;

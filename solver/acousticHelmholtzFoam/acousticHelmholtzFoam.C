@@ -22,7 +22,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-    freBlockCoupledFoam
+    acousticHelmholtzFoam
 
 Group
     AcousticSolvers
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     if (Pstream::parRun())
     {
         FatalErrorInFunction
-            << "freBlockCoupledFoam uses serial assembly. "
+            << "acousticHelmholtzFoam uses serial assembly. "
             << "Run on one MPI rank and use OMP_NUM_THREADS for multicore."
             << exit(FatalError);
     }

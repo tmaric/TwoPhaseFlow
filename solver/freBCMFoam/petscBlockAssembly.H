@@ -2,7 +2,7 @@
 //
 // This file maps OpenFOAM scalar operators into PETSc block rows/columns and
 // explicitly handles processor-patch coupling when assembling diagonal blocks.
-// Goal: preserve the same block equation structure as freBlockCoupledFoam
+// Goal: preserve the same block equation structure as acousticHelmholtzFoam
 // while supporting decomposed MPI meshes.
 
 static List<labelList> gatherProcessorPatchNeighbourGlobals

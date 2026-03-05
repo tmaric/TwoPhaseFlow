@@ -1,4 +1,4 @@
-// PETSc diagnostics helpers for freBlockCoupledFoam.
+// PETSc diagnostics helpers for acousticHelmholtzFoam.
 
 static void reportMatrixStats
 (

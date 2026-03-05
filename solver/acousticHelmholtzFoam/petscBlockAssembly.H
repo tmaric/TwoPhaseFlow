@@ -1,4 +1,4 @@
-// Block-assembly helpers for freBlockCoupledFoam.
+// Block-assembly helpers for acousticHelmholtzFoam.
 
 static void addBoundarySourceSimple
 (

@@ -1,0 +1,34 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      transportProperties;
+}
+
+transportModel  Newtonian;
+
+mu              [ 1 -1 -1 0 0 0 0 ] 0.0;
+psi             [ 0 -2 2 0 0 0 0 ] 8.5e-6;
+rho0            [ 1 -3 0 0 0 0 0 ] __RHOG__;
+R               1.51e-3;
+p0              0.0;
+
+rhol            __RHOL__;
+rhog            __RHOG__;
+cg              __CG__;
+cl              __CL__;
+kg              #eval{1.0/($rhog*$cg*$cg)};
+kl              #eval{1.0/($rhol*$cl*$cl)};
+
+f               __DRIVE_F__;
+sigmaMax        __SIGMA_MAX__;
+po              __PO__;
+
+PMLType         rectangle;
+L               __PML_L__;
+PMLMax          (__PML_XMAX__ 10 10);
+PMLMin          (-10 -10 -10);

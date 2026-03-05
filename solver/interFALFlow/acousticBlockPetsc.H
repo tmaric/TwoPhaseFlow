@@ -2,7 +2,7 @@ static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
 // NOTE:
 // This header provides the serial acoustic block assembly used by interFALFlow.
-// It follows the same block layout as freBlockCoupledFoam:
+// It follows the same block layout as acousticHelmholtzFoam:
 //   row 0..N-1   : Pim equation
 //   row N..2N-1  : Pre equation
 //   col 0..N-1   : Pim unknowns

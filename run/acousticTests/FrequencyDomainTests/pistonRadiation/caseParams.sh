@@ -14,7 +14,7 @@
 # Run mode
 # ---------------------------------------------------------------------------
 # Solver mode used by Allrun:
-# - serial: freBlockCoupledFoam (reference)
+# - serial: acousticHelmholtzFoam (reference)
 # - serial_it: freITBCFoam (iterative PETSc block-coupled)
 # - mpi:    freBCMFoam with decomposePar
 # Can still be overridden at launch, e.g. RUN_MODE=mpi ./Allrun
@@ -45,7 +45,7 @@ CL=1480
 # ---------------------------------------------------------------------------
 # Maximum damping strength sigmaMax [1/s].
 # Reference serial:3000; mpi:100000
-SIGMA_MAX=100000 
+SIGMA_MAX=3000 
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Shifted-Laplacian strength beta (dimensionless).
