@@ -56,6 +56,7 @@ Description
 #include "reconstructionSchemes.H"
 #include "upwind.H"
 #include "processorPolyPatch.H"
+#include "processorLduInterface.H"
 #include "processorBC.H"
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
@@ -110,48 +111,48 @@ int main(int argc, char *argv[])
             MatZeroEntries(M);
             VecSet(b, 0.0);
 
-            fvScalarMatrix mainOpPre
+            fvScalarMatrix AopPre
             (
                 fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
               + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
             );
 
-            fvScalarMatrix mainOpPim
+            fvScalarMatrix AopPim
             (
                 fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
               + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
             );
 
-            // Coupling operators built from the opposite field:
-            // Pim-row couples to Pre via (laplacian(TC1,Pre) + Sp(SC1,Pre))
-            fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));
-            fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));
-            fvScalarMatrix couplingOpPre(couplingLaplPre + couplingMassPre);
+            // Keep B1 (laplacian) and B2 (Sp) as separate operators.
+            // Their off-block diagonal handling differs in assembly.
+            fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));  // B1
+            fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));         // B2
 
-            // Pre-row couples to Pim via (laplacian(TC1,Pim) + Sp(SC1,Pim))
-            fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));
-            fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));
-            fvScalarMatrix couplingOpPim(couplingLaplPim + couplingMassPim);
+            fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));  // B1
+            fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));         // B2
 
             if (!dumpedOpStats)
             {
-                reportFvMatrixBreakdown("mainOpPre beforeBoundaryManipulate", mainOpPre);
-                reportFvMatrixBreakdown("mainOpPim beforeBoundaryManipulate", mainOpPim);
-                reportFvMatrixBreakdown("couplingOpPre beforeBoundaryManipulate", couplingOpPre);
+                reportFvMatrixBreakdown("AopPre beforeBoundaryManipulate", AopPre);
+                reportFvMatrixBreakdown("AopPim beforeBoundaryManipulate", AopPim);
+                reportFvMatrixBreakdown("couplingLaplPre beforeBoundaryManipulate", couplingLaplPre);
+                reportFvMatrixBreakdown("couplingMassPre beforeBoundaryManipulate", couplingMassPre);
             }
 
             assembleBlockSystem
             (
                 M, globalCells, N,
-                mainOpPim, mainOpPre,
-                couplingOpPre
+                AopPim, AopPre,
+                couplingLaplPre, couplingMassPre,
+                couplingLaplPim, couplingMassPim
             );
 
             if (!dumpedOpStats)
             {
-                reportFvMatrixBreakdown("mainOpPre afterBoundaryManipulate", mainOpPre);
-                reportFvMatrixBreakdown("mainOpPim afterBoundaryManipulate", mainOpPim);
-                reportFvMatrixBreakdown("couplingOpPre afterBoundaryManipulate", couplingOpPre);
+                reportFvMatrixBreakdown("AopPre afterBoundaryManipulate", AopPre);
+                reportFvMatrixBreakdown("AopPim afterBoundaryManipulate", AopPim);
+                reportFvMatrixBreakdown("couplingLaplPre afterBoundaryManipulate", couplingLaplPre);
+                reportFvMatrixBreakdown("couplingMassPre afterBoundaryManipulate", couplingMassPre);
                 dumpedOpStats = true;
             }
 
@@ -159,10 +160,12 @@ int main(int argc, char *argv[])
             scalarField bPre;
             buildRhs
             (
-                mainOpPim,
-                mainOpPre,
-                couplingOpPre,
-                couplingOpPim,
+                AopPim,
+                AopPre,
+                couplingLaplPre,
+                couplingMassPre,
+                couplingLaplPim,
+                couplingMassPim,
                 bPim,
                 bPre
             );
@@ -178,6 +181,7 @@ int main(int argc, char *argv[])
             {
                 dumpedMatrixStats = true;
                 reportMatrixStats(M, b, N);
+                dumpProcessorInterfaceRows(M, AopPim, globalCells, N);
             }
 
             KSPSolve(ksp, b, x);

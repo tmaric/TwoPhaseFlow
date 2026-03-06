@@ -64,19 +64,23 @@ static void scatterBlockSolution
 
 static void buildRhs
 (
-    const fvScalarMatrix& mainOpPim,
-    const fvScalarMatrix& mainOpPre,
-    const fvScalarMatrix& couplingOpPre,
-    const fvScalarMatrix& couplingOpPim,
+    const fvScalarMatrix& AopPim,
+    const fvScalarMatrix& AopPre,
+    const fvScalarMatrix& B1Pre,
+    const fvScalarMatrix& B2Pre,
+    const fvScalarMatrix& B1Pim,
+    const fvScalarMatrix& B2Pim,
     scalarField& bPim,
     scalarField& bPre
 )
 {
-    bPim = sourceWithBoundary(mainOpPim, false);
-    bPim -= sourceWithBoundary(couplingOpPre, false);
+    bPim = sourceWithBoundary(AopPim, true, false);
+    bPim -= sourceWithBoundary(B1Pre, true, false);
+    bPim -= sourceWithBoundary(B2Pre, true, false);
 
-    bPre = sourceWithBoundary(mainOpPre, false);
-    bPre += sourceWithBoundary(couplingOpPim, false);
+    bPre = sourceWithBoundary(AopPre, true, false);
+    bPre += sourceWithBoundary(B1Pim, true, false);
+    bPre += sourceWithBoundary(B2Pim, true, false);
 }
 
 static void updateDerivedAcousticFields

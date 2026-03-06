@@ -104,7 +104,9 @@ forAll(patches, pi)
     Info << "patch name: " << patchi.name() << endl;
     if
     (
-        !isA<emptyPolyPatch>(patchi) && !isA<wedgePolyPatch>(patchi)
+        !isA<emptyPolyPatch>(patchi)
+     && !isA<wedgePolyPatch>(patchi)
+     && !isA<processorPolyPatch>(patchi)
     )
     {
         forAll(patchi, fi)
@@ -204,3 +206,10 @@ forAll(patches, pi)
         }
     }
 }
+
+// Synchronize coupled boundaries (notably processor patches) from internal
+// values after coefficient recomputation.
+TC1.correctBoundaryConditions();
+SC0.correctBoundaryConditions();
+SC1.correctBoundaryConditions();
+sigma.correctBoundaryConditions();
