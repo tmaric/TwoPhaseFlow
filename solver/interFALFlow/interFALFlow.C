@@ -29,7 +29,7 @@ Application
 Description
     Two-phase VOF solver coupled to a frequency-domain acoustic block solve.
     For each outer loop, alpha is used to assemble the acoustic operators,
-    then acoustic fields (Pre/Pim -> pa/pr/momFlux) are fed back as source
+    then acoustic fields (Pre/Pim -> pr/momFlux) are fed back as source
     terms to the flow equations on the same (serial) mesh decomposition.
 
 Author

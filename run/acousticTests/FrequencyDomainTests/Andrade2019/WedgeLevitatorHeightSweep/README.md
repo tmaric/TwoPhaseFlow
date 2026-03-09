@@ -40,6 +40,9 @@ Outputs:
 CSV columns:
 
 - `index`: sweep index `[0..SWEEP_POINTS-1]`
-- `height_fac`: `D/lambda`
+- `height_mm`: geometric gap in millimeters (plot x-axis)
 - `D_m`: geometric gap in meters
-- `Fn_reflector1_N`: normal force from `pr` integration on patch `reflector1`
+- `height_fac`: `D/lambda`
+- `Fn_reflector1_wedge_N`: force from `pr` integration on patch `reflector1` on the wedge sector
+- `Fn_reflector1_axisym_N`: axisymmetric full-360deg force (`Fn_reflector1_wedge_N * 360/WEDGE_DEG`)
+- `axisym_factor`: `360/WEDGE_DEG`

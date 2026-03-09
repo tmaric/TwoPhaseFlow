@@ -18,7 +18,7 @@
 
     forAll(U, i)
     {
-        Fr[i] = (pr[i]+pa[i])*advector->normal()[i] / mesh.V()[i];
+        Fr[i] = pr[i]*advector->normal()[i] / mesh.V()[i];
     }
 
     if (pimple.momentumPredictor())
@@ -33,7 +33,7 @@
                   surfForces.surfaceTensionForce()
                   + surfForces.accelerationForce()
                   - fvc::snGrad(p_rgh)
-                  + fvc::interpolate((pr+pa))*fvc::snGrad(alpha1)
+                  + fvc::interpolate(pr)*fvc::snGrad(alpha1)
                 ) * mesh.magSf()
             )
         );

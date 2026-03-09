@@ -43,7 +43,7 @@ CL=1480
 # PML thickness [m].
 PML_L=0.008
 # Max damping strength sigmaMax [1/s].
-SIGMA_MAX=5000
+SIGMA_MAX=3000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Rectangle bounds for PML logic in transportProperties.
@@ -82,6 +82,6 @@ WEDGE_DEG=1.0
 # Height sweep controls
 # ---------------------------------------------------------------------------
 # Sweep range in normalized height D/lambda.
-: "${SWEEP_FAC_MIN:=0.5}"
-: "${SWEEP_FAC_MAX:=1.5}"
+: "${SWEEP_FAC_MIN:=0.4}"
+: "${SWEEP_FAC_MAX:=1.6}"
 : "${SWEEP_POINTS:=100}"

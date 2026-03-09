@@ -5,7 +5,7 @@
     //      [ A  -(B1 + B2) ] [Pim] = [bPim]
     //      [ (B1 + B2)  A ] [Pre]   [bPre]
     // 3) Solve once with PETSc and update Pre/Pim.
-    // 4) Reconstruct pa/pr/momFlux used by interfacial flow forcing.
+    // 4) Reconstruct pr/momFlux used by interfacial flow forcing.
     #include "computeAlphaf.H"
     #include "computePMLCoefs.H"
 
@@ -81,7 +81,6 @@
     const tmp<volVectorField> Ure = 1/(twoPi()*f*rho) * fvc::grad(Pim);
     const tmp<volVectorField> Uim = -1/(twoPi()*f*rho) * fvc::grad(Pre);
 
-    pa == Foam::sqrt(Pim*Pim + Pre*Pre);
     pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
         - 0.25*rho*((Ure()&Ure()) + (Uim()&Uim()));
     momFlux == 0.5*rho*(Ure()*Ure() + Uim()*Uim());

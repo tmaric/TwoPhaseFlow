@@ -30,7 +30,7 @@
         (
           surfForces.surfaceTensionForce()
           + surfForces.accelerationForce()
-          + fvc::interpolate((pr+pa))*fvc::snGrad(alpha1)
+          + fvc::interpolate(pr)*fvc::snGrad(alpha1)
           + fvc::interpolate(pMomFlux)*fvc::snGrad(alpha1)
         )*rAUf*mesh.magSf()
     );
