@@ -1,21 +1,120 @@
 // Acoustic block assembly helpers for interMPIALFlow.
 //
-// Key idea:
-// - Build the same 2x2 real-valued block form as the serial reference.
-// - In MPI runs, explicitly inject processor-patch couplings into PETSc rows
-//   so the distributed matrix still represents one global acoustic system.
-// - Keep source assembly separate from matrix insertion for easier diagnostics.
+// Design intent (same as freBCMFoam):
+// - Keep the algebra identical to the serial reference block system.
+// - Assemble matrix entries explicitly into PETSc, including processor links.
+// - Treat B1/B2 in off-diagonal blocks consistently with serial formulation:
+//   B1 contributes face-coupling only, B2 carries diagonal mass term.
+
+static List<labelList> gatherProcessorPatchNeighbourGlobals
+(
+    const fvScalarMatrix& op,
+    const globalIndex& globalCells,
+    List<scalarField>& neighbBcoeffs
+)
+{
+    const auto& bpsi = op.psi().boundaryField();
+    const auto& bcoeffs = op.boundaryCoeffs();
+    const lduInterfaceFieldPtrsList interfaces =
+        op.psi().boundaryField().scalarInterfaces();
+
+    List<labelList> neighbGlobals(bpsi.size());
+    neighbBcoeffs.setSize(bpsi.size());
+
+    if (!Pstream::parRun())
+    {
+        return neighbGlobals;
+    }
+
+    labelList localGlobalIds(op.psi().mesh().nCells());
+    forAll(localGlobalIds, celli)
+    {
+        localGlobalIds[celli] = globalCells.toGlobal(celli);
+    }
+
+    forAll(bpsi, patchi)
+    {
+        if (!interfaces.set(patchi))
+        {
+            continue;
+        }
+
+        const lduInterface& lduInt = interfaces[patchi].interface();
+        if (!isA<processorLduInterface>(lduInt))
+        {
+            continue;
+        }
+
+        const processorLduInterface& procInt =
+            refCast<const processorLduInterface>(lduInt);
+        const labelUList& faceCells = lduInt.faceCells();
+
+        lduInt.initInternalFieldTransfer
+        (
+            Pstream::commsTypes::scheduled,
+            localGlobalIds,
+            faceCells
+        );
+        procInt.send(Pstream::commsTypes::scheduled, bcoeffs[patchi]);
+    }
+
+    forAll(bpsi, patchi)
+    {
+        if (!interfaces.set(patchi))
+        {
+            continue;
+        }
+
+        const lduInterface& lduInt = interfaces[patchi].interface();
+        if (!isA<processorLduInterface>(lduInt))
+        {
+            continue;
+        }
+
+        const processorLduInterface& procInt =
+            refCast<const processorLduInterface>(lduInt);
+        const labelUList& faceCells = lduInt.faceCells();
+        neighbGlobals[patchi] =
+            lduInt.internalFieldTransfer
+            (
+                Pstream::commsTypes::scheduled,
+                localGlobalIds
+            );
+
+        scalarField recvCoeff(faceCells.size());
+        procInt.receive(Pstream::commsTypes::scheduled, recvCoeff);
+        if
+        (
+            neighbGlobals[patchi].size() != faceCells.size()
+         || recvCoeff.size() != faceCells.size()
+        )
+        {
+            FatalErrorInFunction
+                << "Processor exchange size mismatch on patch index " << patchi
+                << ": expected " << faceCells.size()
+                << " got ids " << neighbGlobals[patchi].size()
+                << " coeffs " << recvCoeff.size()
+                << exit(FatalError);
+        }
+
+        neighbBcoeffs[patchi].transfer(recvCoeff);
+    }
+
+    return neighbGlobals;
+}
 
 static void addBoundarySourceSimple
 (
     const fvScalarMatrix& M,
     scalarField& source,
-    const bool couples = true
+    const bool couples = true,
+    const bool includeProcessorCoupled = true
 )
 {
     const auto& bpsi = M.psi().boundaryField();
     const auto& bcoeffs = M.boundaryCoeffs();
     const auto& addr = M.lduAddr();
+    const polyBoundaryMesh& patches = M.psi().mesh().boundaryMesh();
 
     forAll(bpsi, patchi)
     {
@@ -34,6 +133,15 @@ static void addBoundarySourceSimple
         }
         else if (couples)
         {
+            if
+            (
+                !includeProcessorCoupled
+             && isA<processorPolyPatch>(patches[patchi])
+            )
+            {
+                continue;
+            }
+
             const tmp<Field<scalar>> tpnf = ptf.patchNeighbourField();
             const Field<scalar>& pnf = tpnf();
             forAll(paddr, facei)
@@ -47,70 +155,13 @@ static void addBoundarySourceSimple
 static scalarField sourceWithBoundary
 (
     const fvScalarMatrix& M,
-    const bool includeCoupled
+    const bool includeCoupled,
+    const bool includeProcessorCoupled = true
 )
 {
     scalarField source(M.source());
-    addBoundarySourceSimple(M, source, includeCoupled);
+    addBoundarySourceSimple(M, source, includeCoupled, includeProcessorCoupled);
     return source;
-}
-
-static List<labelList> gatherProcessorPatchNeighbourGlobals
-(
-    const fvScalarMatrix& op,
-    const globalIndex& globalCells
-)
-{
-    const auto& bpsi = op.psi().boundaryField();
-    const lduAddressing& addr = op.lduAddr();
-    const polyBoundaryMesh& patches = op.psi().mesh().boundaryMesh();
-
-    List<labelList> neighbGlobals(bpsi.size());
-
-    if (!Pstream::parRun())
-    {
-        return neighbGlobals;
-    }
-
-    PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
-
-    forAll(bpsi, patchi)
-    {
-        if (!bpsi[patchi].coupled() || !isA<processorPolyPatch>(patches[patchi]))
-        {
-            continue;
-        }
-
-        const processorPolyPatch& procPatch =
-            refCast<const processorPolyPatch>(patches[patchi]);
-        const labelUList& paddr = addr.patchAddr(patchi);
-
-        labelList sendIds(paddr.size());
-        forAll(paddr, facei)
-        {
-            sendIds[facei] = globalCells.toGlobal(paddr[facei]);
-        }
-
-        UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
-        toNbr << sendIds;
-    }
-
-    pBufs.finishedSends();
-
-    forAll(bpsi, patchi)
-    {
-        if (!bpsi[patchi].coupled() || !isA<processorPolyPatch>(patches[patchi]))
-        {
-            continue;
-        }
-
-        const processorPolyPatch& procPatch =
-            refCast<const processorPolyPatch>(patches[patchi]);
-        UIPstream fromNbr(procPatch.neighbProcNo(), pBufs);
-        fromNbr >> neighbGlobals[patchi];
-    }
-
-    return neighbGlobals;
 }
 
 static void insertScalarOpIntoBlock
@@ -120,11 +171,11 @@ static void insertScalarOpIntoBlock
     const globalIndex& globalCells,
     const PetscInt rowOffset,
     const PetscInt colOffset,
-    const PetscScalar scale
+    const PetscScalar scale,
+    const bool includeDiag = true
 )
 {
     const lduMatrix& L = op;
-
     const scalarField& diag = L.diag();
     scalarField diagWithProc(diag);
 
@@ -133,55 +184,68 @@ static void insertScalarOpIntoBlock
     const labelUList& neigh = addr.upperAddr();
 
     List<labelList> neighbGlobals;
-    if (Pstream::parRun() && rowOffset == colOffset)
+    List<scalarField> neighbBcoeffs;
+    if (Pstream::parRun())
     {
         const auto& bpsi = op.psi().boundaryField();
         const auto& bcoeffs = op.boundaryCoeffs();
         const auto& icoeffs = op.internalCoeffs();
         const lduAddressing& baddr = op.lduAddr();
-        const polyBoundaryMesh& patches = op.psi().mesh().boundaryMesh();
-        neighbGlobals = gatherProcessorPatchNeighbourGlobals(op, globalCells);
+        neighbGlobals =
+            gatherProcessorPatchNeighbourGlobals(op, globalCells, neighbBcoeffs);
 
         forAll(bpsi, patchi)
         {
-            if (!bpsi[patchi].coupled() || !isA<processorPolyPatch>(patches[patchi]))
+            if
+            (
+                !bpsi[patchi].coupled()
+             || !isA<processorPolyPatch>(op.psi().mesh().boundaryMesh()[patchi])
+            )
             {
                 continue;
             }
 
             const labelUList& paddr = baddr.patchAddr(patchi);
             const Field<scalar>& pbc = bcoeffs[patchi];
+            const Field<scalar>& pic = icoeffs[patchi];
             const labelList& nbrIds = neighbGlobals[patchi];
+            const scalarField& nbrBcoeffs = neighbBcoeffs[patchi];
 
-            if (nbrIds.size() != paddr.size())
+            if (nbrIds.size() != paddr.size() || nbrBcoeffs.size() != paddr.size())
             {
                 FatalErrorInFunction
                     << "Processor patch exchange size mismatch on patch "
-                    << patches[patchi].name()
+                    << op.psi().mesh().boundaryMesh()[patchi].name()
                     << ": local faces " << paddr.size()
                     << " neighbour ids " << nbrIds.size()
+                    << " neighbour coeffs " << nbrBcoeffs.size()
                     << exit(FatalError);
             }
 
-            const Field<scalar>& pic = icoeffs[patchi];
-
             forAll(paddr, facei)
             {
-                const PetscInt cNbr = nbrIds[facei] + colOffset;
                 const label ownCell = paddr[facei];
                 const PetscInt r = globalCells.toGlobal(ownCell) + rowOffset;
+                const PetscInt cNbr = nbrIds[facei] + colOffset;
 
-                diagWithProc[ownCell] += pic[facei];
+                if (includeDiag)
+                {
+                    diagWithProc[ownCell] += pic[facei];
+                }
+
                 MatSetValue(M, r, cNbr, -scale*pbc[facei], INSERT_VALUES);
             }
         }
     }
 
-    forAll(diagWithProc, i)
+    if (includeDiag)
     {
-        PetscInt r = globalCells.toGlobal(i) + rowOffset;
-        PetscInt c = globalCells.toGlobal(i) + colOffset;
-        MatSetValue(M, r, c, scale*diagWithProc[i], INSERT_VALUES);
+        forAll(diagWithProc, i)
+        {
+            PetscInt r = globalCells.toGlobal(i) + rowOffset;
+            PetscInt c = globalCells.toGlobal(i) + colOffset;
+            MatSetValue(M, r, c, scale*diagWithProc[i], INSERT_VALUES);
+        }
     }
 
     if (L.hasUpper())
@@ -209,73 +273,33 @@ static void insertScalarOpIntoBlock
     }
 }
 
-static void insertScalarOpTransposeIntoBlock
-(
-    Mat& M,
-    const fvScalarMatrix& op,
-    const globalIndex& globalCells,
-    const PetscInt rowOffset,
-    const PetscInt colOffset,
-    const PetscScalar scale
-)
-{
-    const lduMatrix& L = op;
-    const scalarField& diag = L.diag();
-    const lduAddressing& addr = L.lduAddr();
-    const labelUList& owner = addr.lowerAddr();
-    const labelUList& neigh = addr.upperAddr();
-
-    forAll(diag, i)
-    {
-        const PetscInt r = globalCells.toGlobal(i) + rowOffset;
-        const PetscInt c = globalCells.toGlobal(i) + colOffset;
-        MatSetValue(M, r, c, scale*diag[i], INSERT_VALUES);
-    }
-
-    if (L.hasUpper())
-    {
-        const scalarField& upper = L.upper();
-        const scalarField* lowerPtr = L.hasLower() ? &L.lower() : nullptr;
-
-        forAll(upper, f)
-        {
-            const label i = owner[f];
-            const label j = neigh[f];
-
-            const PetscInt ri = globalCells.toGlobal(i) + rowOffset;
-            const PetscInt rj = globalCells.toGlobal(j) + rowOffset;
-
-            const PetscInt ci = globalCells.toGlobal(i) + colOffset;
-            const PetscInt cj = globalCells.toGlobal(j) + colOffset;
-
-            const scalar upperVal = upper[f];
-            const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
-
-            MatSetValue(M, ri, cj, scale*lowerVal, INSERT_VALUES);
-            MatSetValue(M, rj, ci, scale*upperVal, INSERT_VALUES);
-        }
-    }
-}
-
 static void assembleBlockSystem
 (
     Mat& M,
     const globalIndex& globalCells,
     const PetscInt N,
-    fvScalarMatrix& mainOpPim,
-    fvScalarMatrix& mainOpPre,
-    fvScalarMatrix& couplingOpPre
+    fvScalarMatrix& AopPim,
+    fvScalarMatrix& AopPre,
+    fvScalarMatrix& B1Pre,
+    fvScalarMatrix& B2Pre,
+    fvScalarMatrix& B1Pim,
+    fvScalarMatrix& B2Pim
 )
 {
-    mainOpPre.boundaryManipulate(mainOpPre.psi().boundaryFieldRef());
-    mainOpPim.boundaryManipulate(mainOpPim.psi().boundaryFieldRef());
-    couplingOpPre.boundaryManipulate(couplingOpPre.psi().boundaryFieldRef());
+    AopPre.boundaryManipulate(AopPre.psi().boundaryFieldRef());
+    AopPim.boundaryManipulate(AopPim.psi().boundaryFieldRef());
+    B1Pre.boundaryManipulate(B1Pre.psi().boundaryFieldRef());
+    B2Pre.boundaryManipulate(B2Pre.psi().boundaryFieldRef());
+    B1Pim.boundaryManipulate(B1Pim.psi().boundaryFieldRef());
+    B2Pim.boundaryManipulate(B2Pim.psi().boundaryFieldRef());
 
-    insertScalarOpIntoBlock(M, mainOpPim, globalCells, 0, 0, +1.0);
-    insertScalarOpIntoBlock(M, couplingOpPre, globalCells, 0, N, -1.0);
+    insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
+    insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0, false);
+    insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, -1.0, true);
 
-    insertScalarOpTransposeIntoBlock(M, couplingOpPre, globalCells, N, 0, +1.0);
-    insertScalarOpIntoBlock(M, mainOpPre, globalCells, N, N, +1.0);
+    insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0, false);
+    insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, +1.0, true);
+    insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
 }
 
 static void setBlockRhs

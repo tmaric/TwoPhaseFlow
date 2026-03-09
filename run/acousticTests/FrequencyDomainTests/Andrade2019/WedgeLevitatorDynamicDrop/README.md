@@ -6,6 +6,8 @@ Edit one file and regenerate all dependent inputs automatically.
 ## Files and roles
 
 - `caseParams.sh`: single source of truth for drive, PML, and mesh controls.
+  - includes `ACOUSTIC_FORCE_MODEL` (`interface` or `volume`) for acoustic-flow coupling.
+  - includes `DROP_RADIUS` and `DROP_CENTER_Y` for initial drop size/vertical position (`setAlphaField`).
 - `prepareCase`: renders templates using values from `caseParams.sh`.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
 - `constant/levitatorWedgeHex.geo.in`: template for `constant/levitatorWedgeHex.geo`.
@@ -79,6 +81,7 @@ This updates:
 - `constant/transportProperties`
 - `constant/levitatorWedgeHex.geo`
 - `0.orig/Pim`
+- `system/setAlphaFieldDict`
 
 ## Environment
 

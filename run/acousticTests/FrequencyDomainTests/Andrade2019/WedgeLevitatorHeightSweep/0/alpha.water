@@ -1,8 +1,8 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
-| \\      /  F ield         | foam-extend: Open Source CFD                    |
-|  \\    /   O peration     | Version:     3.1                                |
-|   \\  /    A nd           | Web:         http://www.extend-project.de       |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.x                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
 FoamFile
@@ -10,35 +10,26 @@ FoamFile
     version     2.0;
     format      ascii;
     class       volScalarField;
-    object      Pre;
+    location    "0";
+    object      alpha.water;
 }
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [1 -1 -2 0 0 0 0];
+dimensions      [0 0 0 0 0 0 0];
 
+// Empty levitator: no drop.
 internalField   uniform 0;
 
 boundaryField
 {
-    piston
+    "(openAir|transducer.*|reflector.*)"
     {
         type            zeroGradient;
     }
-
-    bottom
-    {
-        type            zeroGradient;
-    }
-
-    openAir
-    {
-        type            zeroGradient;
-    }
-
     "(front|back)"
     {
         type            wedge;
     }
 }
+
 
 // ************************************************************************* //

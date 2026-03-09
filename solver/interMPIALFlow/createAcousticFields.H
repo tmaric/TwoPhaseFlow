@@ -27,20 +27,6 @@
         mesh
     );
 
-    volScalarField pa
-    (
-        IOobject
-        (
-            "pa",
-            runTime.timeName(),
-            mesh,
-            IOobject::NO_READ,
-            IOobject::AUTO_WRITE
-        ),
-        mesh,
-        dimensionedScalar("pa", dimPressure, 0)
-    );
-
 	surfaceScalarField alphaf
 	(
 	    IOobject
@@ -138,5 +124,3 @@ volScalarField sigma
     mesh,
     dimensionedScalar("sigma", dimless/dimTime, Zero)
 );
-
-mesh.setFluxRequired(pa.name()); 

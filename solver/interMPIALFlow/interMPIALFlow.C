@@ -62,6 +62,7 @@ SourceFiles
 #include "emptyPolyPatch.H"
 #include "wedgePolyPatch.H"
 #include "processorPolyPatch.H"
+#include "processorLduInterface.H"
 #include "processorBC.H"
 #include "syncTools.H"
 #include "acousticBlockPetsc.H"

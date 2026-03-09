@@ -17,7 +17,7 @@
 # - serial: interFALFlow
 # - mpi:    interMPIALFlow with decomposePar
 # Can still be overridden at launch, e.g. RUN_MODE=mpi ./Allrun
-: "${RUN_MODE:=mpi}"
+: "${RUN_MODE:=serial}"
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -25,7 +25,7 @@
 # Driven acoustic frequency [Hz].
 DRIVE_F=25250
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
-PISTON_U=0.05
+PISTON_U=2
 
 # ---------------------------------------------------------------------------
 # Fluid / acoustic medium properties
@@ -40,6 +40,10 @@ RHOG=1.2
 CG=343
 # Liquid sound speed [m/s].
 CL=1480
+# Acoustic-flow forcing model used by interFALFlow/interMPIALFlow:
+# - interface: interfacial forcing (legacy)
+# - volume:    volumetric force = -grad(pr) + div(momFlux)
+ACOUSTIC_FORCE_MODEL=interface
 
 # ---------------------------------------------------------------------------
 # PML parameters (rectangle PML)
@@ -47,7 +51,7 @@ CL=1480
 # PML thickness [m].
 PML_L=0.008
 # Max damping strength sigmaMax [1/s].
-SIGMA_MAX=100000
+SIGMA_MAX=5000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Rectangle bounds for PML logic in transportProperties.
@@ -83,3 +87,11 @@ MESH_LC=1.0
 # Wedge half/total angle settings [deg].
 ROTATE_HALF_DEG=0.5
 WEDGE_DEG=1.0
+
+# ---------------------------------------------------------------------------
+# Initial drop setup (setAlphaField)
+# ---------------------------------------------------------------------------
+# Initial spherical drop radius [m].
+DROP_RADIUS=0.0015
+# Initial drop center vertical position [m] (y-coordinate).
+DROP_CENTER_Y=0.004

@@ -29,7 +29,16 @@ while [ "$i" -lt "$SWEEP_POINTS" ]; do
     echo "[$((i+1))/${SWEEP_POINTS}] HEIGHT_FAC=${fac} D=${dVal} m (${dMm} mm)"
     # Force a fresh run for each sweep point; RunFunctions otherwise skips
     # applications when log.<app> exists from previous point.
-    rm -f log.gmshToFoam log.changeDictionary log."${application:-acousticHelmholtzFoam}" log.acousticHelmholtzFoam
+    rm -f \
+        log.gmshToFoam \
+        log.changeDictionary \
+        log.decomposePar \
+        log.reconstructPar \
+        "log.${SERIAL_SOLVER}" \
+        "log.${MPI_SOLVER}" \
+        log.acousticHelmholtzFoam \
+        log.freBCMFoam
+    rm -rf processor*
     rm -rf postProcessing/reflectorForce
     HEIGHT_FAC="$fac" ./Allrun > "${resultsDir}/log_height_$(printf "%03d" "$i").txt" 2>&1
 

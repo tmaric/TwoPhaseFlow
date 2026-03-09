@@ -40,9 +40,12 @@ render()
         -e "s|__MESH_LC__|$MESH_LC|g" \
         -e "s|__ROTATE_HALF_DEG__|$ROTATE_HALF_DEG|g" \
         -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
+        -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
+        -e "s|__DROP_CENTER_Y__|$DROP_CENTER_Y|g" \
         "$inFile" > "$outFile"
 }
 
 render constant/transportProperties.in constant/transportProperties
 render constant/levitatorWedgeHex.geo.in constant/levitatorWedgeHex.geo
 render 0.orig/Pim.in 0.orig/Pim
+render system/setAlphaFieldDict.in system/setAlphaFieldDict

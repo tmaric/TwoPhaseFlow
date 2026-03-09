@@ -30,10 +30,21 @@
         (
           surfForces.surfaceTensionForce()
           + surfForces.accelerationForce()
-          + fvc::interpolate(pr)*fvc::snGrad(alpha1)
-          + fvc::interpolate(pMomFlux)*fvc::snGrad(alpha1)
         )*rAUf*mesh.magSf()
     );
+
+    if (useVolumeAcousticForce)
+    {
+        phig += rAUf*(fvc::interpolate(Fr) & mesh.Sf());
+    }
+    else
+    {
+        phig +=
+            (
+                fvc::interpolate(pr)*fvc::snGrad(alpha1)
+              + fvc::interpolate(pMomFlux)*fvc::snGrad(alpha1)
+            )*rAUf*mesh.magSf();
+    }
 
     phiHbyA += phig;
 

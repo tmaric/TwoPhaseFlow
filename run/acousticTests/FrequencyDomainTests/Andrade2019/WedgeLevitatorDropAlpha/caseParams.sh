@@ -11,6 +11,16 @@
 # 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
+# Run mode
+# ---------------------------------------------------------------------------
+# Solver mode used by Allrun:
+# - serial: single-rank acoustic solve
+# - mpi:    decomposed/multi-rank acoustic solve
+: "${RUN_MODE:=mpi}"
+SERIAL_SOLVER=acousticHelmholtzFoam
+MPI_SOLVER=freBCMFoam
+
+# ---------------------------------------------------------------------------
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
@@ -38,7 +48,7 @@ CL=1480
 # PML thickness [m].
 PML_L=0.008
 # Max damping strength sigmaMax [1/s].
-SIGMA_MAX=5000
+SIGMA_MAX=3000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Rectangle bounds for PML logic in transportProperties.
@@ -74,3 +84,11 @@ MESH_LC=1.0
 # Wedge half/total angle settings [deg].
 ROTATE_HALF_DEG=0.5
 WEDGE_DEG=1.0
+
+# ---------------------------------------------------------------------------
+# Initial drop setup (setAlphaField)
+# ---------------------------------------------------------------------------
+# Initial spherical drop radius [m].
+DROP_RADIUS=0.001
+# Initial drop center vertical position [m] (y-coordinate).
+DROP_CENTER_Y=0.0040003

@@ -18,7 +18,7 @@ FoamFile
 field           alpha.water;
 type            sphere;
 direction       (0 0 1);
-radius          0.0015;
-origin          (0.00000001 0.004 0.0000001);
+radius          __DROP_RADIUS__;
+origin          (0.00000001 __DROP_CENTER_Y__ 0.0000001);
 
 // ************************************************************************* //

@@ -1,10 +1,10 @@
 // PETSc lifecycle and post-processing helpers for interMPIALFlow acoustic step.
 //
-// The solver uses distributed AIJ storage and direct factorization by default.
-// After KSPSolve, the global solution is scattered to all ranks so each rank
-// can update local OpenFOAM fields (Pre, Pim, pa, pr, momFlux) consistently.
+// This follows freBCMFoam behaviour: distributed AIJ + direct factorization,
+// gather solved block vector to all ranks, and construct RHS with processor
+// coupled source terms excluded to avoid double counting.
 
-static void initializeAcousticPetscSystem
+static void initializePetscSystem
 (
     const PetscInt nLocal,
     const PetscInt N,
@@ -61,26 +61,29 @@ static void scatterBlockSolution
     VecDestroy(&xAll);
 }
 
-static void buildAcousticRhs
+static void buildRhs
 (
-    const fvScalarMatrix& mainOpPim,
-    const fvScalarMatrix& mainOpPre,
-    const fvScalarMatrix& couplingOpPre,
-    const fvScalarMatrix& couplingOpPim,
+    const fvScalarMatrix& AopPim,
+    const fvScalarMatrix& AopPre,
+    const fvScalarMatrix& B1Pre,
+    const fvScalarMatrix& B2Pre,
+    const fvScalarMatrix& B1Pim,
+    const fvScalarMatrix& B2Pim,
     scalarField& bPim,
     scalarField& bPre
 )
 {
-    bPim = sourceWithBoundary(mainOpPim, false);
-    bPim -= sourceWithBoundary(couplingOpPre, false);
+    bPim = sourceWithBoundary(AopPim, true, false);
+    bPim -= sourceWithBoundary(B1Pre, true, false);
+    bPim -= sourceWithBoundary(B2Pre, true, false);
 
-    bPre = sourceWithBoundary(mainOpPre, false);
-    bPre += sourceWithBoundary(couplingOpPim, false);
+    bPre = sourceWithBoundary(AopPre, true, false);
+    bPre += sourceWithBoundary(B1Pim, true, false);
+    bPre += sourceWithBoundary(B2Pim, true, false);
 }
 
 static void updateDerivedAcousticFields
 (
-    volScalarField& pa,
     volScalarField& pr,
     volTensorField& momFlux,
     const volScalarField& Pim,
@@ -92,10 +95,9 @@ static void updateDerivedAcousticFields
     const dimensionedScalar& kg
 )
 {
-    const tmp<volVectorField> Ure = 1/(twoPi()*f*rho) * fvc::grad(Pim);
-    const tmp<volVectorField> Uim = -1/(twoPi()*f*rho) * fvc::grad(Pre);
+    const tmp<volVectorField> Ure = 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
+    const tmp<volVectorField> Uim = -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
 
-    pa == Foam::sqrt(Pim*Pim + Pre*Pre);
     pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
         - 0.25*rho*((Ure()&Ure()) + (Uim()&Uim()));
     momFlux == 0.5*rho*(Ure()*Ure() + Uim()*Uim());

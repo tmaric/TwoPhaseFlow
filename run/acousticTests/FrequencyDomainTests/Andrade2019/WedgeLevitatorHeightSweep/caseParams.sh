@@ -11,6 +11,16 @@
 # 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
+# Run mode
+# ---------------------------------------------------------------------------
+# Solver mode used by Allrun:
+# - serial: single-rank acoustic solve
+# - mpi:    decomposed/multi-rank acoustic solve
+: "${RUN_MODE:=serial}"
+SERIAL_SOLVER=acousticHelmholtzFoam
+MPI_SOLVER=freBCMFoam
+
+# ---------------------------------------------------------------------------
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
