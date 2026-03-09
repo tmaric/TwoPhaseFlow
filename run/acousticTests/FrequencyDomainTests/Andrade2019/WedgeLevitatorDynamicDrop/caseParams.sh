@@ -11,13 +11,10 @@
 # 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
-# Run mode
+# Solver
 # ---------------------------------------------------------------------------
-# Solver mode used by Allrun:
-# - serial: interFALFlow
-# - mpi:    interMPIALFlow with decomposePar
-# Can still be overridden at launch, e.g. RUN_MODE=mpi ./Allrun
-: "${RUN_MODE:=serial}"
+# MPI-capable coupled solver.
+SOLVER=interFALFlow
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -40,7 +37,7 @@ RHOG=1.2
 CG=343
 # Liquid sound speed [m/s].
 CL=1480
-# Acoustic-flow forcing model used by interFALFlow/interMPIALFlow:
+# Acoustic-flow forcing model used by interFALFlow:
 # - interface: interfacial forcing (legacy)
 # - volume:    volumetric force = -grad(pr) + div(momFlux)
 ACOUSTIC_FORCE_MODEL=interface

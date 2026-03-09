@@ -9,7 +9,7 @@ Heterogeneous/interface validation case for `acousticHelmholtzFoam`.
   - `alpha.water = 1`: medium 2 (`rhol`, `cl`)
 - Right-end PML damps transmitted wave to approximate semi-infinite medium 2.
 
-## Run
+## Run (MPI default)
 ```bash
 ./Allrun
 ```

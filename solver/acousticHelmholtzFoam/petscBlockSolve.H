@@ -1,4 +1,9 @@
-// PETSc lifecycle/solve helpers for acousticHelmholtzFoam.
+// PETSc solve helpers for acousticHelmholtzFoam.
+//
+// After distributed KSPSolve, scatterBlockSolution() gathers the full block
+// vector on each rank to keep OpenFOAM field updates straightforward.
+// buildRhs() and updateDerivedAcousticFields() mirror the serial reference
+// formulation to ease one-to-one comparisons.
 
 static void initializePetscSystem
 (
@@ -12,7 +17,7 @@ static void initializePetscSystem
 {
     MatCreate(PETSC_COMM_WORLD, &M);
     MatSetSizes(M, 2*nLocal, 2*nLocal, 2*N, 2*N);
-    MatSetType(M, (Pstream::nProcs() == 1) ? MATSEQAIJ : MATMPIAIJ);
+    MatSetType(M, MATAIJ);
     MatSetUp(M);
 
     VecCreate(PETSC_COMM_WORLD, &x);
@@ -38,13 +43,66 @@ static void scatterBlockSolution
     volScalarField& Pre
 )
 {
+    Vec xAll = nullptr;
+    VecScatter allScatter = nullptr;
+    VecScatterCreateToAll(x, &allScatter, &xAll);
+    VecScatterBegin(allScatter, x, xAll, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(allScatter, x, xAll, INSERT_VALUES, SCATTER_FORWARD);
+
     const PetscScalar* xArr = nullptr;
-    VecGetArrayRead(x, &xArr);
+    VecGetArrayRead(xAll, &xArr);
     forAll(Pim, i)
     {
         const PetscInt gi = globalCells.toGlobal(i);
         Pim[i] = (scalar)PetscRealPart(xArr[gi + 0]);
         Pre[i] = (scalar)PetscRealPart(xArr[gi + N]);
     }
-    VecRestoreArrayRead(x, &xArr);
+    VecRestoreArrayRead(xAll, &xArr);
+    VecScatterDestroy(&allScatter);
+    VecDestroy(&xAll);
+}
+
+static void buildRhs
+(
+    const fvScalarMatrix& AopPim,
+    const fvScalarMatrix& AopPre,
+    const fvScalarMatrix& B1Pre,
+    const fvScalarMatrix& B2Pre,
+    const fvScalarMatrix& B1Pim,
+    const fvScalarMatrix& B2Pim,
+    scalarField& bPim,
+    scalarField& bPre
+)
+{
+    bPim = sourceWithBoundary(AopPim, true, false);
+    bPim -= sourceWithBoundary(B1Pre, true, false);
+    bPim -= sourceWithBoundary(B2Pre, true, false);
+
+    bPre = sourceWithBoundary(AopPre, true, false);
+    bPre += sourceWithBoundary(B1Pim, true, false);
+    bPre += sourceWithBoundary(B2Pim, true, false);
+}
+
+static void updateDerivedAcousticFields
+(
+    volVectorField& Ure,
+    volVectorField& Uim,
+    volScalarField& pa,
+    volScalarField& pr,
+    volTensorField& momFlux,
+    const volScalarField& Pim,
+    const volScalarField& Pre,
+    const volScalarField& alpha1,
+    const volScalarField& rho,
+    const dimensionedScalar& f,
+    const dimensionedScalar& kl,
+    const dimensionedScalar& kg
+)
+{
+    Ure == 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
+    Uim == -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
+    pa == Foam::sqrt(Pim*Pim + Pre*Pre);
+    pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
+        - 0.25*rho*((Ure&Ure) + (Uim&Uim));
+    momFlux == 0.5*rho*(Ure*Ure + Uim*Uim);
 }

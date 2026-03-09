@@ -2,7 +2,7 @@
 set -e
 cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
-. ./caseParams.sh                                   # Case parameters (includes RUN_MODE)
+. ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
 need_cmd()
@@ -34,23 +34,18 @@ ensure_solver()
     fi
 }
 
-: "${RUN_MODE:=serial}"
 need_cmd gmsh
-
-if [ "${RUN_MODE}" = "mpi" ]; then
-    if [ -z "${NPROCS:-}" ]; then
-        NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
-    fi
-    : "${NPROCS:=8}"
+if [ -z "${NPROCS:-}" ]; then
+    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
 fi
+: "${NPROCS:=8}"
 
 rm -f \
     log.gmshToFoam \
     log.changeDictionary \
     log.decomposePar \
     log.reconstructPar \
-    "log.${SERIAL_SOLVER}" \
-    "log.${MPI_SOLVER}"
+    "log.${SOLVER}"
 
 ./prepareCase
 restore0Dir
@@ -61,17 +56,11 @@ rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
 rm -f 0/Pim.in
 
-if [ "${RUN_MODE}" = "mpi" ]; then
-    ensure_solver "${MPI_SOLVER}" freBCMFoam
-    rm -f "log.${MPI_SOLVER}"
-    rm -rf processor*
-    runApplication decomposePar -force
-    runParallel "${MPI_SOLVER}"
-    runApplication reconstructPar -latestTime
-else
-    ensure_solver "${SERIAL_SOLVER}" acousticHelmholtzFoam
-    rm -f "log.${SERIAL_SOLVER}"
-    runApplication "${SERIAL_SOLVER}"
-fi
+ensure_solver "${SOLVER}" acousticHelmholtzFoam
+rm -f "log.${SOLVER}"
+rm -rf processor*
+runApplication decomposePar -force
+runParallel "${SOLVER}"
+runApplication reconstructPar -latestTime
 
 #------------------------------------------------------------------------------

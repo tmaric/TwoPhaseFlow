@@ -22,26 +22,25 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-    freBCMFoam
+    acousticHelmholtzSerialFoam
 
 Group
     AcousticSolvers
 
 Description
-    MPI-capable block-coupled frequency-domain acoustic solver.
-    Uses the same pressure block structure as acousticHelmholtzFoam:
+    Block-coupled frequency-domain acoustic solver for a single, non-
+    decomposed mesh. The real/imaginary pressure pair is solved as one
+    2x2 block Helmholtz system:
 
         [ A  -(B1 + B2) ] [Pim] = [bPim]
         [ (B1 + B2)  A ] [Pre]   [bPre]
 
-    but assembles A and coupling contributions on decomposed subdomains,
-    explicitly including processor-interface couplings in the PETSc matrix.
-    PETSc then solves the global distributed linear system (default:
-    preonly+lu+mumps).
+    where A is the main Helmholtz operator and B1/B2 are PML-induced
+    coupling operators. Matrix assembly is local/serial in OpenFOAM and
+    the PETSc solve uses a direct backend (default: MUMPS via LU).
 
-    Practical difference to acousticHelmholtzFoam:
-    - acousticHelmholtzFoam: serial OpenFOAM assembly only (reference).
-    - freBCMFoam: distributed OpenFOAM assembly + distributed PETSc solve.
+    This solver intentionally aborts in decomposed MPI runs. Use it as the
+    serial reference for equation form and damping behavior.
 \*---------------------------------------------------------------------------*/
 
 #include <petscksp.h>
@@ -55,12 +54,10 @@ Description
 #include "surfaceIteratorPLIC.H"
 #include "reconstructionSchemes.H"
 #include "upwind.H"
-#include "processorPolyPatch.H"
-#include "processorLduInterface.H"
-#include "processorBC.H"
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
+// Keep PETSc/helper code
 #include "diagnosticsHelpers.H"
 #include "petscBlockAssembly.H"
 #include "petscBlockSolve.H"
@@ -80,6 +77,14 @@ int main(int argc, char *argv[])
 
     PetscInitialize(&argc, &argv, nullptr, nullptr);
 
+    if (Pstream::parRun())
+    {
+        FatalErrorInFunction
+            << "acousticHelmholtzSerialFoam uses serial assembly. "
+            << "Run on one MPI rank and use OMP_NUM_THREADS for multicore."
+            << exit(FatalError);
+    }
+
     // Global indexing for block system
     globalIndex globalCells(mesh.nCells());
     const PetscInt N      = (PetscInt)globalCells.size();
@@ -89,7 +94,6 @@ int main(int argc, char *argv[])
     Vec x, b;
     KSP ksp;
     bool dumpedMatrixStats = false;
-    bool dumpedOpStats = false;
 
     initializePetscSystem(nLocal, N, M, x, b, ksp);
 
@@ -123,21 +127,14 @@ int main(int argc, char *argv[])
               + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
             );
 
-            // Keep B1 (laplacian) and B2 (Sp) as separate operators.
-            // Their off-block diagonal handling differs in assembly.
-            fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));  // B1
-            fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));         // B2
+            // Coupling operators built from the opposite field:
+            // Pim-row couples to Pre via (laplacian(TC1,Pre) + Sp(SC1,Pre))
+            fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));
+            fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));
 
-            fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));  // B1
-            fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));         // B2
-
-            if (!dumpedOpStats)
-            {
-                reportFvMatrixBreakdown("AopPre beforeBoundaryManipulate", AopPre);
-                reportFvMatrixBreakdown("AopPim beforeBoundaryManipulate", AopPim);
-                reportFvMatrixBreakdown("couplingLaplPre beforeBoundaryManipulate", couplingLaplPre);
-                reportFvMatrixBreakdown("couplingMassPre beforeBoundaryManipulate", couplingMassPre);
-            }
+            // Pre-row couples to Pim via (laplacian(TC1,Pim) + Sp(SC1,Pim))
+            fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));
+            fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));
 
             assembleBlockSystem
             (
@@ -147,28 +144,18 @@ int main(int argc, char *argv[])
                 couplingLaplPim, couplingMassPim
             );
 
-            if (!dumpedOpStats)
-            {
-                reportFvMatrixBreakdown("AopPre afterBoundaryManipulate", AopPre);
-                reportFvMatrixBreakdown("AopPim afterBoundaryManipulate", AopPim);
-                reportFvMatrixBreakdown("couplingLaplPre afterBoundaryManipulate", couplingLaplPre);
-                reportFvMatrixBreakdown("couplingMassPre afterBoundaryManipulate", couplingMassPre);
-                dumpedOpStats = true;
-            }
+            // RHS from source terms (includes BC contributions)
+            scalarField bPim(sourceWithBoundary(AopPim));
+            scalarField bCouplingLaplPre(sourceWithBoundary(couplingLaplPre));
+            scalarField bCouplingMassPre(sourceWithBoundary(couplingMassPre));
+            bPim -= bCouplingLaplPre;
+            bPim -= bCouplingMassPre;
 
-            scalarField bPim;
-            scalarField bPre;
-            buildRhs
-            (
-                AopPim,
-                AopPre,
-                couplingLaplPre,
-                couplingMassPre,
-                couplingLaplPim,
-                couplingMassPim,
-                bPim,
-                bPre
-            );
+            scalarField bPre(sourceWithBoundary(AopPre));
+            scalarField bCouplingLaplPim(sourceWithBoundary(couplingLaplPim));
+            scalarField bCouplingMassPim(sourceWithBoundary(couplingMassPim));
+            bPre += bCouplingLaplPim;
+            bPre += bCouplingMassPim;
 
             setBlockRhs(b, globalCells, N, bPim, bPre);
 
@@ -180,8 +167,7 @@ int main(int argc, char *argv[])
             if (!dumpedMatrixStats)
             {
                 dumpedMatrixStats = true;
-                reportMatrixStats(M, b, N);
-                dumpProcessorInterfaceRows(M, AopPim, globalCells, N);
+                reportMatrixStats(M, b);
             }
 
             KSPSolve(ksp, b, x);
@@ -192,21 +178,12 @@ int main(int argc, char *argv[])
             Pim.correctBoundaryConditions();
         }
 
-        updateDerivedAcousticFields
-        (
-            Ure,
-            Uim,
-            pa,
-            pr,
-            momFlux,
-            Pim,
-            Pre,
-            alpha1,
-            rho,
-            f,
-            kl,
-            kg
-        );
+        Ure == 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
+        Uim == -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
+        pa == Foam::sqrt(Pim*Pim + Pre*Pre);
+        pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
+            - 0.25*rho*((Ure&Ure) + (Uim&Uim));
+        momFlux == 0.5*rho*(Ure*Ure + Uim*Uim);
 
         runTime.write();
 

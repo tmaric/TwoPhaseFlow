@@ -1,6 +1,6 @@
-// Block assembly helpers for freBCMFoam.
+// Acoustic block assembly helpers for interFALFlow.
 //
-// Design intent:
+// Design intent (same as acousticHelmholtzFoam):
 // - Keep the algebra identical to the serial reference block system.
 // - Assemble matrix entries explicitly into PETSc, including processor links.
 // - Treat B1/B2 in off-diagonal blocks consistently with serial formulation:
@@ -32,7 +32,6 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
         localGlobalIds[celli] = globalCells.toGlobal(celli);
     }
 
-    // Stage 1: send local global-cell ids and patch coefficients to neighbours.
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -59,7 +58,6 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
         procInt.send(Pstream::commsTypes::scheduled, bcoeffs[patchi]);
     }
 
-    // Stage 2: receive neighbour ids/coefficients in interface-face order.
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -143,6 +141,7 @@ static void addBoundarySourceSimple
             {
                 continue;
             }
+
             const tmp<Field<scalar>> tpnf = ptf.patchNeighbourField();
             const Field<scalar>& pnf = tpnf();
             forAll(paddr, facei)
@@ -186,11 +185,6 @@ static void insertScalarOpIntoBlock
 
     List<labelList> neighbGlobals;
     List<scalarField> neighbBcoeffs;
-    scalar procDiagAbs = 0.0;
-    scalar procOffDiagAbs = 0.0;
-    label procFaceCount = 0;
-    // Processor coupling is explicit here so PETSc sees the same operator that
-    // OpenFOAM would otherwise apply implicitly through ldu interfaces.
     if (Pstream::parRun())
     {
         const auto& bpsi = op.psi().boundaryField();
@@ -199,6 +193,7 @@ static void insertScalarOpIntoBlock
         const lduAddressing& baddr = op.lduAddr();
         neighbGlobals =
             gatherProcessorPatchNeighbourGlobals(op, globalCells, neighbBcoeffs);
+
         forAll(bpsi, patchi)
         {
             if
@@ -233,52 +228,13 @@ static void insertScalarOpIntoBlock
                 const PetscInt r = globalCells.toGlobal(ownCell) + rowOffset;
                 const PetscInt cNbr = nbrIds[facei] + colOffset;
 
-                if (nbrIds[facei] < 0 || nbrIds[facei] >= globalCells.size())
-                {
-                    FatalErrorInFunction
-                        << "Invalid neighbour global cell id on patch "
-                        << op.psi().mesh().boundaryMesh()[patchi].name()
-                        << " face " << facei
-                        << ": " << nbrIds[facei]
-                        << " not in [0," << (globalCells.size() - 1) << "]"
-                        << exit(FatalError);
-                }
-
-                // For B1 off-block assembly, includeDiag is false: keep only the
-                // face-coupling term and avoid injecting B1 diagonal entries.
                 if (includeDiag)
                 {
                     diagWithProc[ownCell] += pic[facei];
                 }
-                MatSetValue(M, r, cNbr, -scale*pbc[facei], INSERT_VALUES);
-                if (includeDiag)
-                {
-                    procDiagAbs += mag(pic[facei]);
-                }
-                procOffDiagAbs += mag(pbc[facei]);
-                ++procFaceCount;
-            }
-        }
-    }
 
-    if (Pstream::parRun())
-    {
-        procDiagAbs = globalSum(procDiagAbs);
-        procOffDiagAbs = globalSum(procOffDiagAbs);
-        reduce(procFaceCount, sumOp<label>());
-        static label printedProcContribCount = 0;
-        if (printedProcContribCount < 4)
-        {
-            if (Pstream::master())
-            {
-                Info<< "Proc-coupling contribution (first block): rowOffset="
-                    << rowOffset << " colOffset=" << colOffset
-                    << " nFaces=" << procFaceCount
-                    << " |diagAdd|=" << procDiagAbs
-                    << " |offDiag|=" << procOffDiagAbs
-                    << nl;
+                MatSetValue(M, r, cNbr, -scale*pbc[facei], INSERT_VALUES);
             }
-            ++printedProcContribCount;
         }
     }
 

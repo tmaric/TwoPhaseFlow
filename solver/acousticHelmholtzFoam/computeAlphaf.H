@@ -64,6 +64,20 @@ const surfaceScalarField::Boundary& phib = phi.boundaryField();
 const surfaceScalarField::Boundary& magSfb = mesh.magSf().boundaryField();
 surfaceScalarField::Boundary& alphafb = alphaf.boundaryFieldRef();
 const label nInternalFaces = mesh.nInternalFaces();
+DynamicList<label> procPatchLabels(mesh.boundary().size());
+forAll(boundaryMesh, patchi)
+{
+   if
+   (
+       isA<processorPolyPatch>(boundaryMesh[patchi])
+    && boundaryMesh[patchi].size() > 0
+   )
+   {
+       procPatchLabels.append(patchi);
+   }
+}
+List<DynamicList<label>> surfaceCellFacesOnProcPatches(0);
+surfaceCellFacesOnProcPatches.resize(boundaryMesh.size());
 
 forAll(bsFaces, i)
 {
@@ -90,9 +104,15 @@ forAll(bsFaces, i)
                 label neiPatchID = cpp->neighbPatchID();
                 alphafb[neiPatchID][patchFacei] = alphafb[patchi][patchFacei];
             }
+
+            if(isA<processorPolyPatch>(pp) && pp.size())
+            {
+                surfaceCellFacesOnProcPatches[patchi].append(patchFacei);
+            }
         }
     }
 }
+syncProcPatches(mesh, procPatchLabels, surfaceCellFacesOnProcPatches, alphaf, phi);
 bsFaces.clear();
 bsx0.clear();
 bsn0.clear();

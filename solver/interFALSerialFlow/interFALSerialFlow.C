@@ -24,19 +24,19 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-   interMPIALFlow
+   interFALSerialFlow
 
 Description
     Two-phase VOF solver coupled to a frequency-domain acoustic block solve.
-    Flow equations run on the decomposed mesh; the acoustic block is also
-    assembled/solved with PETSc in distributed form using processor-interface
-    contributions from the decomposed OpenFOAM operators.
+    For each outer loop, alpha is used to assemble the acoustic operators,
+    then acoustic fields (Pre/Pim -> pr/momFlux) are fed back as source
+    terms to the flow equations on the same (serial) mesh decomposition.
 
 Author
     Jun Liu, MMA, TU Darmstadt
     Email: liu@mma.tu-darmstadt.de
 SourceFiles
-    interMPIALFlow.C
+    interFALSerialFlow.C
 \*---------------------------------------------------------------------------*/
 
 #include "advectionSchemes.H"
@@ -62,9 +62,7 @@ SourceFiles
 #include "emptyPolyPatch.H"
 #include "wedgePolyPatch.H"
 #include "processorPolyPatch.H"
-#include "processorLduInterface.H"
 #include "processorBC.H"
-#include "syncTools.H"
 #include "acousticBlockPetsc.H"
 
 
@@ -78,8 +76,8 @@ int main(int argc, char *argv[])
         " using isoAdvector phase-fraction based interface capturing.\n"
         "With optional mesh motion and mesh topology changes including"
         " adaptive re-meshing.\n"
-        "Acoustic-flow coupling for interMPIALFlow.\n"
-        "Acoustics are assembled/solved in distributed PETSc mode."
+        "Acoustic-flow coupling for interFALSerialFlow.\n"
+        "Acoustics are assembled/solved in serial via PETSc (reference mode)."
     );
 
     Foam::argList::addBoolOption
@@ -140,7 +138,6 @@ int main(int argc, char *argv[])
 
                 if (mesh.changing())
                 {
-                    // Update mapped interface and dependent material fields
                     advector->surf().mapAlphaField();
                     alpha2 = 1.0 - alpha1;
                     alpha2.correctBoundaryConditions();
@@ -171,7 +168,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            if (overwrite)
+            if(overwrite)
             {
                 continue;
             }

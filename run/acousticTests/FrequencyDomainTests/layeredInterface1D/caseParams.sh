@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# Solver mode:
-# - serial:    acousticHelmholtzFoam
-# - serial_it: freITBCFoam
-: "${RUN_MODE:=serial}"
+# Solver (MPI default)
+SOLVER=acousticHelmholtzFoam
 
 # Drive
 DRIVE_F=10000

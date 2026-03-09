@@ -34,10 +34,8 @@ while [ "$i" -lt "$SWEEP_POINTS" ]; do
         log.changeDictionary \
         log.decomposePar \
         log.reconstructPar \
-        "log.${SERIAL_SOLVER}" \
-        "log.${MPI_SOLVER}" \
-        log.acousticHelmholtzFoam \
-        log.freBCMFoam
+        "log.${SOLVER}" \
+        log.acousticHelmholtzFoam
     rm -rf processor*
     rm -rf postProcessing/reflectorForce
     HEIGHT_FAC="$fac" ./Allrun > "${resultsDir}/log_height_$(printf "%03d" "$i").txt" 2>&1

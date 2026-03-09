@@ -1,6 +1,6 @@
-// PETSc lifecycle and post-processing helpers for interMPIALFlow acoustic step.
+// PETSc lifecycle and post-processing helpers for interFALFlow acoustic step.
 //
-// This follows freBCMFoam behaviour: distributed AIJ + direct factorization,
+// This follows acousticHelmholtzFoam behaviour: distributed AIJ + direct factorization,
 // gather solved block vector to all ranks, and construct RHS with processor
 // coupled source terms excluded to avoid double counting.
 

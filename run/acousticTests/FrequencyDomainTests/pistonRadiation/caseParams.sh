@@ -11,14 +11,10 @@
 # 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
-# Run mode
+# Solver
 # ---------------------------------------------------------------------------
-# Solver mode used by Allrun:
-# - serial: acousticHelmholtzFoam (reference)
-# - serial_it: freITBCFoam (iterative PETSc block-coupled)
-# - mpi:    freBCMFoam with decomposePar
-# Can still be overridden at launch, e.g. RUN_MODE=mpi ./Allrun
-: "${RUN_MODE:=serial}"
+# MPI-capable frequency-domain acoustic solver.
+SOLVER=acousticHelmholtzFoam
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -44,7 +40,7 @@ CL=1480
 # PML parameters (spherical PML)
 # ---------------------------------------------------------------------------
 # Maximum damping strength sigmaMax [1/s].
-# Reference serial:3000; mpi:100000
+# Tune per mesh/frequency setup.
 SIGMA_MAX=3000 
 # Polynomial profile order (po), typically 2-4.
 PO=3

@@ -1,6 +1,6 @@
 # WedgeLevitatorHeightSweep
 
-Frequency-domain empty-levitator sweep with serial/MPI switch.
+Frequency-domain empty-levitator sweep with MPI execution.
 
 This case reuses the parameterized setup of `WedgeLevitatorDropAlpha`, but with
 an empty cavity (`alpha.water = 0`) and a sweep in reflector height ratio:
@@ -10,7 +10,7 @@ an empty cavity (`alpha.water = 0`) and a sweep in reflector height ratio:
 
 ## Files
 
-- `caseParams.sh`: base parameters, run mode (`RUN_MODE`), and sweep controls.
+- `caseParams.sh`: base parameters, solver, and sweep controls.
 - `prepareCase`: renders `constant/transportProperties`, `constant/levitatorWedgeHex.geo`, and `0.orig/Pim`.
 - `Allrun`: runs one single height point (value from `HEIGHT_FAC`).
 - `runHeightSweep.sh`: executes all 100 height points and collects force data.
@@ -26,11 +26,10 @@ an empty cavity (`alpha.water = 0`) and a sweep in reflector height ratio:
 HEIGHT_FAC=0.8 ./Allrun
 ```
 
-Mode switch:
+MPI run:
 
 ```bash
-RUN_MODE=serial ./Allrun
-RUN_MODE=mpi ./Allrun
+NPROCS=8 ./Allrun
 ```
 
 ## Run full sweep + plot
@@ -39,10 +38,10 @@ RUN_MODE=mpi ./Allrun
 ./runHeightSweep.sh
 ```
 
-MPI sweep:
+Optional rank override for sweep:
 
 ```bash
-RUN_MODE=mpi ./runHeightSweep.sh
+NPROCS=8 ./runHeightSweep.sh
 ```
 
 Outputs:

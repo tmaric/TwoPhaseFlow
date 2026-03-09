@@ -5,12 +5,12 @@ Edit one file and regenerate all dependent inputs automatically.
 
 ## Files and roles
 
-- `caseParams.sh`: single source of truth for drive, PML, mesh, run mode, and drop setup.
+- `caseParams.sh`: single source of truth for drive, PML, mesh, solver, and drop setup.
 - `prepareCase`: renders templates using values from `caseParams.sh`.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
 - `constant/levitatorWedgeHex.geo.in`: template for `constant/levitatorWedgeHex.geo`.
 - `0.orig/Pim.in`: template for `0.orig/Pim`.
-- `Allrun`: full workflow (clean, render, mesh, convert, set fields, serial/MPI solve).
+- `Allrun`: full workflow (clean, render, mesh, convert, set fields, MPI solve).
 
 ## Typical usage
 
@@ -35,18 +35,13 @@ This updates:
 - `0.orig/Pim`
 - `system/setAlphaFieldDict`
 
-## Solver execution modes
+## MPI run
 
-`Allrun` supports both modes:
+`Allrun` runs decomposed MPI by default.  
+Optional rank override:
 
 ```bash
-# serial reference
-RUN_MODE=serial ./Allrun
-
-# MPI/decomposed run
-RUN_MODE=mpi ./Allrun
-# optional override for MPI ranks
-NPROCS=8 RUN_MODE=mpi ./Allrun
+NPROCS=8 ./Allrun
 ```
 
 Drop initialization is controlled from `caseParams.sh`:

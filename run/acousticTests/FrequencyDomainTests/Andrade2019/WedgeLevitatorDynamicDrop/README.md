@@ -12,7 +12,7 @@ Edit one file and regenerate all dependent inputs automatically.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
 - `constant/levitatorWedgeHex.geo.in`: template for `constant/levitatorWedgeHex.geo`.
 - `0.orig/Pim.in`: template for `0.orig/Pim`.
-- `Allrun`: full workflow with serial/MPI switch.
+- `Allrun`: full workflow with decomposed MPI run.
 
 ## Typical usage
 
@@ -36,7 +36,6 @@ source ~/TwoPhaseFlow/scripts/bashrc
 source ~/openfoam/etc/bashrc
 cd /home/minkowski/TwoPhaseFlow
 wmake solver/interFALFlow
-wmake solver/interMPIALFlow
 ```
 
 Then in this case directory:
@@ -45,29 +44,18 @@ Then in this case directory:
 ./Allrun
 ```
 
-## Solver execution modes
+## MPI run
 
-`Allrun` supports both modes:
+`Allrun` always runs decomposed MPI:
 
 ```bash
-# serial reference (default)
 ./Allrun
-# or explicitly
-RUN_MODE=serial ./Allrun
-
-# MPI/decomposed run
-RUN_MODE=mpi ./Allrun
 # optional override for MPI ranks
-NPROCS=8 RUN_MODE=mpi ./Allrun
+NPROCS=8 ./Allrun
 ```
 
-Default mode is set in `caseParams.sh` via `RUN_MODE`.
-
-Serial log file:
+Log file:
 - `log.interFALFlow`
-
-MPI log file:
-- `log.interMPIALFlow`
 
 ## Optional: render-only step
 

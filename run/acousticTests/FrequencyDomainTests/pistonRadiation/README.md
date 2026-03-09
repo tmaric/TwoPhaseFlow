@@ -10,7 +10,7 @@ Edit one file and regenerate all dependent inputs automatically.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
 - `constant/pistonRadiation.geo.in`: template for `constant/pistonRadiation.geo`.
 - `templates/Pim.in`: template for `0.orig/Pim`.
-- `Allrun`: switchable workflow for serial reference or MPI solver.
+- `Allrun`: workflow for decomposed MPI solver.
 
 ## Typical usage
 
@@ -34,7 +34,6 @@ source ~/TwoPhaseFlow/scripts/bashrc
 source ~/openfoam/etc/bashrc
 cd /home/minkowski/TwoPhaseFlow
 wmake solver/acousticHelmholtzFoam
-wmake solver/freBCMFoam
 ```
 
 Then in this case directory:
@@ -45,29 +44,16 @@ Then in this case directory:
 
 ## Solver execution
 
-`Allrun` supports both modes:
+`Allrun` runs decomposed MPI by default:
 
 ```bash
-# serial reference (default)
 ./Allrun
-# or explicitly
-RUN_MODE=serial ./Allrun
-
-# MPI/decomposed run
-RUN_MODE=mpi ./Allrun
 # optional override for MPI ranks
-NPROCS=8 RUN_MODE=mpi ./Allrun
+NPROCS=8 ./Allrun
 ```
 
-Default mode is set in `caseParams.sh` via `RUN_MODE`.
-
-Serial log file:
+Log file:
 - `log.acousticHelmholtzFoam`
-
-MPI log file:
-- `log.freBCMFoam`
-
-Note: the MPI-capable solver in this repository is named `freBCMFoam`.
 
 ## Optional: render-only step
 

@@ -9,34 +9,19 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       volScalarField;
-    object      p;
+    class       dictionary;
+    object      decomposeParDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [1 -1 -2 0 0 0 0];
+numberOfSubdomains 8;
 
-internalField   uniform 0;
+method          scotch;
 
-boundaryField
-{
-   openAir
-    {
-        type            zeroGradient;
-    }
-    transducer1
-    {
-         type            fixedGradient;
-         gradient        uniform #eval{-2*pi()*25250*1.2*1.0};
-    }
-    "(transducer2|reflector2|reflector1)"
-    {
-        type            zeroGradient;
-    }
-    "(front|back)"
-    {
-        type            wedge;
-    }
-}
+distributed     no;
+
+roots
+(
+);
 
 // ************************************************************************* //
