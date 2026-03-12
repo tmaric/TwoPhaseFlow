@@ -24,8 +24,9 @@ License
 Application
     acousticHelmholtzFoam
 
-Group
-    AcousticSolvers
+Author
+    Chuanchao Xu, MMA, TU Darmstadt
+    Email: xu@mma.tu-darmstadt.de
 
 Description
     MPI-capable block-coupled frequency-domain acoustic solver.

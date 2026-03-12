@@ -41,7 +41,7 @@ if [ -z "${NPROCS:-}" ]; then
 fi
 : "${NPROCS:=8}"
 
-./Allclean
+
 ./prepareCase
 restore0Dir
 

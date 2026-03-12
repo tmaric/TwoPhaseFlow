@@ -33,8 +33,8 @@ Description
     contributions from the decomposed OpenFOAM operators.
 
 Author
-    Jun Liu, MMA, TU Darmstadt
-    Email: liu@mma.tu-darmstadt.de
+    Chuanchao Xu  MMA, TU Darmstadt
+    Email: xu@mma.tu-darmstadt.de
 SourceFiles
     interFALFlow.C
 \*---------------------------------------------------------------------------*/

@@ -24,8 +24,9 @@ License
 Application
     acousticHelmholtzSerialFoam
 
-Group
-    AcousticSolvers
+Author
+    Chuanchao Xu, MMA, TU Darmstadt
+    Email: xu@mma.tu-darmstadt.de
 
 Description
     Block-coupled frequency-domain acoustic solver for a single, non-
