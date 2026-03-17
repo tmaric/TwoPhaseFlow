@@ -45,6 +45,10 @@ case "${SOLVER}" in
         solverDir="acousticHelmholtzSerialFoam"
         solverMode="serial"
         ;;
+    tensorLaplacianFoam)
+        solverDir="tensorLaplacianFoam"
+        solverMode="serial"
+        ;;
     *)
         echo "Error: unsupported SOLVER='${SOLVER}'" >&2
         exit 1
