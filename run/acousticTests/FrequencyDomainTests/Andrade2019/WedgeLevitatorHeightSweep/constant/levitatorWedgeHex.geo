@@ -9,7 +9,7 @@ c = 343;
 l = c/f;
 
 // distance
-D = 0.0135841584158;
+D = 0.00815049504948;
 // mesh size controls
 lc = 1.0;
 N = 200;

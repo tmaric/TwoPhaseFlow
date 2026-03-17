@@ -8,13 +8,29 @@
 #
 # Workflow:
 # 1) Edit values here.
-# 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
+# 2) Set RUN_MODE below if you want `./Allrun` to launch the full Fig. 4 sweep.
+# 3) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
 # Solver
 # ---------------------------------------------------------------------------
 # MPI-capable frequency-domain acoustic solver.
 SOLVER=acousticHelmholtzFoam
+
+# ---------------------------------------------------------------------------
+# Run mode
+# ---------------------------------------------------------------------------
+# Controls what `./Allrun` does:
+# - singlePoint: run one case using HEIGHT_FAC, DROP_MODE, DROP_ASPECT_RATIO
+# - fullFig4Sweep: launch ./runHeightSweep.sh and reproduce Fig. 4 directly
+: "${RUN_MODE:=fullFig4Sweep}"
+
+# Default processor count used by Allrun/runHeightSweep when NPROCS is unset.
+: "${RUN_NPROCS:=8}"
+
+# Output location for the full Fig. 4 sweep.
+: "${RESULTS_DIR:=sweepResults}"
+: "${FIG4_OUTPUT_BASENAME:=reproducedFig4}"
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -88,6 +104,28 @@ WEDGE_DEG=1.0
 # Height sweep controls
 # ---------------------------------------------------------------------------
 # Sweep range in normalized height D/lambda.
-: "${SWEEP_FAC_MIN:=0.4}"
-: "${SWEEP_FAC_MAX:=1.6}"
+: "${SWEEP_FAC_MIN:=0.5}"
+: "${SWEEP_FAC_MAX:=0.6}"
 : "${SWEEP_POINTS:=100}"
+
+# ---------------------------------------------------------------------------
+# Fig. 4 drop setup
+# ---------------------------------------------------------------------------
+# Drop mode for a single run:
+# - empty: empty levitator
+# - oblate: constant-volume spheroid centered at H/2
+: "${DROP_MODE:=empty}"
+
+# Equivalent spherical drop radius [m].
+DROP_EQUIV_RADIUS=0.001
+
+# Spheroid aspect ratio a/b. For a sphere use 1.0.
+: "${DROP_ASPECT_RATIO:=1.0}"
+
+# Small axis offsets keep the center away from the wedge singular line.
+DROP_CENTER_X=1e-8
+DROP_CENTER_Z=1e-8
+
+# Aspect-ratio set used by runHeightSweep.sh to reproduce Fig. 4.
+# The empty-cavity curve is added automatically.
+: "${FIG4_ASPECT_RATIOS:=1 2 3}"

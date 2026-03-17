@@ -1,0 +1,53 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2506                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      setExprFieldsDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+expressions
+(
+    drop
+    {
+        field       alpha.water;
+        dimensions  [0 0 0 0 0 0 0];
+
+        constants
+        {
+            centre (1e-8 0.00407524752474 1e-8);
+        }
+
+        variables
+        (
+            "ax = 0.00144224957031"
+            "ay = 0.000480749856769"
+            "az = 0.00144224957031"
+            "xc = $[(vector)constants.centre].x()"
+            "yc = $[(vector)constants.centre].y()"
+            "zc = $[(vector)constants.centre].z()"
+            "eta = sqr((pos().x() - xc)/ax) + sqr((pos().y() - yc)/ay) + sqr((pos().z() - zc)/az)"
+        );
+
+        fieldMask
+        #{
+            eta <= 1.0
+        #};
+
+        expression
+        #{
+            1.0
+        #};
+    }
+);
+
+
+// ************************************************************************* //
