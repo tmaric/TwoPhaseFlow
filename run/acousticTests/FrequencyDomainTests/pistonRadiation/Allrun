@@ -36,10 +36,27 @@ ensure_solver()
 
 need_cmd gmsh
 
-if [ -z "${NPROCS:-}" ]; then
-    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
+case "${SOLVER}" in
+    acousticHelmholtzFoam)
+        solverDir="acousticHelmholtzFoam"
+        solverMode="parallel"
+        ;;
+    acousticHelmholtzSerialFoam)
+        solverDir="acousticHelmholtzSerialFoam"
+        solverMode="serial"
+        ;;
+    *)
+        echo "Error: unsupported SOLVER='${SOLVER}'" >&2
+        exit 1
+        ;;
+esac
+
+if [ "${solverMode}" = "parallel" ]; then
+    if [ -z "${NPROCS:-}" ]; then
+        NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
+    fi
+    : "${NPROCS:=8}"
 fi
-: "${NPROCS:=8}"
 
 
 ./prepareCase
@@ -53,10 +70,14 @@ runApplication topoSet
 runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
 
-ensure_solver "${SOLVER}" acousticHelmholtzFoam
-runApplication decomposePar -force
-runParallel "${SOLVER}"
-runApplication reconstructPar -latestTime
+ensure_solver "${SOLVER}" "${solverDir}"
+if [ "${solverMode}" = "parallel" ]; then
+    runApplication decomposePar -force
+    runParallel "${SOLVER}"
+    runApplication reconstructPar -latestTime
+else
+    runApplication "${SOLVER}"
+fi
 
 python3 postprocess_compare.py 
 #------------------------------------------------------------------------------

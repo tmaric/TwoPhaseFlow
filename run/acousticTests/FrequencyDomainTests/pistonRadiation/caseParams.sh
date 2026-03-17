@@ -13,7 +13,9 @@
 # ---------------------------------------------------------------------------
 # Solver
 # ---------------------------------------------------------------------------
-# MPI-capable frequency-domain acoustic solver.
+# Frequency-domain acoustic solver:
+# - acousticHelmholtzFoam: MPI-capable
+# - acousticHelmholtzSerialFoam: single-rank reference solver
 SOLVER=acousticHelmholtzFoam
 
 # ---------------------------------------------------------------------------
@@ -41,7 +43,7 @@ CL=1480
 # ---------------------------------------------------------------------------
 # Maximum damping strength sigmaMax [1/s].
 # Tune per mesh/frequency setup.
-SIGMA_MAX=3000 
+SIGMA_MAX=100000 
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Shifted-Laplacian strength beta (dimensionless).

@@ -37,21 +37,12 @@
 
                 const scalar dx = DpFunc.x();
                 const scalar dy = DpFunc.y();
-                const scalar dz = DpFunc.z();
-                const scalar dxdyDzOverOmega =
-                    (mag(Omega) > VSMALL) ? (dx*dy*dz/Omega) : 0.0;
+                const scalar sigmaLocal = max(dx, dy);
 
-                const scalar tc1x = (dxdyDzOverOmega + Omega*(dy + dz - dx))
-                    /(sqr(dx) + sqr(Omega) + VSMALL);
-                const scalar tc1y = (dxdyDzOverOmega + Omega*(dx + dz - dy))
-                    /(sqr(dy) + sqr(Omega) + VSMALL);
-                const scalar tc1z = (dxdyDzOverOmega + Omega*(dy + dx - dz))
-                    /(sqr(dz) + sqr(Omega) + VSMALL);
-
-                TC1[i] = (tc1x + tc1y + tc1z)/3.0;
-                SC0[i] = (dx*dy + dx*dz + dy*dz)/sqr(cg).value();
-                SC1[i] = (Omega*(dx + dy + dz) - dxdyDzOverOmega)/sqr(cg).value();
-                sigma[i] = max(dx, max(dy, dz));
+                TC1[i] = 0;
+                SC0[i] = sqr(sigmaLocal)/sqr(cg).value();
+                SC1[i] = (2*Omega*sigmaLocal)/sqr(cg).value();
+                sigma[i] = sigmaLocal;
                 break;
             }
 
@@ -145,23 +136,14 @@ forAll(patches, pi)
 
                     const scalar dx = DpFunc.x();
                     const scalar dy = DpFunc.y();
-                    const scalar dz = DpFunc.z();
-                    const scalar dxdyDzOverOmega =
-                        (mag(Omega) > VSMALL) ? (dx*dy*dz/Omega) : 0.0;
+                    const scalar sigmaLocal = max(dx, dy);
 
-                    const scalar tc1x = (dxdyDzOverOmega + Omega*(dy + dz - dx))
-                        /(sqr(dx) + sqr(Omega) + VSMALL);
-                    const scalar tc1y = (dxdyDzOverOmega + Omega*(dx + dz - dy))
-                        /(sqr(dy) + sqr(Omega) + VSMALL);
-                    const scalar tc1z = (dxdyDzOverOmega + Omega*(dy + dx - dz))
-                        /(sqr(dz) + sqr(Omega) + VSMALL);
-
-                    TC1.boundaryFieldRef()[pi][fi] = (tc1x + tc1y + tc1z)/3.0;
+                    TC1.boundaryFieldRef()[pi][fi] = 0;
                     SC0.boundaryFieldRef()[pi][fi] =
-                        (dx*dy + dx*dz + dy*dz)/sqr(cg).value();
+                        sqr(sigmaLocal)/sqr(cg).value();
                     SC1.boundaryFieldRef()[pi][fi] =
-                        (Omega*(dx + dy + dz) - dxdyDzOverOmega)/sqr(cg).value();
-                    sigma.boundaryFieldRef()[pi][fi] = max(dx, max(dy, dz));
+                        (2*Omega*sigmaLocal)/sqr(cg).value();
+                    sigma.boundaryFieldRef()[pi][fi] = sigmaLocal;
                     break;
                 }
 

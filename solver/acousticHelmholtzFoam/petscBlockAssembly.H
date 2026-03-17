@@ -4,7 +4,7 @@
 // - Keep the algebra identical to the serial reference block system.
 // - Assemble matrix entries explicitly into PETSc, including processor links.
 // - Treat B1/B2 in off-diagonal blocks consistently with serial formulation:
-//   B1 contributes face-coupling only, B2 carries diagonal mass term.
+//   the off-diagonal PETSc blocks should contain the full B1 + B2 operator.
 
 static List<labelList> gatherProcessorPatchNeighbourGlobals
 (
@@ -244,13 +244,11 @@ static void insertScalarOpIntoBlock
                         << exit(FatalError);
                 }
 
-                // For B1 off-block assembly, includeDiag is false: keep only the
-                // face-coupling term and avoid injecting B1 diagonal entries.
                 if (includeDiag)
                 {
                     diagWithProc[ownCell] += pic[facei];
                 }
-                MatSetValue(M, r, cNbr, -scale*pbc[facei], INSERT_VALUES);
+                MatSetValue(M, r, cNbr, -scale*pbc[facei], ADD_VALUES);
                 if (includeDiag)
                 {
                     procDiagAbs += mag(pic[facei]);
@@ -288,7 +286,7 @@ static void insertScalarOpIntoBlock
         {
             PetscInt r = globalCells.toGlobal(i) + rowOffset;
             PetscInt c = globalCells.toGlobal(i) + colOffset;
-            MatSetValue(M, r, c, scale*diagWithProc[i], INSERT_VALUES);
+            MatSetValue(M, r, c, scale*diagWithProc[i], ADD_VALUES);
         }
     }
 
@@ -311,8 +309,8 @@ static void insertScalarOpIntoBlock
             const scalar upperVal = upper[f];
             const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
 
-            MatSetValue(M, ri, cj, scale*upperVal, INSERT_VALUES);
-            MatSetValue(M, rj, ci, scale*lowerVal, INSERT_VALUES);
+            MatSetValue(M, ri, cj, scale*upperVal, ADD_VALUES);
+            MatSetValue(M, rj, ci, scale*lowerVal, ADD_VALUES);
         }
     }
 }
@@ -338,10 +336,10 @@ static void assembleBlockSystem
     B2Pim.boundaryManipulate(B2Pim.psi().boundaryFieldRef());
 
     insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
-    insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0, false);
+    insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0, true);
     insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, -1.0, true);
 
-    insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0, false);
+    insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0, true);
     insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, +1.0, true);
     insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
 }

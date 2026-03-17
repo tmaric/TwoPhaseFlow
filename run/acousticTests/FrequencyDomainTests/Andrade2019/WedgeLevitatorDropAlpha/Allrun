@@ -35,10 +35,28 @@ ensure_solver()
 }
 
 need_cmd gmsh
-if [ -z "${NPROCS:-}" ]; then
-    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
+
+case "${SOLVER}" in
+    acousticHelmholtzFoam)
+        solverDir="acousticHelmholtzFoam"
+        solverMode="parallel"
+        ;;
+    acousticHelmholtzSerialFoam)
+        solverDir="acousticHelmholtzSerialFoam"
+        solverMode="serial"
+        ;;
+    *)
+        echo "Error: unsupported SOLVER='${SOLVER}'" >&2
+        exit 1
+        ;;
+esac
+
+if [ "${solverMode}" = "parallel" ]; then
+    if [ -z "${NPROCS:-}" ]; then
+        NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
+    fi
+    : "${NPROCS:=8}"
 fi
-: "${NPROCS:=8}"
 
 ./Allclean
 ./prepareCase
@@ -51,10 +69,14 @@ runApplication changeDictionary
 runApplication setAlphaField
 rm -f 0/Pim.in
 
-ensure_solver "${SOLVER}" acousticHelmholtzFoam
+ensure_solver "${SOLVER}" "${solverDir}"
 rm -f "log.${SOLVER}"
-runApplication decomposePar -force
-runParallel "${SOLVER}"
-runApplication reconstructPar -latestTime
+if [ "${solverMode}" = "parallel" ]; then
+    runApplication decomposePar -force
+    runParallel "${SOLVER}"
+    runApplication reconstructPar -latestTime
+else
+    runApplication "${SOLVER}"
+fi
 
 #------------------------------------------------------------------------------

@@ -60,7 +60,7 @@ static void insertScalarOpIntoBlock
     {
         PetscInt r = globalCells.toGlobal(i) + rowOffset;
         PetscInt c = globalCells.toGlobal(i) + colOffset;
-        MatSetValue(M, r, c, scale*diag[i], INSERT_VALUES);
+        MatSetValue(M, r, c, scale*diag[i], ADD_VALUES);
     }
 
     if (L.hasUpper())
@@ -82,8 +82,8 @@ static void insertScalarOpIntoBlock
             const scalar upperVal = upper[f];
             const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
 
-            MatSetValue(M, ri, cj, scale*upperVal, INSERT_VALUES);
-            MatSetValue(M, rj, ci, scale*lowerVal, INSERT_VALUES);
+            MatSetValue(M, ri, cj, scale*upperVal, ADD_VALUES);
+            MatSetValue(M, rj, ci, scale*lowerVal, ADD_VALUES);
         }
     }
 }

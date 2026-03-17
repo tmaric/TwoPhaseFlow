@@ -32,7 +32,7 @@ kg              #eval{1.0/($rhog*$cg*$cg)}; // air compressibility
 kl              #eval{1.0/($rhol*$cl*$cl)}; // water compressibility
 
 f               10000;               // Driven frequency
-sigmaMax        3000;             // [1/s] PML peak damping
+sigmaMax        100000;             // [1/s] PML peak damping
 po              3;                    // polynomial order
 shiftedLaplacianBeta 0.2; // preconditioner shift (freITBCFoam)
 cellsPerLambda  60;
