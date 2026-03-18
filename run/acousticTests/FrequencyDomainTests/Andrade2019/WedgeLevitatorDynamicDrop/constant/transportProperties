@@ -54,7 +54,6 @@ rhol            998.3;
 rhog            1.2;
 cg              343;
 cl              1480;
-acousticForceModel interface;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 k               #eval{2.0*pi()*$f/$soundSpeed};

@@ -68,7 +68,7 @@ static void insertScalarOpIntoBlock
     {
         const PetscInt r = globalCells.toGlobal(i) + rowOffset;
         const PetscInt c = globalCells.toGlobal(i) + colOffset;
-        MatSetValue(M, r, c, scale*diag[i], INSERT_VALUES);
+        MatSetValue(M, r, c, scale*diag[i], ADD_VALUES);
     }
 
     if (L.hasUpper())
@@ -90,8 +90,8 @@ static void insertScalarOpIntoBlock
             const scalar upperVal = upper[f];
             const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
 
-            MatSetValue(M, ri, cj, scale*upperVal, INSERT_VALUES);
-            MatSetValue(M, rj, ci, scale*lowerVal, INSERT_VALUES);
+            MatSetValue(M, ri, cj, scale*upperVal, ADD_VALUES);
+            MatSetValue(M, rj, ci, scale*lowerVal, ADD_VALUES);
         }
     }
 }
@@ -161,7 +161,7 @@ static void initializePetscSystem
 {
     MatCreate(PETSC_COMM_WORLD, &M);
     MatSetSizes(M, 2*nLocal, 2*nLocal, 2*N, 2*N);
-    MatSetType(M, MATSEQAIJ);
+    MatSetType(M, (Pstream::nProcs() == 1) ? MATSEQAIJ : MATMPIAIJ);
     MatSetUp(M);
 
     VecCreate(PETSC_COMM_WORLD, &x);

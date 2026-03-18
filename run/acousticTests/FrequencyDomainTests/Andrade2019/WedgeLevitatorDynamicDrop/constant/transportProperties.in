@@ -54,7 +54,6 @@ rhol            __RHOL__;
 rhog            __RHOG__;
 cg              __CG__;
 cl              __CL__;
-acousticForceModel __ACOUSTIC_FORCE_MODEL__;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 k               #eval{2.0*pi()*$f/$soundSpeed};

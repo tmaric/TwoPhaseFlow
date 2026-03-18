@@ -155,19 +155,4 @@ autoPtr<advectionSchemes> advector
 );
 cutFaceAdvect cutFace(alpha1.mesh(), alpha1);
 
-volVectorField Fr
-(
-    IOobject
-    (
-        "Fr",
-         runTime.timeName(),
-         mesh,
-        IOobject::NO_READ,
-        IOobject::AUTO_WRITE
-    ),
-    mesh,
-    dimensionedVector("Fr", dimPressure/dimLength, Zero)
-);
-
 #include "createAcousticFields.H"
-

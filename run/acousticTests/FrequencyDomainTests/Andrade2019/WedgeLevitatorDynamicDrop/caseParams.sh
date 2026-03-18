@@ -37,11 +37,6 @@ RHOG=1.2
 CG=343
 # Liquid sound speed [m/s].
 CL=1480
-# Acoustic-flow forcing model used by interFALFlow:
-# - interface: interfacial forcing (legacy)
-# - volume:    volumetric force = -grad(pr) + div(momFlux)
-ACOUSTIC_FORCE_MODEL=interface
-
 # ---------------------------------------------------------------------------
 # PML parameters (rectangle PML)
 # ---------------------------------------------------------------------------

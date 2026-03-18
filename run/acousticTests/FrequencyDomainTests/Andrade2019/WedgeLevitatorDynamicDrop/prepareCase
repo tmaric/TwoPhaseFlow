@@ -22,7 +22,6 @@ render()
         -e "s|__RHOG__|$RHOG|g" \
         -e "s|__CG__|$CG|g" \
         -e "s|__CL__|$CL|g" \
-        -e "s|__ACOUSTIC_FORCE_MODEL__|$ACOUSTIC_FORCE_MODEL|g" \
         -e "s|__PML_L__|$PML_L|g" \
         -e "s|__SIGMA_MAX__|$SIGMA_MAX|g" \
         -e "s|__PO__|$PO|g" \

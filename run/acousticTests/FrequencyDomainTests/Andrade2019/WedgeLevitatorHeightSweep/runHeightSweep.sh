@@ -43,6 +43,7 @@ run_series()
         rm -f \
             log.gmshToFoam \
             log.changeDictionary \
+            log.setPMLFields \
             log.setExprFields \
             log.decomposePar \
             log.reconstructPar \

@@ -1,10 +1,19 @@
 // Acoustic block assembly helpers for interFALFlow.
 //
-// Design intent (same as acousticHelmholtzFoam):
-// - Keep the algebra identical to the serial reference block system.
+// Design intent:
+// - Keep the algebra identical to acousticHelmholtzFoam and the serial
+//   block reference system.
 // - Assemble matrix entries explicitly into PETSc, including processor links.
-// - Treat B1/B2 in off-diagonal blocks consistently with serial formulation:
-//   B1 contributes face-coupling only, B2 carries diagonal mass term.
+// - Treat B1/B2 in off-diagonal blocks consistently with the current
+//   acousticHelmholtzFoam formulation: the off-diagonal PETSc blocks contain
+//   the full B1 + B2 operator.
+
+static scalar globalSum(const scalar local)
+{
+    scalar total = local;
+    reduce(total, sumOp<scalar>());
+    return total;
+}
 
 static List<labelList> gatherProcessorPatchNeighbourGlobals
 (
@@ -32,6 +41,7 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
         localGlobalIds[celli] = globalCells.toGlobal(celli);
     }
 
+    // Stage 1: send local global-cell ids and patch coefficients to neighbours.
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -58,6 +68,7 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
         procInt.send(Pstream::commsTypes::scheduled, bcoeffs[patchi]);
     }
 
+    // Stage 2: receive neighbour ids/coefficients in interface-face order.
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -185,6 +196,11 @@ static void insertScalarOpIntoBlock
 
     List<labelList> neighbGlobals;
     List<scalarField> neighbBcoeffs;
+    scalar procDiagAbs = 0.0;
+    scalar procOffDiagAbs = 0.0;
+    label procFaceCount = 0;
+    // Processor coupling is inserted explicitly so PETSc sees the same
+    // operator that OpenFOAM would otherwise apply implicitly via interfaces.
     if (Pstream::parRun())
     {
         const auto& bpsi = op.psi().boundaryField();
@@ -228,13 +244,51 @@ static void insertScalarOpIntoBlock
                 const PetscInt r = globalCells.toGlobal(ownCell) + rowOffset;
                 const PetscInt cNbr = nbrIds[facei] + colOffset;
 
+                if (nbrIds[facei] < 0 || nbrIds[facei] >= globalCells.size())
+                {
+                    FatalErrorInFunction
+                        << "Invalid neighbour global cell id on patch "
+                        << op.psi().mesh().boundaryMesh()[patchi].name()
+                        << " face " << facei
+                        << ": " << nbrIds[facei]
+                        << " not in [0," << (globalCells.size() - 1) << "]"
+                        << exit(FatalError);
+                }
+
                 if (includeDiag)
                 {
                     diagWithProc[ownCell] += pic[facei];
                 }
 
-                MatSetValue(M, r, cNbr, -scale*pbc[facei], INSERT_VALUES);
+                MatSetValue(M, r, cNbr, -scale*pbc[facei], ADD_VALUES);
+                if (includeDiag)
+                {
+                    procDiagAbs += mag(pic[facei]);
+                }
+                procOffDiagAbs += mag(pbc[facei]);
+                ++procFaceCount;
             }
+        }
+    }
+
+    if (Pstream::parRun())
+    {
+        procDiagAbs = globalSum(procDiagAbs);
+        procOffDiagAbs = globalSum(procOffDiagAbs);
+        reduce(procFaceCount, sumOp<label>());
+        static label printedProcContribCount = 0;
+        if (printedProcContribCount < 4)
+        {
+            if (Pstream::master())
+            {
+                Info<< "Proc-coupling contribution (first block): rowOffset="
+                    << rowOffset << " colOffset=" << colOffset
+                    << " nFaces=" << procFaceCount
+                    << " |diagAdd|=" << procDiagAbs
+                    << " |offDiag|=" << procOffDiagAbs
+                    << nl;
+            }
+            ++printedProcContribCount;
         }
     }
 
@@ -244,7 +298,7 @@ static void insertScalarOpIntoBlock
         {
             PetscInt r = globalCells.toGlobal(i) + rowOffset;
             PetscInt c = globalCells.toGlobal(i) + colOffset;
-            MatSetValue(M, r, c, scale*diagWithProc[i], INSERT_VALUES);
+            MatSetValue(M, r, c, scale*diagWithProc[i], ADD_VALUES);
         }
     }
 
@@ -267,8 +321,8 @@ static void insertScalarOpIntoBlock
             const scalar upperVal = upper[f];
             const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
 
-            MatSetValue(M, ri, cj, scale*upperVal, INSERT_VALUES);
-            MatSetValue(M, rj, ci, scale*lowerVal, INSERT_VALUES);
+            MatSetValue(M, ri, cj, scale*upperVal, ADD_VALUES);
+            MatSetValue(M, rj, ci, scale*lowerVal, ADD_VALUES);
         }
     }
 }
@@ -294,10 +348,10 @@ static void assembleBlockSystem
     B2Pim.boundaryManipulate(B2Pim.psi().boundaryFieldRef());
 
     insertScalarOpIntoBlock(M, AopPim, globalCells, 0, 0, +1.0);
-    insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0, false);
+    insertScalarOpIntoBlock(M, B1Pre, globalCells, 0, N, -1.0, true);
     insertScalarOpIntoBlock(M, B2Pre, globalCells, 0, N, -1.0, true);
 
-    insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0, false);
+    insertScalarOpIntoBlock(M, B1Pim, globalCells, N, 0, +1.0, true);
     insertScalarOpIntoBlock(M, B2Pim, globalCells, N, 0, +1.0, true);
     insertScalarOpIntoBlock(M, AopPre, globalCells, N, N, +1.0);
 }

@@ -76,7 +76,7 @@ HS=0.01
 
 # Mesh controls.
 # N is the number of cells per wavelength used to set gs = lambda/N.
-MESH_N=200
+MESH_N=400
 # Gmsh point characteristic length (kept as in original setup).
 MESH_LC=1.0
 # Wedge half/total angle settings [deg].

@@ -67,23 +67,6 @@ dimensionedScalar po
     )
 );
 
-const word acousticForceModel
-(
-    transportProperties.lookupOrDefault<word>("acousticForceModel", "interface")
-);
-
-const bool useVolumeAcousticForce = (acousticForceModel == "volume");
-
-if (!(useVolumeAcousticForce || acousticForceModel == "interface"))
-{
-    FatalErrorInFunction
-        << "Unknown acousticForceModel '" << acousticForceModel
-        << "'. Valid options: interface, volume."
-        << exit(FatalError);
-}
-
-Info<< "acousticForceModel = " << acousticForceModel << nl;
-
 enum PMLType
 {
     RECTANGLE,
