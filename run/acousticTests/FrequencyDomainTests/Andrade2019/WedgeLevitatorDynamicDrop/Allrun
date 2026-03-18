@@ -34,6 +34,27 @@ ensure_solver()
     fi
 }
 
+ensure_app()
+{
+    appName="$1"
+    appDir="$2"
+    if command -v "${appName}" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo "Application '${appName}' not found, building ${appDir} ..."
+    repoRoot="$(cd ../../../../../ && pwd)"
+    (
+        cd "${repoRoot}" || exit 1
+        wmake "${appDir}"
+    )
+
+    if ! command -v "${appName}" >/dev/null 2>&1; then
+        echo "Error: application '${appName}' is still unavailable after build." >&2
+        exit 1
+    fi
+}
+
 need_cmd gmsh
 if [ -z "${NPROCS:-}" ]; then
     NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
@@ -50,6 +71,9 @@ rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
 runApplication setAlphaField
 rm -f 0/Pim.in
+
+ensure_app setPMLFields apps/utilities/mesh/setPMLFields
+runApplication setPMLFields
 
 ensure_solver "${SOLVER}" interFALFlow
 rm -f "log.${SOLVER}"

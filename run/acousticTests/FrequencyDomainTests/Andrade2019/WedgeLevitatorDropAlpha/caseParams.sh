@@ -16,7 +16,7 @@
 # Frequency-domain acoustic solver:
 # - acousticHelmholtzFoam: MPI-capable
 # - acousticHelmholtzSerialFoam: single-rank reference solver
-SOLVER=acousticHelmholtzSerialFoam
+SOLVER=acousticHelmholtzFoam
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -45,8 +45,8 @@ CL=1480
 # ---------------------------------------------------------------------------
 # PML thickness [m].
 PML_L=0.008
-# Max damping strength sigmaMax [1/s].
-SIGMA_MAX=10000000
+# Max damping strength sigmaMax [1/s]. tLF:1E7 aH(S)F:2E6
+SIGMA_MAX=2000000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Rectangle bounds for PML logic in transportProperties.

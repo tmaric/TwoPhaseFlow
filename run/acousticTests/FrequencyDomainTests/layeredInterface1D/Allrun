@@ -27,6 +27,21 @@ ensure_solver()
     )
 }
 
+ensure_app()
+{
+    appName="$1"
+    appDir="$2"
+    if command -v "${appName}" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    repoRoot="$(cd ../../../../ && pwd)"
+    (
+        cd "${repoRoot}" || exit 1
+        wmake "${appDir}"
+    )
+}
+
 need_cmd blockMesh
 need_cmd setFields
 need_cmd decomposePar
@@ -39,6 +54,8 @@ rm -f 0/*.in
 
 runApplication blockMesh
 runApplication setFields
+ensure_app setPMLFields apps/utilities/mesh/setPMLFields
+runApplication setPMLFields
 runApplication decomposePar -force
 ensure_solver "${SOLVER}" acousticHelmholtzFoam
 runParallel "${SOLVER}"

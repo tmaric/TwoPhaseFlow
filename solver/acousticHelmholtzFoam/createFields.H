@@ -34,7 +34,7 @@
             "pa",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
         mesh,
@@ -64,7 +64,7 @@
             "alphaf",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::NO_WRITE
         ),
         fvc::interpolate(alpha1)
@@ -78,7 +78,7 @@
             "U",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
         mesh,
@@ -93,7 +93,7 @@
             "Ure",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
         mesh,
@@ -107,7 +107,7 @@
             "Uim",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
         mesh,
@@ -121,7 +121,7 @@
             "rho",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::NO_WRITE
         ),
         rhol*alpha1 + rhog*(1 - alpha1)
@@ -163,11 +163,10 @@
             "SC0",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh,
-        dimensionedScalar("SC0", dimensionSet(0, -2, 0, 0, 0, 0, 0), Zero)
+        mesh
     );
 
     volScalarField SC1
@@ -177,11 +176,10 @@
             "SC1",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh,
-        dimensionedScalar("SC1", dimensionSet(0, -2, 0, 0, 0, 0, 0), Zero)
+        mesh
     );
 
     volScalarField TC1
@@ -191,11 +189,10 @@
             "TC1",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh,
-        dimensionedScalar("TC1", dimless, Zero)
+        mesh
     );
 
     volScalarField sigma
@@ -205,11 +202,10 @@
             "sigma",
             runTime.timeName(),
             mesh,
-            IOobject::NO_READ,
+            IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh,
-        dimensionedScalar("sigma", dimless/dimTime, Zero)
+        mesh
     );
 
     #include "createPhi.H"

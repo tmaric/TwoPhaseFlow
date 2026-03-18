@@ -53,7 +53,7 @@
         transportProperties
     );
 
-    Info<< "Creating PML coefficients fields \n" << endl;
+    Info<< "Reading PML setup parameters\n" << endl;
     // PML thickness
     dimensionedScalar L
     (

@@ -2,6 +2,22 @@
 cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
 #------------------------------------------------------------------------------
+
+ensure_app()
+{
+    appName="$1"
+    appDir="$2"
+    if command -v "${appName}" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    repoRoot="$(cd ../../../../../ && pwd)"
+    (
+        cd "${repoRoot}" || exit 1
+        wmake "${appDir}"
+    )
+}
+
 ./Allclean
 restore0Dir
 
@@ -13,6 +29,8 @@ runApplication -s 1 changeDictionary -dict system/changeDictionaryDict1
 #runApplication topoSet
 #runApplication subsetMesh -overwrite c0 -patch dropWall
 #runApplication -s 2 changeDictionary -dict system/changeDictionaryDict2
+ensure_app setPMLFields apps/utilities/mesh/setPMLFields
+runApplication setPMLFields
 runApplication decomposePar
 
 runParallel $(getApplication)

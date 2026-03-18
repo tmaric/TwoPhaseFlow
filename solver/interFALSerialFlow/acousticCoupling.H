@@ -7,7 +7,6 @@
     // 3) Solve once with PETSc and update Pre/Pim.
     // 4) Reconstruct pr/momFlux used by interfacial flow forcing.
     #include "computeAlphaf.H"
-    #include "computePMLCoefs.H"
 
     const dimensionedScalar k2
     (

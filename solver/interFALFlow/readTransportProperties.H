@@ -40,6 +40,8 @@ dimensionedScalar f
     transportProperties
 );
 
+Info<< "Reading PML setup parameters\n" << endl;
+
 dimensionedScalar L
 (
     "L",

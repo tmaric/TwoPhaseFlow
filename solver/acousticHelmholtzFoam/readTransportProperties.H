@@ -55,7 +55,7 @@
 
     // Optional diagonal shift for Helmholtz stabilization (1/length^2)
 
-    Info<< "Creating PML coefficients fields \n" << endl;
+    Info<< "Reading PML setup parameters\n" << endl;
     // PML thickness
     dimensionedScalar L
     (

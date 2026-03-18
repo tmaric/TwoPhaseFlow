@@ -39,8 +39,8 @@ def main() -> int:
     style_map = {
         "empty": {"color": "black", "linestyle": "-", "linewidth": 2.0, "label": "No object"},
         "ab1": {"color": "#2f6df6", "linestyle": "-", "linewidth": 1.6, "label": "Sphere (a/b=1)"},
-        "ab2": {"color": "#ff4aa2", "linestyle": "-", "linewidth": 1.6, "label": "Oblate spheroid (a/b=2)"},
-        "ab3": {"color": "#44a35f", "linestyle": "-", "linewidth": 1.6, "label": "Oblate spheroid (a/b=3)"},
+        "ab2": {"color": "#44a35f", "linestyle": "-", "linewidth": 1.6, "label": "Oblate spheroid (a/b=2)"},
+        "ab3": {"color": "#ff4aa2", "linestyle": "-", "linewidth": 1.6, "label": "Oblate spheroid (a/b=3)"},
     }
 
     for key in sorted(series):
