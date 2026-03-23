@@ -92,4 +92,20 @@
     (
         pr, momFlux, Pim, Pre, alpha1, rho, f, kl, kg
     );
+
+    updateLessmannAcousticForce
+    (
+        mesh,
+        alpha1,
+        pr,
+        momFlux,
+        lessmannShiftCoeff,
+        lessmannInterfaceAlphaMin,
+        lessmannInterfaceAlphaMax,
+        lessmannGasAlphaMax,
+        lessmannMinGradAlpha,
+        prShift,
+        acousticTraction,
+        acousticForce
+    );
 }

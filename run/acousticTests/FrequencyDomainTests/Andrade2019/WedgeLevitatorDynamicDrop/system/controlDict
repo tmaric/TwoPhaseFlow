@@ -1,7 +1,7 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  2312                                  |
+|  \\    /   O peration     | Version:  2506                                  |
 |   \\  /    A nd           | Website:  www.openfoam.com                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
@@ -23,13 +23,13 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         50e-3;
+endTime         0.05;
 
 deltaT          1e-05;
 
 writeControl    runTime;
 
-writeInterval   1e-4;
+writeInterval   0.0001;
 
 purgeWrite      0;
 
@@ -51,7 +51,7 @@ maxCo           0.2;
 
 maxAlphaCo      0.2;
 
-maxDeltaT       1e-04;
+maxDeltaT       0.0001;
 
 maxCapillaryNum 10000000;
 

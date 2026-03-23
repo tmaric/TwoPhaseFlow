@@ -69,6 +69,48 @@ volTensorField momFlux
        dimensionedTensor("momFlux", dimDensity*dimVelocity*dimVelocity, tensor::zero) 
  );
 
+volScalarField prShift
+(
+      IOobject
+      (
+          "prShift",
+          runTime.timeName(),
+          mesh,
+          IOobject::NO_READ,
+          IOobject::AUTO_WRITE
+       ),
+       mesh,
+       dimensionedScalar("prShift", dimPressure, 0)
+);
+
+volVectorField acousticTraction
+(
+      IOobject
+      (
+          "acousticTraction",
+          runTime.timeName(),
+          mesh,
+          IOobject::NO_READ,
+          IOobject::AUTO_WRITE
+       ),
+       mesh,
+       dimensionedVector("acousticTraction", dimPressure, vector::zero)
+);
+
+volVectorField acousticForce
+(
+      IOobject
+      (
+          "acousticForce",
+          runTime.timeName(),
+          mesh,
+          IOobject::NO_READ,
+          IOobject::AUTO_WRITE
+       ),
+       mesh,
+       dimensionedVector("acousticForce", dimForce/dimVolume, vector::zero)
+);
+
 volScalarField SC0
 (
     IOobject

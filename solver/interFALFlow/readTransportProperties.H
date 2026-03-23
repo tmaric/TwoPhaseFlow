@@ -122,3 +122,20 @@ switch (selectedModel)
         break;
     }
 }
+
+Info<< "Reading Lessmann acoustic-force controls\n" << endl;
+
+const scalar lessmannShiftCoeff =
+    transportProperties.lookupOrDefault<scalar>("lessmannShiftCoeff", 0.5);
+
+const scalar lessmannInterfaceAlphaMin =
+    transportProperties.lookupOrDefault<scalar>("lessmannInterfaceAlphaMin", 1e-3);
+
+const scalar lessmannInterfaceAlphaMax =
+    transportProperties.lookupOrDefault<scalar>("lessmannInterfaceAlphaMax", 1.0 - 1e-3);
+
+const scalar lessmannGasAlphaMax =
+    transportProperties.lookupOrDefault<scalar>("lessmannGasAlphaMax", 0.05);
+
+const scalar lessmannMinGradAlpha =
+    transportProperties.lookupOrDefault<scalar>("lessmannMinGradAlpha", SMALL);
