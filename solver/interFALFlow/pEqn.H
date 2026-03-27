@@ -33,6 +33,8 @@
         )*rAUf*mesh.magSf()
     );
 
+    prFlux = fvc::snGrad(alpha1);
+
     phig +=
         (
             fvc::interpolate(pr)*fvc::snGrad(alpha1)

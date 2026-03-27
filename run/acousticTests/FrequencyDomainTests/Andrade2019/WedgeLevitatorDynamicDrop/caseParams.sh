@@ -22,7 +22,7 @@ SOLVER=interFALFlow
 # Driven acoustic frequency [Hz].
 DRIVE_F=25250
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
-PISTON_U=1
+PISTON_U=2
 
 # ---------------------------------------------------------------------------
 # Fluid / acoustic medium properties
@@ -73,7 +73,7 @@ HS=0.01
 
 # Mesh controls.
 # N is the number of cells per wavelength used to set gs = lambda/N.
-MESH_N=100
+MESH_N=200
 # Gmsh point characteristic length (kept as in original setup).
 MESH_LC=1.0
 # Wedge half/total angle settings [deg].

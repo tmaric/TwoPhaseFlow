@@ -79,6 +79,8 @@ laplacianSchemes
 interpolationSchemes
 {
     default         linear;
+    interpolate(pr) upwind prFlux;
+    interpolate(pMomFlux) upwind prFlux;
 }
 
 snGradSchemes

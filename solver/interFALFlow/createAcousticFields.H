@@ -55,6 +55,33 @@ volScalarField pr
          dimensionedScalar("pr", dimPressure, 0) 
     );
 
+surfaceScalarField prFlux
+(
+    IOobject
+    (
+        "prFlux",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    fvc::snGrad(alpha1)
+);
+
+volVectorField prDebug
+(
+    IOobject
+    (
+        "prDebug",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedVector("prDebug", dimPressure/dimVolume, vector::zero)
+);
+
 volTensorField momFlux
 (
       IOobject
@@ -68,6 +95,20 @@ volTensorField momFlux
        mesh,
        dimensionedTensor("momFlux", dimDensity*dimVelocity*dimVelocity, tensor::zero) 
  );
+
+volScalarField pMomFlux
+(
+    IOobject
+    (
+        "pMomFlux",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("pMomFlux", dimPressure, 0)
+);
 
 volScalarField SC0
 (
