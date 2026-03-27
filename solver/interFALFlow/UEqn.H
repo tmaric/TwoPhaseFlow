@@ -1,5 +1,8 @@
     MRF.correctBoundaryVelocity(U);
 
+    volVectorField  nHat = advector->normal()/(mag(advector->normal()) + dimensionedScalar(dimArea, ROOTVSMALL));
+    volScalarField  pMomFlux = (momFlux & nHat) & nHat;
+
     fvVectorMatrix UEqn
     (
         fvm::ddt(rho, U) + fvm::div(rhoPhi, U)
@@ -25,9 +28,9 @@
                   surfForces.surfaceTensionForce()
                   + surfForces.accelerationForce()
                   - fvc::snGrad(p_rgh)
+                  + fvc::interpolate(pr)*fvc::snGrad(alpha1)
                 ) * mesh.magSf()
             )
-          + acousticForce
         );
 
         fvOptions.correct(U);

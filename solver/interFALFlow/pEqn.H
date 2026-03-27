@@ -34,7 +34,10 @@
     );
 
     phig +=
-        (fvc::interpolate(acousticForce) & mesh.Sf())*rAUf;
+        (
+            fvc::interpolate(pr)*fvc::snGrad(alpha1)
+          + fvc::interpolate(pMomFlux)*fvc::snGrad(alpha1)
+        )*rAUf*mesh.magSf();
 
     phiHbyA += phig;
 

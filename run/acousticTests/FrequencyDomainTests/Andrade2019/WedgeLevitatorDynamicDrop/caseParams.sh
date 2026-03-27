@@ -22,7 +22,7 @@ SOLVER=interFALFlow
 # Driven acoustic frequency [Hz].
 DRIVE_F=25250
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
-PISTON_U=2
+PISTON_U=1
 
 # ---------------------------------------------------------------------------
 # Fluid / acoustic medium properties
@@ -43,7 +43,7 @@ CL=1480
 # PML thickness [m].
 PML_L=0.008
 # Max damping strength sigmaMax [1/s].
-SIGMA_MAX=5000
+SIGMA_MAX=2000000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Rectangle bounds for PML logic in transportProperties.
@@ -84,6 +84,6 @@ WEDGE_DEG=1.0
 # Initial drop setup (setAlphaField)
 # ---------------------------------------------------------------------------
 # Initial spherical drop radius [m].
-DROP_RADIUS=0.0015
+DROP_RADIUS=0.001
 # Initial drop center vertical position [m] (y-coordinate).
-DROP_CENTER_Y=0.004
+DROP_CENTER_Y=0.00382

@@ -66,7 +66,6 @@ SourceFiles
 #include "processorBC.H"
 #include "syncTools.H"
 #include "acousticBlockPetsc.H"
-#include "lessmannAcousticForce.H"
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -183,7 +182,6 @@ int main(int argc, char *argv[])
             mixture.correct();
 
             surfForces.correct();
-            advector->surf().reconstruct();
 
             if (pimple.frozenFlow())
             {
