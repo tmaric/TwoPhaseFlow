@@ -18,7 +18,7 @@
     fvOptions.constrain(UEqn);
 
     prFlux = fvc::snGrad(alpha1);
-    prDebug = fvc::reconstruct(fvc::interpolate(pr)*fvc::snGrad(alpha1));
+    prDebug = fvc::reconstruct((fvc::interpolate(pr)*fvc::snGrad(alpha1))*mesh.magSf());
     prDebug.correctBoundaryConditions();
 
     if (pimple.momentumPredictor())

@@ -82,6 +82,20 @@ volVectorField prDebug
     dimensionedVector("prDebug", dimPressure/dimVolume, vector::zero)
 );
 
+volScalarField beta
+(
+    IOobject
+    (
+        "beta",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("beta", dimless, 0.0)
+);
+
 volTensorField momFlux
 (
       IOobject
