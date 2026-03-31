@@ -55,6 +55,12 @@ NPROCS=8 ./Allrun
 
 Log file:
 - `log.interFALFlow`
+- Drop geometry tracking:
+  - `postProcessing/dropGeometry/geometry.dat`
+  - columns: `time`, `centerY`, `horizontalAxis`, `verticalAxis`, `xMax`, `yMin`, `yMax`, `weightedVolume`, `selectedCells`
+  - plot script:
+    - `python3 plotDropGeometry.py`
+    - outputs `postProcessing/dropGeometry/dropGeometry.png` and `.pdf`
 
 ## Optional: render-only step
 

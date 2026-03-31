@@ -55,5 +55,112 @@ maxDeltaT       0.0001;
 
 maxCapillaryNum 10000000;
 
+functions
+{
+    dropGeometry
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropGeometry;
+        writeControl    writeTime;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include "PstreamReduceOps.H"
+        #};
+
+        codeWrite
+        #{
+            const volScalarField& alpha =
+                mesh().lookupObject<volScalarField>("alpha.water");
+
+            const scalarField& V = mesh().V();
+            const vectorField& C = mesh().C();
+
+            scalar localWeightedVol = 0.0;
+            scalar localYMoment = 0.0;
+            label localSelected = 0;
+            scalar localXMax = -GREAT;
+            scalar localYMin = GREAT;
+            scalar localYMax = -GREAT;
+
+            forAll(alpha, celli)
+            {
+                const scalar alphaVal = alpha[celli];
+                const scalar weight = max(min(alphaVal, scalar(1)), scalar(0));
+
+                localWeightedVol += weight*V[celli];
+                localYMoment += weight*V[celli]*C[celli].y();
+
+                if (alphaVal > 0.5)
+                {
+                    ++localSelected;
+
+                    localXMax = max(localXMax, C[celli].x());
+                    localYMin = min(localYMin, C[celli].y());
+                    localYMax = max(localYMax, C[celli].y());
+                }
+            }
+
+            scalar weightedVol = localWeightedVol;
+            scalar yMoment = localYMoment;
+            label selected = localSelected;
+            scalar xMax = localXMax;
+            scalar yMin = localYMin;
+            scalar yMax = localYMax;
+
+            reduce(weightedVol, sumOp<scalar>());
+            reduce(yMoment, sumOp<scalar>());
+            reduce(selected, sumOp<label>());
+            reduce(xMax, maxOp<scalar>());
+            reduce(yMin, minOp<scalar>());
+            reduce(yMax, maxOp<scalar>());
+
+            if (!Pstream::master())
+            {
+                return true;
+            }
+
+            const fileName outputDir
+            (
+                mesh().time().globalPath()/functionObject::outputPrefix/"dropGeometry"
+            );
+            mkDir(outputDir);
+
+            const fileName outputFile(outputDir/"geometry.dat");
+            const bool newFile = !exists(outputFile);
+
+            if (newFile)
+            {
+                OFstream header(outputFile);
+                header
+                    << "# time\tcenterY\thorizontalAxis\tverticalAxis\txMax\tyMin\tyMax\tweightedVolume\tselectedCells"
+                    << nl;
+            }
+
+            OFstream os(outputFile, IOstreamOption(), IOstreamOption::APPEND);
+
+            const scalar centerY =
+                weightedVol > SMALL ? yMoment/weightedVol : 0.0;
+            const scalar horizontalAxis = selected > 0 ? xMax : 0.0;
+            const scalar verticalAxis = selected > 0 ? yMax - yMin : 0.0;
+
+            os  << mesh().time().value() << tab
+                << centerY << tab
+                << horizontalAxis << tab
+                << verticalAxis << tab
+                << (selected > 0 ? xMax : 0.0) << tab
+                << (selected > 0 ? yMin : 0.0) << tab
+                << (selected > 0 ? yMax : 0.0) << tab
+                << weightedVol << tab
+                << selected
+                << nl;
+
+            return true;
+        #};
+    }
+}
+
 
 // ************************************************************************* //
