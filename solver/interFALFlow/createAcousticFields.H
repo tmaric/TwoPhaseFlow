@@ -55,34 +55,8 @@ volScalarField pr
          dimensionedScalar("pr", dimPressure, 0) 
     );
 
-surfaceScalarField prFlux
-(
-    IOobject
-    (
-        "prFlux",
-        runTime.timeName(),
-        mesh,
-        IOobject::NO_READ,
-        IOobject::NO_WRITE
-    ),
-    fvc::snGrad(alpha1)
-);
-
-volVectorField prDebug
-(
-    IOobject
-    (
-        "prDebug",
-        runTime.timeName(),
-        mesh,
-        IOobject::NO_READ,
-        IOobject::AUTO_WRITE
-    ),
-    mesh,
-    dimensionedVector("prDebug", dimPressure/dimVolume, vector::zero)
-);
-
-volScalarField beta
+// Face mask: beta=1 on faces touching an interface cell, beta=0 elsewhere.
+surfaceScalarField beta
 (
     IOobject
     (
@@ -94,6 +68,34 @@ volScalarField beta
     ),
     mesh,
     dimensionedScalar("beta", dimless, 0.0)
+);
+
+volScalarField Pa
+(
+    IOobject
+    (
+        "Pa",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("Pa", dimPressure, 0)
+);
+
+volScalarField Ua
+(
+    IOobject
+    (
+        "Ua",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("Ua", dimVelocity, 0)
 );
 
 volTensorField momFlux

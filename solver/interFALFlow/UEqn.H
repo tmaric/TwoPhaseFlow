@@ -17,10 +17,6 @@
 
     fvOptions.constrain(UEqn);
 
-    prFlux = fvc::snGrad(alpha1);
-    prDebug = fvc::reconstruct((fvc::interpolate(pr)*fvc::snGrad(alpha1))*mesh.magSf());
-    prDebug.correctBoundaryConditions();
-
     if (pimple.momentumPredictor())
     {
         solve
@@ -33,8 +29,7 @@
                   surfForces.surfaceTensionForce()
                   + surfForces.accelerationForce()
                   - fvc::snGrad(p_rgh)
-                  + fvc::interpolate(pr)*fvc::snGrad(alpha1)
-                  + fvc::interpolate(pMomFlux)*fvc::snGrad(alpha1)
+                  - fvc::snGrad(pr)*beta
                 ) * mesh.magSf()
             )
         );

@@ -30,16 +30,9 @@
         (
           surfForces.surfaceTensionForce()
           + surfForces.accelerationForce()
+          -fvc::snGrad(pr)*beta
         )*rAUf*mesh.magSf()
     );
-
-    prFlux = fvc::snGrad(alpha1);
-
-    phig +=
-        (
-            fvc::interpolate(pr)*fvc::snGrad(alpha1)
-          + fvc::interpolate(pMomFlux)*fvc::snGrad(alpha1)
-        )*rAUf*mesh.magSf();
 
     phiHbyA += phig;
 

@@ -22,7 +22,7 @@ SOLVER=interFALFlow
 # Driven acoustic frequency [Hz].
 DRIVE_F=25250
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
-PISTON_U=2
+PISTON_U=1
 
 # ---------------------------------------------------------------------------
 # Fluid / acoustic medium properties

@@ -85,6 +85,8 @@ static void buildRhs
 static void updateDerivedAcousticFields
 (
     volScalarField& pr,
+    volScalarField& Pa,
+    volScalarField& Ua,
     volTensorField& momFlux,
     const volScalarField& Pim,
     const volScalarField& Pre,
@@ -97,8 +99,13 @@ static void updateDerivedAcousticFields
 {
     const tmp<volVectorField> Ure = 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
     const tmp<volVectorField> Uim = -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
+    const volScalarField pSq("pSq", Pre*Pre + Pim*Pim);
+    const volScalarField uSq("uSq", (Ure() & Ure()) + (Uim() & Uim()));
 
-    pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
-        - 0.25*rho*((Ure()&Ure()) + (Uim()&Uim()));
+    Pa == Foam::sqrt(pSq);
+    Ua == Foam::sqrt(uSq);
+
+    pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*pSq
+        - 0.25*rho*uSq;
     momFlux == 0.5*rho*(Ure()*Ure() + Uim()*Uim());
 }

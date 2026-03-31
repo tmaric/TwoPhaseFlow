@@ -90,6 +90,6 @@
 
     updateDerivedAcousticFields
     (
-        pr, momFlux, Pim, Pre, alpha1, rho, f, kl, kg
+        pr, Pa, Ua, momFlux, Pim, Pre, alpha1, rho, f, kl, kg
     );
 }
