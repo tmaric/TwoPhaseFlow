@@ -1,0 +1,242 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.0.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     acousticHelmholtzFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         1;
+
+deltaT          1;
+
+writeControl    runTime; 
+
+writeInterval   1;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  12;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   8;
+
+runTimeModifiable yes;
+
+adjustTimeStep  no;
+
+// ************************************************************************* //
+libs
+(
+   "libpetscFoam.so"
+);
+
+// FO outputs the acoustic radiation force on the reflector
+functions
+{
+    prSphereIntegral
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so" "libsampling.so");
+        name            prSphereIntegral;
+        executeControl  none;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include "sampledSurface.H"
+            #include "interpolationCell.H"
+            #include "PstreamReduceOps.H"
+        #};
+
+        codeOptions
+        #{
+            -I$(LIB_SRC)/sampling/lnInclude \
+            -I$(LIB_SRC)/fileFormats/lnInclude \
+            -I$(LIB_SRC)/surfMesh/lnInclude \
+            -I$(LIB_SRC)/lagrangian/basic/lnInclude
+        #};
+
+        codeLibs
+        #{
+            -lsampling \
+            -lfileFormats \
+            -lsurfMesh \
+            -llagrangian \
+            -lfiniteVolume
+        #};
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            dictionary surfDict;
+            surfDict.add("type", word("surfaceCut"));
+            surfDict.add("surfaceType", word("sphere"));
+            surfDict.add("origin", vector(0.00000001, 0.0040003, 0.0000001));
+            surfDict.add("radius", scalar(0.00010605));
+            surfDict.add("triangulate", true);
+
+            autoPtr<sampledSurface> surfPtr =
+                sampledSurface::New(name(), mesh, surfDict);
+            sampledSurface& surf = surfPtr.ref();
+            surf.update();
+
+            const interpolationCell<scalar> interp(pr);
+            const scalarField values(surf.sample(interp));
+            scalar area = surf.area();
+            scalar areaIntegral = gSum(values*surf.magSf());
+            const label nFaces =
+                returnReduce(label(surf.faces().size()), sumOp<label>());
+
+            const label frontPatchID = mesh.boundaryMesh().findPatchID("front");
+            const label backPatchID = mesh.boundaryMesh().findPatchID("back");
+
+            if (frontPatchID < 0 || backPatchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Required wedge patches 'front'/'back' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Cf = mesh.Cf().boundaryField();
+            const auto& magSfB = mesh.magSf().boundaryField();
+
+            vector frontCentre =
+                gSum(Cf[frontPatchID]*magSfB[frontPatchID])
+               /(gSum(magSfB[frontPatchID]) + VSMALL);
+            vector backCentre =
+                gSum(Cf[backPatchID]*magSfB[backPatchID])
+               /(gSum(magSfB[backPatchID]) + VSMALL);
+
+            frontCentre.y() = 0;
+            backCentre.y() = 0;
+
+            const scalar cosSector =
+                max
+                (
+                    scalar(-1),
+                    min
+                    (
+                        scalar(1),
+                        (frontCentre & backCentre)
+                       /((mag(frontCentre)*mag(backCentre)) + VSMALL)
+                    )
+                );
+            const scalar sectorAngle = acos(cosSector);
+            const scalar axisymScale = constant::mathematical::twoPi
+                /(sectorAngle + VSMALL);
+
+            area *= axisymScale;
+            areaIntegral *= axisymScale;
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()
+                   /"postProcessing"/name()/mesh.time().timeName()
+                );
+                mkDir(outDir);
+
+                const fileName outFile(outDir/"surfaceFieldValue.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+
+                if (writeHeader)
+                {
+                    os  << "# Region type :     sampledSurface " << name()
+                        << " (full axisymmetric)" << nl
+                        << "# Faces             : " << nFaces << nl
+                        << "# Area              : " << area << nl
+                        << "# Scale factor      : " << axisymScale << nl
+                        << "# Time              \tArea\tareaIntegrate(pr)"
+                        << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << '\t' << area
+                    << '\t' << areaIntegral
+                    << nl;
+            }
+        #};
+    }
+
+    reflectorForce
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            reflectorForce;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("reflector1");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'reflector1' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+            const vector forceVec = gSum(pB*Sf);
+            const vector areaVec = gSum(Sf);
+            const vector nHat = areaVec/(mag(areaVec) + VSMALL);
+            const scalar Fn = (forceVec & nHat);
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"reflectorForce"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"force.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# time"
+                        << tab << "Fn" << nl;
+                }
+                os  << mesh.time().timeName()
+                    << tab << Fn << nl;
+            }
+        #};
+    }
+}
+

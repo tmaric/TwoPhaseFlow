@@ -1,0 +1,47 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.0.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      transportProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// All properties are in T=25 C and P=100 kPa
+transportModel  Newtonian;
+soundSpeed      __SOUND_SPEED__;
+
+mu              [ 1 -1 -1 0 0 0 0 ] 0.0;
+psi             [ 0 -2 2 0 0 0 0 ] 8.5e-6;
+rho0            [ 1 -3 0 0 0 0 0 ] 1.2;
+
+R               1.51e-3;
+p0              0.0;
+
+c0              $soundSpeed;
+// frequency
+f               __DRIVE_F__;
+// physical properties
+rhol            __RHOL__;
+rhog            __RHOG__;
+cg              __CG__;
+cl              __CL__;
+kg              #eval{1.0/($rhog*$cg*$cg)};
+kl              #eval{1.0/($rhol*$cl*$cl)};
+k               #eval{2.0*pi()*$f/$soundSpeed};
+L               __PML_L__;
+
+PMLType         rectangle;
+PMLMax          (__PML_MAX_X__ __PML_MAX_Y__ __PML_MAX_Z__);
+PMLMin          (__PML_MIN_X__ __PML_MIN_Y__ __PML_MIN_Z__);
+sigmaMax        __SIGMA_MAX__;
+po              __PO__;
+// ************************************************************************* //
