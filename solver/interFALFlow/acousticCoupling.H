@@ -36,15 +36,15 @@
     fvScalarMatrix B1Pim(fvm::laplacian(TC1, Pim));
     fvScalarMatrix B2Pim(fvm::Sp(SC1, Pim));
 
+    const PetscInt rowNnzUpper = estimateBlockPreallocationUpper(AopPim);
+
     const PetscInt nLocal = (PetscInt)mesh.nCells();
-    Mat M;
-    Vec x, b;
-    KSP ksp;
-    initializePetscSystem(nLocal, N, M, x, b, ksp);
+    ensurePetscSystem(nLocal, N, rowNnzUpper, acousticSystem);
+    resetPetscSystem(acousticSystem);
 
     assembleBlockSystem
     (
-        M,
+        acousticSystem.M,
         globalCells,
         N,
         AopPim,
@@ -69,21 +69,16 @@
         bPre
     );
 
-    setBlockRhs(b, globalCells, N, bPim, bPre);
+    setBlockRhs(acousticSystem.b, globalCells, N, bPim, bPre);
 
-    MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY);
-    MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY);
-    VecAssemblyBegin(b);
-    VecAssemblyEnd(b);
+    MatAssemblyBegin(acousticSystem.M, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(acousticSystem.M, MAT_FINAL_ASSEMBLY);
+    VecAssemblyBegin(acousticSystem.b);
+    VecAssemblyEnd(acousticSystem.b);
 
-    KSPSolve(ksp, b, x);
+    KSPSolve(acousticSystem.ksp, acousticSystem.b, acousticSystem.x);
 
-    scatterBlockSolution(x, globalCells, N, Pim, Pre);
-
-    KSPDestroy(&ksp);
-    VecDestroy(&x);
-    VecDestroy(&b);
-    MatDestroy(&M);
+    scatterBlockSolution(acousticSystem, globalCells, Pim, Pre);
 
     Pre.correctBoundaryConditions();
     Pim.correctBoundaryConditions();

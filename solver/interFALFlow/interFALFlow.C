@@ -109,6 +109,7 @@ int main(int argc, char *argv[])
     #include "setInitialDeltaT.H"
 
     PetscInitialize(&argc, &argv, nullptr, nullptr);
+    AcousticPetscSystem acousticSystem;
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     Info<< "\nStarting time loop\n" << endl;
@@ -209,6 +210,7 @@ int main(int argc, char *argv[])
         runTime.printExecutionTime(Info);
     }
 
+    destroyPetscSystem(acousticSystem);
     PetscFinalize();
 
     Info<< "End\n" << endl;

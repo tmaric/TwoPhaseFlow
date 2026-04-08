@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PETSC_DIR_DEFAULT="${SCRIPT_DIR}/petsc"
 PETSC_ARCH_DEFAULT="arch-linux-c-opt"
 PETSC_BRANCH_DEFAULT="release"
-OPENFOAM_BASHRC_DEFAULT="$HOME/openfoam/etc/bashrc"
+OPENFOAM_BASHRC_DEFAULT="$WM_PROJECT_DIR/etc/bashrc"
 TWOPHASEFLOW_BASHRC_DEFAULT="${SCRIPT_DIR}/scripts/bashrc"
 PETSC4FOAM_REPO_DEFAULT="https://gitlab.com/petsc/petsc4foam.git"
 

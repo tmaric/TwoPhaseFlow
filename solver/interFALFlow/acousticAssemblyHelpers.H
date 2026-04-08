@@ -15,33 +15,79 @@ static scalar globalSum(const scalar local)
     return total;
 }
 
-static List<labelList> gatherProcessorPatchNeighbourGlobals
+static bool samePatchFaceLayout
+(
+    const labelList& a,
+    const labelList& b
+)
+{
+    if (a.size() != b.size())
+    {
+        return false;
+    }
+
+    forAll(a, i)
+    {
+        if (a[i] != b[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static const labelList& cachedLocalGlobalIds
+(
+    const fvMesh& mesh,
+    const globalIndex& globalCells
+)
+{
+    static label cachedNLocal = -1;
+    static label cachedNGlobal = -1;
+    static labelList localGlobalIds;
+
+    if
+    (
+        cachedNLocal != mesh.nCells()
+     || cachedNGlobal != globalCells.size()
+    )
+    {
+        localGlobalIds.setSize(mesh.nCells());
+        forAll(localGlobalIds, celli)
+        {
+            localGlobalIds[celli] = globalCells.toGlobal(celli);
+        }
+
+        cachedNLocal = mesh.nCells();
+        cachedNGlobal = globalCells.size();
+    }
+
+    return localGlobalIds;
+}
+
+static const List<labelList>& cachedProcessorPatchNeighbourGlobals
 (
     const fvScalarMatrix& op,
-    const globalIndex& globalCells,
-    List<scalarField>& neighbBcoeffs
+    const globalIndex& globalCells
 )
 {
     const auto& bpsi = op.psi().boundaryField();
-    const auto& bcoeffs = op.boundaryCoeffs();
     const lduInterfaceFieldPtrsList interfaces =
         op.psi().boundaryField().scalarInterfaces();
 
-    List<labelList> neighbGlobals(bpsi.size());
-    neighbBcoeffs.setSize(bpsi.size());
+    static label cachedNLocal = -1;
+    static label cachedNGlobal = -1;
+    static labelList cachedPatchFaces;
+    static List<labelList> neighbGlobals;
 
     if (!Pstream::parRun())
     {
+        neighbGlobals.setSize(bpsi.size());
         return neighbGlobals;
     }
 
-    labelList localGlobalIds(op.psi().mesh().nCells());
-    forAll(localGlobalIds, celli)
-    {
-        localGlobalIds[celli] = globalCells.toGlobal(celli);
-    }
-
-    // Stage 1: send local global-cell ids and patch coefficients to neighbours.
+    labelList currentPatchFaces(bpsi.size(), -1);
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -55,8 +101,37 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
             continue;
         }
 
-        const processorLduInterface& procInt =
-            refCast<const processorLduInterface>(lduInt);
+        currentPatchFaces[patchi] = lduInt.faceCells().size();
+    }
+
+    const bool needsRebuild =
+        cachedNLocal != op.psi().mesh().nCells()
+     || cachedNGlobal != globalCells.size()
+     || !samePatchFaceLayout(cachedPatchFaces, currentPatchFaces);
+
+    if (!needsRebuild)
+    {
+        return neighbGlobals;
+    }
+
+    neighbGlobals.setSize(bpsi.size());
+    const labelList& localGlobalIds =
+        cachedLocalGlobalIds(op.psi().mesh(), globalCells);
+
+    // Stage 1: send local global-cell ids once to build processor-neighbour ids.
+    forAll(bpsi, patchi)
+    {
+        if (!interfaces.set(patchi))
+        {
+            continue;
+        }
+
+        const lduInterface& lduInt = interfaces[patchi].interface();
+        if (!isA<processorLduInterface>(lduInt))
+        {
+            continue;
+        }
+
         const labelUList& faceCells = lduInt.faceCells();
 
         lduInt.initInternalFieldTransfer
@@ -65,10 +140,67 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
             localGlobalIds,
             faceCells
         );
-        procInt.send(Pstream::commsTypes::scheduled, bcoeffs[patchi]);
     }
 
-    // Stage 2: receive neighbour ids/coefficients in interface-face order.
+    // Stage 2: receive neighbour ids in interface-face order.
+    forAll(bpsi, patchi)
+    {
+        if (!interfaces.set(patchi))
+        {
+            continue;
+        }
+
+        const lduInterface& lduInt = interfaces[patchi].interface();
+        if (!isA<processorLduInterface>(lduInt))
+        {
+            continue;
+        }
+
+        const labelUList& faceCells = lduInt.faceCells();
+        neighbGlobals[patchi] =
+            lduInt.internalFieldTransfer
+            (
+                Pstream::commsTypes::scheduled,
+                localGlobalIds
+            );
+        if
+        (
+            neighbGlobals[patchi].size() != faceCells.size()
+        )
+        {
+            FatalErrorInFunction
+                << "Processor exchange size mismatch on patch index " << patchi
+                << ": expected " << faceCells.size()
+                << " got ids " << neighbGlobals[patchi].size()
+                << exit(FatalError);
+        }
+    }
+
+    cachedNLocal = op.psi().mesh().nCells();
+    cachedNGlobal = globalCells.size();
+    cachedPatchFaces.transfer(currentPatchFaces);
+
+    return neighbGlobals;
+}
+
+static void exchangeProcessorPatchBoundaryCoeffs
+(
+    const fvScalarMatrix& op,
+    List<scalarField>& neighbBcoeffs
+)
+{
+    const auto& bpsi = op.psi().boundaryField();
+    const auto& bcoeffs = op.boundaryCoeffs();
+    const lduInterfaceFieldPtrsList interfaces =
+        op.psi().boundaryField().scalarInterfaces();
+
+    neighbBcoeffs.setSize(bpsi.size());
+
+    if (!Pstream::parRun())
+    {
+        return;
+    }
+
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -84,34 +216,30 @@ static List<labelList> gatherProcessorPatchNeighbourGlobals
 
         const processorLduInterface& procInt =
             refCast<const processorLduInterface>(lduInt);
-        const labelUList& faceCells = lduInt.faceCells();
-        neighbGlobals[patchi] =
-            lduInt.internalFieldTransfer
-            (
-                Pstream::commsTypes::scheduled,
-                localGlobalIds
-            );
-
-        scalarField recvCoeff(faceCells.size());
-        procInt.receive(Pstream::commsTypes::scheduled, recvCoeff);
-        if
-        (
-            neighbGlobals[patchi].size() != faceCells.size()
-         || recvCoeff.size() != faceCells.size()
-        )
-        {
-            FatalErrorInFunction
-                << "Processor exchange size mismatch on patch index " << patchi
-                << ": expected " << faceCells.size()
-                << " got ids " << neighbGlobals[patchi].size()
-                << " coeffs " << recvCoeff.size()
-                << exit(FatalError);
-        }
-
-        neighbBcoeffs[patchi].transfer(recvCoeff);
+        procInt.send(Pstream::commsTypes::scheduled, bcoeffs[patchi]);
     }
 
-    return neighbGlobals;
+    forAll(bpsi, patchi)
+    {
+        if (!interfaces.set(patchi))
+        {
+            continue;
+        }
+
+        const lduInterface& lduInt = interfaces[patchi].interface();
+        if (!isA<processorLduInterface>(lduInt))
+        {
+            continue;
+        }
+
+        const processorLduInterface& procInt =
+            refCast<const processorLduInterface>(lduInt);
+        const label nFaces = lduInt.faceCells().size();
+
+        scalarField recvCoeff(nFaces);
+        procInt.receive(Pstream::commsTypes::scheduled, recvCoeff);
+        neighbBcoeffs[patchi].transfer(recvCoeff);
+    }
 }
 
 static void addBoundarySourceSimple
@@ -189,12 +317,15 @@ static void insertScalarOpIntoBlock
     const lduMatrix& L = op;
     const scalarField& diag = L.diag();
     scalarField diagWithProc(diag);
+    const labelList& localGlobalIds =
+        cachedLocalGlobalIds(op.psi().mesh(), globalCells);
 
     const lduAddressing& addr = L.lduAddr();
     const labelUList& owner = addr.lowerAddr();
     const labelUList& neigh = addr.upperAddr();
 
-    List<labelList> neighbGlobals;
+    const List<labelList>& neighbGlobals =
+        cachedProcessorPatchNeighbourGlobals(op, globalCells);
     List<scalarField> neighbBcoeffs;
     scalar procDiagAbs = 0.0;
     scalar procOffDiagAbs = 0.0;
@@ -207,8 +338,7 @@ static void insertScalarOpIntoBlock
         const auto& bcoeffs = op.boundaryCoeffs();
         const auto& icoeffs = op.internalCoeffs();
         const lduAddressing& baddr = op.lduAddr();
-        neighbGlobals =
-            gatherProcessorPatchNeighbourGlobals(op, globalCells, neighbBcoeffs);
+        exchangeProcessorPatchBoundaryCoeffs(op, neighbBcoeffs);
 
         forAll(bpsi, patchi)
         {
@@ -241,7 +371,7 @@ static void insertScalarOpIntoBlock
             forAll(paddr, facei)
             {
                 const label ownCell = paddr[facei];
-                const PetscInt r = globalCells.toGlobal(ownCell) + rowOffset;
+                const PetscInt r = localGlobalIds[ownCell] + rowOffset;
                 const PetscInt cNbr = nbrIds[facei] + colOffset;
 
                 if (nbrIds[facei] < 0 || nbrIds[facei] >= globalCells.size())
@@ -296,8 +426,8 @@ static void insertScalarOpIntoBlock
     {
         forAll(diagWithProc, i)
         {
-            PetscInt r = globalCells.toGlobal(i) + rowOffset;
-            PetscInt c = globalCells.toGlobal(i) + colOffset;
+            PetscInt r = localGlobalIds[i] + rowOffset;
+            PetscInt c = localGlobalIds[i] + colOffset;
             MatSetValue(M, r, c, scale*diagWithProc[i], ADD_VALUES);
         }
     }
@@ -312,11 +442,11 @@ static void insertScalarOpIntoBlock
             const label i = owner[f];
             const label j = neigh[f];
 
-            const PetscInt ri = globalCells.toGlobal(i) + rowOffset;
-            const PetscInt rj = globalCells.toGlobal(j) + rowOffset;
+            const PetscInt ri = localGlobalIds[i] + rowOffset;
+            const PetscInt rj = localGlobalIds[j] + rowOffset;
 
-            const PetscInt ci = globalCells.toGlobal(i) + colOffset;
-            const PetscInt cj = globalCells.toGlobal(j) + colOffset;
+            const PetscInt ci = localGlobalIds[i] + colOffset;
+            const PetscInt cj = localGlobalIds[j] + colOffset;
 
             const scalar upperVal = upper[f];
             const scalar lowerVal = lowerPtr ? (*lowerPtr)[f] : upperVal;
