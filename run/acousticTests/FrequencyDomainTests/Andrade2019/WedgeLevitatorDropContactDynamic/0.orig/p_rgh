@@ -23,10 +23,14 @@ internalField   uniform 0;
 // of Popinet in 2009
 boundaryField
 {
-    "(transducer.*|reflector2|openAir)"
+    "(transducer.*|reflector2)"
     {
-       
- 	type            zeroGradient;
+        type            zeroGradient;
+    }
+    openAir
+    {
+        type            fixedValue;
+        value           uniform 0;
     }
     reflector1
     {

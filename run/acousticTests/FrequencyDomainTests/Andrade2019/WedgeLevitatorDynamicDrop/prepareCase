@@ -20,6 +20,8 @@ render()
         -e "s|__SOUND_SPEED__|$SOUND_SPEED|g" \
         -e "s|__RHOL__|$RHOL|g" \
         -e "s|__RHOG__|$RHOG|g" \
+        -e "s|__NUL__|$NUL|g" \
+        -e "s|__NUG__|$NUG|g" \
         -e "s|__CG__|$CG|g" \
         -e "s|__CL__|$CL|g" \
         -e "s|__PML_L__|$PML_L|g" \
@@ -41,7 +43,10 @@ render()
         -e "s|__ROTATE_HALF_DEG__|$ROTATE_HALF_DEG|g" \
         -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
         -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
+        -e "s|__DROP_HORIZONTAL_LONG_AXIS__|$DROP_HORIZONTAL_LONG_AXIS|g" \
+        -e "s|__DROP_CENTER_X__|$DROP_CENTER_X|g" \
         -e "s|__DROP_CENTER_Y__|$DROP_CENTER_Y|g" \
+        -e "s|__DROP_CENTER_Z__|$DROP_CENTER_Z|g" \
         "$inFile" > "$outFile"
 }
 

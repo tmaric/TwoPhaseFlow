@@ -33,6 +33,10 @@ SOUND_SPEED=343
 RHOL=998.3
 # Gas density [kg/m^3].
 RHOG=1.2
+# Liquid kinematic viscosity [m^2/s].
+NUL=1.004e-6
+# Gas kinematic viscosity [m^2/s].
+NUG=1.51e-5
 # Gas sound speed [m/s].
 CG=343
 # Liquid sound speed [m/s].
@@ -83,7 +87,12 @@ WEDGE_DEG=1.0
 # ---------------------------------------------------------------------------
 # Initial drop setup (setAlphaField)
 # ---------------------------------------------------------------------------
-# Initial spherical drop radius [m].
+# Volume-equivalent spherical drop radius [m].
 DROP_RADIUS=0.001
+# Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
+DROP_HORIZONTAL_LONG_AXIS=0.0014
+# Small x/z offsets keep the center away from the wedge singular line.
+DROP_CENTER_X=1e-8
 # Initial drop center vertical position [m] (y-coordinate).
 DROP_CENTER_Y=0.00382
+DROP_CENTER_Z=1e-8

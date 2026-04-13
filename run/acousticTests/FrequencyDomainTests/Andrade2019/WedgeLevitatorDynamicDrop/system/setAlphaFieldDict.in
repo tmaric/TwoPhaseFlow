@@ -16,9 +16,9 @@ FoamFile
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 field           alpha.water;
-type            sphere;
-direction       (0 0 1);
-radius          __DROP_RADIUS__;
-origin          (0.00000001 __DROP_CENTER_Y__ 0.0000001);
+type            ellipsoid;
+effectiveRadius __DROP_RADIUS__;
+horizontalLongAxis __DROP_HORIZONTAL_LONG_AXIS__;
+origin          (__DROP_CENTER_X__ __DROP_CENTER_Y__ __DROP_CENTER_Z__);
 
 // ************************************************************************* //
