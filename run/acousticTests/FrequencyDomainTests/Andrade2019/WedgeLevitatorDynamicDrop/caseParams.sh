@@ -77,7 +77,7 @@ HS=0.01
 
 # Mesh controls.
 # N is the number of cells per wavelength used to set gs = lambda/N.
-MESH_N=400
+MESH_N=200
 # Gmsh point characteristic length (kept as in original setup).
 MESH_LC=1.0
 # Wedge half/total angle settings [deg].
@@ -90,9 +90,9 @@ WEDGE_DEG=1.0
 # Volume-equivalent spherical drop radius [m].
 DROP_RADIUS=0.001
 # Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
-DROP_HORIZONTAL_LONG_AXIS=0.0014
+DROP_HORIZONTAL_LONG_AXIS=0.001135
 # Small x/z offsets keep the center away from the wedge singular line.
 DROP_CENTER_X=1e-8
 # Initial drop center vertical position [m] (y-coordinate).
-DROP_CENTER_Y=0.00382
+DROP_CENTER_Y=0.0035
 DROP_CENTER_Z=1e-8

@@ -61,16 +61,6 @@ if [ -z "${NPROCS:-}" ]; then
 fi
 : "${NPROCS:=8}"
 
-repoRoot="$(cd ../../../../../ && pwd)"
-
-(
-    cd "${repoRoot}" || exit 1
-    wmake libso apps/utilities/preProcessing/setAlphaField/alphaFieldFunctions
-    wmake apps/utilities/preProcessing/setAlphaField
-)
-
-LOCAL_SETALPHAFIELD="${FOAM_USER_APPBIN}/setAlphaField"
-
 ./Allclean
 ./prepareCase
 restore0Dir
@@ -79,7 +69,7 @@ gmsh -0 constant/levitatorWedgeHex.geo
 runApplication gmshToFoam  constant/levitatorWedgeHex.msh
 rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
-runApplication "${LOCAL_SETALPHAFIELD}"
+runApplication setAlphaField
 rm -f 0/Pim.in
 
 ensure_app setPMLFields apps/utilities/mesh/setPMLFields
