@@ -33,6 +33,10 @@ SOUND_SPEED=343
 RHOL=998.3
 # Gas density [kg/m^3].
 RHOG=1.2
+# Liquid kinematic viscosity [m^2/s].
+NUL=1.004e-6
+# Gas kinematic viscosity [m^2/s].
+NUG=1.51e-5
 # Gas sound speed [m/s].
 CG=343
 # Liquid sound speed [m/s].

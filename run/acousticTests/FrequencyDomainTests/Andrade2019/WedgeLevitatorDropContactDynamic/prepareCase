@@ -20,6 +20,8 @@ render()
         -e "s|__SOUND_SPEED__|$SOUND_SPEED|g" \
         -e "s|__RHOL__|$RHOL|g" \
         -e "s|__RHOG__|$RHOG|g" \
+        -e "s|__NUL__|$NUL|g" \
+        -e "s|__NUG__|$NUG|g" \
         -e "s|__CG__|$CG|g" \
         -e "s|__CL__|$CL|g" \
         -e "s|__PML_L__|$PML_L|g" \

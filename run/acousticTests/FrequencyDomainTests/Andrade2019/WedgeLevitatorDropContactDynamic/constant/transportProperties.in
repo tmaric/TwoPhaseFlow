@@ -18,8 +18,8 @@ FoamFile
 phases (water air);
 
 // Two-phase flow properties for interFALFlow
-nu_droplet  0.0;
-nu_ambient  0.0;
+nu_droplet  __NUL__;
+nu_ambient  __NUG__;
 rho_droplet __RHOL__;
 rho_ambient __RHOG__;
 

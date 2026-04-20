@@ -40,7 +40,7 @@ k               #eval{2.0*pi()*$f/$soundSpeed};
 L               0.008;
 
 PMLType         rectangle;
-PMLMax          (0.029 0.0181504950495 100);
+PMLMax          (0.029 0.0235841584158 100);
 PMLMin          (-100 -0.01 -100);
 sigmaMax        2000000;
 po              3;

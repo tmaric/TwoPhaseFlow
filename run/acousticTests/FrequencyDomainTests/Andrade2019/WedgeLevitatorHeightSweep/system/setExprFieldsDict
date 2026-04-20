@@ -23,14 +23,14 @@ expressions
 
         constants
         {
-            centre (1e-8 0.00407524752474 1e-8);
+            centre (1e-8 0.0067920792079 1e-8);
         }
 
         variables
         (
-            "ax = 0.00144224957031"
-            "ay = 0.000480749856769"
-            "az = 0.00144224957031"
+            "ax = 0.001"
+            "ay = 0.001"
+            "az = 0.001"
             "xc = $[(vector)constants.centre].x()"
             "yc = $[(vector)constants.centre].y()"
             "zc = $[(vector)constants.centre].z()"

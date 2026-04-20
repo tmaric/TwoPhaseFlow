@@ -23,7 +23,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         5000e-5;
+endTime         0.2;
 
 deltaT          1e-5;
 
@@ -45,7 +45,7 @@ timePrecision   8;
 
 runTimeModifiable yes;
 
-adjustTimeStep  on;
+adjustTimeStep  off;
 
 maxCo           0.2;
 
@@ -68,12 +68,57 @@ functions
         codeInclude
         #{
             #include "PstreamReduceOps.H"
+            #include "reconstructionSchemes.H"
+        #};
+
+        codeOptions
+        #{
+            -I/home/cx80jevu/TwoPhaseFlow/src/VoF/lnInclude
+        #};
+
+        codeLibs
+        #{
+            -L$(FOAM_USER_LIBBIN) \
+            -lVoF \
+            -lfiniteVolume
         #};
 
         codeWrite
         #{
             const volScalarField& alpha =
                 mesh().lookupObject<volScalarField>("alpha.water");
+
+            scalar localPlicXMax = -GREAT;
+            bool havePlicXMax = false;
+
+            if (mesh().foundObject<reconstructionSchemes>("reconstructionScheme"))
+            {
+                reconstructionSchemes& surf =
+                    mesh().lookupObjectRef<reconstructionSchemes>
+                    (
+                        "reconstructionScheme"
+                    );
+
+                // Refresh only if needed; reconstructionSchemes already
+                // caches by time index / iteration.
+                surf.reconstruct(false);
+
+                const volVectorField& interfaceCentres = surf.centre();
+                const DynamicField<label>& interfaceLabels =
+                    surf.interfaceLabels();
+
+                forAll(interfaceLabels, i)
+                {
+                    const label celli = interfaceLabels[i];
+                    const vector& plicCentre = interfaceCentres[celli];
+
+                    if (mag(plicCentre) > SMALL)
+                    {
+                        localPlicXMax = max(localPlicXMax, plicCentre.x());
+                        havePlicXMax = true;
+                    }
+                }
+            }
 
             const scalarField& V = mesh().V();
             const vectorField& C = mesh().C();
@@ -109,6 +154,8 @@ functions
             scalar xMax = localXMax;
             scalar yMin = localYMin;
             scalar yMax = localYMax;
+            scalar plicXMax = localPlicXMax;
+            label plicDefined = havePlicXMax ? 1 : 0;
 
             reduce(weightedVol, sumOp<scalar>());
             reduce(yMoment, sumOp<scalar>());
@@ -116,6 +163,8 @@ functions
             reduce(xMax, maxOp<scalar>());
             reduce(yMin, minOp<scalar>());
             reduce(yMax, maxOp<scalar>());
+            reduce(plicXMax, maxOp<scalar>());
+            reduce(plicDefined, sumOp<label>());
 
             if (!Pstream::master())
             {
@@ -143,14 +192,16 @@ functions
 
             const scalar centerY =
                 weightedVol > SMALL ? yMoment/weightedVol : 0.0;
-            const scalar horizontalAxis = selected > 0 ? xMax : 0.0;
+            const scalar horizontalAxis =
+                plicDefined > 0 ? plicXMax : (selected > 0 ? xMax : 0.0);
             const scalar verticalAxis = selected > 0 ? yMax - yMin : 0.0;
+            const scalar reportedXMax = horizontalAxis;
 
             os  << mesh().time().value() << tab
                 << centerY << tab
                 << horizontalAxis << tab
                 << verticalAxis << tab
-                << (selected > 0 ? xMax : 0.0) << tab
+                << reportedXMax << tab
                 << (selected > 0 ? yMin : 0.0) << tab
                 << (selected > 0 ? yMax : 0.0) << tab
                 << weightedVol << tab
