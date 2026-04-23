@@ -41,6 +41,53 @@ OpenFOAM.org versions are not supported.
     cd modules/multiDimAMR/
     ./Allwmake
 ```
+
+### First-time setup for acoustic cases
+
+For the acoustic workflow in this repository, a fresh checkout needs a few
+extra steps after cloning. In particular, the PETSc toolchain and the custom
+utilities/solvers used by the acoustic cases are not covered by the top-level
+`./Allwmake`.
+
+```bash
+    git clone https://github.com/tmaric/TwoPhaseFlow.git
+    cd TwoPhaseFlow
+
+    # Source your OpenFOAM installation first
+    source /path/to/OpenFOAM/etc/bashrc
+    source ./scripts/bashrc
+
+    # Build the core TwoPhaseFlow libraries and utilities
+    ./Allwmake
+
+    # Build PETSc and petsc4Foam inside this repository
+    ./petsc_build.sh
+
+    # Build the modified setAlphaField shipped in this repo
+    ./apps/utilities/preProcessing/setAlphaField/Allwmake
+
+    # Build the PML field utility used by the acoustic cases
+    wmake apps/utilities/mesh/setPMLFields
+
+    # Build the acoustic solvers
+    wmake solver/acousticHelmholtzFoam
+    wmake solver/interFALFlow
+
+    # Optional: install gmsh for the meshing scripts used by several cases
+    ./get-gmsh.sh
+```
+
+Notes:
+
+- `setAlphaField` above refers to the modified utility in
+  `apps/utilities/preProcessing/setAlphaField`.
+- The PML utility executable is `setPMLFields` (plural).
+- `petsc_build.sh` expects the OpenFOAM environment to be available. If it is
+  not already sourced, pass `--openfoam-bashrc /path/to/OpenFOAM/etc/bashrc`.
+- The script creates local third-party build directories such as `petsc/` and
+  `external/petsc4Foam/`; these are build dependencies for each user and should
+  not be committed back to the repository.
+
 ### Running testsuite
 
 Make sure that the desired OpenFOAM installation is sourced e.g. v2506 and that 
@@ -115,4 +162,3 @@ Alternatively, the runAll.sh can be executed in the folder.
 Note:
 
 Some cases use the slurm queuing system and call `sbatch Allrun_Slurm` in the Allrun script, so you might need to modify it in the template case.
-
