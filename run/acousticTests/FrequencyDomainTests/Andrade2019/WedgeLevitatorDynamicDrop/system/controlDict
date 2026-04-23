@@ -25,11 +25,11 @@ stopAt          endTime;
 
 endTime         0.2;
 
-deltaT          1e-5;
+deltaT          1e-6;
 
 writeControl    runTime;
 
-writeInterval   10e-5;
+writeInterval   1e-6;
 
 purgeWrite      0;
 
@@ -47,13 +47,13 @@ runTimeModifiable yes;
 
 adjustTimeStep  off;
 
-maxCo           0.2;
+maxCo           0.1;
 
-maxAlphaCo      0.2;
+maxAlphaCo      0.1;
 
-maxDeltaT       0.00001;
+maxDeltaT       2e-6;
 
-maxCapillaryNum 200;
+maxCapillaryNum 50;
 
 functions
 {
