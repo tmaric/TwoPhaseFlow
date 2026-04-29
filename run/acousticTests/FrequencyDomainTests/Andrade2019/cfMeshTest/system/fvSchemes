@@ -30,6 +30,9 @@ gradSchemes
     default         Gauss linear;
     grad(p)         Gauss linear;
     grad(pa)        pointCellsLeastSquares;
+    grad(pr)        cellLimited Gauss linear 1;
+    grad(EpGorkov)  pointCellsLeastSquares;
+    grad(EkGorkov)  pointCellsLeastSquares;
 }
 
 divSchemes

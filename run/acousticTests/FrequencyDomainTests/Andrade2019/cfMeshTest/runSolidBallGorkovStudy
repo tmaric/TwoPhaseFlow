@@ -1,0 +1,126 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+
+STUDY_ROOT="${STUDY_ROOT:-solidBallGorkovStudy}"
+RADII_UM="${RADII_UM:-20 40 60 80 100}"
+REFERENCE_RADIUS_UM="${REFERENCE_RADIUS_UM:-20}"
+SOLID_RHO="${SOLID_RHO:-2500}"
+SOLID_C="${SOLID_C:-5000}"
+NPROCS="${NPROCS:-8}"
+INTERFACE_SEGMENTS="${INTERFACE_SEGMENTS:-96}"
+DROP_CELL_SIZE_FACTOR="${DROP_CELL_SIZE_FACTOR:-0.125}"
+MIN_DROP_CELL_SIZE="${MIN_DROP_CELL_SIZE:-2e-6}"
+
+copy_case()
+{
+    target="$1"
+
+    rm -rf "$target"
+    mkdir -p "$target"
+
+    rsync -a \
+        --exclude "$STUDY_ROOT" \
+        --exclude '0' \
+        --exclude '1' \
+        --exclude 'constant/polyMesh' \
+        --exclude 'processor*' \
+        --exclude 'postProcessing' \
+        --exclude 'dynamicCode' \
+        --exclude 'log.*' \
+        ./ "$target"/
+}
+
+radius_to_m()
+{
+    awk -v rum="$1" 'BEGIN{printf "%.12g", rum*1e-6}'
+}
+
+radius_cell_size()
+{
+    awk -v rum="$1" -v fac="$DROP_CELL_SIZE_FACTOR" -v csmin="$MIN_DROP_CELL_SIZE" '
+    BEGIN{
+        r = rum*1e-6;
+        cs = fac*r;
+        if (cs < csmin)
+        {
+            cs = csmin;
+        }
+        printf "%.12g", cs;
+    }'
+}
+
+prepare_empty_case()
+{
+    caseDir="$1"
+
+    perl -0pi -e 's/internalField\s+uniform\s+1;/internalField   uniform 0;/g' \
+        "$caseDir/0.orig/alpha.water"
+}
+
+run_case()
+{
+    caseDir="$1"
+    radiusUm="$2"
+    initSphere="$3"
+    interfaceSegmentsOverride="${4:-$INTERFACE_SEGMENTS}"
+
+    radiusM="$(radius_to_m "$radiusUm")"
+    cellSize="$(radius_cell_size "$radiusUm")"
+
+    (
+        cd "$caseDir" || exit 1
+        env \
+            RHOL="$SOLID_RHO" \
+            CL="$SOLID_C" \
+            DROP_RADIUS="$radiusM" \
+            CFMESH_DROP_CELL_SIZE="$cellSize" \
+            CFMESH_INTERFACE_SEGMENTS="$interfaceSegmentsOverride" \
+            INIT_SPHERE="$initSphere" \
+            NPROCS="$NPROCS" \
+            ./Allrun
+    )
+}
+
+extract_sim_fy()
+{
+    awk 'END{print $5}' "$1/postProcessing/dropRadiationForce/force.dat"
+}
+
+extract_gorkov_fy()
+{
+    awk -v radiusUm="$2" '$2 == radiusUm {print $4}' \
+        "$1/postProcessing/gorkovPrediction/force.dat" | tail -n 1
+}
+
+mkdir -p "$STUDY_ROOT"
+
+summaryFile="$STUDY_ROOT/summary.tsv"
+printf "radius_um\tsim_Fy_axisym\tgorkov_Fy\tratio_sim_over_gorkov\trel_error\n" \
+    > "$summaryFile"
+
+emptyDir="$STUDY_ROOT/reference_empty"
+copy_case "$emptyDir"
+prepare_empty_case "$emptyDir"
+run_case "$emptyDir" "$REFERENCE_RADIUS_UM" 0 0
+
+for radiusUm in $RADII_UM
+do
+    ballDir="$STUDY_ROOT/r${radiusUm}um_ball"
+
+    copy_case "$ballDir"
+    run_case "$ballDir" "$radiusUm" 1
+
+    simFy="$(extract_sim_fy "$ballDir")"
+    gorkovFy="$(extract_gorkov_fy "$emptyDir" "$radiusUm")"
+    ratio="$(awk -v sim="$simFy" -v gor="$gorkovFy" \
+        'BEGIN{if (gor == 0) {print "nan"} else {printf "%.12g", sim/gor}}')"
+    relErr="$(awk -v sim="$simFy" -v gor="$gorkovFy" \
+        'BEGIN{if (gor == 0) {print "nan"} else {printf "%.12g", (sim-gor)/gor}}')"
+
+    printf "%s\t%s\t%s\t%s\t%s\n" \
+        "$radiusUm" "$simFy" "$gorkovFy" "$ratio" "$relErr" >> "$summaryFile"
+done
+
+cat "$summaryFile"

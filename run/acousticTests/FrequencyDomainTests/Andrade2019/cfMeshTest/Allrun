@@ -57,7 +57,9 @@ ensure_app()
 
 need_cmd cartesian2DMesh
 need_cmd extrudeMesh
-need_cmd setAlphaField
+if [ "${INIT_SPHERE:-1}" != "0" ]; then
+    need_cmd setAlphaField
+fi
 
 case "${SOLVER}" in
     acousticHelmholtzFoam)
@@ -93,7 +95,9 @@ runApplication extrudeMesh
 ./postMesh
 
 restore0Dir
-runApplication setAlphaField
+if [ "${INIT_SPHERE:-1}" != "0" ]; then
+    runApplication setAlphaField
+fi
 rm -f 0/Pim.in
 
 ensure_app setPMLFields apps/utilities/mesh/setPMLFields

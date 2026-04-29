@@ -46,6 +46,7 @@ render constant/transportProperties.in constant/transportProperties
 render 0.orig/Pim.in 0.orig/Pim
 render system/setAlphaFieldDict.in system/setAlphaFieldDict
 render system/extrudeMeshDict.in system/extrudeMeshDict
+render system/controlDict.in system/controlDict
 
 RRBU="$(awk -v rr="$RR" -v bu="$BU" 'BEGIN{printf "%.12g", rr + bu}')"
 DPHS="$(awk -v d="$D" -v hs="$HS" 'BEGIN{printf "%.12g", d + hs}')"

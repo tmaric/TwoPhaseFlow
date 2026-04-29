@@ -171,7 +171,7 @@ functions
             reduce(wetVolumeSlice, sumOp<scalar>());
             reduce(interfaceCells, sumOp<label>());
 
-            const scalar axisymScale = 360.0/(1.0 + VSMALL);
+            const scalar axisymScale = 360.0/(__WEDGE_DEG__ + VSMALL);
             const vector forceAxisym = axisymScale*forceSlice;
             const scalar interfaceAreaAxisym = axisymScale*interfaceAreaSlice;
             const scalar wetVolumeAxisym = axisymScale*wetVolumeSlice;
@@ -242,10 +242,10 @@ functions
             const volVectorField& Ure = mesh.lookupObject<volVectorField>("Ure");
             const volVectorField& Uim = mesh.lookupObject<volVectorField>("Uim");
 
-            const scalar rhoHost = 1.2;
-            const scalar cHost = 343;
-            const scalar rhoParticle = 2500;
-            const scalar cParticle = 5000;
+            const scalar rhoHost = __RHOG__;
+            const scalar cHost = __CG__;
+            const scalar rhoParticle = __RHOL__;
+            const scalar cParticle = __CL__;
             const scalar kappaHost = 1.0/(rhoHost*cHost*cHost);
             const scalar kappaParticle = 1.0/(rhoParticle*cParticle*cParticle);
             const scalar f1 = 1.0 - kappaParticle/kappaHost;
@@ -286,28 +286,42 @@ functions
                 fvc::grad(Ek, "grad(EkGorkov)");
             const volVectorField& gradEk = tGradEk();
 
-            const point samplePt(1.0e-5, 0.0040003, 0.0);
+            const point samplePt(__AXIS_RADIUS__ + 1e-9, __DROP_CENTER_Y__, 1e-9);
             const label sampleCell = mesh.findCell(samplePt);
-
-            if (sampleCell < 0)
-            {
-                FatalErrorInFunction
-                    << "Could not locate Gorkov sample point " << samplePt
-                    << " in the mesh."
-                    << exit(FatalError);
-            }
 
             interpolationCellPoint<scalar> interpEp(Ep);
             interpolationCellPoint<scalar> interpEk(Ek);
             interpolationCellPoint<vector> interpGradEp(gradEp);
             interpolationCellPoint<vector> interpGradEk(gradEk);
 
-            const scalar EpPt = interpEp.interpolate(samplePt, sampleCell, -1);
-            const scalar EkPt = interpEk.interpolate(samplePt, sampleCell, -1);
-            const vector gradEpPt =
-                interpGradEp.interpolate(samplePt, sampleCell, -1);
-            const vector gradEkPt =
-                interpGradEk.interpolate(samplePt, sampleCell, -1);
+            label sampleFound = 0;
+            scalar EpPt = 0.0;
+            scalar EkPt = 0.0;
+            vector gradEpPt = Zero;
+            vector gradEkPt = Zero;
+
+            if (sampleCell >= 0)
+            {
+                sampleFound = 1;
+                EpPt = interpEp.interpolate(samplePt, sampleCell, -1);
+                EkPt = interpEk.interpolate(samplePt, sampleCell, -1);
+                gradEpPt = interpGradEp.interpolate(samplePt, sampleCell, -1);
+                gradEkPt = interpGradEk.interpolate(samplePt, sampleCell, -1);
+            }
+
+            reduce(sampleFound, sumOp<label>());
+            reduce(EpPt, sumOp<scalar>());
+            reduce(EkPt, sumOp<scalar>());
+            reduce(gradEpPt, sumOp<vector>());
+            reduce(gradEkPt, sumOp<vector>());
+
+            if (sampleFound <= 0)
+            {
+                FatalErrorInFunction
+                    << "Could not locate Gorkov sample point " << samplePt
+                    << " in the mesh."
+                    << exit(FatalError);
+            }
 
             if (Pstream::master())
             {
