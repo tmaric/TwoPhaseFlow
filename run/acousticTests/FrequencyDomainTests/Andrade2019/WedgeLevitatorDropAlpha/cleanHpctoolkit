@@ -1,0 +1,111 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+
+dry_run=false
+clean_viewer_state=false
+
+usage()
+{
+    cat <<'EOF'
+Usage: ./cleanHpctoolkit [--dry-run] [--viewer-state]
+
+Remove HPCToolkit profiling artifacts from this case directory.
+
+By default this removes only case-local profiling outputs:
+  - hpctoolkit-* measurement/database directories
+  - *.hpcstruct
+  - log.hpc*
+  - hpcviewer.*.log
+  - .hpcviewer*
+  - .hpctoolkit-last-*
+
+It does not remove OpenFOAM fields, processor directories, postProcessing
+output, normal case logs, or HPCTOOLKIT_PROFILE.md.
+
+Options:
+  --dry-run       Print what would be removed, but do not remove it.
+  --viewer-state  Also remove this user's small global hpcviewer state cache.
+  -h, --help      Show this help.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --dry-run)
+            dry_run=true
+            ;;
+        --viewer-state)
+            clean_viewer_state=true
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+remove_path()
+{
+    path="$1"
+
+    if [ ! -e "$path" ]; then
+        return 0
+    fi
+
+    if [ "$dry_run" = true ]; then
+        printf 'would remove: %s\n' "$path"
+    else
+        rm -rf -- "$path"
+        printf 'removed: %s\n' "$path"
+    fi
+}
+
+# Stop hpcviewer if it is still open for this case. Avoid matching this script.
+case_path="$(pwd)"
+viewer_pids="$(
+    ps -eo pid=,args= \
+    | awk -v case_path="$case_path" '
+        /hpcviewer|org.eclipse.equinox.launcher/ && index($0, case_path) {print $1}
+    '
+)"
+
+if [ -n "$viewer_pids" ]; then
+    if [ "$dry_run" = true ]; then
+        printf 'would stop hpcviewer PIDs: %s\n' "$viewer_pids"
+    else
+        # shellcheck disable=SC2086
+        kill $viewer_pids 2>/dev/null || true
+    fi
+fi
+
+for path in \
+    hpctoolkit-* \
+    *.hpcstruct \
+    log.hpc* \
+    hpcviewer.*.log \
+    .hpcviewer* \
+    .hpctoolkit-last-*
+do
+    case "$path" in
+        'hpctoolkit-*'|'*.hpcstruct'|'log.hpc*'|'hpcviewer.*.log'|'.hpcviewer*'|'.hpctoolkit-last-*')
+            continue
+            ;;
+    esac
+    remove_path "$path"
+done
+
+if [ "$clean_viewer_state" = true ]; then
+    viewer_state="${HOME:-}/.hpctoolkit/hpcviewer/amd64"
+    if [ -n "${HOME:-}" ]; then
+        remove_path "$viewer_state"
+    fi
+fi
+
