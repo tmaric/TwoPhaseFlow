@@ -1,0 +1,145 @@
+Acoustic streaming is probably not significant for the main drop dynamics in
+this DynamicDrop case.
+
+Current scales:
+- f = 25250 Hz
+- piston velocity amplitude = 1 m/s
+- water drop radius = 1 mm
+- air boundary-layer thickness ~14 um, so R/delta ~72
+- water boundary-layer thickness ~3.6 um, so R/delta ~280
+
+A typical streaming velocity estimate is only O(1-3 mm/s). The associated
+air-side drag is around 1e-9 N, while the drop weight / levitation-force scale
+is around 4e-5 N. The viscous stress scale is also much smaller than the
+capillary pressure scale sigma/R ~72 Pa.
+
+Conclusion: streaming may create weak recirculation or a slow secondary drift,
+but it should not dominate the drop position, levitation balance, or deformation.
+The current interFALFlow coupling includes time-averaged acoustic radiation
+terms from the harmonic pressure field, not a resolved second-order viscous
+streaming model.
+
+
+interFALFlow verification / validation suggestions
+==================================================
+
+Validate the solver in layers. Do not start with the full levitated dynamic
+drop, because acoustics, VOF, force coupling, and drop motion are all active at
+the same time.
+
+1. Verify the acoustic solver alone
+-----------------------------------
+
+Use the acoustic-only cases:
+- WedgeLevitatorGorkovAlpha
+- cfMeshTest
+
+Check:
+- Pre/Pim field convergence with mesh refinement
+- reflector radiation force convergence
+- drop radiation force convergence
+- Gorkov force comparison for small particles
+- parallel vs serial consistency
+
+The cfMeshTest/runSolidBallGorkovStudy script is useful because it already
+compares simulated radiation force against Gorkov theory.
+
+2. Verify VOF hydrodynamics without acoustics
+---------------------------------------------
+
+Disable acoustic forcing, for example with PISTON_U=0.
+
+Check:
+- static drop spurious currents
+- drop volume conservation
+- capillary oscillation frequency vs Rayleigh-Lamb theory
+- falling/rising drop behavior
+- surface-tension force balance
+
+Volume conservation and spurious currents are especially important because the
+acoustic force is applied near the interface.
+
+3. Verify acoustic force insertion
+----------------------------------
+
+Before allowing large drop motion, compare force evaluation methods:
+- integral of pr over the reconstructed interface
+- volume force from -grad(pr)*beta
+- Gorkov prediction for small radius
+- net force from momentum balance
+
+These should agree in sign, order of magnitude, and mesh trend. If not, likely
+issues are the interface force projection, beta mask, or reconstruction.
+
+4. Coupled static levitation check
+----------------------------------
+
+Place the drop near the predicted equilibrium height.
+
+At equilibrium:
+
+    Fy_acoustic ~= rho_l * V_drop * g
+
+Track:
+- drop center acceleration
+- net acoustic force minus weight
+- drop volume
+- shape deformation
+- spurious x/z drift
+
+5. Dynamic drop response
+------------------------
+
+Perturb the initial drop position above and below equilibrium.
+
+Expected trends:
+- drop moves toward the acoustic equilibrium
+- stronger piston amplitude gives stronger restoring force
+- radius changes equilibrium and deformation
+- damping depends on viscosity and numerical damping
+
+6. Mesh and time-step convergence
+---------------------------------
+
+Compare at least three resolutions for:
+- centerY(t)
+- verticalAxis(t)
+- horizontalAxis(t)
+- drop volume
+- net acoustic force
+- max velocity
+
+Also vary:
+- deltaT
+- mesh near the interface
+- cells per acoustic wavelength
+- PML thickness / sigmaMax
+- number of MPI ranks
+
+Practical acceptance targets:
+- centerY within about 2-5%
+- drop volume error below about 0.5-1%
+- force trend monotonic under refinement
+- parallel/serial difference small
+
+7. Experimental comparison
+--------------------------
+
+For Andrade-style levitation, compare:
+- equilibrium height
+- drop aspect ratio
+- threshold levitation amplitude
+- qualitative mode shape
+
+Do not expect perfect agreement until losses, streaming, contact effects,
+thermal effects, transducer calibration, and real 3D asymmetry are included.
+
+Recommended validation ladder:
+
+    acoustic Helmholtz field
+    -> Gorkov force for small particles
+    -> static VOF drop without acoustics
+    -> fixed-interface acoustic force
+    -> levitation force balance
+    -> dynamic drop motion
+    -> experimental comparison

@@ -16,10 +16,4 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-boundary
-{
-    "(front|back)"
-    {
-        type wedge;
-    }
-}
+boundary {}

@@ -1,65 +1,17 @@
-# WedgeLevitatorDropAlpha case
+# cfMeshTest
 
-This case is parameter-driven.  
-Edit one file and regenerate all dependent inputs automatically.
+This case reproduces the Andrade 2019 axisymmetric wedge levitator geometry
+from `WedgeLevitatorDropAlpha`, but generates the mesh with `cfMesh`.
 
-## Files and roles
+Workflow:
 
-- `caseParams.sh`: single source of truth for drive, PML, mesh, solver, and drop setup.
-- `prepareCase`: renders templates using values from `caseParams.sh`.
-- `constant/transportProperties.in`: template for `constant/transportProperties`.
-- `constant/levitatorWedgeHex.geo.in`: template for `constant/levitatorWedgeHex.geo`.
-- `0.orig/Pim.in`: template for `0.orig/Pim`.
-- `Allrun`: full workflow (clean, render, mesh, convert, set fields, MPI solve).
+1. Render a 2D levitator cross-section and mesh dictionaries from `caseParams.sh`.
+2. Generate the axisymmetric cross-section with `cartesian2DMesh`.
+3. Extrude the 2D mesh into a 1-degree wedge with `extrudeMesh`.
+4. Apply interface-only refinement with a semicircular chain of `line` refinement objects in the 2D meshing step.
+5. Initialise `alpha.water` with a spherical drop at the levitator mid-gap.
 
-## Typical usage
+Run:
 
-1. Edit parameters in:
-   - `caseParams.sh`
-2. Run full case:
-   - `./Allrun`
-
-`Allrun` already calls `./prepareCase`, so manual rendering is optional.
-
-## Optional: render-only step
-
-Use this when you want to inspect generated files without running the solver:
-
-```bash
-./prepareCase
-```
-
-This updates:
-- `constant/transportProperties`
-- `constant/levitatorWedgeHex.geo`
-- `0.orig/Pim`
-- `system/setAlphaFieldDict`
-
-## MPI run
-
-`Allrun` runs decomposed MPI by default.  
-Optional rank override:
-
-```bash
-NPROCS=8 ./Allrun
-```
-
-Drop initialization is controlled from `caseParams.sh`:
-- `DROP_RADIUS`
-- `DROP_CENTER_Y`
-
-## Environment
-
-Run with your OpenFOAM environment loaded:
-
-```bash
-source ~/TwoPhaseFlow/scripts/bashrc
-source ~/openfoam/etc/bashrc
-```
-
-Then execute:
-
-```bash
-cd /home/minkowski/TwoPhaseFlow/run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha
-./Allrun
-```
+The resulting 3D mesh keeps explicit `transducer1`, `transducer2`,
+`reflector1`, `reflector2`, `openAir`, `axis`, and wedge patches.

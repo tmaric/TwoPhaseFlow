@@ -19,6 +19,6 @@ field           alpha.water;
 type            sphere;
 direction       (0 0 1);
 radius          __DROP_RADIUS__;
-origin          (0.00000001 __DROP_CENTER_Y__ 0.0000001);
+origin          (__AXIS_RADIUS__ __DROP_CENTER_Y__ 0);
 
 // ************************************************************************* //

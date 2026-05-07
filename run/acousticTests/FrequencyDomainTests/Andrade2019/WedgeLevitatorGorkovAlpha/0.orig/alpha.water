@@ -18,19 +18,20 @@ FoamFile
 
 dimensions      [0 0 0 0 0 0 0];
 
-internalField   uniform 1;  
+internalField   uniform 1;
 
 boundaryField
 {
-    "(openAir|transducer.*|reflector.*)" 
+    "(openAir|transducer.*|reflector.*)"
     {
         type            zeroGradient;
+    }
+    axis
+    {
+        type            symmetryPlane;
     }
     "(front|back)"
     {
         type            wedge;
     }
 }
-
-
-// ************************************************************************* //

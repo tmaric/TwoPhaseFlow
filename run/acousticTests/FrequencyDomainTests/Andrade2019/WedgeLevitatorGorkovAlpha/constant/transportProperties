@@ -30,10 +30,10 @@ c0              $soundSpeed;
 // frequency
 f               25250;
 // physical properties
-rhol            998.3;
+rhol            2500;
 rhog            1.2;
 cg              343;
-cl              1480;
+cl              5000;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 k               #eval{2.0*pi()*$f/$soundSpeed};

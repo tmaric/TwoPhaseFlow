@@ -10,7 +10,6 @@ FoamFile
     version     2.0;
     format      ascii;
     class       dictionary;
-    location    "system";
     object      fvSchemes;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -31,6 +30,9 @@ gradSchemes
     default         Gauss linear;
     grad(p)         Gauss linear;
     grad(pa)        pointCellsLeastSquares;
+    grad(pr)        cellLimited Gauss linear 1;
+    grad(EpGorkov)  pointCellsLeastSquares;
+    grad(EkGorkov)  pointCellsLeastSquares;
 }
 
 divSchemes
@@ -46,9 +48,8 @@ divSchemes
 
 laplacianSchemes
 {
-    default         Gauss linear orthogonal; //corrected;
+    default         Gauss linear corrected;
     laplacian((rho0*(1|A(U))),p) Gauss linear corrected;
-    laplacian(mu,U) Gauss linear corrected;
     laplacian(mu,U) Gauss linear corrected;
     laplacian((rho*(1|A(U))),p) Gauss linear corrected;
     laplacian((1|A(U)),p) Gauss linear corrected;
@@ -61,14 +62,5 @@ interpolationSchemes
 
 snGradSchemes
 {
-    default         orthogonal; //corrected;
+    default         corrected;
 }
-
-/*fluxRequired
-{
-    default         no;
-    p               ;
-}*/
-
-
-// ************************************************************************* //

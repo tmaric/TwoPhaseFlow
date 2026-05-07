@@ -55,7 +55,11 @@ ensure_app()
     fi
 }
 
-need_cmd gmsh
+need_cmd cartesian2DMesh
+need_cmd extrudeMesh
+if [ "${INIT_SPHERE:-1}" != "0" ]; then
+    need_cmd setAlphaField
+fi
 
 case "${SOLVER}" in
     acousticHelmholtzFoam)
@@ -85,13 +89,15 @@ fi
 
 ./Allclean
 ./prepareCase
-restore0Dir
 
-gmsh -0 constant/levitatorWedgeHex.geo
-runApplication gmshToFoam  constant/levitatorWedgeHex.msh
-rm constant/levitatorWedgeHex.msh
-runApplication changeDictionary
-runApplication setAlphaField
+runApplication cartesian2DMesh
+runApplication extrudeMesh
+./postMesh
+
+restore0Dir
+if [ "${INIT_SPHERE:-1}" != "0" ]; then
+    runApplication setAlphaField
+fi
 rm -f 0/Pim.in
 
 ensure_app setPMLFields apps/utilities/mesh/setPMLFields
