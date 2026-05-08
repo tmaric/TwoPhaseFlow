@@ -32,7 +32,7 @@ the same time.
 
 Use the acoustic-only cases:
 - WedgeLevitatorGorkovAlpha
-- cfMeshTest
+
 
 Check:
 - Pre/Pim field convergence with mesh refinement
@@ -41,7 +41,7 @@ Check:
 - Gorkov force comparison for small particles
 - parallel vs serial consistency
 
-The cfMeshTest/runSolidBallGorkovStudy script is useful because it already
+The runSolidBallGorkovStudy script is useful because it already
 compares simulated radiation force against Gorkov theory.
 
 2. Verify VOF hydrodynamics without acoustics

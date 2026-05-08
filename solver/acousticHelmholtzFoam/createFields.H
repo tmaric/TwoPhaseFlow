@@ -124,7 +124,20 @@
             IOobject::MUST_READ,
             IOobject::NO_WRITE
         ),
-        rhol*alpha1 + rhog*(1 - alpha1)
+        1/(alpha1/rhol + (1 - alpha1)/rhog)
+    );
+
+    surfaceScalarField invRhof
+    (
+        IOobject
+        (
+            "invRhof",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        alphaf/rhol + (1 - alphaf)/rhog
     );
 
     // radiation force pressure

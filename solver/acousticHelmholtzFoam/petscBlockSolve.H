@@ -2,8 +2,8 @@
 //
 // After distributed KSPSolve, scatterBlockSolution() gathers the full block
 // vector on each rank to keep OpenFOAM field updates straightforward.
-// buildRhs() and updateDerivedAcousticFields() mirror the serial reference
-// formulation to ease one-to-one comparisons.
+// buildRhs() mirrors the serial reference formulation to ease one-to-one
+// comparisons.
 
 static void initializePetscSystem
 (
@@ -81,28 +81,4 @@ static void buildRhs
     bPre = sourceWithBoundary(AopPre, true, false);
     bPre += sourceWithBoundary(B1Pim, true, false);
     bPre += sourceWithBoundary(B2Pim, true, false);
-}
-
-static void updateDerivedAcousticFields
-(
-    volVectorField& Ure,
-    volVectorField& Uim,
-    volScalarField& pa,
-    volScalarField& pr,
-    volTensorField& momFlux,
-    const volScalarField& Pim,
-    const volScalarField& Pre,
-    const volScalarField& alpha1,
-    const volScalarField& rho,
-    const dimensionedScalar& f,
-    const dimensionedScalar& kl,
-    const dimensionedScalar& kg
-)
-{
-    Ure == 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
-    Uim == -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
-    pa == Foam::sqrt(Pim*Pim + Pre*Pre);
-    pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
-        - 0.25*rho*((Ure&Ure) + (Uim&Uim));
-    momFlux == 0.5*rho*(Ure*Ure + Uim*Uim);
 }

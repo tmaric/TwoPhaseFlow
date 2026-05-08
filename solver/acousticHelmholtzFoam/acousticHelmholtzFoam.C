@@ -95,11 +95,20 @@ int main(int argc, char *argv[])
 
     Info<< "\nStarting time loop\n" << endl;
 
-    const dimensionedScalar k2
+    rho = 1/(alpha1/rhol + (1 - alpha1)/rhog);
+    invRhof = alphaf/rhol + (1 - alphaf)/rhog;
+
+    volScalarField k2
     (
-        "k2",
-        dimless/dimLength/dimLength,
-        sqr(twoPi()*f/cg).value()
+        IOobject
+        (
+            "k2",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        sqr(twoPi()*f)*(alpha1/sqr(cl) + (1 - alpha1)/sqr(cg))
     );
 
     while (simple.loop())
@@ -113,14 +122,14 @@ int main(int argc, char *argv[])
 
             fvScalarMatrix AopPre
             (
-                fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
-              + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
+              rho*fvm::laplacian(invRhof, Pre)
+              + fvm::Sp(k2 - SC0, Pre)
             );
 
             fvScalarMatrix AopPim
             (
-                fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
-              + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
+              rho*fvm::laplacian(invRhof, Pim)
+              + fvm::Sp(k2 - SC0, Pim)
             );
 
             // Keep B1 (laplacian) and B2 (Sp) as separate operators.
@@ -192,21 +201,12 @@ int main(int argc, char *argv[])
             Pim.correctBoundaryConditions();
         }
 
-        updateDerivedAcousticFields
-        (
-            Ure,
-            Uim,
-            pa,
-            pr,
-            momFlux,
-            Pim,
-            Pre,
-            alpha1,
-            rho,
-            f,
-            kl,
-            kg
-        );
+        Ure == 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
+        Uim == -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
+        pa == Foam::sqrt(Pim*Pim + Pre*Pre);
+        pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
+            - 0.25*rho*((Ure&Ure) + (Uim&Uim));
+        momFlux == 0.5*rho*(Ure*Ure + Uim*Uim);
 
         runTime.write();
 
