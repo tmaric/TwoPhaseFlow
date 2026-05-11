@@ -27,15 +27,11 @@ boundaryField
     transducer1
     {
          type            fixedGradient;
-         gradient        uniform #eval{-2*pi()*25250*1.2*1.0};
+         gradient        uniform #eval{-2*pi()*__DRIVE_F__*__RHOG__*__PISTON_U__};
     }
-    "(transducer2|reflector2|reflector1|dropWall)"
+    "(transducer2|reflector2|reflector1)"
     {
         type            zeroGradient;
-    }
-    axis
-    {
-        type            symmetryPlane;
     }
     "(front|back)"
     {

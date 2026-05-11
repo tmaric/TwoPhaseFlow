@@ -54,58 +54,6 @@ libs
 
 functions
 {
-    reflectorForce
-    {
-        type            coded;
-        libs            ("libutilityFunctionObjects.so");
-        name            reflectorForce;
-        executeControl  timeStep;
-        executeInterval 1;
-        writeControl    timeStep;
-        writeInterval   1;
-
-        codeWrite
-        #{
-            const fvMesh& mesh = refCast<const fvMesh>(obr_);
-            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
-
-            const label patchID = mesh.boundaryMesh().findPatchID("reflector1");
-            if (patchID < 0)
-            {
-                FatalErrorInFunction
-                    << "Patch 'reflector1' not found."
-                    << exit(FatalError);
-            }
-
-            const auto& Sf = mesh.Sf().boundaryField()[patchID];
-            const auto& pB = pr.boundaryField()[patchID];
-            const vector forceVec = gSum(pB*Sf);
-            const vector areaVec = gSum(Sf);
-            const vector nHat = areaVec/(mag(areaVec) + VSMALL);
-            const scalar Fn = (forceVec & nHat);
-
-            if (Pstream::master())
-            {
-                const fileName outDir
-                (
-                    mesh.time().globalPath()/"postProcessing"/"reflectorForce"
-                );
-                mkDir(outDir);
-                const fileName outFile(outDir/"force.dat");
-                const bool writeHeader = !exists(outFile);
-
-                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
-                if (writeHeader)
-                {
-                    os  << "# time"
-                        << tab << "Fn" << nl;
-                }
-                os  << mesh.time().timeName()
-                    << tab << Fn << nl;
-            }
-        #};
-    }
-
     dropRadiationForce
     {
         type            coded;
@@ -125,56 +73,40 @@ functions
         codeWrite
         #{
             const fvMesh& mesh = refCast<const fvMesh>(obr_);
-            const volScalarField& alpha1 =
-                mesh.lookupObject<volScalarField>("alpha.water");
             const volScalarField& pr =
                 mesh.lookupObject<volScalarField>("pr");
-            const volVectorField& interfaceArea =
-                mesh.lookupObject<volVectorField>("interfaceNormal.water");
-            const volVectorField& interfaceCentre =
-                mesh.lookupObject<volVectorField>("interfaceCentre.water");
 
-            const tmp<volVectorField> tGradPr =
-                fvc::grad(pr, "grad(pr)");
-            const volVectorField& gradPr = tGradPr();
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
 
             vector forceSlice = Zero;
             scalar interfaceAreaSlice = 0.0;
-            scalar wetVolumeSlice = 0.0;
-            label interfaceCells = 0;
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& magSf = mesh.magSf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
 
-            const vectorField& C = mesh.C();
-            const scalarField& V = mesh.V();
-
-            forAll(pr, celli)
+            forAll(pB, facei)
             {
-                const scalar alpha = alpha1[celli];
-                wetVolumeSlice += alpha*V[celli];
-
-                const vector Sint = interfaceArea[celli];
-                if (mag(Sint) <= VSMALL)
-                {
-                    continue;
-                }
-
-                ++interfaceCells;
-                interfaceAreaSlice += mag(Sint);
-
-                const vector dx = interfaceCentre[celli] - C[celli];
-                const scalar prInt = pr[celli] + (gradPr[celli] & dx);
-
-                forceSlice += prInt*Sint;
+                forceSlice += pB[facei]*Sf[facei];
+                interfaceAreaSlice += magSf[facei];
             }
+            label interfaceCells = pB.size();
 
             reduce(forceSlice, sumOp<vector>());
             reduce(interfaceAreaSlice, sumOp<scalar>());
-            reduce(wetVolumeSlice, sumOp<scalar>());
             reduce(interfaceCells, sumOp<label>());
 
             const scalar axisymScale = 360.0/(1.0 + VSMALL);
             const vector forceAxisym = axisymScale*forceSlice;
             const scalar interfaceAreaAxisym = axisymScale*interfaceAreaSlice;
-            const scalar wetVolumeAxisym = axisymScale*wetVolumeSlice;
+            const scalar wetVolumeAxisym =
+                4.0*constant::mathematical::pi*pow3(0.00002)/3.0;
+            const scalar wetVolumeSlice = wetVolumeAxisym/axisymScale;
 
             if (Pstream::master())
             {

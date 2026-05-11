@@ -17,7 +17,7 @@ FoamFile
 
 // All properties are in T=25 C and P=100 kPa
 transportModel  Newtonian;
-soundSpeed      343;
+soundSpeed      __SOUND_SPEED__;
 
 mu              [ 1 -1 -1 0 0 0 0 ] 0.0;
 psi             [ 0 -2 2 0 0 0 0 ] 8.5e-6;
@@ -28,20 +28,20 @@ p0              0.0;
 
 c0              $soundSpeed;
 // frequency
-f               25250;
+f               __DRIVE_F__;
 // physical properties
-rhol            998.3;
-rhog            1.2;
-cg              343;
-cl              1480;
+rhol            __RHOL__;
+rhog            __RHOG__;
+cg              __CG__;
+cl              __CL__;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 k               #eval{2.0*pi()*$f/$soundSpeed};
-L               0.008;
+L               __PML_L__;
 
 PMLType         rectangle;
-PMLMax          (0.029 0.01764 100);
-PMLMin          (-100 -0.01 -100);
-sigmaMax        2000000;
-po              3;
+PMLMax          (__PML_MAX_X__ __PML_MAX_Y__ __PML_MAX_Z__);
+PMLMin          (__PML_MIN_X__ __PML_MIN_Y__ __PML_MIN_Z__);
+sigmaMax        __SIGMA_MAX__;
+po              __PO__;
 // ************************************************************************* //

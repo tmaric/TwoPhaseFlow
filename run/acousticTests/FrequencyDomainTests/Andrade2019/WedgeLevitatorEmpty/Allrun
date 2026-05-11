@@ -55,8 +55,7 @@ ensure_app()
     fi
 }
 
-need_cmd cartesian2DMesh
-need_cmd extrudeMesh
+need_cmd gmsh
 
 case "${SOLVER}" in
     acousticHelmholtzFoam)
@@ -87,10 +86,11 @@ fi
 ./Allclean
 ./prepareCase
 
-runApplication cartesian2DMesh
-runApplication extrudeMesh
-./postMesh
 restore0Dir
+gmsh -0 constant/levitatorWedgeHex.geo
+runApplication gmshToFoam constant/levitatorWedgeHex.msh
+rm -f constant/levitatorWedgeHex.msh
+runApplication changeDictionary
 rm -f 0/Pim.in
 
 ensure_app setPMLFields apps/utilities/mesh/setPMLFields

@@ -29,13 +29,9 @@ boundaryField
          type            fixedGradient;
          gradient        uniform #eval{-2*pi()*25250*1.2*1.0};
     }
-    "(transducer2|reflector2|reflector1|dropWall)"
+    "(transducer2|reflector2|reflector1)"
     {
         type            zeroGradient;
-    }
-    axis
-    {
-        type            symmetryPlane;
     }
     "(front|back)"
     {

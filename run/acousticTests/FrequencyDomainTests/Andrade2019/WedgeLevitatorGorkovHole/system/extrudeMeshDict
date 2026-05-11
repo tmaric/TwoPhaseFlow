@@ -1,7 +1,7 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  v2012                                 |
+|  \\    /   O peration     | Version:  v2506                                  |
 |   \\  /    A nd           | Website:  www.openfoam.com                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
@@ -10,18 +10,27 @@ FoamFile
     version     2.0;
     format      ascii;
     class       dictionary;
-    object      decomposeParDict;
+    object      extrudeMeshDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-numberOfSubdomains 4;
+constructFrom patch;
+sourceCase    ".";
 
-method          scotch; //simple;
+sourcePatches (bottomEmptyFaces);
+exposedPatchName topEmptyFaces;
 
-coeffs
+extrudeModel    wedge;
+
+sectorCoeffs
 {
-    n           (2 2 2);
+    point       (0 0 0);
+    axis        (0 -1 0);
+    angle       1;
 }
 
+flipNormals true;
+
+mergeFaces false;
 
 // ************************************************************************* //

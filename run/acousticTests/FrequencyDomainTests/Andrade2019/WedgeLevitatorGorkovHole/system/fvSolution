@@ -67,7 +67,7 @@ solvers
 
 SIMPLE
 {
-    nNonOrthogonalCorrectors 2;
+    nNonOrthogonalCorrectors 5;
     residualControl
     {
         Pre 1e-5;

@@ -1,0 +1,250 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+# Derived rectangular PML bounds from geometry parameters.
+PML_MAX_X="$(awk -v bu="$BU" -v rr="$RR" 'BEGIN{printf "%.12g", bu + rr}')"
+PML_MAX_Y="$(awk -v hs="$HS" -v d="$D" 'BEGIN{printf "%.12g", hs + d}')"
+PML_MIN_Y="$(awk -v hs="$HS" 'BEGIN{printf "%.12g", -hs}')"
+
+render()
+{
+    inFile="$1"
+    outFile="$2"
+
+    sed \
+        -e "s|__DRIVE_F__|$DRIVE_F|g" \
+        -e "s|__PISTON_U__|$PISTON_U|g" \
+        -e "s|__SOUND_SPEED__|$SOUND_SPEED|g" \
+        -e "s|__RHOL__|$RHOL|g" \
+        -e "s|__RHOG__|$RHOG|g" \
+        -e "s|__CG__|$CG|g" \
+        -e "s|__CL__|$CL|g" \
+        -e "s|__PML_L__|$PML_L|g" \
+        -e "s|__SIGMA_MAX__|$SIGMA_MAX|g" \
+        -e "s|__PO__|$PO|g" \
+        -e "s|__PML_MAX_X__|$PML_MAX_X|g" \
+        -e "s|__PML_MAX_Y__|$PML_MAX_Y|g" \
+        -e "s|__PML_MAX_Z__|$PML_MAX_Z|g" \
+        -e "s|__PML_MIN_X__|$PML_MIN_X|g" \
+        -e "s|__PML_MIN_Y__|$PML_MIN_Y|g" \
+        -e "s|__PML_MIN_Z__|$PML_MIN_Z|g" \
+        -e "s|__D__|$D|g" \
+        -e "s|__RT__|$RT|g" \
+        -e "s|__RR__|$RR|g" \
+        -e "s|__BU__|$BU|g" \
+        -e "s|__HS__|$HS|g" \
+        -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
+        -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
+        -e "s|__DROP_CENTER_Y__|$DROP_CENTER_Y|g" \
+        "$inFile" > "$outFile"
+}
+
+render constant/transportProperties.in constant/transportProperties
+render 0.orig/Pim.in 0.orig/Pim
+
+export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
+export DROP_RADIUS DROP_CENTER_Y CFMESH_MAX_CELL_SIZE CFMESH_DROP_CELL_SIZE CFMESH_DROP_SEGMENTS
+
+python3 - <<'PY'
+from math import cos, pi, sin
+from os import environ
+from pathlib import Path
+
+
+def f(name):
+    return float(environ[name])
+
+
+def fmt(value):
+    return f"{value:.12g}"
+
+
+case = Path(".")
+constant = case / "constant"
+system = case / "system"
+
+D = f("D")
+RT = f("RT")
+RR = f("RR")
+BU = f("BU")
+HS = f("HS")
+WEDGE_DEG = f("WEDGE_DEG")
+AXIS_RADIUS = f("AXIS_RADIUS")
+SURFACE_THICKNESS = f("SURFACE_THICKNESS")
+DROP_RADIUS = f("DROP_RADIUS")
+DROP_CENTER_Y = f("DROP_CENTER_Y")
+CFMESH_MAX_CELL_SIZE = f("CFMESH_MAX_CELL_SIZE")
+CFMESH_DROP_CELL_SIZE = f("CFMESH_DROP_CELL_SIZE")
+CFMESH_DROP_SEGMENTS = int(environ["CFMESH_DROP_SEGMENTS"])
+
+patches = [
+    ("transducer1", "wall"),
+    ("reflector1", "wall"),
+    ("openAir", "wall"),
+    ("reflector2", "wall"),
+    ("transducer2", "wall"),
+    ("axis", "symmetryPlane"),
+    ("dropWall", "wall"),
+]
+patch_id = {name: i for i, (name, _) in enumerate(patches)}
+
+points2d = [
+    (AXIS_RADIUS, 0.0),
+    (RT, 0.0),
+    (RR, 0.0),
+    (RR, -HS),
+    (RR + BU, -HS),
+    (RR + BU, 0.0),
+    (RR + BU, D),
+    (RR + BU, D + HS),
+    (RR, D + HS),
+    (RT, D + HS),
+    (RT, D),
+    (AXIS_RADIUS, D),
+    (AXIS_RADIUS, DROP_CENTER_Y + DROP_RADIUS),
+]
+
+segment_patches = [
+    "transducer1",
+    "reflector1",
+    "reflector1",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
+    "reflector2",
+    "transducer2",
+    "axis",
+]
+
+for i in range(1, CFMESH_DROP_SEGMENTS):
+    theta = pi*i/CFMESH_DROP_SEGMENTS
+    points2d.append(
+        (
+            AXIS_RADIUS + DROP_RADIUS*sin(theta),
+            DROP_CENTER_Y + DROP_RADIUS*cos(theta),
+        )
+    )
+
+points2d.append((AXIS_RADIUS, DROP_CENTER_Y - DROP_RADIUS))
+segment_patches.extend(["dropWall"]*CFMESH_DROP_SEGMENTS)
+segment_patches.append("axis")
+
+n2 = len(points2d)
+points = [(x, y, 0.0) for x, y in points2d]
+points.extend((x, y, SURFACE_THICKNESS) for x, y in points2d)
+
+faces = []
+for i, patch_name in enumerate(segment_patches):
+    a = i
+    b = (i + 1) % n2
+    patch = patch_id[patch_name]
+    faces.append((a, b, b + n2, patch))
+    faces.append((a, b + n2, a + n2, patch))
+
+with (constant / "levitator2D.fms").open("w") as out:
+    out.write(f"{len(patches)}\n(\n")
+    for name, ptype in patches:
+        out.write(f"{name}\n{ptype}\n\n")
+    out.write(")\n\n")
+    out.write(f"{len(points)}\n(\n")
+    for x, y, z in points:
+        out.write(f"({fmt(x)} {fmt(y)} {fmt(z)})\n")
+    out.write(")\n\n")
+    out.write(f"{len(faces)}\n(\n")
+    for a, b, c, patch in faces:
+        out.write(f"(({a} {b} {c}) {patch})\n")
+    out.write(")\n\n")
+    out.write("0()\n\n0\n(\n)\n\n0\n(\n)\n\n0\n(\n)\n")
+
+drop_refs = []
+arc_start = 12
+for i in range(CFMESH_DROP_SEGMENTS):
+    p0 = points2d[arc_start + i]
+    p1 = points2d[arc_start + i + 1]
+    drop_refs.append(
+        f"""    dropWallSeg{i + 1:02d}
+    {{
+        type        line;
+        cellSize    {fmt(CFMESH_DROP_CELL_SIZE)};
+        p0          ({fmt(p0[0])} {fmt(p0[1])} {fmt(0.5*SURFACE_THICKNESS)});
+        p1          ({fmt(p1[0])} {fmt(p1[1])} {fmt(0.5*SURFACE_THICKNESS)});
+    }}
+"""
+    )
+
+mesh_dict = f"""/*--------------------------------*- C++ -*----------------------------------*\\
+| =========                 |                                                |
+| \\\\      /  F ield         | cfMesh: A library for mesh generation          |
+|  \\\\    /   O peration     |                                                |
+|   \\\\  /    A nd           | Author: Franjo Juretic                         |
+|    \\\\/     M anipulation  | E-mail: franjo.juretic@c-fields.com            |
+\\*---------------------------------------------------------------------------*/
+
+FoamFile
+{{
+    version   2.0;
+    format    ascii;
+    class     dictionary;
+    location  "system";
+    object    meshDict;
+}}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+surfaceFile "constant/levitator2D.fms";
+
+maxCellSize {fmt(CFMESH_MAX_CELL_SIZE)};
+
+objectRefinements
+{{
+{''.join(drop_refs)}}}
+
+// ************************************************************************* //
+"""
+(system / "meshDict").write_text(mesh_dict)
+
+extrude_dict = f"""/*--------------------------------*- C++ -*----------------------------------*\\
+| =========                 |                                                 |
+| \\\\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\\\    /   O peration     | Version:  v2506                                  |
+|   \\\\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\\\/     M anipulation  |                                                 |
+\\*---------------------------------------------------------------------------*/
+FoamFile
+{{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      extrudeMeshDict;
+}}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+constructFrom patch;
+sourceCase    ".";
+
+sourcePatches (bottomEmptyFaces);
+exposedPatchName topEmptyFaces;
+
+extrudeModel    wedge;
+
+sectorCoeffs
+{{
+    point       (0 0 0);
+    axis        (0 -1 0);
+    angle       {fmt(WEDGE_DEG)};
+}}
+
+flipNormals true;
+
+mergeFaces false;
+
+// ************************************************************************* //
+"""
+(system / "extrudeMeshDict").write_text(extrude_dict)
+PY

@@ -1,0 +1,257 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.0.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     acousticHelmholtzFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         1;
+
+deltaT          1;
+
+writeControl    runTime;
+
+writeInterval   1;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  12;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   8;
+
+runTimeModifiable yes;
+
+adjustTimeStep  no;
+
+libs
+(
+   "libpetscFoam.so"
+);
+
+functions
+{
+    gorkovPotentialField
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            gorkovPotentialField;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include "fvcGrad.H"
+            #include "volFields.H"
+        #};
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& Pre = mesh.lookupObject<volScalarField>("Pre");
+            const volScalarField& Pim = mesh.lookupObject<volScalarField>("Pim");
+            const volVectorField& Ure = mesh.lookupObject<volVectorField>("Ure");
+            const volVectorField& Uim = mesh.lookupObject<volVectorField>("Uim");
+
+            const scalar rhoHostValue = 1.2;
+            const scalar cHost = 343;
+            const scalar rhoParticle = 2500;
+            const scalar cParticle = 5000;
+            const scalar particleRadius = 100e-6;
+
+            const scalar kappaHostValue = 1.0/(rhoHostValue*cHost*cHost);
+            const scalar kappaParticle =
+                1.0/(rhoParticle*cParticle*cParticle);
+            const scalar f1 = 1.0 - kappaParticle/kappaHostValue;
+            const scalar f2 =
+                2.0*(rhoParticle - rhoHostValue)
+               /(2.0*rhoParticle + rhoHostValue);
+
+            const dimensionedScalar kappaHost
+            (
+                "kappaHost",
+                dimCompressibility/dimDensity,
+                kappaHostValue
+            );
+            const dimensionedScalar rhoHost
+            (
+                "rhoHost",
+                dimDensity,
+                rhoHostValue
+            );
+            const dimensionedScalar particleVolume
+            (
+                "particleVolume",
+                dimVolume,
+                4.0*constant::mathematical::pi*pow3(particleRadius)/3.0
+            );
+
+            volScalarField EpGorkov
+            (
+                IOobject
+                (
+                    "EpGorkov",
+                    mesh.time().timeName(),
+                    mesh,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                0.25*kappaHost*(Pre*Pre + Pim*Pim)
+            );
+
+            volScalarField EkGorkov
+            (
+                IOobject
+                (
+                    "EkGorkov",
+                    mesh.time().timeName(),
+                    mesh,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                0.25*rhoHost*(magSqr(Ure) + magSqr(Uim))
+            );
+
+            volScalarField GorkovPotential
+            (
+                IOobject
+                (
+                    "GorkovPotential",
+                    mesh.time().timeName(),
+                    mesh,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                particleVolume*(f1*EpGorkov - 1.5*f2*EkGorkov)
+            );
+
+            volVectorField acousticRadiationForce
+            (
+                IOobject
+                (
+                    "acousticRadiationForce",
+                    mesh.time().timeName(),
+                    mesh,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                -fvc::grad(GorkovPotential)
+            );
+
+            const point samplePoint
+            (
+                1.0e-5,
+                0.0040003,
+                0.0
+            );
+
+            scalar localDistSqr = GREAT;
+            vector localForce = Zero;
+            vector localLocation = Zero;
+
+            const vectorField& cellCentres = mesh.C();
+            forAll(cellCentres, celli)
+            {
+                const scalar distSqr = magSqr(cellCentres[celli] - samplePoint);
+                if (distSqr < localDistSqr)
+                {
+                    localDistSqr = distSqr;
+                    localForce = acousticRadiationForce[celli];
+                    localLocation = cellCentres[celli];
+                }
+            }
+
+            scalar globalDistSqr = localDistSqr;
+            reduce(globalDistSqr, minOp<scalar>());
+
+            scalar selected = 0.0;
+            if (mag(localDistSqr - globalDistSqr) <= SMALL*max(1.0, globalDistSqr))
+            {
+                selected = 1.0;
+            }
+
+            vector pointForce = selected*localForce;
+            vector pointLocation = selected*localLocation;
+            reduce(pointForce, sumOp<vector>());
+            reduce(pointLocation, sumOp<vector>());
+            reduce(selected, sumOp<scalar>());
+
+            if (selected > SMALL)
+            {
+                pointForce /= selected;
+                pointLocation /= selected;
+            }
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"gorkovPointForce"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"force.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# time"
+                        << tab << "particleRadius"
+                        << tab << "sampleX"
+                        << tab << "sampleY"
+                        << tab << "sampleZ"
+                        << tab << "nearestX"
+                        << tab << "nearestY"
+                        << tab << "nearestZ"
+                        << tab << "Fx"
+                        << tab << "Fy"
+                        << tab << "Fz"
+                        << tab << "distance" << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << tab << particleRadius
+                    << tab << samplePoint.x()
+                    << tab << samplePoint.y()
+                    << tab << samplePoint.z()
+                    << tab << pointLocation.x()
+                    << tab << pointLocation.y()
+                    << tab << pointLocation.z()
+                    << tab << pointForce.x()
+                    << tab << pointForce.y()
+                    << tab << pointForce.z()
+                    << tab << sqrt(globalDistSqr) << nl;
+            }
+
+            EpGorkov.write();
+            EkGorkov.write();
+            GorkovPotential.write();
+            acousticRadiationForce.write();
+        #};
+    }
+}

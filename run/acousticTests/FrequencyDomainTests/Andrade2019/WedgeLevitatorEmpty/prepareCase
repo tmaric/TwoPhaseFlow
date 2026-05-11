@@ -1,0 +1,52 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+# Derived rectangular PML bounds from geometry parameters.
+PML_MAX_X="$(awk -v bu="$BU" -v rr="$RR" 'BEGIN{printf "%.12g", bu + rr}')"
+PML_MAX_Y="$(awk -v hs="$HS" -v d="$D" 'BEGIN{printf "%.12g", hs + d}')"
+PML_MIN_Y="$(awk -v hs="$HS" 'BEGIN{printf "%.12g", -hs}')"
+
+render()
+{
+    inFile="$1"
+    outFile="$2"
+
+    sed \
+        -e "s|__DRIVE_F__|$DRIVE_F|g" \
+        -e "s|__PISTON_U__|$PISTON_U|g" \
+        -e "s|__SOUND_SPEED__|$SOUND_SPEED|g" \
+        -e "s|__RHOL__|$RHOL|g" \
+        -e "s|__RHOG__|$RHOG|g" \
+        -e "s|__CG__|$CG|g" \
+        -e "s|__CL__|$CL|g" \
+        -e "s|__PML_L__|$PML_L|g" \
+        -e "s|__SIGMA_MAX__|$SIGMA_MAX|g" \
+        -e "s|__PO__|$PO|g" \
+        -e "s|__PML_MAX_X__|$PML_MAX_X|g" \
+        -e "s|__PML_MAX_Y__|$PML_MAX_Y|g" \
+        -e "s|__PML_MAX_Z__|$PML_MAX_Z|g" \
+        -e "s|__PML_MIN_X__|$PML_MIN_X|g" \
+        -e "s|__PML_MIN_Y__|$PML_MIN_Y|g" \
+        -e "s|__PML_MIN_Z__|$PML_MIN_Z|g" \
+        -e "s|__AXIS_RADIUS__|$AXIS_RADIUS|g" \
+        -e "s|__D__|$D|g" \
+        -e "s|__RT__|$RT|g" \
+        -e "s|__RR__|$RR|g" \
+        -e "s|__BU__|$BU|g" \
+        -e "s|__HS__|$HS|g" \
+        -e "s|__MESH_N__|$MESH_N|g" \
+        -e "s|__MESH_LC__|$MESH_LC|g" \
+        -e "s|__ROTATE_HALF_DEG__|$ROTATE_HALF_DEG|g" \
+        -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
+        -e "s|__PARTICLE_RADIUS__|$PARTICLE_RADIUS|g" \
+        -e "s|__PARTICLE_CENTER_Y__|$PARTICLE_CENTER_Y|g" \
+        "$inFile" > "$outFile"
+}
+
+render constant/transportProperties.in constant/transportProperties
+render constant/levitatorWedgeHex.geo.in constant/levitatorWedgeHex.geo
+render 0.orig/Pim.in 0.orig/Pim
+render system/controlDict.in system/controlDict
