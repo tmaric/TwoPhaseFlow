@@ -1,0 +1,263 @@
+Plan: moving-mesh drop equilibrium solver
+========================================
+
+Goal
+----
+
+The previous external script approach was stopped. It was too expensive
+because every trial shape/height rebuilt the mesh and reran the whole
+case from outside the solver.
+
+The better direction is a new OpenFOAM solver that couples:
+
+1. acoustic Helmholtz solve,
+2. acoustic radiation pressure/force on dropWall,
+3. drop position correction,
+4. drop surface shape correction,
+5. mesh motion,
+6. repeat until force and shape residuals are small.
+
+Possible solver name:
+
+    acousticDropEquilibriumFoam
+
+
+Base solver
+-----------
+
+Start from acousticHelmholtzFoam, not interFALFlow.
+
+Reason:
+
+- the paper method is quasi-static equilibrium,
+- the current validation only needs the acoustic field and radiation
+  pressure for a prescribed drop boundary,
+- full transient two-phase flow is not needed for the first version.
+
+
+Main solver loop
+----------------
+
+Pseudo-code:
+
+    for shapeIter = 0..maxShapeIter
+    {
+        solve acoustic Helmholtz equations;
+
+        compute acoustic radiation pressure pr on dropWall;
+        compute net acoustic force Fy on dropWall;
+        compute forceResidual = Fy - dropWeight;
+
+        compute dropWall geometry:
+            theta, radius, height, normal, curvature;
+
+        compute shape residual:
+            R = pr + rho_l*g*z + gamma*kappa - h;
+
+        where:
+            h = surfaceAverage(pr + rho_l*g*z + gamma*kappa);
+
+        compute point displacement:
+            vertical correction from forceResidual;
+            normal correction from shape residual;
+
+        correct displacement to preserve drop volume;
+
+        update pointDisplacement;
+        mesh.update();
+
+        write diagnostics;
+
+        if abs(forceResidual) < forceTol
+        and shapeResidualRms < shapeTol:
+            stop;
+    }
+
+
+Mesh motion
+-----------
+
+Use OpenFOAM dynamic mesh infrastructure:
+
+    dynamicFvMesh
+    motionSolverFvMesh
+    displacementLaplacian
+
+Case files needed:
+
+    constant/dynamicMeshDict
+    0.orig/pointDisplacement
+
+The boundary conditions should be:
+
+    dropWall      prescribed displacement from solver
+    axis          fixedValue (0 0 0)
+    transducers   fixedValue (0 0 0)
+    reflectors    fixedValue (0 0 0)
+    openAir       fixedValue (0 0 0)
+
+The internal mesh displacement is smoothed by displacementLaplacian.
+
+
+Position update
+---------------
+
+First implementation should only move the whole drop vertically.
+
+Use:
+
+    forceResidual = Fy - mg
+
+and update:
+
+    deltaY = beta * forceResidual
+
+with strong under-relaxation.
+
+This should reproduce the already observed force-balanced height:
+
+    DROP_CENTER_Y approximately 0.00417 m
+
+for the current spherical/near-spherical DropHole setup.
+
+After this works, replace the simple relaxation by an inner force-balance
+loop if needed.
+
+
+Shape update
+------------
+
+For each point on dropWall, compute:
+
+    R = pr + rho_l*g*z + gamma*kappa - h
+
+Then move the surface approximately along the outward normal:
+
+    delta_n = -alpha * R
+
+or test the opposite sign if the residual grows.
+
+The curvature kappa should first be implemented from the axisymmetric
+drop profile, using the dropWall points in the x-y plane.
+
+Do not use a volume field curvature for the first version. The drop is a
+hard boundary in DropHole, so geometry-based curvature is clearer.
+
+
+Volume preservation
+-------------------
+
+After shape motion, preserve the initial drop volume.
+
+For the axisymmetric wedge case, compute the drop volume from the radial
+profile. Then apply a global correction so:
+
+    V_new = V_initial
+
+Possible correction methods:
+
+1. scale all radial distances from the drop center by
+
+       (V_initial / V_current)^(1/3)
+
+2. or apply a small uniform normal offset.
+
+Start with method 1 because it is simple.
+
+
+Diagnostics
+-----------
+
+Write one history file:
+
+    postProcessing/dropEquilibrium/history.dat
+
+Columns:
+
+    iteration
+    centerY
+    Fy
+    weight
+    forceResidual
+    shapeResidualRms
+    volume
+    p0
+    minMeshQuality
+
+Write one surface profile file per iteration:
+
+    postProcessing/dropEquilibrium/profile_<iter>.dat
+
+Columns:
+
+    theta
+    radius
+    z
+    pr
+    kappa
+    residual
+    displacement
+
+
+Implementation phases
+---------------------
+
+Phase 1: fixed shape, moving position only
+
+- add dynamic mesh support,
+- move dropWall vertically,
+- solve acoustic field after each mesh update,
+- converge Fy = mg.
+
+Success criterion:
+
+    abs(Fy - mg) < forceTol
+
+
+Phase 2: diagnostics for shape residual only
+
+- keep the drop shape fixed,
+- compute pr, kappa, h, and shapeResidualRms,
+- write profile_<iter>.dat,
+- verify curvature and residual signs.
+
+
+Phase 3: free shape without vertical correction
+
+- enable normal surface update,
+- preserve volume,
+- check mesh quality and residual trend.
+
+
+Phase 4: full coupled solve
+
+- vertical correction + shape correction,
+- stop only when both residuals are small.
+
+
+Main risks
+----------
+
+1. Curvature sign and normal direction must be checked carefully.
+2. Shape updates can destroy mesh quality if alpha is too large.
+3. Volume correction is mandatory.
+4. The first version should stay axisymmetric. A full 3D surface
+   curvature algorithm is a later step.
+5. Moving mesh is much cheaper than remeshing, but large deformations may
+   still require occasional remeshing.
+
+
+Suggested first coding target
+-----------------------------
+
+Create acousticDropEquilibriumFoam by copying acousticHelmholtzFoam and
+adding only Phase 1 first:
+
+    acoustic solve
+    drop force calculation
+    vertical dropWall displacement
+    mesh.update()
+    history.dat output
+
+Do not implement shape deformation until Phase 1 reproduces the known
+force-balanced height.

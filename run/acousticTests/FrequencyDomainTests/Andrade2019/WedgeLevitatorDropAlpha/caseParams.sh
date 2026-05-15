@@ -46,7 +46,7 @@ CL=1480
 # PML thickness [m].
 PML_L=0.008
 # Max damping strength sigmaMax [1/s]. tLF:1E7 aH(S)F:2E6
-SIGMA_MAX=2000000
+SIGMA_MAX=1700000
 # Polynomial profile order (po), typically 2-4.
 PO=3
 # Rectangle bounds for PML logic in transportProperties.
@@ -88,5 +88,10 @@ WEDGE_DEG=1.0
 # ---------------------------------------------------------------------------
 # Initial spherical drop radius [m].
 DROP_RADIUS=0.001
+# Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
+DROP_HORIZONTAL_LONG_AXIS=0.001
+# Small x/z offsets keep the center away from the wedge singular line.
+DROP_CENTER_X=1e-8
 # Initial drop center vertical position [m] (y-coordinate).
 DROP_CENTER_Y=0.0040003
+DROP_CENTER_Z=1e-8

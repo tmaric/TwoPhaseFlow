@@ -1,0 +1,28 @@
+#!/bin/sh
+set -e
+
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+
+need_cmd()
+{
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "Error: required command '$1' not found in PATH" >&2
+        exit 1
+    fi
+}
+
+need_cmd cartesian2DMesh
+need_cmd extrudeMesh
+
+./Allclean
+rm -rf constant/polyMesh
+./prepareCase
+
+runApplication cartesian2DMesh
+runApplication extrudeMesh
+./postMesh
+restore0Dir
+runApplication checkMesh
+
+#------------------------------------------------------------------------------

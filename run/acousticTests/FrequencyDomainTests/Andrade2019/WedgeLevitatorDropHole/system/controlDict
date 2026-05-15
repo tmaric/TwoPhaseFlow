@@ -107,4 +107,190 @@ functions
             }
         #};
     }
+
+    reflectorPressure
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            reflectorPressure;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("reflector1");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'reflector1' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+            const vector forceVec = gSum(pB*Sf);
+            const vector areaVec = gSum(Sf);
+            const vector nHat = areaVec/(mag(areaVec) + VSMALL);
+            const scalar FnWedge = forceVec & nHat;
+
+            const scalar axisymFactor = 360.0;
+            const scalar FnAxisym = FnWedge*axisymFactor;
+            const scalar p0 = 77850.0*sqrt(mag(FnAxisym));
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"reflectorPressure"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"p0.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "Fn_reflector1_wedge_N"
+                        << tab << "Fn_reflector1_axisym_N"
+                        << tab << "p0_Pa" << nl;
+                }
+                os  << mesh.time().timeName()
+                    << tab << FnWedge
+                    << tab << FnAxisym
+                    << tab << p0 << nl;
+            }
+        #};
+    }
+
+    dropForce
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropForce;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+
+            // Sf points out of the air domain. The force on the drop has the
+            // opposite normal direction.
+            const vector forceWedge = -gSum(pB*Sf);
+            const scalar axisymFactor = 360.0;
+            const vector forceAxisym = axisymFactor*forceWedge;
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropForce"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"force.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "Fx_wedge_N"
+                        << tab << "Fy_wedge_N"
+                        << tab << "Fz_wedge_N"
+                        << tab << "Fx_axisym_N"
+                        << tab << "Fy_axisym_N"
+                        << tab << "Fz_axisym_N"
+                        << nl;
+                }
+                os  << mesh.time().timeName()
+                    << tab << forceWedge.x()
+                    << tab << forceWedge.y()
+                    << tab << forceWedge.z()
+                    << tab << forceAxisym.x()
+                    << tab << forceAxisym.y()
+                    << tab << forceAxisym.z()
+                    << nl;
+            }
+        #};
+    }
+
+    dropPressureProfile
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropPressureProfile;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Cf = mesh.Cf().boundaryField()[patchID];
+            const auto& magSf = mesh.magSf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+
+            const fileName outDir
+            (
+                mesh.time().globalPath()/"postProcessing"/"dropPressureProfile"
+            );
+            mkDir(outDir);
+
+            const fileName outFile
+            (
+                outDir/("profile_proc" + Foam::name(Pstream::myProcNo()) + ".dat")
+            );
+
+            OFstream os(outFile);
+            os  << "# pseudoTime"
+                << tab << "x"
+                << tab << "y"
+                << tab << "z"
+                << tab << "pr"
+                << tab << "area"
+                << nl;
+
+            forAll(pB, facei)
+            {
+                os  << mesh.time().timeName()
+                    << tab << Cf[facei].x()
+                    << tab << Cf[facei].y()
+                    << tab << Cf[facei].z()
+                    << tab << pB[facei]
+                    << tab << magSf[facei]
+                    << nl;
+            }
+        #};
+    }
 }

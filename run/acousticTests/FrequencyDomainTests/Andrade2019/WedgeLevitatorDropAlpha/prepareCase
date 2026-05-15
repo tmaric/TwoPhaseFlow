@@ -41,7 +41,10 @@ render()
         -e "s|__ROTATE_HALF_DEG__|$ROTATE_HALF_DEG|g" \
         -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
         -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
+        -e "s|__DROP_HORIZONTAL_LONG_AXIS__|$DROP_HORIZONTAL_LONG_AXIS|g" \
+        -e "s|__DROP_CENTER_X__|$DROP_CENTER_X|g" \
         -e "s|__DROP_CENTER_Y__|$DROP_CENTER_Y|g" \
+        -e "s|__DROP_CENTER_Z__|$DROP_CENTER_Z|g" \
         "$inFile" > "$outFile"
 }
 

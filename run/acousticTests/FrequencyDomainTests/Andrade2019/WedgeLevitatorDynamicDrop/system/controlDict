@@ -17,7 +17,7 @@ FoamFile
 
 application     interFALFlow;
 
-startFrom       startTime;
+startFrom       latestTime;
 
 startTime       0;
 
@@ -25,11 +25,11 @@ stopAt          endTime;
 
 endTime         0.2;
 
-deltaT          1e-6;
+deltaT          1e-5;
 
 writeControl    runTime;
 
-writeInterval   1e-6;
+writeInterval   1e-4;
 
 purgeWrite      0;
 
@@ -206,6 +206,80 @@ functions
                 << (selected > 0 ? yMax : 0.0) << tab
                 << weightedVol << tab
                 << selected
+                << nl;
+
+            return true;
+        #};
+    }
+
+    reflectorPressure
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            reflectorPressure;
+        writeControl    writeTime;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include "PstreamReduceOps.H"
+        #};
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr =
+                mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("reflector1");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'reflector1' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+            const vector forceVec = gSum(pB*Sf);
+            const vector areaVec = gSum(Sf);
+            const vector nHat = areaVec/(mag(areaVec) + VSMALL);
+            const scalar FnWedge = forceVec & nHat;
+
+            // DynamicDrop uses a 1 degree wedge, matching caseParams.sh.
+            const scalar axisymFactor = 360.0;
+            const scalar FnAxisym = FnWedge*axisymFactor;
+            const scalar p0 = 77850.0*sqrt(mag(FnAxisym));
+
+            if (!Pstream::master())
+            {
+                return true;
+            }
+
+            const fileName outputDir
+            (
+                mesh.time().globalPath()/functionObject::outputPrefix
+               /"reflectorPressure"
+            );
+            mkDir(outputDir);
+
+            const fileName outputFile(outputDir/"p0.dat");
+            const bool newFile = !exists(outputFile);
+
+            if (newFile)
+            {
+                OFstream header(outputFile);
+                header
+                    << "# time\tFn_reflector1_wedge_N"
+                    << "\tFn_reflector1_axisym_N\tp0_Pa"
+                    << nl;
+            }
+
+            OFstream os(outputFile, IOstreamOption(), IOstreamOption::APPEND);
+            os  << mesh.time().value() << tab
+                << FnWedge << tab
+                << FnAxisym << tab
+                << p0
                 << nl;
 
             return true;

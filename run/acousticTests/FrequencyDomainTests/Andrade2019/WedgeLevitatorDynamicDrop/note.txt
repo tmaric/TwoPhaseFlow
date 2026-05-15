@@ -1,3 +1,10 @@
+cd /home/cx80jevu/TwoPhaseFlow/run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDynamicDrop
+
+rm -f log.interFALFlow.restart
+
+mpirun -np 8 interFALFlow -parallel > log.interFALFlow.restart 2>&1
+
+
 Acoustic streaming is probably not significant for the main drop dynamics in
 this DynamicDrop case.
 
