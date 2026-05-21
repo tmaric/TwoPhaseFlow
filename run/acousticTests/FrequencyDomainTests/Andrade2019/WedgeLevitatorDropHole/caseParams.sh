@@ -10,7 +10,7 @@
 # Frequency-domain acoustic solver:
 # - acousticHelmholtzFoam: MPI-capable
 # - acousticHelmholtzSerialFoam: single-rank reference solver
-SOLVER=acousticHelmholtzFoam
+SOLVER=acousticDropEquilibriumFoam
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -80,11 +80,11 @@ SURFACE_THICKNESS=${SURFACE_THICKNESS:-0.1}
 DROP_RADIUS=0.001
 DROP_HORIZONTAL_LONG_AXIS=0.001
 DROP_CENTER_X=1e-8
-DROP_CENTER_Y=0.0040003
+DROP_CENTER_Y=0.003550003
 DROP_CENTER_Z=1e-8
 
 # cfMesh controls [m]. These replace DropAlpha's gmsh/setAlphaField interface
 # handling and control the hard dropWall boundary resolution.
-CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-5e-5}
-CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-2.5e-5}
-CFMESH_DROP_SEGMENTS=${CFMESH_DROP_SEGMENTS:-128}
+CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-2e-4}
+CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-2e-4}
+CFMESH_DROP_SEGMENTS=${CFMESH_DROP_SEGMENTS:-48}

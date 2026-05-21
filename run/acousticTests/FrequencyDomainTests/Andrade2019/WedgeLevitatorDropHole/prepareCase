@@ -61,6 +61,7 @@ python3 - <<'PY'
 from math import cos, pi, sin, sqrt
 from os import environ
 from pathlib import Path
+import re
 
 
 def f(name):
@@ -87,6 +88,7 @@ DROP_RADIUS = f("DROP_RADIUS")
 DROP_HORIZONTAL_LONG_AXIS = f("DROP_HORIZONTAL_LONG_AXIS")
 DROP_CENTER_Y = f("DROP_CENTER_Y")
 DROP_VERTICAL_AXIS = DROP_RADIUS**3/(DROP_HORIZONTAL_LONG_AXIS**2)
+DROP_VOLUME = 4.0*pi*DROP_RADIUS**3/3.0
 CFMESH_MAX_CELL_SIZE = f("CFMESH_MAX_CELL_SIZE")
 CFMESH_DROP_CELL_SIZE = f("CFMESH_DROP_CELL_SIZE")
 CFMESH_DROP_SEGMENTS = int(environ["CFMESH_DROP_SEGMENTS"])
@@ -269,4 +271,21 @@ mergeFaces false;
 // ************************************************************************* //
 """
 (system / "extrudeMeshDict").write_text(extrude_dict)
+
+drop_equilibrium = system / "dropEquilibriumDict"
+if drop_equilibrium.exists():
+    text = drop_equilibrium.read_text()
+
+    def set_entry(source, key, value):
+        pattern = rf"^({re.escape(key)}\s+)[^;]+;"
+        replacement = rf"\g<1>{fmt(value)};"
+        updated, count = re.subn(pattern, replacement, source, flags=re.MULTILINE)
+        if count == 0:
+            raise RuntimeError(f"Entry {key} not found in {drop_equilibrium}")
+        return updated
+
+    text = set_entry(text, "dropRadius", DROP_RADIUS)
+    text = set_entry(text, "dropVolume", DROP_VOLUME)
+    text = set_entry(text, "curvatureFallbackRadius", DROP_RADIUS)
+    drop_equilibrium.write_text(text)
 PY

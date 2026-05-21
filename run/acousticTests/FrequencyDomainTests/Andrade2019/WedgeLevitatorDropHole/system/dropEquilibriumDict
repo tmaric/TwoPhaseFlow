@@ -1,0 +1,69 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     |                                                 |
+|   \\  /    A nd           |                                                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      dropEquilibriumDict;
+}
+
+dropPatch               dropWall;
+
+// The case is a 1 degree wedge, so wedge-integrated patch forces are scaled
+// to the equivalent axisymmetric force by 360/1.
+axisymFactor            360;
+
+dropRadius              0.001;
+dropVolume              4.18879020479e-09;
+liquidDensity           998.3;
+gravityMagnitude        9.81;
+surfaceTension          0.072;
+
+// Total acoustic solves across all fixed-shape position loops.
+maxEquilibriumIter      3000;
+
+// Outer loop: update shape after each fixed-shape vertical equilibrium.
+maxShapeIter            1500;
+
+// Inner loop: converge vertical force balance for the current fixed shape.
+maxPositionIter         100;
+forceTolerance          1e-6;
+
+// Phase 1 vertical correction:
+// deltaY = displacementRelaxation*dropRadius*(Fy - weight)/weight
+// clipped to +/- maxDeltaY.
+displacementRelaxation  0.02;
+maxDeltaY               2.5e-5;
+
+enablePositionUpdate    true;
+// Radius over which the drop translation is blended into interior mesh
+// points. External boundaries remain fixed.
+motionRadius            0.004;
+
+// Fallback radius used only when too few profile points are available.
+curvatureFallbackRadius 0.001;
+writeShapeProfiles      true;
+
+// Phase 3 free-shape correction. The update follows
+// delta_n = -shapeRelaxation*(pr + rho_l*g*y + gamma*kappa - h),
+// then removes the area-weighted mean normal displacement for first-order
+// volume preservation. Keep this conservative until mesh-quality based
+// limiting/remeshing is added.
+enableShapeUpdate       true;
+shapeRelaxation         1e-8;
+maxShapeDelta           1e-6;
+shapeTolerance          1e-2;
+
+// Guard rails for the pseudo-iteration. If these are exceeded the loop stops
+// before subsequent mesh updates amplify a bad shape.
+maxAllowedShapeResidual 500;
+maxAllowedForceMagnitude 1e-2;
+
+// ************************************************************************* //

@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     acousticHelmholtzFoam;
+application     acousticDropEquilibriumFoam;
 
 startFrom       startTime;
 
@@ -23,7 +23,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         1;
+endTime         100000;
 
 deltaT          1;
 
@@ -289,6 +289,352 @@ functions
                     << tab << Cf[facei].z()
                     << tab << pB[facei]
                     << tab << magSf[facei]
+                    << nl;
+            }
+        #};
+    }
+
+    dropAspectRatio
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropAspectRatio;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const polyPatch& pp = mesh.boundaryMesh()[patchID];
+            const label start = pp.start();
+
+            scalar minY = GREAT;
+            scalar maxY = -GREAT;
+            scalar maxR = 0.0;
+            label nPoints = 0;
+
+            forAll(pp, facei)
+            {
+                const face& f = mesh.faces()[start + facei];
+                forAll(f, fp)
+                {
+                    const point& p = mesh.points()[f[fp]];
+                    minY = min(minY, p.y());
+                    maxY = max(maxY, p.y());
+                    maxR = max(maxR, sqrt(sqr(p.x()) + sqr(p.z())));
+                    ++nPoints;
+                }
+            }
+
+            reduce(minY, minOp<scalar>());
+            reduce(maxY, maxOp<scalar>());
+            reduce(maxR, maxOp<scalar>());
+            reduce(nPoints, sumOp<label>());
+
+            const scalar verticalDiameter = maxY - minY;
+            const scalar horizontalDiameter = 2.0*maxR;
+            const scalar centreY = 0.5*(minY + maxY);
+            const scalar horizontalOverVertical =
+                horizontalDiameter/(verticalDiameter + VSMALL);
+            const scalar verticalOverHorizontal =
+                verticalDiameter/(horizontalDiameter + VSMALL);
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropAspectRatio"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"aspectRatio.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "horizontalDiameter"
+                        << tab << "verticalDiameter"
+                        << tab << "horizontalOverVertical"
+                        << tab << "verticalOverHorizontal"
+                        << tab << "maxRadius"
+                        << tab << "minY"
+                        << tab << "maxY"
+                        << tab << "centreY"
+                        << tab << "nPatchPointVisits"
+                        << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << tab << horizontalDiameter
+                    << tab << verticalDiameter
+                    << tab << horizontalOverVertical
+                    << tab << verticalOverHorizontal
+                    << tab << maxR
+                    << tab << minY
+                    << tab << maxY
+                    << tab << centreY
+                    << tab << nPoints
+                    << nl;
+            }
+        #};
+    }
+
+    dropVolume
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropVolume;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include <algorithm>
+            #include <vector>
+        #};
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const polyPatch& pp = mesh.boundaryMesh()[patchID];
+            const label start = pp.start();
+
+            DynamicList<vector> localEntries;
+            scalar minY = GREAT;
+            scalar maxY = -GREAT;
+
+            forAll(pp, facei)
+            {
+                const face& f = mesh.faces()[start + facei];
+                forAll(f, fp)
+                {
+                    const point& p = mesh.points()[f[fp]];
+                    const scalar r = sqrt(sqr(p.x()) + sqr(p.z()));
+                    localEntries.append(vector(p.y(), r, 0.0));
+                    minY = min(minY, p.y());
+                    maxY = max(maxY, p.y());
+                }
+            }
+
+            reduce(minY, minOp<scalar>());
+            reduce(maxY, maxOp<scalar>());
+
+            List<vector> localList(localEntries);
+            List<List<vector>> allProcEntries(Pstream::nProcs());
+            allProcEntries[Pstream::myProcNo()] = localList;
+
+            if (Pstream::parRun())
+            {
+                Pstream::gatherList(allProcEntries);
+            }
+
+            if (Pstream::master())
+            {
+                DynamicList<vector> entries;
+                forAll(allProcEntries, proci)
+                {
+                    forAll(allProcEntries[proci], i)
+                    {
+                        entries.append(allProcEntries[proci][i]);
+                    }
+                }
+
+                std::vector<label> order(entries.size());
+                for (label i = 0; i < entries.size(); ++i)
+                {
+                    order[i] = i;
+                }
+
+                std::sort
+                (
+                    order.begin(),
+                    order.end(),
+                    [&](const label a, const label b)
+                    {
+                        return entries[a].x() < entries[b].x();
+                    }
+                );
+
+                const scalar yTol = max(1e-12, 1e-8*(maxY - minY));
+                DynamicList<vector> profile;
+
+                label i = 0;
+                while (i < label(order.size()))
+                {
+                    const scalar y0 = entries[order[i]].x();
+                    scalar ySum = 0.0;
+                    scalar maxR = 0.0;
+                    label nBin = 0;
+
+                    while
+                    (
+                        i < label(order.size())
+                     && mag(entries[order[i]].x() - y0) <= yTol
+                    )
+                    {
+                        ySum += entries[order[i]].x();
+                        maxR = max(maxR, entries[order[i]].y());
+                        ++nBin;
+                        ++i;
+                    }
+
+                    profile.append(vector(ySum/nBin, maxR, 0.0));
+                }
+
+                scalar volume = 0.0;
+                for (label profI = 1; profI < profile.size(); ++profI)
+                {
+                    const scalar y0 = profile[profI - 1].x();
+                    const scalar y1 = profile[profI].x();
+                    const scalar r0 = profile[profI - 1].y();
+                    const scalar r1 = profile[profI].y();
+                    const scalar dy = max(y1 - y0, 0.0);
+
+                    volume += constant::mathematical::pi*dy
+                        *(sqr(r0) + r0*r1 + sqr(r1))/3.0;
+                }
+
+                const scalar equivalentRadius =
+                    cbrt(3.0*volume/(4.0*constant::mathematical::pi));
+
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropVolume"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"volume.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "volume_m3"
+                        << tab << "volume_mm3"
+                        << tab << "equivalentRadius_m"
+                        << tab << "equivalentRadius_mm"
+                        << tab << "minY"
+                        << tab << "maxY"
+                        << tab << "nProfilePoints"
+                        << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << tab << volume
+                    << tab << 1e9*volume
+                    << tab << equivalentRadius
+                    << tab << 1e3*equivalentRadius
+                    << tab << minY
+                    << tab << maxY
+                    << tab << profile.size()
+                    << nl;
+            }
+        #};
+    }
+
+    dropCenter
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropCenter;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const polyPatch& pp = mesh.boundaryMesh()[patchID];
+            const label start = pp.start();
+
+            scalar minY = GREAT;
+            scalar maxY = -GREAT;
+            label nPoints = 0;
+
+            forAll(pp, facei)
+            {
+                const face& f = mesh.faces()[start + facei];
+                forAll(f, fp)
+                {
+                    const point& p = mesh.points()[f[fp]];
+                    minY = min(minY, p.y());
+                    maxY = max(maxY, p.y());
+                    ++nPoints;
+                }
+            }
+
+            reduce(minY, minOp<scalar>());
+            reduce(maxY, maxOp<scalar>());
+            reduce(nPoints, sumOp<label>());
+
+            const scalar centreY = 0.5*(minY + maxY);
+            const scalar verticalDiameter = maxY - minY;
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropCenter"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"center.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "centreY_m"
+                        << tab << "centreY_mm"
+                        << tab << "minY_m"
+                        << tab << "maxY_m"
+                        << tab << "verticalDiameter_m"
+                        << tab << "verticalDiameter_mm"
+                        << tab << "nPatchPointVisits"
+                        << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << tab << centreY
+                    << tab << 1e3*centreY
+                    << tab << minY
+                    << tab << maxY
+                    << tab << verticalDiameter
+                    << tab << 1e3*verticalDiameter
+                    << tab << nPoints
                     << nl;
             }
         #};

@@ -63,6 +63,10 @@ case "${SOLVER}" in
         solverDir="acousticHelmholtzFoam"
         solverMode="parallel"
         ;;
+    acousticDropEquilibriumFoam)
+        solverDir="acousticDropEquilibriumFoam"
+        solverMode="parallel"
+        ;;
     acousticHelmholtzSerialFoam)
         solverDir="acousticHelmholtzSerialFoam"
         solverMode="serial"
@@ -101,7 +105,6 @@ rm -f "log.${SOLVER}"
 if [ "${solverMode}" = "parallel" ]; then
     runApplication decomposePar -force
     runParallel "${SOLVER}"
-    runApplication reconstructPar -latestTime
 else
     runApplication "${SOLVER}"
 fi
