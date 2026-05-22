@@ -78,6 +78,7 @@ static void initializePetscSystem
         MatSeqAIJSetPreallocation(system.M, rowNnzUpper, nullptr);
     }
     MatSetUp(system.M);
+    MatSetOption(system.M, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
 
     VecCreate(PETSC_COMM_WORLD, &system.x);
     VecSetSizes(system.x, 2*nLocal, 2*N);

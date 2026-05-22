@@ -18,7 +18,7 @@ FoamFile
 field           alpha.water;
 type            ellipsoid;
 effectiveRadius 0.001;
-horizontalLongAxis 0.00120;
-origin          (1e-8 0.003504 1e-8);
+horizontalLongAxis 0.001;
+origin          (1e-8 0.00404 1e-8);
 
 // ************************************************************************* //

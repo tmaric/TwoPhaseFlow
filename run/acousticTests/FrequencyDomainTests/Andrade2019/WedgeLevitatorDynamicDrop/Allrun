@@ -55,7 +55,21 @@ ensure_app()
     fi
 }
 
-need_cmd gmsh
+case "${MESH_BACKEND:-cfmesh}" in
+    cfmesh)
+        need_cmd cartesian2DMesh
+        need_cmd extrudeMesh
+        ;;
+    gmsh)
+        need_cmd gmsh
+        ;;
+    *)
+        echo "Error: unsupported MESH_BACKEND='${MESH_BACKEND}'" >&2
+        echo "Use MESH_BACKEND=cfmesh or MESH_BACKEND=gmsh." >&2
+        exit 1
+        ;;
+esac
+
 if [ -z "${NPROCS:-}" ]; then
     NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
 fi
@@ -63,12 +77,22 @@ fi
 
 ./Allclean
 ./prepareCase
-restore0Dir
 
-gmsh -0 constant/levitatorWedgeHex.geo
-runApplication gmshToFoam  constant/levitatorWedgeHex.msh
-rm constant/levitatorWedgeHex.msh
-runApplication changeDictionary
+case "${MESH_BACKEND:-cfmesh}" in
+    cfmesh)
+        runApplication cartesian2DMesh
+        runApplication extrudeMesh
+        ./postMesh
+        ;;
+    gmsh)
+        gmsh -0 constant/levitatorWedgeHex.geo
+        runApplication gmshToFoam constant/levitatorWedgeHex.msh
+        rm constant/levitatorWedgeHex.msh
+        runApplication changeDictionary
+        ;;
+esac
+
+restore0Dir
 runApplication setAlphaField
 rm -f 0/Pim.in
 

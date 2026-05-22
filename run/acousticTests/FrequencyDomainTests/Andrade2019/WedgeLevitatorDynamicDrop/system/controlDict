@@ -45,13 +45,13 @@ timePrecision   8;
 
 runTimeModifiable yes;
 
-adjustTimeStep  off;
+adjustTimeStep   off;
 
 maxCo           0.1;
 
 maxAlphaCo      0.1;
 
-maxDeltaT       2e-6;
+maxDeltaT       1e-6;
 
 maxCapillaryNum 50;
 

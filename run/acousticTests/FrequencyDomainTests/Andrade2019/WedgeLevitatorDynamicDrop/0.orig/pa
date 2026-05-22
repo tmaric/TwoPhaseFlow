@@ -79,6 +79,10 @@ boundaryField
      /*   type            fixedValue;
         value            uniform 0;*/
     }
+    axis
+    {
+        type            symmetryPlane;
+    }
     "(front|back)"
     {
         type            wedge;

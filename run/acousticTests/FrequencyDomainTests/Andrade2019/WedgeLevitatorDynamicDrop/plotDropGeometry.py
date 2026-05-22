@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 def load_geometry(path: Path):
     time = []
     center_y = []
-    x_max = []
+    horizontal_axis = []
+    vertical_axis = []
 
     with path.open(encoding="utf-8") as f:
         for line in f:
@@ -19,9 +20,10 @@ def load_geometry(path: Path):
             cols = line.split()
             time.append(float(cols[0]))
             center_y.append(float(cols[1]))
-            x_max.append(float(cols[4]))
+            horizontal_axis.append(float(cols[2]))
+            vertical_axis.append(float(cols[3]))
 
-    return time, center_y, x_max
+    return time, center_y, horizontal_axis, vertical_axis
 
 
 def main() -> int:
@@ -42,7 +44,7 @@ def main() -> int:
         print(f"Missing input file: {input_file}", file=sys.stderr)
         return 1
 
-    time, center_y, x_max = load_geometry(input_file)
+    time, center_y, horizontal_axis, vertical_axis = load_geometry(input_file)
 
     if not time:
         print(f"No data rows in {input_file}", file=sys.stderr)
@@ -50,7 +52,8 @@ def main() -> int:
 
     time_ms = [1.0e3*t for t in time]
     center_y_mm = [1.0e3*y for y in center_y]
-    x_max_mm = [1.0e3*x for x in x_max]
+    horizontal_axis_mm = [2.0e3*x for x in horizontal_axis]
+    vertical_axis_mm = [1.0e3*y for y in vertical_axis]
 
     fig, axes = plt.subplots(2, 1, figsize=(6.5, 5.6), sharex=True)
 
@@ -58,9 +61,17 @@ def main() -> int:
     axes[0].set_ylabel("centerY [mm]")
     axes[0].grid(True, alpha=0.25, linewidth=0.6)
 
-    axes[1].plot(time_ms, x_max_mm, color="#b23a48", linewidth=1.8)
+    axes[1].plot(time_ms, horizontal_axis_mm, color="#1f4e79", linewidth=1.8)
+    axes[1].plot(
+        time_ms,
+        vertical_axis_mm,
+        color="#b23a48",
+        linewidth=1.4,
+        linestyle="--",
+    )
     axes[1].set_xlabel("time [ms]")
-    axes[1].set_ylabel("xMax [mm]")
+    axes[1].set_ylabel("axis length [mm]")
+    axes[1].legend(["horizontal", "vertical"], frameon=False)
     axes[1].grid(True, alpha=0.25, linewidth=0.6)
 
     fig.tight_layout()

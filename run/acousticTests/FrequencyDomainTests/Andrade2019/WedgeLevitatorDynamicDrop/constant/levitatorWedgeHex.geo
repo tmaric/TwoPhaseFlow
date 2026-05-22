@@ -12,7 +12,7 @@ l = c/f;
 D = 0.00764;
 // mesh size controls
 lc = 1.0;
-N = 200;
+N = 100;
 gs = l/N;
 
 // geometry

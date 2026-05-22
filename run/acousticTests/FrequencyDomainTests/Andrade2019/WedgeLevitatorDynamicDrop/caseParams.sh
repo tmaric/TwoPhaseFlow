@@ -34,9 +34,9 @@ RHOL=998.3
 # Gas density [kg/m^3].
 RHOG=1.2
 # Liquid kinematic viscosity [m^2/s].
-NUL=1.004e-5
+NUL=1.004e-6
 # Gas kinematic viscosity [m^2/s].
-NUG=1.51e-4
+NUG=1.51e-5
 # Gas sound speed [m/s].
 CG=343
 # Liquid sound speed [m/s].
@@ -63,6 +63,12 @@ PML_MIN_Z=-100
 # ---------------------------------------------------------------------------
 # Geometry / mesh parameters (gmsh template)
 # ---------------------------------------------------------------------------
+# Mesh backend:
+# - cfmesh: generate a 2D background mesh with cartesian2DMesh and extrude it
+#           to a wedge. This is the preferred path for AMR runs.
+# - gmsh:   keep the original transfinite gmsh wedge mesh path.
+MESH_BACKEND=${MESH_BACKEND:-cfmesh}
+
 # Levitator geometry dimensions [m].
 # D: gap between transducer plane and reflector plane.
 D=0.00764
@@ -77,12 +83,17 @@ HS=0.01
 
 # Mesh controls.
 # N is the number of cells per wavelength used to set gs = lambda/N.
-MESH_N=200
+MESH_N=100
 # Gmsh point characteristic length (kept as in original setup).
 MESH_LC=1.0
 # Wedge half/total angle settings [deg].
 ROTATE_HALF_DEG=0.5
 WEDGE_DEG=1.0
+
+# cfMesh controls [m].
+AXIS_RADIUS=${AXIS_RADIUS:-1.0e-5}
+SURFACE_THICKNESS=${SURFACE_THICKNESS:-0.1}
+CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
 
 # ---------------------------------------------------------------------------
 # Initial drop setup (setAlphaField)
@@ -90,9 +101,9 @@ WEDGE_DEG=1.0
 # Volume-equivalent spherical drop radius [m].
 DROP_RADIUS=0.001
 # Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
-DROP_HORIZONTAL_LONG_AXIS=0.00120
+DROP_HORIZONTAL_LONG_AXIS=0.001
 # Small x/z offsets keep the center away from the wedge singular line.
 DROP_CENTER_X=1e-8
 # Initial drop center vertical position [m] (y-coordinate).
-DROP_CENTER_Y=0.003504
+DROP_CENTER_Y=0.00404
 DROP_CENTER_Z=1e-8
