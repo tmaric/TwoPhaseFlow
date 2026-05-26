@@ -94,6 +94,9 @@ WEDGE_DEG=1.0
 AXIS_RADIUS=${AXIS_RADIUS:-1.0e-5}
 SURFACE_THICKNESS=${SURFACE_THICKNESS:-0.1}
 CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
+CFMESH_INTERFACE_REFINEMENT=${CFMESH_INTERFACE_REFINEMENT:-1}
+CFMESH_INTERFACE_CELL_SIZE=${CFMESH_INTERFACE_CELL_SIZE:-5e-5}
+CFMESH_INTERFACE_BOX_SCALE=${CFMESH_INTERFACE_BOX_SCALE:-2}
 
 # ---------------------------------------------------------------------------
 # Initial drop setup (setAlphaField)
@@ -101,9 +104,9 @@ CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
 # Volume-equivalent spherical drop radius [m].
 DROP_RADIUS=0.001
 # Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
-DROP_HORIZONTAL_LONG_AXIS=0.001
+DROP_HORIZONTAL_LONG_AXIS=0.001165
 # Small x/z offsets keep the center away from the wedge singular line.
 DROP_CENTER_X=1e-8
 # Initial drop center vertical position [m] (y-coordinate).
-DROP_CENTER_Y=0.00404
+DROP_CENTER_Y=0.005
 DROP_CENTER_Z=1e-8

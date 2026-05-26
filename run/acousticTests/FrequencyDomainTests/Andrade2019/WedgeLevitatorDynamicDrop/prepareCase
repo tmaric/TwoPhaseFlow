@@ -56,7 +56,9 @@ render 0.orig/Pim.in 0.orig/Pim
 render system/setAlphaFieldDict.in system/setAlphaFieldDict
 
 export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
-export CFMESH_MAX_CELL_SIZE
+export CFMESH_MAX_CELL_SIZE CFMESH_INTERFACE_REFINEMENT
+export CFMESH_INTERFACE_CELL_SIZE CFMESH_INTERFACE_BOX_SCALE
+export DROP_RADIUS DROP_CENTER_X DROP_CENTER_Y DROP_CENTER_Z
 
 python3 - <<'PY'
 from os import environ
@@ -84,6 +86,13 @@ WEDGE_DEG = f("WEDGE_DEG")
 AXIS_RADIUS = f("AXIS_RADIUS")
 SURFACE_THICKNESS = f("SURFACE_THICKNESS")
 CFMESH_MAX_CELL_SIZE = f("CFMESH_MAX_CELL_SIZE")
+CFMESH_INTERFACE_REFINEMENT = environ.get("CFMESH_INTERFACE_REFINEMENT", "1").lower() in {"1", "true", "yes", "on"}
+CFMESH_INTERFACE_CELL_SIZE = f("CFMESH_INTERFACE_CELL_SIZE")
+CFMESH_INTERFACE_BOX_SCALE = f("CFMESH_INTERFACE_BOX_SCALE")
+DROP_RADIUS = f("DROP_RADIUS")
+DROP_CENTER_X = f("DROP_CENTER_X")
+DROP_CENTER_Y = f("DROP_CENTER_Y")
+DROP_CENTER_Z = f("DROP_CENTER_Z")
 
 patches = [
     ("transducer1", "wall"),
@@ -152,6 +161,29 @@ with (constant / "levitator2D.fms").open("w") as out:
     out.write(")\n\n")
     out.write("0()\n\n0\n(\n)\n\n0\n(\n)\n\n0\n(\n)\n")
 
+interface_refinement = ""
+if CFMESH_INTERFACE_REFINEMENT:
+    box_length = 2.0*CFMESH_INTERFACE_BOX_SCALE*DROP_RADIUS
+    box_centre_x = 0
+    box_centre_y = DROP_CENTER_Y
+    box_centre_z = 0.5*SURFACE_THICKNESS
+
+    interface_refinement = f"""
+objectRefinements
+{{
+    initialDropInterface
+    {{
+        type            box;
+        cellSize        {fmt(CFMESH_INTERFACE_CELL_SIZE)};
+        centre          ({fmt(box_centre_x)} {fmt(box_centre_y)} {fmt(box_centre_z)});
+        lengthX         {fmt(box_length)};
+        lengthY         {fmt(box_length)};
+        lengthZ         {fmt(SURFACE_THICKNESS)};
+    }}
+}}
+
+"""
+
 mesh_dict = f"""/*--------------------------------*- C++ -*----------------------------------*\\
 | =========                 |                                                |
 | \\\\      /  F ield         | cfMesh: A library for mesh generation          |
@@ -174,6 +206,7 @@ surfaceFile "constant/levitator2D.fms";
 
 maxCellSize {fmt(CFMESH_MAX_CELL_SIZE)};
 
+{interface_refinement}
 // ************************************************************************* //
 """
 (system / "meshDict").write_text(mesh_dict)

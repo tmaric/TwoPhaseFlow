@@ -59,7 +59,7 @@ writeShapeProfiles      true;
 enableShapeUpdate       true;
 shapeRelaxation         1e-8;
 maxShapeDelta           1e-6;
-shapeTolerance          1e-2;
+shapeTolerance          1e-3;
 
 // Guard rails for the pseudo-iteration. If these are exceeded the loop stops
 // before subsequent mesh updates amplify a bad shape.

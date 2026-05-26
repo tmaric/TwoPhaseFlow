@@ -18,70 +18,85 @@
 
     globalIndex globalCells(mesh.nCells());
     const PetscInt N = (PetscInt)globalCells.size();
-
-    fvScalarMatrix AopPre
-    (
-        fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
-      + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
-    );
-
-    fvScalarMatrix AopPim
-    (
-        fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
-      + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
-    );
-
-    fvScalarMatrix B1Pre(fvm::laplacian(TC1, Pre));
-    fvScalarMatrix B2Pre(fvm::Sp(SC1, Pre));
-    fvScalarMatrix B1Pim(fvm::laplacian(TC1, Pim));
-    fvScalarMatrix B2Pim(fvm::Sp(SC1, Pim));
-
-    const PetscInt rowNnzUpper = estimateBlockPreallocationUpper(AopPim);
-
     const PetscInt nLocal = (PetscInt)mesh.nCells();
-    ensurePetscSystem(nLocal, N, rowNnzUpper, acousticSystem);
-    resetPetscSystem(acousticSystem);
 
-    assembleBlockSystem
+    const label nAcousticNonOrthogonalCorrectors =
+        mesh.solutionDict().subDict("PIMPLE").lookupOrDefault<label>
+        (
+            "nAcousticNonOrthogonalCorrectors",
+            0
+        );
+
+    for
     (
-        acousticSystem.M,
-        globalCells,
-        N,
-        AopPim,
-        AopPre,
-        B1Pre,
-        B2Pre,
-        B1Pim,
-        B2Pim
-    );
+        label acousticNonOrthCorr = 0;
+        acousticNonOrthCorr <= nAcousticNonOrthogonalCorrectors;
+        ++acousticNonOrthCorr
+    )
+    {
+        fvScalarMatrix AopPre
+        (
+            fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
+          + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
+        );
 
-    scalarField bPim;
-    scalarField bPre;
-    buildRhs
-    (
-        AopPim,
-        AopPre,
-        B1Pre,
-        B2Pre,
-        B1Pim,
-        B2Pim,
-        bPim,
-        bPre
-    );
+        fvScalarMatrix AopPim
+        (
+            fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
+          + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
+        );
 
-    setBlockRhs(acousticSystem.b, globalCells, N, bPim, bPre);
+        fvScalarMatrix B1Pre(fvm::laplacian(TC1, Pre));
+        fvScalarMatrix B2Pre(fvm::Sp(SC1, Pre));
+        fvScalarMatrix B1Pim(fvm::laplacian(TC1, Pim));
+        fvScalarMatrix B2Pim(fvm::Sp(SC1, Pim));
 
-    MatAssemblyBegin(acousticSystem.M, MAT_FINAL_ASSEMBLY);
-    MatAssemblyEnd(acousticSystem.M, MAT_FINAL_ASSEMBLY);
-    VecAssemblyBegin(acousticSystem.b);
-    VecAssemblyEnd(acousticSystem.b);
+        const PetscInt rowNnzUpper = estimateBlockPreallocationUpper(AopPim);
 
-    KSPSolve(acousticSystem.ksp, acousticSystem.b, acousticSystem.x);
+        ensurePetscSystem(nLocal, N, rowNnzUpper, acousticSystem);
+        resetPetscSystem(acousticSystem);
 
-    scatterBlockSolution(acousticSystem, globalCells, Pim, Pre);
+        assembleBlockSystem
+        (
+            acousticSystem.M,
+            globalCells,
+            N,
+            AopPim,
+            AopPre,
+            B1Pre,
+            B2Pre,
+            B1Pim,
+            B2Pim
+        );
 
-    Pre.correctBoundaryConditions();
-    Pim.correctBoundaryConditions();
+        scalarField bPim;
+        scalarField bPre;
+        buildRhs
+        (
+            AopPim,
+            AopPre,
+            B1Pre,
+            B2Pre,
+            B1Pim,
+            B2Pim,
+            bPim,
+            bPre
+        );
+
+        setBlockRhs(acousticSystem.b, globalCells, N, bPim, bPre);
+
+        MatAssemblyBegin(acousticSystem.M, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(acousticSystem.M, MAT_FINAL_ASSEMBLY);
+        VecAssemblyBegin(acousticSystem.b);
+        VecAssemblyEnd(acousticSystem.b);
+
+        KSPSolve(acousticSystem.ksp, acousticSystem.b, acousticSystem.x);
+
+        scatterBlockSolution(acousticSystem, globalCells, Pim, Pre);
+
+        Pre.correctBoundaryConditions();
+        Pim.correctBoundaryConditions();
+    }
 
     updateDerivedAcousticFields
     (

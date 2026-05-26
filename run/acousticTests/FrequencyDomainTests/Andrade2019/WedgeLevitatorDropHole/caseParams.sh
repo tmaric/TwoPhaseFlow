@@ -85,6 +85,6 @@ DROP_CENTER_Z=1e-8
 
 # cfMesh controls [m]. These replace DropAlpha's gmsh/setAlphaField interface
 # handling and control the hard dropWall boundary resolution.
-CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-2e-4}
-CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-2e-4}
+CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
+CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-1e-4}
 CFMESH_DROP_SEGMENTS=${CFMESH_DROP_SEGMENTS:-48}
