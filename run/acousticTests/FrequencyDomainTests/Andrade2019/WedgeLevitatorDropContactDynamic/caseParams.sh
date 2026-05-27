@@ -61,8 +61,14 @@ PML_MIN_X=-100
 PML_MIN_Z=-100
 
 # ---------------------------------------------------------------------------
-# Geometry / mesh parameters (gmsh template)
+# Geometry / mesh parameters
 # ---------------------------------------------------------------------------
+# Mesh backend:
+# - cfmesh: generate a 2D background mesh with cartesian2DMesh and extrude it
+#           to a wedge. This is the preferred path for AMR runs.
+# - gmsh:   keep the original transfinite gmsh wedge mesh path.
+MESH_BACKEND=${MESH_BACKEND:-cfmesh}
+
 # Levitator geometry dimensions [m].
 # D: gap between transducer plane and reflector plane.
 D=0.00764
@@ -83,6 +89,14 @@ MESH_LC=1.0
 # Wedge half/total angle settings [deg].
 ROTATE_HALF_DEG=0.5
 WEDGE_DEG=1.0
+
+# cfMesh controls [m].
+AXIS_RADIUS=${AXIS_RADIUS:-1.0e-5}
+SURFACE_THICKNESS=${SURFACE_THICKNESS:-0.1}
+CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
+CFMESH_INTERFACE_REFINEMENT=${CFMESH_INTERFACE_REFINEMENT:-1}
+CFMESH_INTERFACE_CELL_SIZE=${CFMESH_INTERFACE_CELL_SIZE:-5e-5}
+CFMESH_INTERFACE_BOX_SCALE=${CFMESH_INTERFACE_BOX_SCALE:-2}
 
 # ---------------------------------------------------------------------------
 # Initial drop setup (setAlphaField)

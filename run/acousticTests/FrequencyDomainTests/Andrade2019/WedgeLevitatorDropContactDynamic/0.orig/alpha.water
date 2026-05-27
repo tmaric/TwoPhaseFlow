@@ -36,6 +36,10 @@ boundaryField
         limit           gradient;
         value           uniform 0;
     }
+    axis
+    {
+        type            symmetryPlane;
+    }
     "(front|back)"
     {
         type            wedge;

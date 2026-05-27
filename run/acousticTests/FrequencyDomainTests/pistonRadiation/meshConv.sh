@@ -1,0 +1,197 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+
+resolutions="${MESH_CONV_RESOLUTIONS:-20 50 100}"
+outRoot="${MESH_CONV_OUT:-meshConvergence}"
+postArgs="${POSTPROCESS_ARGS:-}"
+
+mkdir -p "$outRoot"
+: > "$outRoot/metrics_summary.csv"
+printf "cellsPerWavelength,time,relL2,absLinf,farField_relL2,farField_absLinf\n" \
+    > "$outRoot/metrics_summary.csv"
+
+latest_time()
+{
+    find . -maxdepth 1 -type d -name '[0-9]*' -printf '%f\n' \
+        | awk '/^[0-9]+([.][0-9]+)?$/' \
+        | sort -g \
+        | tail -1
+}
+
+metric_value()
+{
+    key="$1"
+    file="$2"
+    awk -F= -v key="$key" '
+        $1 ~ "^[[:space:]]*" key "[[:space:]]*$" {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
+            print $2;
+            exit
+        }
+    ' "$file"
+}
+
+for n in $resolutions; do
+    echo "=== pistonRadiation mesh convergence: ${n} cells per wavelength ==="
+
+    ./Allclean
+    rm -rf processor* VTK postProcessing
+
+    MESH_CELLS_PER_LAMBDA="$n" ./Allrun
+    if [ -n "$postArgs" ]; then
+        # Re-run comparison with caller-specified sampling/far-field options.
+        # shellcheck disable=SC2086
+        python3 postprocess_compare.py $postArgs
+    fi
+
+    t="$(latest_time)"
+    compareDir="postProcessing/analyticalCompare/$t"
+    metricsFile="$compareDir/metrics.txt"
+
+    if [ ! -f "$metricsFile" ]; then
+        echo "Error: expected metrics file not found: $metricsFile" >&2
+        exit 1
+    fi
+
+    caseOut="$outRoot/N${n}"
+    rm -rf "$caseOut"
+    mkdir -p "$caseOut"
+    cp -r "$compareDir" "$caseOut/analyticalCompare"
+    cp constant/pistonRadiation.geo "$caseOut/"
+    cp constant/transportProperties "$caseOut/"
+    cp system/decomposeParDict "$caseOut/"
+    cp log.* "$caseOut/" 2>/dev/null || true
+
+    relL2="$(metric_value relL2 "$metricsFile")"
+    absLinf="$(metric_value absLinf "$metricsFile")"
+    ffRelL2="$(metric_value farField_relL2 "$metricsFile")"
+    ffAbsLinf="$(metric_value farField_absLinf "$metricsFile")"
+    printf "%s,%s,%s,%s,%s,%s\n" "$n" "$t" "$relL2" "$absLinf" "$ffRelL2" "$ffAbsLinf" \
+        >> "$outRoot/metrics_summary.csv"
+done
+
+python3 - "$outRoot" $resolutions <<'PY'
+import csv
+import sys
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+out_root = Path(sys.argv[1])
+resolutions = sys.argv[2:]
+
+summary_rows = []
+for n in resolutions:
+    case_dir = out_root / f"N{n}" / "analyticalCompare"
+    on_axis = case_dir / "onAxisComparison.csv"
+    far_field = case_dir / "farFieldPatternComparison.csv"
+    if not on_axis.exists() or not far_field.exists():
+        raise SystemExit(f"Missing comparison CSVs for N{n}")
+
+    on = np.genfromtxt(on_axis, delimiter=",", names=True)
+    ff = np.genfromtxt(far_field, delimiter=",", names=True)
+    summary_rows.append((n, on, ff))
+
+fig, ax = plt.subplots(figsize=(7.4, 4.8))
+first_on = summary_rows[0][1]
+ax.plot(
+    np.clip(first_on["z_over_rayleigh"], 1e-12, None),
+    first_on["p_analytic_over_p0"],
+    "k-",
+    lw=2.2,
+    label="Analytical",
+)
+for n, on, _ff in summary_rows:
+    ax.plot(
+        np.clip(on["z_over_rayleigh"], 1e-12, None),
+        on["p_sim_over_p0"],
+        "--",
+        lw=1.5,
+        label=f"N={n}",
+    )
+ax.set_xscale("log")
+ax.set_xlim(5e-4, 1)
+ax.set_xlabel("z / R0")
+ax.set_ylabel("|p| / (rho*c*u0)")
+ax.grid(True, alpha=0.35)
+ax.legend(loc="best")
+ax.set_title("pistonRadiation near-field/on-axis mesh convergence")
+fig.tight_layout()
+fig.savefig(out_root / "nearField_onAxis_meshConvergence.png", dpi=180)
+
+fig, ax = plt.subplots(figsize=(7.4, 4.8))
+first_ff = summary_rows[0][2]
+ax.plot(
+    first_ff["theta_deg"],
+    first_ff["SPL_analytic_dB"],
+    "k-",
+    lw=2.2,
+    label="Analytical",
+)
+for n, _on, ff in summary_rows:
+    ax.plot(
+        ff["theta_deg"],
+        ff["SPL_sim_dB"],
+        "--",
+        lw=1.5,
+        label=f"N={n}",
+    )
+ax.set_xlim(0, 90)
+ax.set_xlabel("theta [deg] (from axis)")
+ax.set_ylabel("SPL [dB re 20uPa]")
+ax.grid(True, alpha=0.35)
+ax.legend(loc="best")
+ax.set_title("pistonRadiation far-field SPL mesh convergence")
+fig.tight_layout()
+fig.savefig(out_root / "farField_SPL_meshConvergence.png", dpi=180)
+
+fig, ax = plt.subplots(figsize=(7.4, 4.8))
+ax.plot(
+    first_ff["theta_deg"],
+    first_ff["directivity_analytic"],
+    "k-",
+    lw=2.2,
+    label="Analytical",
+)
+for n, _on, ff in summary_rows:
+    ax.plot(
+        ff["theta_deg"],
+        ff["directivity_sim"],
+        "--",
+        lw=1.5,
+        label=f"N={n}",
+    )
+ax.set_xlim(0, 90)
+ax.set_xlabel("theta [deg] (from axis)")
+ax.set_ylabel("normalized directivity")
+ax.grid(True, alpha=0.35)
+ax.legend(loc="best")
+ax.set_title("pistonRadiation far-field directivity mesh convergence")
+fig.tight_layout()
+fig.savefig(out_root / "farField_directivity_meshConvergence.png", dpi=180)
+
+metrics_path = out_root / "metrics_summary.csv"
+with metrics_path.open(newline="") as f:
+    metrics = list(csv.DictReader(f))
+
+fig, ax = plt.subplots(figsize=(7.0, 4.6))
+x = np.array([float(row["cellsPerWavelength"]) for row in metrics])
+ax.loglog(x, [float(row["relL2"]) for row in metrics], "o-", label="near-field relL2")
+ax.loglog(x, [float(row["farField_relL2"]) for row in metrics], "s-", label="far-field relL2")
+ax.set_xlabel("cells per wavelength")
+ax.set_ylabel("relative L2 error")
+ax.grid(True, which="both", alpha=0.35)
+ax.legend(loc="best")
+ax.set_title("pistonRadiation mesh-convergence metrics")
+fig.tight_layout()
+fig.savefig(out_root / "metrics_meshConvergence.png", dpi=180)
+PY
+
+echo "Mesh convergence outputs written to: $outRoot"
+echo "Summary: $outRoot/metrics_summary.csv"

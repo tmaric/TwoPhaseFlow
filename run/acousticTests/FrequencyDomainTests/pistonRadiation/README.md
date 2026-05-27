@@ -105,3 +105,22 @@ Outputs are written to:
 - `postProcessing/analyticalCompare/<latestTime>/farFieldPatternComparison.png`
 - `postProcessing/analyticalCompare/<latestTime>/farFieldPatternComparison.csv`
 - `postProcessing/analyticalCompare/<latestTime>/metrics.txt`
+
+## Mesh convergence batch
+
+Run near-field/on-axis and far-field analytical comparisons for 20, 50, and
+100 cells per wavelength:
+
+```bash
+./meshConv.sh
+```
+
+Outputs are archived in `meshConvergence/`, including per-resolution comparison
+CSVs/plots, `metrics_summary.csv`, and aggregate convergence plots.
+
+Optional overrides:
+
+```bash
+MESH_CONV_RESOLUTIONS="20 50" NPROCS=4 ./meshConv.sh
+POSTPROCESS_ARGS="--n-points 300 --n-theta 91" ./meshConv.sh
+```
