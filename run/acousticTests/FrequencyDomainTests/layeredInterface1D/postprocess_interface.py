@@ -116,6 +116,7 @@ def main():
     p = parse_keyvals(case_dir / "caseParams.sh")
 
     f = p["DRIVE_F"]
+    piston_u = p["PISTON_U"]
     x_int = p["X_INTERFACE"]
     x_max = p["X_MAX"]
     pml_l = p["PML_L"]
@@ -152,7 +153,8 @@ def main():
     Z2 = rho2*c2
     R_th = (Z2 - Z1)/(Z2 + Z1)
     T_th = (2*Z2)/(Z2 + Z1)
-    pc_th = analytical_pressure(x, A, x_int, k1, k2, R_th, T_th)
+    incident_amp_analytic = Z1*piston_u
+    pc_th = analytical_pressure(x, incident_amp_analytic, x_int, k1, k2, R_th, T_th)
     compare_mask = (x > 0.005) & (x < x_max - pml_l - 0.005)
     pre_rel_l2 = np.linalg.norm((pc.real - pc_th.real)[compare_mask]) / max(
         np.linalg.norm(pc_th.real[compare_mask]), 1e-30
@@ -188,6 +190,10 @@ def main():
 
     with (out_dir / "metrics.txt").open("w", encoding="utf-8") as fobj:
         fobj.write("Layered interface validation\n")
+        fobj.write("Analytical pressure field uses incident amplitude from piston velocity\n")
+        fobj.write(f"A_fit = {A.real:.8e} + i{A.imag:.8e}\n")
+        fobj.write(f"A_piston = {incident_amp_analytic:.8e}\n")
+        fobj.write(f"|A_fit|-|A_piston| = {abs(abs(A)-abs(incident_amp_analytic)):.8e}\n")
         fobj.write(f"R_num = {R_num.real:.8e} + i{R_num.imag:.8e}\n")
         fobj.write(f"R_th  = {R_th:.8e}\n")
         fobj.write(f"|R_num|-|R_th| = {abs(abs(R_num)-abs(R_th)):.8e}\n")
@@ -216,9 +222,9 @@ def main():
     fig.savefig(out_dir / "interface_RT_compare.png")
 
     fig_p, axes = plt.subplots(2, 1, figsize=(8, 6), dpi=140, sharex=True)
-    axes[0].plot(x, pc_th.real, "k-", lw=1.8, label="Analytical Pre")
+    axes[0].plot(x, pc_th.real, "k-", lw=1.8, label="Pure analytical Pre")
     axes[0].plot(x, pc.real, "r--", lw=1.3, label="Simulation Pre")
-    axes[1].plot(x, pc_th.imag, "k-", lw=1.8, label="Analytical Pim")
+    axes[1].plot(x, pc_th.imag, "k-", lw=1.8, label="Pure analytical Pim")
     axes[1].plot(x, pc.imag, "b--", lw=1.3, label="Simulation Pim")
     for axi in axes:
         axi.axvline(x_int, color="0.35", lw=1.0, ls=":", label="interface")
@@ -229,12 +235,12 @@ def main():
         unique = dict(zip(labels, handles))
         axi.legend(unique.values(), unique.keys(), loc="best")
     axes[1].set_xlabel("x [m]")
-    fig_p.suptitle("Layered interface pressure field comparison")
+    fig_p.suptitle("Layered interface pressure field comparison against pure analytical solution")
     fig_p.tight_layout()
     fig_p.savefig(out_dir / "pressureField_Pre_Pim_compare.png")
 
     fig_abs, ax_abs = plt.subplots(figsize=(8, 4.5), dpi=140)
-    ax_abs.plot(x, np.abs(pc_th), "k-", lw=1.8, label="Analytical |p|")
+    ax_abs.plot(x, np.abs(pc_th), "k-", lw=1.8, label="Pure analytical |p|")
     ax_abs.plot(x, np.abs(pc), "g--", lw=1.3, label="Simulation |p|")
     ax_abs.axvline(x_int, color="0.35", lw=1.0, ls=":", label="interface")
     ax_abs.axvline(x_max - pml_l, color="0.55", lw=1.0, ls="--", label="PML start")

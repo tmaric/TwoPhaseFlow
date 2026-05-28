@@ -34,7 +34,4 @@ sed \
 
 sed \
   -e "s|__X_INTERFACE__|${X_INTERFACE}|g" \
-  -e "s|__X_MAX__|${X_MAX}|g" \
-  -e "s|__Y_HALF__|${Y_HALF}|g" \
-  -e "s|__Z_HALF__|${Z_HALF}|g" \
-  system/setFieldsDict.in > system/setFieldsDict
+  system/setAlphaFieldDict.in > system/setAlphaFieldDict

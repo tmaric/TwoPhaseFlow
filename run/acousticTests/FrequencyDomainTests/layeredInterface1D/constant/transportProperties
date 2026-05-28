@@ -17,15 +17,15 @@ rho0            [ 1 -3 0 0 0 0 0 ] 1.2;
 R               1.51e-3;
 p0              0.0;
 
-rhol            20;
+rhol            1000;
 rhog            1.2;
 cg              343;
-cl              343;
+cl              1500;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 
 f               10000;
-sigmaMax        150000;
+sigmaMax        20000;
 po              3;
 
 PMLType         rectangle;

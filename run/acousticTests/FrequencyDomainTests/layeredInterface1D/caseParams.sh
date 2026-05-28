@@ -12,8 +12,8 @@ RHOG=1.2
 CG=343
 
 # Medium 2 (x >= X_INTERFACE)
-RHOL=20
-CL=343
+RHOL=1000
+CL=1500
 
 # Geometry [m]
 X_MIN=0.0
@@ -25,7 +25,7 @@ X_INTERFACE=0.12
 # Right PML [m]
 PML_L=0.06
 PML_XMAX=0.30
-SIGMA_MAX=150000
+SIGMA_MAX=20000
 PO=3
 
 # Mesh

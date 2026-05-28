@@ -43,7 +43,6 @@ ensure_app()
 }
 
 need_cmd blockMesh
-need_cmd setFields
 need_cmd decomposePar
 need_cmd reconstructPar
 
@@ -53,7 +52,8 @@ restore0Dir
 rm -f 0/*.in
 
 runApplication blockMesh
-runApplication setFields
+ensure_app setAlphaField apps/utilities/preProcessing/setAlphaField
+runApplication setAlphaField
 ensure_app setPMLFields apps/utilities/mesh/setPMLFields
 runApplication setPMLFields
 runApplication decomposePar -force
