@@ -72,42 +72,27 @@ def probe_line(vtu: pathlib.Path, p1: tuple[float, float, float], p2: tuple[floa
     return pts[:, 0], pre + 1j*pim
 
 
-def fit_inc_ref(x: np.ndarray, p: np.ndarray, k: float):
-    M = np.column_stack((np.exp(-1j*k*x), np.exp(1j*k*x)))
-    c, *_ = np.linalg.lstsq(M, p, rcond=None)
-    return c[0], c[1]
-
-
-def fit_forward(x: np.ndarray, p: np.ndarray, k: float, x0: float):
-    v = np.exp(-1j*k*(x - x0))
-    c = np.vdot(v, p) / np.vdot(v, v)
-    return c
-
-
-def fit_fwd_bwd(x: np.ndarray, p: np.ndarray, k: float, x0: float):
-    M = np.column_stack((np.exp(-1j*k*(x - x0)), np.exp(1j*k*(x - x0))))
-    c, *_ = np.linalg.lstsq(M, p, rcond=None)
-    return c[0], c[1]
-
-
 def analytical_pressure(
     x: np.ndarray,
-    incident_amp: complex,
-    x_int: float,
+    rho1: float,
+    c1: float,
+    u0: float,
     k1: float,
     k2: float,
-    r_th: float,
-    t_th: float,
+    L: float,
+    R: float,
 ) -> np.ndarray:
+    """Closed-form layered-interface pressure from the case note."""
     p = np.empty_like(x, dtype=complex)
-    left = x <= x_int
-    incident_at_interface = incident_amp*np.exp(-1j*k1*x_int)
-    reflected_amp = r_th*incident_at_interface*np.exp(-1j*k1*x_int)
-    transmitted_amp = t_th*incident_at_interface
-    p[left] = incident_amp*(
-        np.exp(-1j*k1*x[left])
-    ) + reflected_amp*np.exp(1j*k1*x[left])
-    p[~left] = transmitted_amp*np.exp(-1j*k2*(x[~left] - x_int))
+    left = (x > 0.0) & (x < L)
+    amplitude = rho1*c1*u0
+    denominator = 1.0 - R*np.exp(2j*k1*L)
+    p[left] = amplitude*(
+        np.exp(1j*k1*x[left]) + R*np.exp(1j*k1*(2.0*L - x[left]))
+    )/denominator
+    p[~left] = amplitude*(1.0 + R)*np.exp(
+        1j*(k2*(x[~left] - L) + k1*L)
+    )/denominator
     return p
 
 
@@ -136,25 +121,10 @@ def main():
 
     x, pc = probe_line(vtu, (0.005, y, z), (x_max - 0.005, y, z), 1200)
 
-    left_mask = (x > 0.03) & (x < x_int - 0.015)
-    right_mask = (x > x_int + 0.015) & (x < (x_max - pml_l - 0.015))
-    if np.count_nonzero(left_mask) < 20 or np.count_nonzero(right_mask) < 20:
-        raise RuntimeError("Not enough sampling points for fitting")
-
-    A, B = fit_inc_ref(x[left_mask], pc[left_mask], k1)
-    C, D = fit_fwd_bwd(x[right_mask], pc[right_mask], k2, x_int)
-
-    incident_at_interface = A*np.exp(-1j*k1*x_int)
-    reflected_at_interface = B*np.exp(1j*k1*x_int)
-    R_num = reflected_at_interface/incident_at_interface
-    T_num = C/incident_at_interface
-
     Z1 = rho1*c1
     Z2 = rho2*c2
-    R_th = (Z2 - Z1)/(Z2 + Z1)
-    T_th = (2*Z2)/(Z2 + Z1)
-    incident_amp_analytic = Z1*piston_u
-    pc_th = analytical_pressure(x, incident_amp_analytic, x_int, k1, k2, R_th, T_th)
+    R = (Z2 - Z1)/(Z2 + Z1)
+    pc_th = analytical_pressure(x, rho1, c1, piston_u, k1, k2, x_int, R)
     compare_mask = (x > 0.005) & (x < x_max - pml_l - 0.005)
     pre_rel_l2 = np.linalg.norm((pc.real - pc_th.real)[compare_mask]) / max(
         np.linalg.norm(pc_th.real[compare_mask]), 1e-30
@@ -190,41 +160,24 @@ def main():
 
     with (out_dir / "metrics.txt").open("w", encoding="utf-8") as fobj:
         fobj.write("Layered interface validation\n")
-        fobj.write("Analytical pressure field uses incident amplitude from piston velocity\n")
-        fobj.write(f"A_fit = {A.real:.8e} + i{A.imag:.8e}\n")
-        fobj.write(f"A_piston = {incident_amp_analytic:.8e}\n")
-        fobj.write(f"|A_fit|-|A_piston| = {abs(abs(A)-abs(incident_amp_analytic)):.8e}\n")
-        fobj.write(f"R_num = {R_num.real:.8e} + i{R_num.imag:.8e}\n")
-        fobj.write(f"R_th  = {R_th:.8e}\n")
-        fobj.write(f"|R_num|-|R_th| = {abs(abs(R_num)-abs(R_th)):.8e}\n")
-        fobj.write(f"T_num = {T_num.real:.8e} + i{T_num.imag:.8e}\n")
-        fobj.write(f"T_th  = {T_th:.8e}\n")
-        fobj.write(f"|T_num|-|T_th| = {abs(abs(T_num)-abs(T_th)):.8e}\n")
-        fobj.write(f"Right-going ratio D/C in medium2 = {abs(D/C):.8e}\n")
+        fobj.write("Analytical pressure field uses the closed-form layered-interface solution\n")
+        fobj.write(f"rho1 = {rho1:.8e}\n")
+        fobj.write(f"c1 = {c1:.8e}\n")
+        fobj.write(f"rho2 = {rho2:.8e}\n")
+        fobj.write(f"c2 = {c2:.8e}\n")
+        fobj.write(f"u0 = {piston_u:.8e}\n")
+        fobj.write(f"L = {x_int:.8e}\n")
+        fobj.write(f"k1 = {k1:.8e}\n")
+        fobj.write(f"k2 = {k2:.8e}\n")
+        fobj.write(f"R = {R:.8e}\n")
         fobj.write(f"Pre_relL2 = {pre_rel_l2:.8e}\n")
         fobj.write(f"Pim_relL2 = {pim_rel_l2:.8e}\n")
         fobj.write(f"|p|_relL2 = {pabs_rel_l2:.8e}\n")
 
-    fig, ax = plt.subplots(figsize=(7, 4.5), dpi=120)
-    labels = ["|R|", "|T|"]
-    num = [abs(R_num), abs(T_num)]
-    ana = [abs(R_th), abs(T_th)]
-    ix = np.arange(len(labels))
-    wbar = 0.35
-    ax.bar(ix - 0.5*wbar, ana, wbar, label="Analytical")
-    ax.bar(ix + 0.5*wbar, num, wbar, label="Simulation")
-    ax.set_xticks(ix)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Coefficient magnitude")
-    ax.grid(True, axis="y", alpha=0.3)
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(out_dir / "interface_RT_compare.png")
-
     fig_p, axes = plt.subplots(2, 1, figsize=(8, 6), dpi=140, sharex=True)
-    axes[0].plot(x, pc_th.real, "k-", lw=1.8, label="Pure analytical Pre")
+    axes[0].plot(x, pc_th.real, "k-", lw=1.8, label="Analytical Pre")
     axes[0].plot(x, pc.real, "r--", lw=1.3, label="Simulation Pre")
-    axes[1].plot(x, pc_th.imag, "k-", lw=1.8, label="Pure analytical Pim")
+    axes[1].plot(x, pc_th.imag, "k-", lw=1.8, label="Analytical Pim")
     axes[1].plot(x, pc.imag, "b--", lw=1.3, label="Simulation Pim")
     for axi in axes:
         axi.axvline(x_int, color="0.35", lw=1.0, ls=":", label="interface")
@@ -235,12 +188,12 @@ def main():
         unique = dict(zip(labels, handles))
         axi.legend(unique.values(), unique.keys(), loc="best")
     axes[1].set_xlabel("x [m]")
-    fig_p.suptitle("Layered interface pressure field comparison against pure analytical solution")
+    fig_p.suptitle("Layered interface pressure field comparison")
     fig_p.tight_layout()
     fig_p.savefig(out_dir / "pressureField_Pre_Pim_compare.png")
 
     fig_abs, ax_abs = plt.subplots(figsize=(8, 4.5), dpi=140)
-    ax_abs.plot(x, np.abs(pc_th), "k-", lw=1.8, label="Pure analytical |p|")
+    ax_abs.plot(x, np.abs(pc_th), "k-", lw=1.8, label="Analytical |p|")
     ax_abs.plot(x, np.abs(pc), "g--", lw=1.3, label="Simulation |p|")
     ax_abs.axvline(x_int, color="0.35", lw=1.0, ls=":", label="interface")
     ax_abs.axvline(x_max - pml_l, color="0.55", lw=1.0, ls="--", label="PML start")
@@ -252,7 +205,6 @@ def main():
     fig_abs.savefig(out_dir / "pressureField_abs_compare.png")
 
     print(f"Wrote: {out_dir/'metrics.txt'}")
-    print(f"Wrote: {out_dir/'interface_RT_compare.png'}")
     print(f"Wrote: {pressure_csv}")
     print(f"Wrote: {out_dir/'pressureField_Pre_Pim_compare.png'}")
     print(f"Wrote: {out_dir/'pressureField_abs_compare.png'}")

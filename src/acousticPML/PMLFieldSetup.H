@@ -122,6 +122,7 @@ inline void evaluatePoint
         case RECTANGLE:
         {
             vector DpFunc(Zero);
+            const scalar sigmaSign = (cfg.sigmaMax < 0) ? -1.0 : 1.0;
 
             for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
             {
@@ -133,17 +134,37 @@ inline void evaluatePoint
                     const scalar distCmpt = (distToMax < cfg.L) ? distToMax : distToMin;
                     scalar s = (cfg.L - distCmpt)/cfg.L;
                     s = min(max(s, scalar(0)), scalar(1));
-                    DpFunc.component(cmpt) = cfg.sigmaMax*Foam::pow(s, cfg.po);
+                    DpFunc.component(cmpt) = mag(cfg.sigmaMax)*Foam::pow(s, cfg.po);
                 }
             }
 
             const scalar dx = DpFunc.x();
             const scalar dy = DpFunc.y();
+            const scalar dz = DpFunc.z();
 
-            sigmaLocal = max(dx, dy);
-            tc1 = 0.0;
-            sc0 = sqr(sigmaLocal)/sqr(cfg.cg);
-            sc1 = (2*cfg.omega*sigmaLocal)/sqr(cfg.cg);
+            sigmaLocal = dx;
+            if (dy > sigmaLocal)
+            {
+                sigmaLocal = dy;
+            }
+            if (dz > sigmaLocal)
+            {
+                sigmaLocal = dz;
+            }
+            sigmaLocal *= sigmaSign;
+
+            const scalar denom = sqr(sigmaLocal) + sqr(cfg.omega);
+            const scalar sigmaCubeOverOmega =
+                (mag(cfg.omega) > VSMALL)
+              ? (sigmaLocal*sigmaLocal*sigmaLocal/cfg.omega)
+              : 0.0;
+
+            tc1 =
+                (sigmaLocal > 0 || cfg.omega > 0)
+              ? (sigmaCubeOverOmega + cfg.omega*sigmaLocal)/(denom + VSMALL)
+              : 0.0;
+            sc0 = (3*sigmaLocal*sigmaLocal)/sqr(cfg.cg);
+            sc1 = (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)/sqr(cfg.cg);
             break;
         }
 
