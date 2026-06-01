@@ -496,8 +496,10 @@ def main() -> int:
     y_sim = p_sim / p0
     y_ana = p_analytic / p0
 
-    err_l2 = float(np.linalg.norm(y_sim - y_ana) / max(np.linalg.norm(y_ana), 1e-30))
-    err_linf = float(np.max(np.abs(y_sim - y_ana)))
+    abs_err = np.abs(y_sim - y_ana)
+    err_l2 = float(np.linalg.norm(abs_err) / max(np.linalg.norm(y_ana), 1e-30))
+    err_linf = float(np.max(abs_err) / max(float(np.max(np.abs(y_ana))), 1e-30))
+    err_linf_abs_norm = float(np.max(abs_err))
 
     out_dir = case_dir / "postProcessing" / "analyticalCompare" / t_name
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -557,8 +559,10 @@ def main() -> int:
     spl_sim = safe_spl_db(p_far_abs)
     spl_ana = safe_spl_db(p_ana_far_abs)
 
-    err_ff_l2 = float(np.linalg.norm(d_sim - d_ana) / max(np.linalg.norm(d_ana), 1e-30))
-    err_ff_linf = float(np.max(np.abs(d_sim - d_ana)))
+    ff_abs_err = np.abs(d_sim - d_ana)
+    err_ff_l2 = float(np.linalg.norm(ff_abs_err) / max(np.linalg.norm(d_ana), 1e-30))
+    err_ff_linf = float(np.max(ff_abs_err) / max(float(np.max(np.abs(d_ana))), 1e-30))
+    err_ff_linf_abs_norm = float(np.max(ff_abs_err))
 
     ff_csv = out_dir / "farFieldPatternComparison.csv"
     ff_hdr = (
@@ -637,9 +641,11 @@ def main() -> int:
                 f"r_src_m = {r_src}",
                 f"r_far_m = {r_far}",
                 f"relL2 = {err_l2:.6e}",
-                f"absLinf = {err_linf:.6e}",
+                f"relLinf = {err_linf:.6e}",
+                f"absLinf = {err_linf_abs_norm:.6e}",
                 f"farField_relL2 = {err_ff_l2:.6e}",
-                f"farField_absLinf = {err_ff_linf:.6e}",
+                f"farField_relLinf = {err_ff_linf:.6e}",
+                f"farField_absLinf = {err_ff_linf_abs_norm:.6e}",
             ]
         )
         + "\n",
@@ -654,8 +660,8 @@ def main() -> int:
     print(f"Wrote: {report}")
     print(
         "Metrics: "
-        f"onAxis(relL2={err_l2:.6e}, absLinf={err_linf:.6e}) "
-        f"farFieldDir(relL2={err_ff_l2:.6e}, absLinf={err_ff_linf:.6e})"
+        f"onAxis(relL2={err_l2:.6e}, relLinf={err_linf:.6e}) "
+        f"farFieldDir(relL2={err_ff_l2:.6e}, relLinf={err_ff_linf:.6e})"
     )
     return 0
 

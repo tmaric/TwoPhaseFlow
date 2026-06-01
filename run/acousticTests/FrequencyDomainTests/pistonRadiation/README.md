@@ -116,7 +116,15 @@ Run near-field/on-axis and far-field analytical comparisons for 20, 50, and
 ```
 
 Outputs are archived in `meshConvergence/`, including per-resolution comparison
-CSVs/plots, `metrics_summary.csv`, and aggregate convergence plots.
+CSVs/plots, `metrics_summary.csv`, aggregate convergence plots, and LaTeX-ready
+tables:
+
+- `meshConvergence/nearField_convergence_table.tex`
+- `meshConvergence/farField_convergence_table.tex`
+
+The summary CSV reports `h_over_lambda`, near-field relative `L2` and `Linf`
+errors, far-field relative `L2` and `Linf` errors, and the observed convergence
+orders between successive mesh resolutions.
 
 Optional overrides:
 

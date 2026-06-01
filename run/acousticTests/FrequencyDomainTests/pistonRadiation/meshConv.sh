@@ -9,7 +9,7 @@ postArgs="${POSTPROCESS_ARGS:-}"
 
 mkdir -p "$outRoot"
 : > "$outRoot/metrics_summary.csv"
-printf "cellsPerWavelength,time,relL2,absLinf,farField_relL2,farField_absLinf\n" \
+printf "cellsPerWavelength,h_over_lambda,time,relL2,relLinf,absLinf,farField_relL2,farField_relLinf,farField_absLinf\n" \
     > "$outRoot/metrics_summary.csv"
 
 latest_time()
@@ -65,10 +65,14 @@ for n in $resolutions; do
     cp log.* "$caseOut/" 2>/dev/null || true
 
     relL2="$(metric_value relL2 "$metricsFile")"
+    relLinf="$(metric_value relLinf "$metricsFile")"
     absLinf="$(metric_value absLinf "$metricsFile")"
     ffRelL2="$(metric_value farField_relL2 "$metricsFile")"
+    ffRelLinf="$(metric_value farField_relLinf "$metricsFile")"
     ffAbsLinf="$(metric_value farField_absLinf "$metricsFile")"
-    printf "%s,%s,%s,%s,%s,%s\n" "$n" "$t" "$relL2" "$absLinf" "$ffRelL2" "$ffAbsLinf" \
+    hOverLambda="$(awk -v n="$n" 'BEGIN { printf "%.12g", 1.0/n }')"
+    printf "%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+        "$n" "$hOverLambda" "$t" "$relL2" "$relLinf" "$absLinf" "$ffRelL2" "$ffRelLinf" "$ffAbsLinf" \
         >> "$outRoot/metrics_summary.csv"
 done
 
@@ -180,12 +184,129 @@ metrics_path = out_root / "metrics_summary.csv"
 with metrics_path.open(newline="") as f:
     metrics = list(csv.DictReader(f))
 
+metrics.sort(key=lambda row: float(row["cellsPerWavelength"]))
+
+def value(row, key):
+    try:
+        return float(row[key])
+    except (KeyError, TypeError, ValueError):
+        return float("nan")
+
+def observed_orders(rows, key):
+    orders = [float("nan")]
+    for prev, cur in zip(rows[:-1], rows[1:]):
+        e_prev = value(prev, key)
+        e_cur = value(cur, key)
+        n_prev = value(prev, "cellsPerWavelength")
+        n_cur = value(cur, "cellsPerWavelength")
+        if e_prev > 0.0 and e_cur > 0.0 and n_prev > 0.0 and n_cur > n_prev:
+            orders.append(float(np.log(e_prev / e_cur) / np.log(n_cur / n_prev)))
+        else:
+            orders.append(float("nan"))
+    return orders
+
+order_rel_l2 = observed_orders(metrics, "relL2")
+order_rel_linf = observed_orders(metrics, "relLinf")
+order_ff_rel_l2 = observed_orders(metrics, "farField_relL2")
+order_ff_rel_linf = observed_orders(metrics, "farField_relLinf")
+
+for i, row in enumerate(metrics):
+    row["order_relL2"] = order_rel_l2[i]
+    row["order_relLinf"] = order_rel_linf[i]
+    row["farField_order_relL2"] = order_ff_rel_l2[i]
+    row["farField_order_relLinf"] = order_ff_rel_linf[i]
+
+fieldnames = [
+    "cellsPerWavelength",
+    "h_over_lambda",
+    "time",
+    "relL2",
+    "relLinf",
+    "order_relL2",
+    "order_relLinf",
+    "absLinf",
+    "farField_relL2",
+    "farField_relLinf",
+    "farField_order_relL2",
+    "farField_order_relLinf",
+    "farField_absLinf",
+]
+with metrics_path.open("w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=fieldnames)
+    writer.writeheader()
+    for row in metrics:
+        writer.writerow(row)
+
+def fmt_float(val, precision=3):
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return "--"
+    if not np.isfinite(v):
+        return "--"
+    return f"{v:.{precision}e}"
+
+def fmt_order(val):
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return "--"
+    if not np.isfinite(v):
+        return "--"
+    return f"{v:.2f}"
+
+tex_path = out_root / "nearField_convergence_table.tex"
+with tex_path.open("w", encoding="utf-8") as f:
+    f.write("\\begin{table}[htbp]\n")
+    f.write("\\centering\n")
+    f.write("\\begin{tabular}{ccccc}\n")
+    f.write("\\hline\n")
+    f.write("Cells per wavelength & $h/\\lambda$ & $E_2$ & $E_\\infty$ & Observed order \\\\\n")
+    f.write("\\hline\n")
+    for row in metrics:
+        f.write(
+            f"{row['cellsPerWavelength']} & "
+            f"{float(row['h_over_lambda']):.4f} & "
+            f"{fmt_float(row['relL2'])} & "
+            f"{fmt_float(row['relLinf'])} & "
+            f"{fmt_order(row['order_relL2'])} \\\\\n"
+        )
+    f.write("\\hline\n")
+    f.write("\\end{tabular}\n")
+    f.write("\\caption{Mesh-convergence study for the piston-radiation near-field pressure amplitude along the symmetry axis.}\n")
+    f.write("\\label{tab:pistonConvergence}\n")
+    f.write("\\end{table}\n")
+
+ff_tex_path = out_root / "farField_convergence_table.tex"
+with ff_tex_path.open("w", encoding="utf-8") as f:
+    f.write("\\begin{table}[htbp]\n")
+    f.write("\\centering\n")
+    f.write("\\begin{tabular}{ccccc}\n")
+    f.write("\\hline\n")
+    f.write("Cells per wavelength & $h/\\lambda$ & $E_2^{ff}$ & $E_\\infty^{ff}$ & Observed order \\\\\n")
+    f.write("\\hline\n")
+    for row in metrics:
+        f.write(
+            f"{row['cellsPerWavelength']} & "
+            f"{float(row['h_over_lambda']):.4f} & "
+            f"{fmt_float(row['farField_relL2'])} & "
+            f"{fmt_float(row['farField_relLinf'])} & "
+            f"{fmt_order(row['farField_order_relL2'])} \\\\\n"
+        )
+    f.write("\\hline\n")
+    f.write("\\end{tabular}\n")
+    f.write("\\caption{Mesh-convergence study for the piston-radiation far-field directivity.}\n")
+    f.write("\\label{tab:pistonFarFieldConvergence}\n")
+    f.write("\\end{table}\n")
+
 fig, ax = plt.subplots(figsize=(7.0, 4.6))
 x = np.array([float(row["cellsPerWavelength"]) for row in metrics])
 ax.loglog(x, [float(row["relL2"]) for row in metrics], "o-", label="near-field relL2")
+ax.loglog(x, [float(row["relLinf"]) for row in metrics], "o--", label="near-field relLinf")
 ax.loglog(x, [float(row["farField_relL2"]) for row in metrics], "s-", label="far-field relL2")
+ax.loglog(x, [float(row["farField_relLinf"]) for row in metrics], "s--", label="far-field relLinf")
 ax.set_xlabel("cells per wavelength")
-ax.set_ylabel("relative L2 error")
+ax.set_ylabel("relative error")
 ax.grid(True, which="both", alpha=0.35)
 ax.legend(loc="best")
 ax.set_title("pistonRadiation mesh-convergence metrics")
