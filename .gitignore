@@ -131,7 +131,9 @@ venv
 *.idx
 *.ilg
 *.ind
+*.len
 *.lof
+*.log
 *.lot
 *.nav
 *.out
@@ -140,6 +142,7 @@ venv
 *.spl
 *.synctex.gz
 *.toc
+*.vrb
 
 # Processing and result data 
 
@@ -164,6 +167,8 @@ slurm-*
 oldData_toBeDeleted/
 *.parameter.database
 *.png
+!paper_aHF/figures/
+!paper_aHF/figures/*.png
 
 #jupyter notebook checkpoints
 .ipynb_checkpoints/

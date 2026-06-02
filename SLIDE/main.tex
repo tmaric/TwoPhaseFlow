@@ -1,0 +1,502 @@
+\documentclass[
+	german,% Main language as global option
+	accentcolor=9c,% Choose accent color: For a list of available colors see the full tudapub documentation
+%	accept-missing-logoes=true,% No error in case logo files are not available
+%	logofile=example-image,% In case logo should be replaced
+]{tudabeamer}
+\usepackage{tikz}
+\usepackage[ngerman]{babel}
+\usepackage[autostyle]{csquotes}
+\usepackage{natbib}   % reference
+\usepackage{booktabs} % table
+\usepackage{multirow} % table
+\usepackage{pgfplots}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+
+% MACROS
+\renewcommand{\v}{\TextOrMath{\textv}{\mathbf{v}}}
+\newcommand{\g}{\mathbf{g}}
+\newcommand{\x}{\mathbf{x}}
+\newcommand{\y}{\mathbf{y}}
+\renewcommand{\u}{\TextOrMath{\textu}{\mathbf{u}}}
+\renewcommand{\k}{\mathbf{k}}
+
+\renewcommand{\b}{\mathbf{b}}
+\newcommand{\n}{\mathbf{n}}
+\newcommand{\normal}{\boldsymbol{n}} 
+
+\newcommand{\h}{\boldsymbol{h}} 
+\newcommand{\nsigma}{\boldsymbol{n}_\Sigma} 
+\newcommand{\vel}{\boldsymbol{v}} 
+\newcommand{\fsigma}{\boldsymbol{f}_\Sigma} 
+\newcommand{\frad}{\boldsymbol{f}_{rad}} 
+\newcommand{\hatp}{\hat{p}}
+\newcommand{\hatpre}{\hat{p}_{re}}
+\newcommand{\hatpim}{\hat{p}_{im}}
+\newcommand{\tn}{t^n}
+\newcommand{\tnn}{t^{n+1}}
+\newcommand{\Sf}{\mathbf{S}_f}
+
+\pgfplotsset{compat=1.18}
+
+
+\setbeamerfont{frametitle}{size=\large}
+\addtobeamertemplate{frametitle}{\vspace{-1em}}{}
+
+
+\newcommand*{\code}[1]{\texttt{#1}}
+\newcommand*{\placeholderfig}[2]{%
+    \fbox{\begin{minipage}[c][#2][c]{#1}\centering\small Platzhalter: Bild einfuegen\end{minipage}}%
+}
+\title{NUMERICAL STUDY OF ACOUSTIC LEVITATION}
+\author{Chuanchao Xu}
+\department{Mathematics}
+\institute{Mathematical Modeling and Analysis}
+\date{\today}% In case \today should not be used
+
+\begin{document}
+\maketitle
+%\tableofcontents
+
+% \section{160426}    
+% \begin{frame}{Gliederung}
+%     \begin{itemize}
+%         \item Frequenzdomäne-Simulator: \textbf{acousticHelmholtzFoam}
+%         \item Akustische Levitation Simulator: \textbf{interFALFlow} = \textbf{interFlow} + \textbf{acousticHelmholtzFoam}
+%         \item Gliederung für Heute
+%         \begin{enumerate}
+%             \item Resonanzverschiebung
+%             \item Interface-Akustik Kupplung
+%             \item Bericht aus Andrade 2019
+%             \item Verhalten des Tropfens in Levitator
+%                 \begin{itemize}
+%                     \item Disintegration
+%                     \item Oszillation
+%                     \item Stabiles Schweben
+%                     \item Atomization
+%                 \end{itemize}
+%             \item Catch and Hold
+%             \item Zusammenfassung und Outlook
+%         \end{enumerate}
+%     \end{itemize}
+% \end{frame}
+
+% \begin{frame}{Resonanzverschiebung}
+%     \begin{columns}   
+%     \column{.5\linewidth}
+%         \begin{itemize}
+%         \item Simulierter Schallstrahlungskraft auf den Reflektor als Funkiton der Höhe für Wassertropfen mit gleichem Volumen und verschiedenen Seitenverhältnissen.
+%         \item Beobachtung:
+%             \begin{enumerate}
+%                 \item Levitatorhöhe kleiner als Resonanzhöhen  \\
+%                 $\rightarrow$ kleiner ARP für flache Ellipse
+                
+%                 \item Levitatorhöhe größer als Resonanzhöhen  \\
+%                 $\rightarrow$ größer ARP für flache Ellipse                 
+%             \end{enumerate}
+%         \item Führt zur verschiedenen Tropfendynamiken. 
+%             \begin{enumerate}
+%                 \item Disintegration
+%                 \item Stabile Levitation
+%                 \item Oszillationsinstabilität
+%             \end{enumerate}
+%     \end{itemize}
+
+%     \column{.5\linewidth}
+%     \begin{tikzpicture}[remember picture,overlay]
+%     \node[anchor=south east, xshift=-1.5cm, yshift=0.5cm] 
+%     at (current page.south east)
+%     {\includegraphics[width=5cm]{figures/4sweep2.png}};
+    
+%     \end{tikzpicture}       
+%     \begin{tikzpicture}[remember picture,overlay]
+%     \node[anchor=north east, xshift=-1.45cm, yshift=-1cm] 
+%     at (current page.north east)
+%     {\includegraphics[width=4.7cm, height=3.2cm]{figures/mab_2019_height_sweep.png}};
+
+%     \node[anchor=north east, xshift=-1.5cm, yshift=-4.5cm]
+%     at (current page.north east)
+%     {\small Source: \citep{andrade2019numerical}};
+    
+%     \end{tikzpicture}       
+%     \end{columns}
+% \end{frame}
+
+
+
+% \begin{frame}{Interface-Akustik Kupplung}
+%     \begin{columns}   
+%     \column{.5\linewidth}
+%     \begin{itemize}
+%         \item Mit früheren Ansätzen verformte sich der Tropfen zu wenig. 
+%         \item Das volScalarField pr hat die Eigenschaften:
+%         \begin{enumerate}
+%             \item pr bewirkt nur auf die, die langsam auf akustisches Feld reagieren.
+%             \item pr klingt durch das Interface schnell zur 0 ab.
+%         \end{enumerate}
+%         \item \textbf{-fvc::snGrad(pr)*beta} in pEqn.H and UEqn.H, mit dem Filter \textbf{beta} 
+%         \item Aktuell der Ansatz mit der physikalischsten Simulationsergebnissen.
+%         \item Weitere Kupplungsansätze wie z.B in \citep{lessmann2023disintegration} sind einsetzbar im Zukunft
+%     \end{itemize}
+
+%     \column{.5\linewidth}
+    
+%     \begin{tikzpicture}[remember picture,overlay]
+%     \node[anchor=north east, xshift=-2.5cm, yshift=-1.5cm] 
+%     at (current page.north east)
+%     {\includegraphics[width=4cm]{figures/pr_across_interface.png}};
+%     \end{tikzpicture}       
+    
+%     \begin{tikzpicture}[remember picture,overlay]
+%     \node[anchor=south east, xshift=-1.5cm, yshift=0.5cm] 
+%     at (current page.south east)
+%     {\includegraphics[width=5cm]{figures/lessmann_interface_acoustic.png}};
+    
+%     \node[anchor=south east, xshift=-2cm, yshift=0.5cm]
+%     at (current page.south east)
+%     {\small Source: \citep{lessmann2023disintegration}};
+%     \end{tikzpicture}       
+%     \end{columns}
+% \end{frame}
+
+% \begin{frame}{Bericht aus Andrade 2019}
+%     \begin{columns}   
+%     \column{.5\linewidth}
+%     \begin{itemize}
+%         \item In \citep{andrade2019numerical}, der Tropfen hat unter verschiedenen Betriebsbedingung ganz unterschiedlichen Verhalten ohne sanften Übergang.
+%         \item Bei $H=7.24$mm (unterhalbe Resonanzhöhe), der Tropfen wird im Gleichtgewichtpositon levitiert bei $u_t=0.86$m/s, und zerfällt bei $u_t=0.87$m/s 
+%         \item Bei $H=7.64$mm (oberhalbe Resonanzhöhe), der Tropfen wird stabil levitiert für Druckamplitude unter $5150Pa$ und hat dann dauerend Formschwingung mit zunehmende $u_t$. In Allgemein treten Form- und Positionsschwingung gleichzeitig auf.  
+%     \end{itemize}
+
+%     \column{.5\linewidth}
+%     \begin{tikzpicture}[remember picture,overlay]
+    
+%     \node[anchor=north east, xshift=-2cm, yshift=-1.5cm] 
+%     at (current page.north east)
+%     {\includegraphics[width=4cm]{figures/disintegration.png}};
+    
+%     \node[anchor=south east, xshift=-2cm, yshift=0.5cm]
+%     at (current page.south east)
+%     {\small Source: \citep{andrade2019numerical}};
+%     \end{tikzpicture}       
+    
+%     \begin{tikzpicture}[remember picture,overlay]
+%     \node[anchor=south east, xshift=-2cm, yshift=1cm] 
+%     at (current page.south east)
+%     {\includegraphics[width=4cm]{figures/oscillation764.png}};
+     
+%     \end{tikzpicture} 
+    
+%     \end{columns}
+% \end{frame}
+
+% \begin{frame}{Disintegration}
+%     \begin{itemize}
+%         \item Die Dynamik des Tropfen wird durch \textbf{ARF} und \\ \textbf{surfacetension} getrieben.
+%         \item Wenn $H<H_r$, die beide Kräfte nehmen zu, als \\ der Tropfen flacher wird. 
+%         \item ARF $>$ Surfacetension $\rightarrow$ Disintegration
+%         \item ARF $<$ Surfacetension $\rightarrow$ Stabiles Schweben
+%         \item Starke Abhängigkeit von der Geometrie. Überschrittet \\ die Aspektenverhältnisse einen Grenzwert, dominiert die ARF und der Tropfen \\ löst sich auf.
+%         \item Nach Auftreten der Disintegration wird die Annahme Fluid-Akkustik-Kupplung gebrochen, da das Zeitskala der Tropfenbewegung vergleichbar mit dem akustischen Period sein kann. 
+%         \item Der Solver kann die Bedingungen für den Zerfall vorhersagen, aber nicht den genauen Ablauf.
+
+%         \begin{tikzpicture}[remember picture,overlay]
+        
+%         \node[anchor=north east, xshift=-1cm, yshift=-1cm] 
+%         at (current page.north east)
+%         {\includegraphics[width=5cm]{figures/prad_array.png}};
+        
+%         \node[anchor=north east, xshift=-0.5cm, yshift=-4cm]
+%         at (current page.north east)
+%         {\small Source: \citep{andrade2019numerical}};
+%         \end{tikzpicture}       
+        
+%     \end{itemize}
+% \end{frame}
+
+% \begin{frame}{Stabile Levitation}
+%     \begin{itemize}
+%         \item Nicht strikt an eine bestimmte Resonatorhöhe gebunden.
+%         \item Solange der Tropfen nicht zu stark deformiert, kann er unter meisten Bedingungen nach langer Zeit stabil schweben.
+%         \item Simulation dauert sehr lange (>0.2s) bis stabil.
+%         \item FO verfolgt die Länge der horizontalen \\ Halbachse sowie Mittelpunkt 
+%         \item Aktuell wird die Länge der Halbachse durch den \\ x-Koordinate vom PLIC-Face-Center bestimmt, \\ der einen maximalen Abstand  zu der symmetrien \\ Achsen hat. 
+
+%         \begin{tikzpicture}[remember picture,overlay]
+%         \node[anchor=south east, xshift=-0.3cm, yshift=0.5cm] 
+%         at (current page.south east)
+%         {\includegraphics[width=6cm]{figures/dropGeometry.png}} ;    
+%         \end{tikzpicture}   
+
+%         \begin{tikzpicture}[remember picture,overlay]
+%         \node[anchor=south west, xshift=5cm, yshift=0.5cm] 
+%         at (current page.south west)
+%         {\includegraphics[height=2cm]{figures/drop_alpha.png}}  ;
+%         \end{tikzpicture}         
+        
+%     \end{itemize}
+% \end{frame}
+
+% \begin{frame}{Oszillationsinstabilität} 
+%     \begin{itemize}
+%     \item Oszillation von Form und Position des Tropfens für Höhe \textit{größer} als Resonanzhöhe.
+%     \item Zwei entscheidende Faktoren \citep{rudnick1990oscillational}
+%         \begin{enumerate}
+%             \item Resonanzfrequenz verändert sich mit der Position des Objects
+%             \item Zeitliche Verzögerung in der Reaktion des ARP auf die Dynamik des Objects
+%         \end{enumerate}
+%     \item Da das Schallfeld im aktuellen Modell instantan reagiert, ist das Ausbleiben dieser Instabilität erwartbar. Zukünftig ermöglicht evtl. ein Relaxationsansatz dieses Verhalten .
+%     \end{itemize}
+% \end{frame}
+
+% \begin{frame}{Atomization}
+%     \begin{itemize}
+%         \item In Atomizaton, der Tropfen zerfällt mit einem anderen \\ Mechanismus als bei Disintegration.
+%         \item Erhöhen $u_t$, der Tropfen is flacher, Kapillarwelle bildet \\ sich auf der oberen Fläche.
+%         \item Unter Einfluss des Schallfeldes wächst die Kapillarwelle \\ bis Mikrotropfens aufgelöst werden. 
+%         \item Bislang wird es noch nicht simuliert , da sehr feine Zeit- \\ und Raumschritte notwendig sind. 
+
+%         \begin{tikzpicture}[remember picture,overlay]
+        
+%         \node[anchor=south east, xshift=-0.3cm, yshift=1cm] 
+%         at (current page.south east)
+%         {\includegraphics[width=5.5cm]{figures/atomization.png}};
+        
+%         \node[anchor=north east, xshift=-1cm, yshift=1cm]
+%         at (current page.south east)
+%         {\small Source: \citep{andrade2019numerical}};        
+%         \end{tikzpicture}     
+%     \end{itemize}
+% \end{frame}
+
+% \begin{frame}[fragile]{Catch and Hold}
+%     \begin{itemize}
+%         \item Im Experiment, die Initialisierung eines spherischen Tropfens am Anfang ist fast ummöglich. \\
+%         $\rightarrow$ Eins zu eins Validierung ist sehr schwer. 
+%         \item Initialisierung des Tropfens auf dem Reflektor mit \textit{dynamicAlphaContactAngle} Randbedingung. 
+%         {\tiny
+%         \begin{verbatim}
+%         reflector1
+%         {
+%             type            dynamicAlphaContactAngle;
+%             gradient        uniform 0;
+%             limit           gradient;
+%             theta0          90;
+%             uTheta          0.0100000000000000002;
+%             thetaA          110;
+%             thetaR          70;
+%             value           nonuniform List<scalar> 
+%         }
+%         \end{verbatim}
+%         }
+
+%         \item Aufheben und  levitieren ist möglich.
+%         \item Gezielte An- und Ausschaltung des Transducers ist notwendig für eine saubere Manipulation.
+%     \end{itemize}
+% \end{frame}
+
+% \begin{frame}{Nächster Schritt}
+%     \begin{itemize}
+%         \item \textit{interFALFlow} bietet schon qualitativ physikalisch konsistente Simulationsergebnisse an, mit den  Hauptbauteilen:
+%         \begin{enumerate}
+%             \item \textit{interFlow} 
+%             \item PML unterstützt F-Domain Gleichung
+%             \item Direct linear solver (PETSC+MUMPS) + Parallel Optimierung 
+%             \item Interface-Akustik Kupplung          
+%         \end{enumerate}
+%         \item Zukünftige Arbeiten sollten sich auf die Optimierung dieser Module konzentrieren. wie z.B
+%         \begin{enumerate}
+%             \item Umstellung auf Zeitbereichssimulator
+%             \item physikalisch realistischere Kopplungsmodelle
+%         \end{enumerate}
+%         \item Folgende Probleme bestehen noch:
+%         \begin{enumerate} 
+%             \item Die Rechenzeit sinkt nicht proportional mit der Rankzahl;  z.B laufen den gleichen Testfall mit rank 8 16 32 für 30mins, die erreichte Simulationszeit: 1.44ms, 2.06ms, 2.72ms -> Sublineare Skalierung. 
+%             \item Konflikt zwischen große Simulationszeite und kleinen Zeitschritten (für Kapillarwellen).
+%             \item Validierung von Gor’kov erfordert extrem feine Netze -> derzeit Einsatz von AMR.
+%         \end{enumerate}
+%     \end{itemize}
+% \end{frame}
+
+% \begin{frame}{TODO}
+%     \begin{itemize}
+%         \item read paper vof+contactline
+%         \item interFlow interface treatment
+%         \item hpc optimise -> tomislav
+%         \item cfmesh wedge amr mesh -> xu yue 
+%         \item start paper acousticHelmholtzFoam
+%         \item video extraction for validation?
+%         \item force pattern on reflector and side?  
+%         \item static validiation
+%         \item git push 
+%         \item prepare acoustic impedance
+%     \end{itemize}
+% \end{frame}
+
+
+\section{090626}
+\begin{frame}{Forschungsfortschritt}
+    \begin{itemize}
+        \item Aktueller Schwerpunkt: robuste Simulationskette für einen Tropfen im einachsigen Levitator.
+        \item Drei Bausteine sind jetzt lauffähig:
+        \begin{enumerate}
+            \item cfMesh-Wedge-Mesh mit Body-Fit und lokaler Verfeinerung.
+            \item Gor'kov-basierte Verifikation von \code{acousticHelmholtzFoam}.
+            \item Zwei Strategien zur Bestimmung von Gleichgewichtsposition und -form.
+        \end{enumerate}
+        \item Ziel: aus dem technischen Toolkit reproduzierbare wissenschaftliche Ergebnisse ableiten.
+        \item Aktuell: CPC paper für acousticHelmHoltzFoam
+    \end{itemize}
+    \begin{center}
+        \footnotesize
+        Mesh $\rightarrow$ akustisches Feld $\rightarrow$ Strahlungskraft $\rightarrow$ Gleichgewichtsform $\rightarrow$ Dynamik
+    \end{center}
+\end{frame}
+
+\begin{frame}{cfMesh-Wedge-Mesh}
+    \begin{columns}
+    \column{.52\linewidth}
+    \begin{itemize}
+        \item Neuer Standardpfad in den Andrade-Fällen:
+        \begin{enumerate}
+            \item \code{prepareCase}
+            \item \code{cartesian2DMesh}
+            \item \code{extrudeMesh} als $1^\circ$-Wedge
+            \item \code{postMesh}
+        \end{enumerate}
+        \item \code{meshDict} wird automatisch aus \code{caseParams.sh} erzeugt.
+        \item Body-fit für feste Tropfenkontur: Patch \code{dropWall}.
+        \item Lokale Auflösung nahe Interface/Hole über \code{objectRefinements}.
+    \end{itemize}
+    \column{.48\linewidth}
+    \begin{center}
+        \placeholderfig{4.9cm}{4.0cm}
+
+        \vspace{0.2cm}
+        \scriptsize Gewünschtes Bild: ParaView-Screenshot des Wedge-Meshs mit vergrößerter \code{dropWall}-Verfeinerung.
+    \end{center}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Gor'kov-Verifikation}
+    \begin{columns}
+    \column{.54\linewidth}
+    \begin{itemize}
+        \item Zwei komplementäre Frequenzdomänenfälle:
+        \begin{enumerate}
+            \item \code{WedgeLevitatorEmpty}: kein Tropfen, Gor'kov-Felder im ungestörten Feld.
+            \item \code{WedgeLevitatorGorkovHole}: kleine Kugel als \code{dropWall}, Kraft direkt durch Druckintegration.
+        \end{enumerate}
+        \item Vergleich für kleine Partikel:
+        \[
+            U_G = V_p\left(f_1 E_p-\frac{3}{2}f_2 E_k\right),
+            \qquad
+            \mathbf{F}_G=-\nabla U_G .
+        \]
+        \item Skripte: \code{runEmptyGorkovStudy}, \code{runSolidBallGorkovStudy}.
+    \end{itemize}
+    \column{.46\linewidth}
+    \begin{center}
+        \placeholderfig{4.7cm}{3.9cm}
+
+        \vspace{0.2cm}
+        \scriptsize Gewünschtes Bild: \code{gorkovVsHoleForce.png} oder \code{acousticForceVsRadius.png}.
+    \end{center}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Gleichgewicht: dynamischer Weg}
+    \begin{itemize}
+        \item Fall: \code{WedgeLevitatorDynamicDrop} mit \code{interFALFlow}.
+        \item Workflow für eine robuste Initialisierung:
+        \begin{enumerate}
+            \item Kurzen Testlauf aus plausibler Tropfenposition.
+            \item Tropfen nahe der beobachteten Gleichgewichtslage neu initialisieren.
+            \item Flüssigkeitsviskosität temporär erhöhen $\rightarrow$ schnelle Dämpfung.
+            \item Nach Relaxation auf reale Viskosität zurücksetzen.
+            \item Simulation mit \code{-latestTime} fortsetzen.
+        \end{enumerate}
+        \item Monitoring: \code{postProcessing/dropGeometry/geometry.dat} mit Mittelpunkt, horizontaler/vertikaler Halbachse und Volumen.
+        \item Vorteil: Gleichgewicht wird im vollen gekoppelten VOF-Modell geprüft.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{DynamicDrop: Mesh-Fortschritt}
+    \begin{itemize}
+        \item Neue Beobachtung: mit gezielt verfeinertem Mesh kann die benötigte Simulationszeit deutlich reduziert werden.
+        \item Lokale Verfeinerung verbessert die Tropfendynamik und kann die Relaxation zur relevanten Konfiguration beschleunigen.
+        \item Tradeoff: nicht-orthogonale Zellen verschlechtern Matrixqualität, Stabilität und teilweise den Solver-Aufwand.
+        \item Für weitere AMR-Studien müssen daher drei Größen gemeinsam bewertet werden:
+        \begin{enumerate}
+            \item physikalische Genauigkeit der Tropfendynamik,
+            \item Nicht-Orthogonalität und Mesh-Qualität,
+            \item Laufzeit und Skalierung des gekoppelten Solvers.
+        \end{enumerate}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Gleichgewicht: Pseudo-Solver}
+    \begin{columns}
+    \column{.58\linewidth}
+    \begin{itemize}
+        \item Solver: \code{acousticDropEquilibriumFoam}.
+        \item Idee nach dem Stabilitäts-Workflow von Andrade et al. \citep{andrade2019numerical}:
+        \begin{enumerate}
+            \item Akustisches Feld für feste Tropfenform lösen.
+            \item Kraft auf \code{dropWall} integrieren.
+            \item Vertikale Position bis $F_y \approx \rho_l V g$ korrigieren.
+            \item Formresiduum aus
+            \[
+                p_r+\rho_l g y+\gamma\kappa = h
+            \]
+            auswerten.
+            \item Normalen-Update mit Volumenkorrektur, dann wiederholen.
+        \end{enumerate}
+    \end{itemize}
+    \column{.42\linewidth}
+    \begin{center}
+        \placeholderfig{4.2cm}{4.2cm}
+
+        \vspace{0.15cm}
+        \scriptsize Gewünschtes Bild: kompakter Flowchart der inneren Positions- und äußeren Formiteration.
+    \end{center}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Aktueller Stand und nächster Schritt}
+    \begin{itemize}
+        \item Verfügbares Toolkit:
+        \begin{enumerate}
+            \item \code{acousticHelmholtzFoam}: Frequenzdomäne, PML, PETSc/MUMPS, parallel.
+            \item \code{interFALFlow}: VOF-Dynamik mit akustischer Kopplung.
+            \item \code{acousticDropEquilibriumFoam}: schnelle Gleichgewichtssuche.
+            \item Validierungsfälle: \code{Empty}, \code{GorkovHole}, \code{DynamicDrop}.
+        \end{enumerate}
+        \item Damit kann das Verhalten eines Tropfens im einachsigen Levitator untersucht werden, aktuell ohne Massentransfer.
+        \item Nächste Schritte:
+        \begin{enumerate}
+            \item Mesh- und Zeitschrittkonvergenz für Drop-Dynamik.
+            \item Quantitativer Vergleich gegen Gor'kov/Andrade für kleine Tropfen.
+            \item Solver und Fälle in eine publizierbare Ergebniskette überführen.
+        \end{enumerate}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{HPCToolkit-Diagnostik}
+    \begin{itemize}
+        \item HPCToolkit ist installiert und für \code{acousticHelmholtzFoam} getestet.
+        \item Erfolgreicher Profiling-Lauf: \code{WedgeLevitatorDropAlpha} mit 4 MPI-Ranks.
+        \item Aktuell nutzbare Metrik: \code{CPUTIME} durch Timer-Sampling.
+        \item Hardware-Counter sind noch blockiert:
+        \[
+            \code{perf\_event\_paranoid}=4
+        \]
+        \item Nächster Schritt: CPU-Hotspots im Viewer identifizieren; für Cache-/Memory-Diagnostik ist Admin-Freigabe nötig.
+    \end{itemize}
+\end{frame}
+
+\bibliographystyle{plainnat} % Choose an appropriate style
+\bibliography{bibliography}
+\end{document}
