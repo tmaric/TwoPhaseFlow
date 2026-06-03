@@ -384,10 +384,10 @@
     \begin{columns}
     \column{.54\linewidth}
     \begin{itemize}
-        \item Zwei komplementäre Frequenzdomänenfälle:
+        \item Zwei komplementäre Frequenzdomänenpfade in \code{WedgeLevitatorDropHole}:
         \begin{enumerate}
-            \item \code{WedgeLevitatorEmpty}: kein Tropfen, Gor'kov-Felder im ungestörten Feld.
-            \item \code{WedgeLevitatorGorkovHole}: kleine Kugel als \code{dropWall}, Kraft direkt durch Druckintegration.
+            \item \code{emptyGmshTemplate}: kein Tropfen, Gor'kov-Felder im ungestörten Feld.
+            \item cfMesh-DropHole: kleine Kugel als \code{dropWall}, Kraft direkt durch Druckintegration.
         \end{enumerate}
         \item Vergleich für kleine Partikel:
         \[
@@ -395,7 +395,7 @@
             \qquad
             \mathbf{F}_G=-\nabla U_G .
         \]
-        \item Skripte: \code{runEmptyGorkovStudy}, \code{runSolidBallGorkovStudy}.
+        \item Skript: \code{runGorkovComparison}.
     \end{itemize}
     \column{.46\linewidth}
     \begin{center}

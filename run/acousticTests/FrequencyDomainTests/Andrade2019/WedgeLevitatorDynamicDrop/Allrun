@@ -13,48 +13,6 @@ need_cmd()
     fi
 }
 
-ensure_solver()
-{
-    solverName="$1"
-    solverDir="$2"
-    if command -v "${solverName}" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    echo "Solver '${solverName}' not found, building ${solverDir} ..."
-    repoRoot="$(cd ../../../../../ && pwd)"
-    (
-        cd "${repoRoot}" || exit 1
-        wmake "solver/${solverDir}"
-    )
-
-    if ! command -v "${solverName}" >/dev/null 2>&1; then
-        echo "Error: solver '${solverName}' is still unavailable after build." >&2
-        exit 1
-    fi
-}
-
-ensure_app()
-{
-    appName="$1"
-    appDir="$2"
-    if command -v "${appName}" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    echo "Application '${appName}' not found, building ${appDir} ..."
-    repoRoot="$(cd ../../../../../ && pwd)"
-    (
-        cd "${repoRoot}" || exit 1
-        wmake "${appDir}"
-    )
-
-    if ! command -v "${appName}" >/dev/null 2>&1; then
-        echo "Error: application '${appName}' is still unavailable after build." >&2
-        exit 1
-    fi
-}
-
 case "${MESH_BACKEND:-cfmesh}" in
     cfmesh)
         need_cmd cartesian2DMesh
@@ -96,10 +54,10 @@ restore0Dir
 runApplication setAlphaField
 rm -f 0/Pim.in
 
-ensure_app setPMLFields apps/utilities/mesh/setPMLFields
+need_cmd setPMLFields
 runApplication setPMLFields
 
-ensure_solver "${SOLVER}" interFALFlow
+need_cmd "${SOLVER}"
 rm -f "log.${SOLVER}"
 runApplication decomposePar -force
 runParallel "${SOLVER}"

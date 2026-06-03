@@ -36,7 +36,6 @@ render()
         -e "s|__PML_MIN_X__|$PML_MIN_X|g" \
         -e "s|__PML_MIN_Y__|$PML_MIN_Y|g" \
         -e "s|__PML_MIN_Z__|$PML_MIN_Z|g" \
-        -e "s|__AXIS_RADIUS__|$AXIS_RADIUS|g" \
         -e "s|__D__|$D|g" \
         -e "s|__RT__|$RT|g" \
         -e "s|__RR__|$RR|g" \
@@ -44,21 +43,25 @@ render()
         -e "s|__HS__|$HS|g" \
         -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
         -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
+        -e "s|__DROP_HORIZONTAL_LONG_AXIS__|$DROP_HORIZONTAL_LONG_AXIS|g" \
+        -e "s|__DROP_CENTER_X__|$DROP_CENTER_X|g" \
         -e "s|__DROP_CENTER_Y__|$DROP_CENTER_Y|g" \
+        -e "s|__DROP_CENTER_Z__|$DROP_CENTER_Z|g" \
         "$inFile" > "$outFile"
 }
 
 render constant/transportProperties.in constant/transportProperties
 render 0.orig/Pim.in 0.orig/Pim
-render system/controlDict.in system/controlDict
+render system/setAlphaFieldDict.in system/setAlphaFieldDict
 
 export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
-export DROP_RADIUS DROP_CENTER_Y CFMESH_MAX_CELL_SIZE CFMESH_DROP_CELL_SIZE CFMESH_DROP_SEGMENTS
+export DROP_RADIUS DROP_HORIZONTAL_LONG_AXIS DROP_CENTER_Y CFMESH_MAX_CELL_SIZE CFMESH_DROP_CELL_SIZE CFMESH_DROP_SEGMENTS
 
 python3 - <<'PY'
-from math import cos, pi, sin
+from math import cos, pi, sin, sqrt
 from os import environ
 from pathlib import Path
+import re
 
 
 def f(name):
@@ -82,10 +85,20 @@ WEDGE_DEG = f("WEDGE_DEG")
 AXIS_RADIUS = f("AXIS_RADIUS")
 SURFACE_THICKNESS = f("SURFACE_THICKNESS")
 DROP_RADIUS = f("DROP_RADIUS")
+DROP_HORIZONTAL_LONG_AXIS = f("DROP_HORIZONTAL_LONG_AXIS")
 DROP_CENTER_Y = f("DROP_CENTER_Y")
+DROP_VERTICAL_AXIS = DROP_RADIUS**3/(DROP_HORIZONTAL_LONG_AXIS**2)
+DROP_VOLUME = 4.0*pi*DROP_RADIUS**3/3.0
 CFMESH_MAX_CELL_SIZE = f("CFMESH_MAX_CELL_SIZE")
 CFMESH_DROP_CELL_SIZE = f("CFMESH_DROP_CELL_SIZE")
 CFMESH_DROP_SEGMENTS = int(environ["CFMESH_DROP_SEGMENTS"])
+
+
+def radius_at(theta):
+    denom = (sin(theta)**2)/(DROP_HORIZONTAL_LONG_AXIS**2) + (
+        cos(theta)**2
+    )/(DROP_VERTICAL_AXIS**2)
+    return 1.0/sqrt(denom)
 
 patches = [
     ("transducer1", "wall"),
@@ -111,7 +124,7 @@ points2d = [
     (RT, D + HS),
     (RT, D),
     (AXIS_RADIUS, D),
-    (AXIS_RADIUS, DROP_CENTER_Y + DROP_RADIUS),
+    (AXIS_RADIUS, DROP_CENTER_Y + radius_at(0.0)),
 ]
 
 segment_patches = [
@@ -131,14 +144,15 @@ segment_patches = [
 
 for i in range(1, CFMESH_DROP_SEGMENTS):
     theta = pi*i/CFMESH_DROP_SEGMENTS
+    radius = radius_at(theta)
     points2d.append(
         (
-            AXIS_RADIUS + DROP_RADIUS*sin(theta),
-            DROP_CENTER_Y + DROP_RADIUS*cos(theta),
+            AXIS_RADIUS + radius*sin(theta),
+            DROP_CENTER_Y + radius*cos(theta),
         )
     )
 
-points2d.append((AXIS_RADIUS, DROP_CENTER_Y - DROP_RADIUS))
+points2d.append((AXIS_RADIUS, DROP_CENTER_Y - radius_at(pi)))
 segment_patches.extend(["dropWall"]*CFMESH_DROP_SEGMENTS)
 segment_patches.append("axis")
 
@@ -257,4 +271,21 @@ mergeFaces false;
 // ************************************************************************* //
 """
 (system / "extrudeMeshDict").write_text(extrude_dict)
+
+drop_equilibrium = system / "dropEquilibriumDict"
+if drop_equilibrium.exists():
+    text = drop_equilibrium.read_text()
+
+    def set_entry(source, key, value):
+        pattern = rf"^({re.escape(key)}\s+)[^;]+;"
+        replacement = rf"\g<1>{fmt(value)};"
+        updated, count = re.subn(pattern, replacement, source, flags=re.MULTILINE)
+        if count == 0:
+            raise RuntimeError(f"Entry {key} not found in {drop_equilibrium}")
+        return updated
+
+    text = set_entry(text, "dropRadius", DROP_RADIUS)
+    text = set_entry(text, "dropVolume", DROP_VOLUME)
+    text = set_entry(text, "curvatureFallbackRadius", DROP_RADIUS)
+    drop_equilibrium.write_text(text)
 PY

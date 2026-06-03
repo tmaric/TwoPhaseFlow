@@ -4,6 +4,12 @@ set -eu
 cd "${0%/*}" || exit 1
 . ./caseParams.sh
 
+if [ -n "${HEIGHT_FAC}" ]; then
+    WAVELENGTH="$(awk -v c="$SOUND_SPEED" -v f="$DRIVE_F" 'BEGIN{printf "%.12g", c/f}')"
+    D="$(awk -v fac="$HEIGHT_FAC" -v lam="$WAVELENGTH" 'BEGIN{printf "%.12g", fac*lam}')"
+    DROP_CENTER_Y="$(awk -v d="$D" 'BEGIN{printf "%.12g", 0.5*d}')"
+fi
+
 # Derived rectangular PML bounds from geometry parameters.
 PML_MAX_X="$(awk -v bu="$BU" -v rr="$RR" 'BEGIN{printf "%.12g", bu + rr}')"
 PML_MAX_Y="$(awk -v hs="$HS" -v d="$D" 'BEGIN{printf "%.12g", hs + d}')"

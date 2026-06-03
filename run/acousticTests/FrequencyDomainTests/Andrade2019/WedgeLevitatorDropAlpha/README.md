@@ -11,6 +11,8 @@ Edit one file and regenerate all dependent inputs automatically.
 - `constant/levitatorWedgeHex.geo.in`: template for `constant/levitatorWedgeHex.geo`.
 - `0.orig/Pim.in`: template for `0.orig/Pim`.
 - `Allrun`: full workflow (clean, render, mesh, convert, set fields, MPI solve).
+- `runHeightSweep.sh`: height sweep driver used when `RUN_MODE=fullFig4Sweep`.
+- `plotHeightSweep.py`: plots the height-sweep CSV output.
 
 ## Typical usage
 
@@ -20,6 +22,21 @@ Edit one file and regenerate all dependent inputs automatically.
    - `./Allrun`
 
 `Allrun` already calls `./prepareCase`, so manual rendering is optional.
+
+By default `RUN_MODE=singlePoint`, which preserves the original DropAlpha
+single-case run. `Allrun` always initializes the ellipsoid with
+`setAlphaField` and always solves with `acousticHelmholtzFoam`. To launch the
+height sweep from this case:
+
+```bash
+RUN_MODE=fullFig4Sweep ./Allrun
+```
+
+For a small smoke test:
+
+```bash
+RUN_MODE=fullFig4Sweep SWEEP_POINTS=2 FIG4_ASPECT_RATIOS=1 RESULTS_DIR=sweepSmoke ./Allrun
+```
 
 ## Optional: render-only step
 
@@ -46,6 +63,7 @@ NPROCS=8 ./Allrun
 
 Drop initialization is controlled from `caseParams.sh`:
 - `DROP_RADIUS`
+- `DROP_HORIZONTAL_LONG_AXIS`
 - `DROP_CENTER_Y`
 
 ## Environment

@@ -1,0 +1,642 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.0.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     acousticDropEquilibriumFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         100000;
+
+deltaT          1;
+
+writeControl    runTime; 
+
+writeInterval   1;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  12;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   8;
+
+runTimeModifiable yes;
+
+adjustTimeStep  no;
+
+// ************************************************************************* //
+libs
+(
+   "libpetscFoam.so"
+);
+
+// FO outputs the acoustic radiation force on the reflector
+functions
+{
+    reflectorForce
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            reflectorForce;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("reflector1");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'reflector1' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+            const vector forceVec = gSum(pB*Sf);
+            const vector areaVec = gSum(Sf);
+            const vector nHat = areaVec/(mag(areaVec) + VSMALL);
+            const scalar Fn = (forceVec & nHat);
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"reflectorForce"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"force.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# time"
+                        << tab << "Fn" << nl;
+                }
+                os  << mesh.time().timeName()
+                    << tab << Fn << nl;
+            }
+        #};
+    }
+
+    reflectorPressure
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            reflectorPressure;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("reflector1");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'reflector1' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+            const vector forceVec = gSum(pB*Sf);
+            const vector areaVec = gSum(Sf);
+            const vector nHat = areaVec/(mag(areaVec) + VSMALL);
+            const scalar FnWedge = forceVec & nHat;
+
+            const scalar axisymFactor = 360.0;
+            const scalar FnAxisym = FnWedge*axisymFactor;
+            const scalar p0 = 77850.0*sqrt(mag(FnAxisym));
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"reflectorPressure"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"p0.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "Fn_reflector1_wedge_N"
+                        << tab << "Fn_reflector1_axisym_N"
+                        << tab << "p0_Pa" << nl;
+                }
+                os  << mesh.time().timeName()
+                    << tab << FnWedge
+                    << tab << FnAxisym
+                    << tab << p0 << nl;
+            }
+        #};
+    }
+
+    dropForce
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropForce;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+
+            // Sf points out of the air domain. The force on the drop has the
+            // opposite normal direction.
+            const vector forceWedge = -gSum(pB*Sf);
+            const scalar axisymFactor = 360.0;
+            const vector forceAxisym = axisymFactor*forceWedge;
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropForce"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"force.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "Fx_wedge_N"
+                        << tab << "Fy_wedge_N"
+                        << tab << "Fz_wedge_N"
+                        << tab << "Fx_axisym_N"
+                        << tab << "Fy_axisym_N"
+                        << tab << "Fz_axisym_N"
+                        << nl;
+                }
+                os  << mesh.time().timeName()
+                    << tab << forceWedge.x()
+                    << tab << forceWedge.y()
+                    << tab << forceWedge.z()
+                    << tab << forceAxisym.x()
+                    << tab << forceAxisym.y()
+                    << tab << forceAxisym.z()
+                    << nl;
+            }
+        #};
+    }
+
+    dropPressureProfile
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropPressureProfile;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr = mesh.lookupObject<volScalarField>("pr");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const auto& Cf = mesh.Cf().boundaryField()[patchID];
+            const auto& magSf = mesh.magSf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+
+            const fileName outDir
+            (
+                mesh.time().globalPath()/"postProcessing"/"dropPressureProfile"
+            );
+            mkDir(outDir);
+
+            const fileName outFile
+            (
+                outDir/("profile_proc" + Foam::name(Pstream::myProcNo()) + ".dat")
+            );
+
+            OFstream os(outFile);
+            os  << "# pseudoTime"
+                << tab << "x"
+                << tab << "y"
+                << tab << "z"
+                << tab << "pr"
+                << tab << "area"
+                << nl;
+
+            forAll(pB, facei)
+            {
+                os  << mesh.time().timeName()
+                    << tab << Cf[facei].x()
+                    << tab << Cf[facei].y()
+                    << tab << Cf[facei].z()
+                    << tab << pB[facei]
+                    << tab << magSf[facei]
+                    << nl;
+            }
+        #};
+    }
+
+    dropAspectRatio
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropAspectRatio;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const polyPatch& pp = mesh.boundaryMesh()[patchID];
+            const label start = pp.start();
+
+            scalar minY = GREAT;
+            scalar maxY = -GREAT;
+            scalar maxR = 0.0;
+            label nPoints = 0;
+
+            forAll(pp, facei)
+            {
+                const face& f = mesh.faces()[start + facei];
+                forAll(f, fp)
+                {
+                    const point& p = mesh.points()[f[fp]];
+                    minY = min(minY, p.y());
+                    maxY = max(maxY, p.y());
+                    maxR = max(maxR, sqrt(sqr(p.x()) + sqr(p.z())));
+                    ++nPoints;
+                }
+            }
+
+            reduce(minY, minOp<scalar>());
+            reduce(maxY, maxOp<scalar>());
+            reduce(maxR, maxOp<scalar>());
+            reduce(nPoints, sumOp<label>());
+
+            const scalar verticalDiameter = maxY - minY;
+            const scalar horizontalDiameter = 2.0*maxR;
+            const scalar centreY = 0.5*(minY + maxY);
+            const scalar horizontalOverVertical =
+                horizontalDiameter/(verticalDiameter + VSMALL);
+            const scalar verticalOverHorizontal =
+                verticalDiameter/(horizontalDiameter + VSMALL);
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropAspectRatio"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"aspectRatio.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "horizontalDiameter"
+                        << tab << "verticalDiameter"
+                        << tab << "horizontalOverVertical"
+                        << tab << "verticalOverHorizontal"
+                        << tab << "maxRadius"
+                        << tab << "minY"
+                        << tab << "maxY"
+                        << tab << "centreY"
+                        << tab << "nPatchPointVisits"
+                        << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << tab << horizontalDiameter
+                    << tab << verticalDiameter
+                    << tab << horizontalOverVertical
+                    << tab << verticalOverHorizontal
+                    << tab << maxR
+                    << tab << minY
+                    << tab << maxY
+                    << tab << centreY
+                    << tab << nPoints
+                    << nl;
+            }
+        #};
+    }
+
+    dropVolume
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropVolume;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include <algorithm>
+            #include <vector>
+        #};
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const polyPatch& pp = mesh.boundaryMesh()[patchID];
+            const label start = pp.start();
+
+            DynamicList<vector> localEntries;
+            scalar minY = GREAT;
+            scalar maxY = -GREAT;
+
+            forAll(pp, facei)
+            {
+                const face& f = mesh.faces()[start + facei];
+                forAll(f, fp)
+                {
+                    const point& p = mesh.points()[f[fp]];
+                    const scalar r = sqrt(sqr(p.x()) + sqr(p.z()));
+                    localEntries.append(vector(p.y(), r, 0.0));
+                    minY = min(minY, p.y());
+                    maxY = max(maxY, p.y());
+                }
+            }
+
+            reduce(minY, minOp<scalar>());
+            reduce(maxY, maxOp<scalar>());
+
+            List<vector> localList(localEntries);
+            List<List<vector>> allProcEntries(Pstream::nProcs());
+            allProcEntries[Pstream::myProcNo()] = localList;
+
+            if (Pstream::parRun())
+            {
+                Pstream::gatherList(allProcEntries);
+            }
+
+            if (Pstream::master())
+            {
+                DynamicList<vector> entries;
+                forAll(allProcEntries, proci)
+                {
+                    forAll(allProcEntries[proci], i)
+                    {
+                        entries.append(allProcEntries[proci][i]);
+                    }
+                }
+
+                std::vector<label> order(entries.size());
+                for (label i = 0; i < entries.size(); ++i)
+                {
+                    order[i] = i;
+                }
+
+                std::sort
+                (
+                    order.begin(),
+                    order.end(),
+                    [&](const label a, const label b)
+                    {
+                        return entries[a].x() < entries[b].x();
+                    }
+                );
+
+                const scalar yTol = max(1e-12, 1e-8*(maxY - minY));
+                DynamicList<vector> profile;
+
+                label i = 0;
+                while (i < label(order.size()))
+                {
+                    const scalar y0 = entries[order[i]].x();
+                    scalar ySum = 0.0;
+                    scalar maxR = 0.0;
+                    label nBin = 0;
+
+                    while
+                    (
+                        i < label(order.size())
+                     && mag(entries[order[i]].x() - y0) <= yTol
+                    )
+                    {
+                        ySum += entries[order[i]].x();
+                        maxR = max(maxR, entries[order[i]].y());
+                        ++nBin;
+                        ++i;
+                    }
+
+                    profile.append(vector(ySum/nBin, maxR, 0.0));
+                }
+
+                scalar volume = 0.0;
+                for (label profI = 1; profI < profile.size(); ++profI)
+                {
+                    const scalar y0 = profile[profI - 1].x();
+                    const scalar y1 = profile[profI].x();
+                    const scalar r0 = profile[profI - 1].y();
+                    const scalar r1 = profile[profI].y();
+                    const scalar dy = max(y1 - y0, 0.0);
+
+                    volume += constant::mathematical::pi*dy
+                        *(sqr(r0) + r0*r1 + sqr(r1))/3.0;
+                }
+
+                const scalar equivalentRadius =
+                    cbrt(3.0*volume/(4.0*constant::mathematical::pi));
+
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropVolume"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"volume.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "volume_m3"
+                        << tab << "volume_mm3"
+                        << tab << "equivalentRadius_m"
+                        << tab << "equivalentRadius_mm"
+                        << tab << "minY"
+                        << tab << "maxY"
+                        << tab << "nProfilePoints"
+                        << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << tab << volume
+                    << tab << 1e9*volume
+                    << tab << equivalentRadius
+                    << tab << 1e3*equivalentRadius
+                    << tab << minY
+                    << tab << maxY
+                    << tab << profile.size()
+                    << nl;
+            }
+        #};
+    }
+
+    dropCenter
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropCenter;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found."
+                    << exit(FatalError);
+            }
+
+            const polyPatch& pp = mesh.boundaryMesh()[patchID];
+            const label start = pp.start();
+
+            scalar minY = GREAT;
+            scalar maxY = -GREAT;
+            label nPoints = 0;
+
+            forAll(pp, facei)
+            {
+                const face& f = mesh.faces()[start + facei];
+                forAll(f, fp)
+                {
+                    const point& p = mesh.points()[f[fp]];
+                    minY = min(minY, p.y());
+                    maxY = max(maxY, p.y());
+                    ++nPoints;
+                }
+            }
+
+            reduce(minY, minOp<scalar>());
+            reduce(maxY, maxOp<scalar>());
+            reduce(nPoints, sumOp<label>());
+
+            const scalar centreY = 0.5*(minY + maxY);
+            const scalar verticalDiameter = maxY - minY;
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/"dropCenter"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"center.dat");
+                const bool writeHeader = !exists(outFile);
+
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+                if (writeHeader)
+                {
+                    os  << "# pseudoTime"
+                        << tab << "centreY_m"
+                        << tab << "centreY_mm"
+                        << tab << "minY_m"
+                        << tab << "maxY_m"
+                        << tab << "verticalDiameter_m"
+                        << tab << "verticalDiameter_mm"
+                        << tab << "nPatchPointVisits"
+                        << nl;
+                }
+
+                os  << mesh.time().timeName()
+                    << tab << centreY
+                    << tab << 1e3*centreY
+                    << tab << minY
+                    << tab << maxY
+                    << tab << verticalDiameter
+                    << tab << 1e3*verticalDiameter
+                    << tab << nPoints
+                    << nl;
+            }
+        #};
+    }
+}

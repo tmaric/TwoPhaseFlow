@@ -5,6 +5,10 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
+if [ "${RUN_MODE}" = "fullFig4Sweep" ] && [ "${TPF_INTERNAL_SWEEP_RUN:-0}" != "1" ]; then
+    exec ./runHeightSweep.sh
+fi
+
 need_cmd()
 {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -13,75 +17,23 @@ need_cmd()
     fi
 }
 
-ensure_solver()
-{
-    solverName="$1"
-    solverDir="$2"
-    if command -v "${solverName}" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    echo "Solver '${solverName}' not found, building ${solverDir} ..."
-    repoRoot="$(cd ../../../../../ && pwd)"
-    (
-        cd "${repoRoot}" || exit 1
-        wmake "solver/${solverDir}"
-    )
-
-    if ! command -v "${solverName}" >/dev/null 2>&1; then
-        echo "Error: solver '${solverName}' is still unavailable after build." >&2
-        exit 1
-    fi
-}
-
-ensure_app()
-{
-    appName="$1"
-    appDir="$2"
-    if command -v "${appName}" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    echo "Application '${appName}' not found, building ${appDir} ..."
-    repoRoot="$(cd ../../../../../ && pwd)"
-    (
-        cd "${repoRoot}" || exit 1
-        wmake "${appDir}"
-    )
-
-    if ! command -v "${appName}" >/dev/null 2>&1; then
-        echo "Error: application '${appName}' is still unavailable after build." >&2
-        exit 1
-    fi
-}
-
 need_cmd gmsh
 
-case "${SOLVER}" in
-    acousticHelmholtzFoam)
-        solverDir="acousticHelmholtzFoam"
-        solverMode="parallel"
-        ;;
-    acousticHelmholtzSerialFoam)
-        solverDir="acousticHelmholtzSerialFoam"
-        solverMode="serial"
-        ;;
-    tensorLaplacianFoam)
-        solverDir="tensorLaplacianFoam"
-        solverMode="serial"
-        ;;
-    *)
-        echo "Error: unsupported SOLVER='${SOLVER}'" >&2
-        exit 1
-        ;;
-esac
+SOLVER=acousticHelmholtzFoam
 
-if [ "${solverMode}" = "parallel" ]; then
-    if [ -z "${NPROCS:-}" ]; then
-        NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
-    fi
-    : "${NPROCS:=8}"
+if [ -z "${NPROCS:-}" ]; then
+    NPROCS="${RUN_NPROCS}"
 fi
+: "${NPROCS:=8}"
+
+rm -f \
+    log.gmshToFoam \
+    log.changeDictionary \
+    log.setAlphaField \
+    log.setPMLFields \
+    log.decomposePar \
+    log.reconstructPar \
+    "log.${SOLVER}"
 
 ./Allclean
 ./prepareCase
@@ -91,20 +43,18 @@ gmsh -0 constant/levitatorWedgeHex.geo
 runApplication gmshToFoam  constant/levitatorWedgeHex.msh
 rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
+need_cmd setAlphaField
 runApplication setAlphaField
+
 rm -f 0/Pim.in
 
-ensure_app setPMLFields apps/utilities/mesh/setPMLFields
+need_cmd setPMLFields
 runApplication setPMLFields
 
-ensure_solver "${SOLVER}" "${solverDir}"
+need_cmd "${SOLVER}"
 rm -f "log.${SOLVER}"
-if [ "${solverMode}" = "parallel" ]; then
-    runApplication decomposePar -force
-    runParallel "${SOLVER}"
-    runApplication reconstructPar -latestTime
-else
-    runApplication "${SOLVER}"
-fi
+runApplication decomposePar -force
+runParallel "${SOLVER}"
+runApplication reconstructPar -latestTime
 
 #------------------------------------------------------------------------------

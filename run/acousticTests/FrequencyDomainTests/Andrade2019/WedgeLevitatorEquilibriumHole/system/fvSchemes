@@ -54,6 +54,7 @@ laplacianSchemes
     laplacian(mu,U) Gauss linear corrected;
     laplacian((rho*(1|A(U))),p) Gauss linear corrected;
     laplacian((1|A(U)),p) Gauss linear corrected;
+    laplacian(diffusivity,cellDisplacement) Gauss linear corrected;
 }
 
 interpolationSchemes

@@ -13,9 +13,7 @@
 # ---------------------------------------------------------------------------
 # Solver
 # ---------------------------------------------------------------------------
-# Frequency-domain acoustic solver:
-# - acousticHelmholtzFoam: MPI-capable
-# - acousticHelmholtzSerialFoam: single-rank reference solver
+# Frequency-domain acoustic solver.
 SOLVER=acousticHelmholtzFoam
 
 # ---------------------------------------------------------------------------

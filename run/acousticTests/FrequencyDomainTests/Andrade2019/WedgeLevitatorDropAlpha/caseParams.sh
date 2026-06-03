@@ -8,90 +8,120 @@
 #
 # Workflow:
 # 1) Edit values here.
-# 2) Run ./Allrun (or ./prepareCase to only regenerate inputs).
+# 2) Set RUN_MODE if you want ./Allrun to launch the height sweep.
+# 3) Run ./Allrun (or ./prepareCase to only regenerate inputs).
 
 # ---------------------------------------------------------------------------
 # Solver
 # ---------------------------------------------------------------------------
-# Frequency-domain acoustic solver:
-# - acousticHelmholtzFoam: MPI-capable
-# - acousticHelmholtzSerialFoam: single-rank reference solver
+# MPI-capable frequency-domain acoustic solver.
 SOLVER=acousticHelmholtzFoam
+
+# ---------------------------------------------------------------------------
+# Run mode
+# ---------------------------------------------------------------------------
+# Controls what ./Allrun does:
+# - singlePoint: run one case using D and the setAlphaField ellipsoid
+# - fullFig4Sweep: launch ./runHeightSweep.sh
+: "${RUN_MODE:=singlePoint}"
+
+# Default processor count used by Allrun/runHeightSweep when NPROCS is unset.
+: "${RUN_NPROCS:=8}"
+
+# Output location for the full Fig. 4 sweep.
+: "${RESULTS_DIR:=sweepResults}"
+: "${FIG4_OUTPUT_BASENAME:=reproducedFig4}"
 
 # ---------------------------------------------------------------------------
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
-DRIVE_F=25250
+: "${DRIVE_F:=25250}"
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
-PISTON_U=1.0
+: "${PISTON_U:=1.0}"
 
 # ---------------------------------------------------------------------------
 # Fluid / acoustic medium properties
 # ---------------------------------------------------------------------------
 # Gas sound speed used by geometry and wave-number definitions [m/s].
-SOUND_SPEED=343
+: "${SOUND_SPEED:=343}"
 # Liquid density [kg/m^3].
-RHOL=998.3
+: "${RHOL:=998.3}"
 # Gas density [kg/m^3].
-RHOG=1.2
+: "${RHOG:=1.2}"
 # Gas sound speed [m/s].
-CG=343
+: "${CG:=343}"
 # Liquid sound speed [m/s].
-CL=1480
+: "${CL:=1480}"
 
 # ---------------------------------------------------------------------------
 # PML parameters (rectangle PML)
 # ---------------------------------------------------------------------------
 # PML thickness [m].
-PML_L=0.008
+: "${PML_L:=0.008}"
 # Max damping strength sigmaMax [1/s]. tLF:1E7 aH(S)F:2E6
-SIGMA_MAX=1700000
+: "${SIGMA_MAX:=1700000}"
 # Polynomial profile order (po), typically 2-4.
-PO=3
+: "${PO:=3}"
 # Rectangle bounds for PML logic in transportProperties.
 # Derived automatically in prepareCase:
 #   PML_MAX_X = BU + RR
 #   PML_MAX_Y = HS + D
 #   PML_MIN_Y = -HS
 # Keep only fixed limits here.
-PML_MAX_Z=100
-PML_MIN_X=-100
-PML_MIN_Z=-100
+: "${PML_MAX_Z:=100}"
+: "${PML_MIN_X:=-100}"
+: "${PML_MIN_Z:=-100}"
 
 # ---------------------------------------------------------------------------
 # Geometry / mesh parameters (gmsh template)
 # ---------------------------------------------------------------------------
 # Levitator geometry dimensions [m].
 # D: gap between transducer plane and reflector plane.
-D=0.00764
+: "${D:=0.00764}"
+# Optional normalized height D/lambda. When set, prepareCase computes:
+#   D = HEIGHT_FAC * (SOUND_SPEED/DRIVE_F)
+# and centers the sweep drop at D/2.
+: "${HEIGHT_FAC:=}"
 # RT: transducer radius.
-RT=0.01
+: "${RT:=0.01}"
 # RR: reflector radius.
-RR=0.019
+: "${RR:=0.019}"
 # BU: radial air buffer beyond reflector radius (outer side extension).
-BU=0.01
+: "${BU:=0.01}"
 # HS: vertical stand height above/below the active gap.
-HS=0.01
+: "${HS:=0.01}"
 
 # Mesh controls.
 # N is the number of cells per wavelength used to set gs = lambda/N.
-MESH_N=400
+: "${MESH_N:=400}"
 # Gmsh point characteristic length (kept as in original setup).
-MESH_LC=1.0
+: "${MESH_LC:=1.0}"
 # Wedge half/total angle settings [deg].
-ROTATE_HALF_DEG=0.5
-WEDGE_DEG=1.0
+: "${ROTATE_HALF_DEG:=0.5}"
+: "${WEDGE_DEG:=1.0}"
+
+# ---------------------------------------------------------------------------
+# Height sweep controls
+# ---------------------------------------------------------------------------
+# Sweep range in normalized height D/lambda.
+: "${SWEEP_FAC_MIN:=0.5}"
+: "${SWEEP_FAC_MAX:=0.6}"
+: "${SWEEP_POINTS:=100}"
 
 # ---------------------------------------------------------------------------
 # Initial drop setup (setAlphaField)
 # ---------------------------------------------------------------------------
-# Initial spherical drop radius [m].
-DROP_RADIUS=0.001
+# Initial spherical/equivalent drop radius [m].
+: "${DROP_RADIUS:=0.001}"
+: "${DROP_EQUIV_RADIUS:=${DROP_RADIUS}}"
 # Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
-DROP_HORIZONTAL_LONG_AXIS=0.001
+: "${DROP_HORIZONTAL_LONG_AXIS:=0.001}"
 # Small x/z offsets keep the center away from the wedge singular line.
-DROP_CENTER_X=1e-8
+: "${DROP_CENTER_X:=1e-8}"
 # Initial drop center vertical position [m] (y-coordinate).
-DROP_CENTER_Y=0.0040003
-DROP_CENTER_Z=1e-8
+: "${DROP_CENTER_Y:=0.0040003}"
+: "${DROP_CENTER_Z:=1e-8}"
+
+# Aspect-ratio set used by runHeightSweep.sh to reproduce Fig. 4.
+: "${FIG4_ASPECT_RATIOS:=1 2 3}"
