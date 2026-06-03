@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.31)  2 JUN 2026 13:35
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.31)  3 JUN 2026 16:13
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -551,53 +551,72 @@ File: caption-elsarticle.sto 2020/08/22 v2.0 Adaption of the caption package to 
 \c@caption@flags=\count328
 \c@continuedfloat=\count329
 Package caption Info: hyperref package is loaded.
+) (/usr/share/texlive/texmf-dist/tex/latex/booktabs/booktabs.sty
+Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
+\heavyrulewidth=\dimen288
+\lightrulewidth=\dimen289
+\cmidrulewidth=\dimen290
+\belowrulesep=\dimen291
+\belowbottomsep=\dimen292
+\aboverulesep=\dimen293
+\abovetopsep=\dimen294
+\cmidrulesep=\dimen295
+\cmidrulekern=\dimen296
+\defaultaddspace=\dimen297
+\@cmidla=\count330
+\@cmidlb=\count331
+\@aboverulesep=\dimen298
+\@belowrulesep=\dimen299
+\@thisruleclass=\count332
+\@lastruleclass=\count333
+\@thisrulewidth=\dimen300
 ) (/usr/share/texlive/texmf-dist/tex/latex/algorithms/algorithm.sty
 Package: algorithm 2009/08/24 v0.1 Document Style `algorithm' - floating environment
  (/usr/share/texlive/texmf-dist/tex/latex/float/float.sty
 Package: float 2001/11/08 v1.3d Float enhancements (AL)
-\c@float@type=\count330
+\c@float@type=\count334
 \float@exts=\toks42
 \float@box=\box72
 \@float@everytoks=\toks43
 \@floatcapt=\box73
 )
 \@float@every@algorithm=\toks44
-\c@algorithm=\count331
+\c@algorithm=\count335
 ) (/usr/share/texlive/texmf-dist/tex/latex/algorithmicx/algorithmicx.sty
 Package: algorithmicx 2005/04/27 v1.2 Algorithmicx
 
 Document Style algorithmicx 1.2 - a greatly improved `algorithmic' style
-\c@ALG@line=\count332
-\c@ALG@rem=\count333
-\c@ALG@nested=\count334
+\c@ALG@line=\count336
+\c@ALG@rem=\count337
+\c@ALG@nested=\count338
 \ALG@tlm=\skip61
 \ALG@thistlm=\skip62
-\c@ALG@Lnr=\count335
-\c@ALG@blocknr=\count336
-\c@ALG@storecount=\count337
-\c@ALG@tmpcounter=\count338
+\c@ALG@Lnr=\count339
+\c@ALG@blocknr=\count340
+\c@ALG@storecount=\count341
+\c@ALG@tmpcounter=\count342
 \ALG@tmplength=\skip63
 ) (/usr/share/texlive/texmf-dist/tex/latex/algorithmicx/algpseudocode.sty
 Package: algpseudocode 
 
 Document Style - pseudocode environments for use with the `algorithmicx' style
 ) (/usr/share/texlive/texmf-dist/tex/latex/listings/listings.sty
-\lst@mode=\count339
+\lst@mode=\count343
 \lst@gtempboxa=\box74
 \lst@token=\toks45
-\lst@length=\count340
-\lst@currlwidth=\dimen288
-\lst@column=\count341
-\lst@pos=\count342
-\lst@lostspace=\dimen289
-\lst@width=\dimen290
-\lst@newlines=\count343
-\lst@lineno=\count344
-\lst@maxwidth=\dimen291
+\lst@length=\count344
+\lst@currlwidth=\dimen301
+\lst@column=\count345
+\lst@pos=\count346
+\lst@lostspace=\dimen302
+\lst@width=\dimen303
+\lst@newlines=\count347
+\lst@lineno=\count348
+\lst@maxwidth=\dimen304
  (/usr/share/texlive/texmf-dist/tex/latex/listings/lstmisc.sty
 File: lstmisc.sty 2020/03/24 1.8d (Carsten Heinz)
-\c@lstnumber=\count345
-\lst@skipnumbers=\count346
+\c@lstnumber=\count349
+\lst@skipnumbers=\count350
 \lst@framebox=\box75
 ) (/usr/share/texlive/texmf-dist/tex/latex/listings/listings.cfg
 File: listings.cfg 2020/03/24 1.8d listings configuration
@@ -605,21 +624,21 @@ File: listings.cfg 2020/03/24 1.8d listings configuration
 Package: listings 2020/03/24 1.8d (Carsten Heinz)
  (/usr/share/texlive/texmf-dist/tex/latex/paracol/paracol.sty
 Package: paracol 2018/12/31 v1.35 
-\pcol@currcol=\count347
-\pcol@nextcol=\count348
-\pcol@ncol=\count349
-\pcol@ncolleft=\count350
-\pcol@page=\count351
-\pcol@basepage=\count352
-\pcol@toppage=\count353
-\pcol@footnotebase=\count354
-\pcol@nfootnotes=\count355
-\pcol@mcid=\count356
-\pcol@prevdepth=\dimen292
-\pcol@colht=\dimen293
-\pcol@textfloatsep=\dimen294
-\pcol@lrmargin=\dimen295
-\pagerim=\dimen296
+\pcol@currcol=\count351
+\pcol@nextcol=\count352
+\pcol@ncol=\count353
+\pcol@ncolleft=\count354
+\pcol@page=\count355
+\pcol@basepage=\count356
+\pcol@toppage=\count357
+\pcol@footnotebase=\count358
+\pcol@nfootnotes=\count359
+\pcol@mcid=\count360
+\pcol@prevdepth=\dimen305
+\pcol@colht=\dimen306
+\pcol@textfloatsep=\dimen307
+\pcol@lrmargin=\dimen308
+\pagerim=\dimen309
 \pcol@topskip=\skip64
 \belowfootnoteskip=\skip65
 \pcol@topfnotes=\box76
@@ -638,36 +657,36 @@ LaTeX Warning: Unused global option(s):
 (./acousticHelmholtzFoam.aux)
 \openout1 = `acousticHelmholtzFoam.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 73.
-LaTeX Font Info:    ... okay on input line 73.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 74.
+LaTeX Font Info:    ... okay on input line 74.
  (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count357
-\scratchdimen=\dimen297
+\scratchcounter=\count361
+\scratchdimen=\dimen310
 \scratchbox=\box82
-\nofMPsegments=\count358
-\nofMParguments=\count359
+\nofMPsegments=\count362
+\nofMParguments=\count363
 \everyMPshowfont=\toks47
-\MPscratchCnt=\count360
-\MPscratchDim=\dimen298
-\MPnumerator=\count361
-\makeMPintoPDFobject=\count362
+\MPscratchCnt=\count364
+\MPscratchDim=\dimen311
+\MPnumerator=\count365
+\makeMPintoPDFobject=\count366
 \everyMPtoPDFconversion=\toks48
 ) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
@@ -675,7 +694,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 48
  (/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Live
 ))
-Package hyperref Info: Link coloring OFF on input line 73.
+Package hyperref Info: Link coloring OFF on input line 74.
  (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
  (/usr/share/texlive/texmf-dist/tex/latex/refcount/refcount.sty
@@ -683,11 +702,11 @@ Package: refcount 2019/12/15 v3.6 Data extraction from label references (HO)
 ) (/usr/share/texlive/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty
 Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
-\c@section@level=\count363
+\c@section@level=\count367
 )
-LaTeX Info: Redefining \ref on input line 73.
-LaTeX Info: Redefining \pageref on input line 73.
-LaTeX Info: Redefining \nameref on input line 73.
+LaTeX Info: Redefining \ref on input line 74.
+LaTeX Info: Redefining \pageref on input line 74.
+LaTeX Info: Redefining \nameref on input line 74.
  (./acousticHelmholtzFoam.out) (./acousticHelmholtzFoam.out)
 \@outlinefile=\write5
 \openout5 = `acousticHelmholtzFoam.out'.
@@ -728,29 +747,29 @@ LaTeX Info: Redefining \nameref on input line 73.
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
 
-Package todonotes Warning: The length marginparwidth is less than 2cm and will most likely cause issues with the appearance of inserted todonotes. The issue can be solved by adding a line like \setlength {\marginparwidth }{2cm} prior to loading the todonotes package. on input line 73.
+Package todonotes Warning: The length marginparwidth is less than 2cm and will most likely cause issues with the appearance of inserted todonotes. The issue can be solved by adding a line like \setlength {\marginparwidth }{2cm} prior to loading the todonotes package. on input line 74.
 
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: float package is loaded.
 Package caption Info: listings package is loaded.
 Package caption Info: End \AtBeginDocument code.
-\c@lstlisting=\count364
+\c@lstlisting=\count368
 
-Overfull \hbox (5.3631pt too wide) in paragraph at lines 131--134
+Overfull \hbox (5.3631pt too wide) in paragraph at lines 132--135
 \OT1/cmtt/m/n/12 acousticHelmholtzFoam \OT1/cmr/m/n/12 is a par-al-lel finite-volume solver for frequency-domain acous-
  []
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 159.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 160.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 159.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 160.
  (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-Package hyperref Info: bookmark level for unknown todo defaults to 0 on input line 175.
+Package hyperref Info: bookmark level for unknown todo defaults to 0 on input line 176.
 
-Overfull \hbox (6.613pt too wide) in paragraph at lines 179--180
+Overfull \hbox (6.613pt too wide) in paragraph at lines 180--181
 \OT1/cmr/m/n/12 het-ero-ge-neous me-dia and two-phase con-fig-u-ra-tions with open-
  []
 
@@ -762,89 +781,104 @@ Overfull \hbox (2.61108pt too wide) has occurred while \output is active
 [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2]
-Overfull \hbox (4.02281pt too wide) in paragraph at lines 212--213
+Overfull \hbox (4.02281pt too wide) in paragraph at lines 213--214
 []\OT1/cmr/m/n/12 The mo-men-tum con-ser-va-tion equa-tion (ne-glect-ing grav-i-ta-tion-al/vis-cous ef-fects): 
  []
 
 [3] [4] [5] [6] [7] [8] [9] [10]
-<figures/piston_sketch.png, id=232, 465.74pt x 391.4625pt>
+<figures/piston_sketch.png, id=236, 465.74pt x 391.4625pt>
 File: figures/piston_sketch.png Graphic file (type png)
 <use figures/piston_sketch.png>
-Package pdftex.def Info: figures/piston_sketch.png  used on input line 552.
+Package pdftex.def Info: figures/piston_sketch.png  used on input line 553.
 (pdftex.def)             Requested size: 326.01578pt x 274.02187pt.
  [11] [12 <./figures/piston_sketch.png>] (./tables/nearField_convergence_table.tex) [13]
-<figures/piston_nearField_onAxis_meshConvergence.png, id=264, 534.798pt x 346.896pt>
+<figures/piston_nearField_onAxis_meshConvergence.png, id=268, 534.798pt x 346.896pt>
 File: figures/piston_nearField_onAxis_meshConvergence.png Graphic file (type png)
 <use figures/piston_nearField_onAxis_meshConvergence.png>
-Package pdftex.def Info: figures/piston_nearField_onAxis_meshConvergence.png  used on input line 630.
+Package pdftex.def Info: figures/piston_nearField_onAxis_meshConvergence.png  used on input line 631.
 (pdftex.def)             Requested size: 365.50655pt x 237.0877pt.
  [14 <./figures/piston_nearField_onAxis_meshConvergence.png>] (./tables/farField_convergence_table.tex)
-<figures/piston_metrics_meshConvergence.png, id=272, 505.89pt x 332.0405pt>
+<figures/piston_metrics_meshConvergence.png, id=276, 505.89pt x 332.0405pt>
 File: figures/piston_metrics_meshConvergence.png Graphic file (type png)
 <use figures/piston_metrics_meshConvergence.png>
-Package pdftex.def Info: figures/piston_metrics_meshConvergence.png  used on input line 647.
+Package pdftex.def Info: figures/piston_metrics_meshConvergence.png  used on input line 648.
 (pdftex.def)             Requested size: 365.50655pt x 239.90495pt.
-<figures/piston_farFieldPatternPolar.png, id=273, 433.62pt x 433.62pt>
+<figures/piston_farFieldPatternPolar.png, id=277, 433.62pt x 433.62pt>
 File: figures/piston_farFieldPatternPolar.png Graphic file (type png)
 <use figures/piston_farFieldPatternPolar.png>
-Package pdftex.def Info: figures/piston_farFieldPatternPolar.png  used on input line 654.
+Package pdftex.def Info: figures/piston_farFieldPatternPolar.png  used on input line 655.
 (pdftex.def)             Requested size: 309.60385pt x 309.61911pt.
 
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
 [15 <./figures/piston_metrics_meshConvergence.png>]
-<example-image.pdf, id=284, 321.2pt x 240.9pt>
-File: example-image.pdf Graphic file (type pdf)
-<use example-image.pdf>
-Package pdftex.def Info: example-image.pdf  used on input line 664.
-(pdftex.def)             Requested size: 224.83847pt x 168.62883pt.
-
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-
-Overfull \hbox (79.88356pt too wide) in paragraph at lines 681--685
- [][] 
- []
-
 [16 <./figures/piston_farFieldPatternPolar.png>]
-<figures/1dTwoPhaseCompare.png, id=293, 578.16pt x 433.62pt>
-File: figures/1dTwoPhaseCompare.png Graphic file (type png)
-<use figures/1dTwoPhaseCompare.png>
-Package pdftex.def Info: figures/1dTwoPhaseCompare.png  used on input line 695.
+<figures/pressureField_Pre_Pim_compare.png, id=300, 578.16pt x 433.62pt>
+File: figures/pressureField_Pre_Pim_compare.png Graphic file (type png)
+<use figures/pressureField_Pre_Pim_compare.png>
+Package pdftex.def Info: figures/pressureField_Pre_Pim_compare.png  used on input line 748.
 (pdftex.def)             Requested size: 404.70924pt x 303.53192pt.
 
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
+[17] (./tables/pml_sigma_sensitivity_table.tex)
+<figures/pml_sigma_sensitivity.png, id=307, 462.528pt x 289.08pt>
+File: figures/pml_sigma_sensitivity.png Graphic file (type png)
+<use figures/pml_sigma_sensitivity.png>
+Package pdftex.def Info: figures/pml_sigma_sensitivity.png  used on input line 762.
+(pdftex.def)             Requested size: 322.50346pt x 201.57387pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 708--708
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+[18 <./figures/pressureField_Pre_Pim_compare.png>] (./tables/pml_mesh_sensitivity_table.tex)
+<figures/pml_mesh_sensitivity.png, id=316, 462.528pt x 289.08pt>
+File: figures/pml_mesh_sensitivity.png Graphic file (type png)
+<use figures/pml_mesh_sensitivity.png>
+Package pdftex.def Info: figures/pml_mesh_sensitivity.png  used on input line 773.
+(pdftex.def)             Requested size: 322.50346pt x 201.57387pt.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+[19 <./figures/pml_sigma_sensitivity.png>] [20 <./figures/pml_mesh_sensitivity.png>]
+<figures/4sweep2.png, id=336, 433.62pt x 289.08pt>
+File: figures/4sweep2.png Graphic file (type png)
+<use figures/4sweep2.png>
+Package pdftex.def Info: figures/4sweep2.png  used on input line 792.
+(pdftex.def)             Requested size: 344.005pt x 229.34993pt.
+ [21 <./figures/4sweep2.png>]
+Underfull \hbox (badness 10000) in paragraph at lines 801--801
 []\OT1/cmr/m/n/12 Add rep-re-sen-ta-tive run-time, mem-ory us-age, and parallel-scaling data for the
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 708--708
+Underfull \hbox (badness 10000) in paragraph at lines 801--801
 \OT1/cmr/m/n/12 ver-i-fi-ca-tion and lev-i-ta-tor cases. Re-port mesh size, num-ber of MPI ranks,
  []
 
-[17 </usr/share/texlive/texmf-dist/tex/latex/mwe/example-image.pdf>] (./acousticHelmholtzFoam.bbl [18 <./figures/1dTwoPhaseCompare.png>]) [19] (./acousticHelmholtzFoam.aux)
+(./acousticHelmholtzFoam.bbl [22]) [23] (./acousticHelmholtzFoam.aux)
 Package rerunfilecheck Info: File `acousticHelmholtzFoam.out' has not changed.
-(rerunfilecheck)             Checksum: 806703F18923F0D006BD0F117CDE53AA;3496.
+(rerunfilecheck)             Checksum: 0512AEB696E155B01150FF3628E91D1E;3787.
  ) 
 Here is how much of TeX's memory you used:
- 28547 strings out of 478287
- 528384 string characters out of 5849289
- 804977 words of memory out of 5000000
- 46184 multiletter control sequences out of 15000+600000
- 480688 words of font info for 71 fonts, out of 8000000 for 9000
+ 28723 strings out of 478287
+ 532017 string characters out of 5849289
+ 806860 words of memory out of 5000000
+ 46332 multiletter control sequences out of 15000+600000
+ 481783 words of font info for 75 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 99i,13n,117p,1000b,983s stack positions out of 5000i,500n,10000p,200000b,80000s
-{/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc}</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb></usr/share/texmf/fonts/type1/public/lm/lmss17.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1200.pfb>
-Output written on acousticHelmholtzFoam.pdf (19 pages, 940119 bytes).
+ 99i,13n,117p,1040b,983s stack positions out of 5000i,500n,10000p,200000b,80000s
+{/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc}</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1200.pfb>
+Output written on acousticHelmholtzFoam.pdf (23 pages, 1178587 bytes).
 PDF statistics:
- 443 PDF objects out of 1000 (max. 8388607)
- 364 compressed objects within 4 object streams
- 101 named destinations out of 1000 (max. 500000)
- 219 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 500 PDF objects out of 1000 (max. 8388607)
+ 404 compressed objects within 5 object streams
+ 113 named destinations out of 1000 (max. 500000)
+ 237 words of extra memory for PDF output out of 10000 (max. 10000000)
 

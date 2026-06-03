@@ -34,6 +34,7 @@
 \usepackage{todonotes}
 \usepackage{enumitem}
 \usepackage{caption}
+\usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{color}
 \usepackage{amsmath}
@@ -661,8 +662,45 @@ To verify that the solver is capable to handle inhomogeneous medium. We set up t
 
 \begin{figure}[h]
     \centering
-    \includegraphics[scale=0.7]{example-image}%
-    \caption{Configuration of the 1D domain}
+    \begin{tikzpicture}[x=1cm,y=1cm,>=latex]
+        \def\xzero{0}
+        \def\xone{3.0}
+        \def\xtwo{6.5}
+        \def\xthree{9.0}
+        \def\h{1.15}
+
+        \fill[blue!10] (\xzero,0) rectangle (\xone,\h);
+        \fill[green!12] (\xone,0) rectangle (\xtwo,\h);
+        \fill[red!12] (\xtwo,0) rectangle (\xthree,\h);
+
+        \draw[thick] (\xzero,0) rectangle (\xthree,\h);
+        \draw[thick,dashed] (\xone,0) -- (\xone,\h);
+        \draw[thick,dashed] (\xtwo,0) -- (\xtwo,\h);
+
+        \foreach \yy in {0.15,0.35,0.55,0.75,0.95}
+        {
+            \draw[thick] (-0.28,\yy) -- (\xzero,\yy);
+        }
+        \draw[very thick] (\xzero,-0.08) -- (\xzero,\h+0.08);
+        \draw[->,thick] (-0.7,0.58) -- (-0.15,0.58)
+            node[midway,above] {$u_0 e^{i\omega t}$};
+
+        \node at (1.5,0.58) {medium 1};
+        \node at (1.5,0.23) {$\rho_1,\ c_1$};
+        \node at (4.75,0.58) {medium 2};
+        \node at (4.75,0.23) {$\rho_2,\ c_2$};
+        \node at (7.75,0.58) {PML};
+        \node at (7.75,0.23) {$\sigma(x)$};
+
+        \draw[->,thick] (\xzero,-0.55) -- (9.55,-0.55) node[right] {$x$};
+        \foreach \x/\lab in {\xzero/$0$,\xone/$L_1$,\xtwo/$L_2$,\xthree/$L$}
+        {
+            \draw (\x,-0.47) -- (\x,-0.65);
+            \node[below] at (\x,-0.65) {\lab};
+        }
+
+    \end{tikzpicture}
+    \caption{Configuration of the one-dimensional layered-domain validation case.}
     \label{fig:1DLayerd}
 \end{figure}
 
@@ -675,15 +713,30 @@ Die analytical solution reads
         \rho_1c_1u_0\frac{e^{ik_1x}+Re^{ik_1(2L-x)}}{1-Re^{i2k_1L}} & 0<x<L \\ \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L}}e^{i\left[k_2(x-L)+k_1L\right]} & x>L,
     \end{cases}
 \end{equation}
-with $R=\frac{\rho_2c_2-\rho_1c_1}{\rho_2c_2+\rho_1c_1}$. In our simulation we choose the parameter set as in the following table 
-\begin{table}
+with $R=\frac{\rho_2c_2-\rho_1c_1}{\rho_2c_2+\rho_1c_1}$. The simulation parameters are listed in \Cref{tab:params1DTwoPhase}.
+\begin{table}[htbp]
     \centering
-    \begin{tabular}{cccccccccc}
-        $\rho_1$ & $\rho_2$ & $u_0$  & $f$ & $c_1$ &$c_2$ & $L$  & $L_1$  & $L_2$   & $\sigma_{max}$ \\
-        $1.2kg/m^3$& $1000kg/m^3$ & $0.01m/s$ & $10khz$ &$343m/s$&$1500m/s$ & $0.35m$& $0.09m$& $0.2m$ &  $-10000$ 
-    \end{tabular}
-    \caption{Simulaton parameters for the case 1DTwoPhase}
+    \caption{Simulation parameters for the one-dimensional layered-interface case.}
     \label{tab:params1DTwoPhase}
+    \begin{tabular}{llcl}
+        \toprule
+        Quantity & Symbol & Value & Unit \\
+        \midrule
+        Medium-1 density & $\rho_1$ & 1.2 & $\mathrm{kg\,m^{-3}}$ \\
+        Medium-2 density & $\rho_2$ & 1000 & $\mathrm{kg\,m^{-3}}$ \\
+        Medium-1 sound speed & $c_1$ & 343 & $\mathrm{m\,s^{-1}}$ \\
+        Medium-2 sound speed & $c_2$ & 1500 & $\mathrm{m\,s^{-1}}$ \\
+        Transducer velocity amplitude & $u_0$ & 0.01 & $\mathrm{m\,s^{-1}}$ \\
+        Driving frequency & $f$ & 20 & $\mathrm{kHz}$ \\
+        Domain length & $L$ & 0.35 & $\mathrm{m}$ \\
+        Interface position & $L_1$ & 0.09 & $\mathrm{m}$ \\
+        PML start position & $L_2$ & 0.20 & $\mathrm{m}$ \\
+        PML thickness & $L-L_2$ & 0.15 & $\mathrm{m}$ \\
+        Maximum PML damping & $\sigma_{\max}$ & $-1.0\times10^4$ & $\mathrm{s^{-1}}$ \\
+        PML polynomial order & $p$ & 3 & -- \\
+        Number of cells in $x$ & $N_x$ & 2000 & -- \\
+        \bottomrule
+    \end{tabular}
 \end{table}
 The simulation result agrees perfectly to the analytical solution as  shown in the \Cref{fig:1DLayerdCompare}. As the acoustic impedance $\rho c$ of water is much larger than the air, we have the approximation $R\approx1$. Then the analytical solution in $(0,L)$ becomes after some elementary algebra the standing wave solution
 \begin{equation}
@@ -692,16 +745,56 @@ The simulation result agrees perfectly to the analytical solution as  shown in t
 which has only imaginary part. 
 \begin{figure}[h]
     \centering
-    \includegraphics[scale=0.7]{figures/1dTwoPhaseCompare.png}%
-    \caption{Configuration of the 1D domain}
+    \includegraphics[scale=0.7]{figures/pressureField_Pre_Pim_compare.png}%
+    \caption{Layered-interface validation: comparison of the numerical real and imaginary pressure fields with the analytical solution.}
     \label{fig:1DLayerdCompare}
+\end{figure}
+
+\subsubsection{PML damping sensitivity}
+The one-dimensional layered-interface case is also used to examine the influence of the PML damping strength.  All physical parameters, the mesh, the PML thickness, and the polynomial order are kept fixed, while only the maximum damping coefficient $\sigma_{\max}$ is varied.  The comparison with the analytical solution is evaluated in the physical part of the domain, excluding the PML and a small offset from the boundaries.  This isolates the error induced by imperfect absorption from the strongly damped layer itself.
+
+\input{tables/pml_sigma_sensitivity_table.tex}
+
+The resulting relative $L_2$ errors are shown in \Cref{fig:pmlSigmaSensitivity}.  A too small value of $|\sigma_{\max}|$ does not sufficiently damp the transmitted wave and therefore produces visible reflection from the truncated boundary.  Increasing the damping improves the result up to the range around $\sigma_{\max}=-5\times10^3$ to $-10^4\,\mathrm{s}^{-1}$.  For larger damping magnitudes the error increases again, because the damping profile becomes too steep for the fixed mesh resolution and introduces additional numerical reflection.  This confirms that the PML coefficient should be chosen together with the layer thickness and mesh spacing rather than simply maximized.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth]{figures/pml_sigma_sensitivity.png}%
+    \caption{Layered-interface case: sensitivity of the pressure-field error to the maximum PML damping coefficient.}
+    \label{fig:pmlSigmaSensitivity}
+\end{figure}
+
+To further distinguish a damping-strength effect from a mesh-resolution effect, an additional sweep is performed with the strong damping value fixed at $\sigma_{\max}=-1.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of cells in the propagation direction.  The results in \Cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} show that the imaginary-pressure error decreases with refinement, but the real-pressure and amplitude errors remain close to a plateau over the tested range.  Thus, for this configuration, the deterioration observed at very large $|\sigma_{\max}|$ is not removed simply by refining the mesh.  This reinforces the practical conclusion that the damping strength, PML thickness, polynomial order, and mesh spacing must be selected together.
+
+\input{tables/pml_mesh_sensitivity_table.tex}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth]{figures/pml_mesh_sensitivity.png}%
+    \caption{Layered-interface case: mesh sensitivity with fixed strong PML damping $\sigma_{\max}=-1.0\times10^5\,\mathrm{s^{-1}}$.}
+    \label{fig:pmlMeshSensitivity}
 \end{figure}
 
 \section{Application example}
 \label{sec:application}
 
-\subsection{Single-axis acoustic levitator}
-The motivation of developing the frequency domain solver is to simulate the motion of droplet in a single axis acoustic levitator.  
+\subsection{Height sweep in a single-axis acoustic levitator}
+The motivation for developing the frequency-domain solver is to simulate the acoustic field around liquid drops in a single-axis acoustic levitator.  As an application example, we consider the height-sweep configuration of Andrade and Marzo \cite{andrade2019numerical}.  Their COMSOL study evaluates the radiation force on the reflector while varying the transducer-reflector distance $H$ for an empty levitator and for constant-volume drops represented by spheroids with different aspect ratios.
+
+The OpenFOAM case \texttt{WedgeLevitatorHeightSweep} follows the same workflow.  A one-degree wedge sector is used and the resulting force is scaled by the axisymmetric factor $360^\circ/1^\circ$.  The acoustic frequency is $25.25\,\mathrm{kHz}$, the transducer velocity amplitude is $1\,\mathrm{m\,s^{-1}}$, and the equivalent spherical drop radius is $1\,\mathrm{mm}$.  The drop is placed at the mid-height of the cavity and is represented by the volume-fraction field \texttt{alpha.water}; for the non-spherical cases the spheroid volume is kept constant while the aspect ratio $a/b$ is varied.  After solving the Helmholtz problem, the reflector force is obtained by integrating the acoustic radiation-pressure field over the reflector patch,
+\begin{equation}
+    F_n = \int_{\Gamma_r} p_{\mathrm{rad}} \, \normal \cdot \normal_r \, \mathrm{d}S ,
+\end{equation}
+where $\Gamma_r$ is the reflector surface and $\normal_r$ is the mean reflector normal.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/4sweep2.png}
+    \caption{Application example: reflector radiation force during a height sweep of the wedge levitator for an empty cavity and constant-volume drops with different aspect ratios, computed with \texttt{acousticHelmholtzFoam}.}
+    \label{fig:heightSweepAspectRatio}
+\end{figure}
+
+\Cref{fig:heightSweepAspectRatio} shows the resulting force curves.  They reproduce the main trends reported in the COMSOL study of Andrade and Marzo \cite{andrade2019numerical}: the force is strongly amplified near the acoustic resonance, the drop shifts the resonance response, and the force level near the peak increases systematically with the drop aspect ratio.  Because the levitator operates close to resonance, the radiation force is highly sensitive to small changes in geometry, material parameters, acoustic drive, and numerical representation of the drop.  The agreement in resonance scale, curve ordering, and force magnitude is therefore a meaningful application-level comparison.  This example demonstrates that the solver can use the same interface-resolved material description required for two-phase flow simulations while producing acoustic-force trends consistent with the established finite-element reference.
 
 \section{Performance}
 \label{sec:performance}
