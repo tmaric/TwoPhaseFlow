@@ -87,7 +87,7 @@ def main() -> int:
     )
     ax.plot(
         radii,
-        [hole_by_radius[radius] for radius in radii],
+        [-hole_by_radius[radius] for radius in radii],
         marker="s",
         linewidth=1.8,
         label="GorkovHole: integrated pressure force",

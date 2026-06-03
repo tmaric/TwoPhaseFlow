@@ -92,7 +92,12 @@ functions
 
             forAll(pB, facei)
             {
-                forceSlice += pB[facei]*Sf[facei];
+                // Sf points out of the gas domain into the hard hole.  The
+                // reported force is the force on the particle, so use the
+                // opposite normal direction.  The 0.5 factor keeps the
+                // integrated hard-wall radiation pressure on the same
+                // time-averaged convention as the Gorkov point-force field.
+                forceSlice -= 0.5*pB[facei]*Sf[facei];
                 interfaceAreaSlice += magSf[facei];
             }
             label interfaceCells = pB.size();

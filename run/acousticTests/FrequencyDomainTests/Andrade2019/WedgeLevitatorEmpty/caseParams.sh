@@ -13,7 +13,7 @@ SOLVER=${SOLVER:-acousticHelmholtzFoam}
 # ---------------------------------------------------------------------------
 # Drive parameters
 # ---------------------------------------------------------------------------
-DRIVE_F=${DRIVE_F:-25250}
+DRIVE_F=${DRIVE_F:-100000}
 PISTON_U=${PISTON_U:-1.0}
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ PARTICLE_CENTER_Y=${PARTICLE_CENTER_Y:-0.0040003}
 # PML parameters
 # ---------------------------------------------------------------------------
 PML_L=${PML_L:-0.008}
-SIGMA_MAX=${SIGMA_MAX:-2000000}
+SIGMA_MAX=${SIGMA_MAX:-1000000}
 PO=${PO:-3}
 PML_MAX_Z=${PML_MAX_Z:-100}
 PML_MIN_X=${PML_MIN_X:--100}
@@ -50,7 +50,7 @@ HS=${HS:-0.01}
 WEDGE_DEG=${WEDGE_DEG:-1.0}
 
 AXIS_RADIUS=${AXIS_RADIUS:-1.0e-5}
-MESH_N=${MESH_N:-400}
+MESH_N=${MESH_N:-50}
 MESH_LC=${MESH_LC:-1.0}
 ROTATE_HALF_DEG=${ROTATE_HALF_DEG:-0.5}
 

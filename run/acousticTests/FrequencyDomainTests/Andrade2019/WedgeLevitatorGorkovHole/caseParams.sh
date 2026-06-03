@@ -17,7 +17,7 @@ SOLVER=${SOLVER:-acousticHelmholtzFoam}
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
-DRIVE_F=${DRIVE_F:-25250}
+DRIVE_F=${DRIVE_F:-100000}
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
 PISTON_U=${PISTON_U:-1.0}
 
@@ -41,7 +41,7 @@ CL=${CL:-5000}
 # PML thickness [m].
 PML_L=${PML_L:-0.008}
 # Max damping strength sigmaMax [1/s]. tLF:1E7 aH(S)F:2E6
-SIGMA_MAX=${SIGMA_MAX:-2000000}
+SIGMA_MAX=${SIGMA_MAX:-1000000}
 # Polynomial profile order (po), typically 2-4.
 PO=${PO:-3}
 # Rectangle bounds for PML logic in transportProperties.
@@ -85,7 +85,7 @@ DROP_CENTER_Y=${DROP_CENTER_Y:-0.0040003}
 # handling and control the hard dropWall boundary resolution.
 CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
 CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-5e-6}
-CFMESH_DROP_SEGMENTS=${CFMESH_DROP_SEGMENTS:-256}
+CFMESH_DROP_SEGMENTS=${CFMESH_DROP_SEGMENTS:-128}
 
 # Optional per-run overrides used by parameter sweeps. This keeps copied sweep
 # cases self-contained when they are rerun or inspected later.
