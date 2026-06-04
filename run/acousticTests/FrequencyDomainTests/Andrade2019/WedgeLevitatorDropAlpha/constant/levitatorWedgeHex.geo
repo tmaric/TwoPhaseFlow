@@ -2,7 +2,7 @@
 SetFactory("OpenCASCADE");
 
 // frequency
-f = 25250;
+f = 100000;
 // sound speed
 c = 343;
 // wavelength
@@ -12,7 +12,7 @@ l = c/f;
 D = 0.00764;
 // mesh size controls
 lc = 1.0;
-N = 400;
+N = 100;
 gs = l/N;
 
 // geometry

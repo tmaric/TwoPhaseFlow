@@ -28,7 +28,7 @@ p0              0.0;
 
 c0              $soundSpeed;
 // frequency
-f               25250;
+f               100000;
 // physical properties
 rhol            998.3;
 rhog            1.2;

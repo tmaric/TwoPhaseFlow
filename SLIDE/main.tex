@@ -1,10 +1,11 @@
 \documentclass[
 	german,% Main language as global option
 	accentcolor=9c,% Choose accent color: For a list of available colors see the full tudapub documentation
-%	accept-missing-logoes=true,% No error in case logo files are not available
+	accept-missing-logos=true,% No error in case logo files are not available
 %	logofile=example-image,% In case logo should be replaced
 ]{tudabeamer}
 \usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage[ngerman]{babel}
 \usepackage[autostyle]{csquotes}
 \usepackage{natbib}   % reference
@@ -372,10 +373,10 @@
     \end{itemize}
     \column{.48\linewidth}
     \begin{center}
-        \placeholderfig{4.9cm}{4.0cm}
+        \includegraphics[height=3.2cm]{figures/meshLocalRefine.png}
 
         \vspace{0.2cm}
-        \scriptsize Gewünschtes Bild: ParaView-Screenshot des Wedge-Meshs mit vergrößerter \code{dropWall}-Verfeinerung.
+        \scriptsize Wedge-Mesh mit lokaler Verfeinerung nahe \code{dropWall}.
     \end{center}
     \end{columns}
 \end{frame}
@@ -396,14 +397,56 @@
             \mathbf{F}_G=-\nabla U_G .
         \]
         \item Skript: \code{runGorkovComparison}.
+        \item Schlussfolgerung: mit wachsendem Kugelradius verliert das Gor'kov-Potential seine Vorhersagekraft.
     \end{itemize}
     \column{.46\linewidth}
     \begin{center}
-        \placeholderfig{4.7cm}{3.9cm}
+        \includegraphics[width=\linewidth]{figures/gorkovVsHoleForce.png}
 
         \vspace{0.2cm}
-        \scriptsize Gewünschtes Bild: \code{gorkovVsHoleForce.png} oder \code{acousticForceVsRadius.png}.
+        \scriptsize Vergleich zwischen Gor'kov-Punktkraft und integrierter \code{dropWall}-Kraft.
     \end{center}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Gor'kov-Verifikation: Parameter}
+    \scriptsize
+    \begin{columns}[t]
+    \column{.49\linewidth}
+    \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Akustik} & \textbf{Wert} \\
+        \midrule
+        Frequenz $f$ & $100\,\mathrm{kHz}$ \\
+        Kolbengeschw. $U_0$ & $1.0\,\mathrm{m/s}$ \\
+        Gas: $\rho_g, c_g$ & $1.2\,\mathrm{kg/m^3}$, $343\,\mathrm{m/s}$ \\
+        Partikel: $\rho_l, c_l$ & $2500\,\mathrm{kg/m^3}$, $5000\,\mathrm{m/s}$ \\
+        PML: $L,\sigma_{\max},p$ & $8\,\mathrm{mm}$, $10^6\,\mathrm{s^{-1}}$, $3$ \\
+        \bottomrule
+    \end{tabular}
+
+    \vspace{0.2cm}
+    \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Levitator} & \textbf{Wert} \\
+        \midrule
+        Spalt $D$ & $7.64\,\mathrm{mm}$ \\
+        Transducer-Radius $R_T$ & $10\,\mathrm{mm}$ \\
+        Reflektor-Radius $R_R$ & $19\,\mathrm{mm}$ \\
+        Randpuffer / Standhoehe & $10\,\mathrm{mm}$ / $10\,\mathrm{mm}$ \\
+        Wedge-Winkel & $1^\circ$ \\
+        Partikelzentrum $y_c$ & $4.0003\,\mathrm{mm}$ \\
+        \bottomrule
+    \end{tabular}
+
+    \column{.49\linewidth}
+    \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Vergleich} & \textbf{Wert} \\
+        \midrule
+        Radius-Sweep & $20$--$80\,\mu\mathrm{m}$, $\Delta r=5\,\mu\mathrm{m}$ \\
+        \bottomrule
+    \end{tabular}
     \end{columns}
 \end{frame}
 
@@ -439,7 +482,7 @@
 
 \begin{frame}{Gleichgewicht: Pseudo-Solver}
     \begin{columns}
-    \column{.58\linewidth}
+    \column{.55\linewidth}
     \begin{itemize}
         \item Solver: \code{acousticDropEquilibriumFoam}.
         \item Idee nach dem Stabilitäts-Workflow von Andrade et al. \citep{andrade2019numerical}:
@@ -455,13 +498,65 @@
             \item Normalen-Update mit Volumenkorrektur, dann wiederholen.
         \end{enumerate}
     \end{itemize}
-    \column{.42\linewidth}
+    \column{.45\linewidth}
     \begin{center}
-        \placeholderfig{4.2cm}{4.2cm}
+        \begin{tikzpicture}[
+            scale=0.9,
+            transform shape,
+            >=Stealth,
+            node distance=0.24cm,
+            every node/.style={font=\scriptsize, align=center},
+            flowstep/.style={draw, rounded corners=1.5pt, minimum width=3.35cm, minimum height=0.43cm, fill=TUDa-9c!8},
+            test/.style={draw, diamond, aspect=2.45, inner sep=0.6pt, text width=1.75cm, fill=TUDa-9c!18},
+            update/.style={draw, rounded corners=1.5pt, minimum width=1.05cm, minimum height=0.43cm, fill=TUDa-9c!14},
+            arrow/.style={->, line width=0.35pt},
+            loop/.style={->, line width=0.35pt, rounded corners=3pt}
+        ]
+            \node[flowstep] (shape) {aktuelle Tropfenform};
+            \node[flowstep, below=of shape] (solve) {Helmholtz-Feld loesen};
+            \node[flowstep, below=of solve] (force) {$p_r$, $F_y$ und $F_y-mg$};
+            \node[test, below=0.33cm of force] (fconv) {$|F_y-mg|<\epsilon_F$?};
+            \node[update, right=0.42cm of fconv] (move) {$\Delta y$\\Mesh};
+            \node[flowstep, below=0.33cm of fconv] (shapeRes) {$R=p_r+\rho_lgy+\gamma\kappa-h$};
+            \node[test, below=0.33cm of shapeRes] (sconv) {Form\\konv.?};
+            \node[update, right=0.42cm of sconv] (shapeMove) {$\Delta n$\\Vol.};
+            \node[flowstep, below=0.33cm of sconv] (done) {Gleichgewicht};
 
-        \vspace{0.15cm}
-        \scriptsize Gewünschtes Bild: kompakter Flowchart der inneren Positions- und äußeren Formiteration.
+            \draw[arrow] (shape) -- (solve);
+            \draw[arrow] (solve) -- (force);
+            \draw[arrow] (force) -- (fconv);
+            \draw[arrow] (fconv) -- node[left] {ja} (shapeRes);
+            \draw[arrow] (fconv.east) -- node[above, pos=0.42] {nein} (move.west);
+            \draw[loop] (move.north) -- ++(0,1.45) -- (solve.east);
+            \draw[arrow] (shapeRes) -- (sconv);
+            \draw[arrow] (sconv) -- node[left] {ja} (done);
+            \draw[arrow] (sconv.east) -- node[above, pos=0.42] {nein} (shapeMove.west);
+            \draw[loop] (shapeMove.east) -- ++(0.26,0) |- (shape.east);
+        \end{tikzpicture}
     \end{center}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Gleichgewicht: Pseudo-Solver -- Ergebnis}
+    \begin{columns}[T]
+    \column{.34\linewidth}
+    \begin{center}
+        \includegraphics[height=1.85cm]{figures/equBall.png}\\[-0.04cm]
+        {\tiny Start: nahezu kugelförmig}\\[0.12cm]
+        \includegraphics[height=1.85cm]{figures/equEllipsoid.png}\\[-0.04cm]
+        {\tiny Ergebnis: abgeplatteter Ellipsoid}
+    \end{center}
+    \column{.66\linewidth}
+    \includegraphics[height=4.15cm]{figures/shapePosition.png}
+    \vspace{-0.1cm}
+    {\scriptsize
+    \begin{itemize}
+        \setlength{\itemsep}{0.02cm}
+        \item Der Pseudo-Solver trennt Positions- und Formkorrektur: zuerst wird $F_y\approx mg$ erreicht, danach wird die freie Oberfläche über das Young-Laplace-Residuum verschoben.
+        \item Der horizontale Durchmesser wächst, der vertikale sinkt: der Tropfen wird ellipsoidisch abgeplattet.
+        \item Die Schwerpunktlage nähert sich nach anfänglichem Überschwingen einem stabilen Bereich.
+    \end{itemize}
+    }
     \end{columns}
 \end{frame}
 

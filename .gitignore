@@ -51,6 +51,7 @@ CasesTri
 logs
 AlphaInit
 controlDict.orig
+decomposeParDict
 *.msh
 gmsh-*-Linux64
 

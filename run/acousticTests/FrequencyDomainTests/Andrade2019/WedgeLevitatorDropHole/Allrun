@@ -16,28 +16,12 @@ need_cmd()
 need_cmd cartesian2DMesh
 need_cmd extrudeMesh
 
-case "${SOLVER}" in
-    acousticHelmholtzFoam)
-        solverMode="parallel"
-        ;;
-    acousticHelmholtzSerialFoam)
-        solverMode="serial"
-        ;;
-    tensorLaplacianFoam)
-        solverMode="serial"
-        ;;
-    *)
-        echo "Error: unsupported SOLVER='${SOLVER}'" >&2
-        exit 1
-        ;;
-esac
+SOLVER=acousticHelmholtzFoam
 
-if [ "${solverMode}" = "parallel" ]; then
-    if [ -z "${NPROCS:-}" ]; then
-        NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
-    fi
-    : "${NPROCS:=4}"
+if [ -z "${NPROCS:-}" ]; then
+    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
 fi
+: "${NPROCS:=4}"
 
 ./Allclean
 ./prepareCase
@@ -53,12 +37,8 @@ runApplication setPMLFields
 
 need_cmd "${SOLVER}"
 rm -f "log.${SOLVER}"
-if [ "${solverMode}" = "parallel" ]; then
-    runApplication decomposePar -force
-    runParallel "${SOLVER}"
-    runApplication reconstructPar -latestTime
-else
-    runApplication "${SOLVER}"
-fi
+runApplication decomposePar -force
+runParallel "${SOLVER}"
+runApplication reconstructPar -latestTime
 
 #------------------------------------------------------------------------------

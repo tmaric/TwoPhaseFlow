@@ -20,8 +20,8 @@ dropPatch               dropWall;
 // to the equivalent axisymmetric force by 360/1.
 axisymFactor            360;
 
-dropRadius              0.0001;
-dropVolume              4.18879020479e-12;
+dropRadius              0.001;
+dropVolume              4.18879020479e-09;
 liquidDensity           998.3;
 gravityMagnitude        9.81;
 surfaceTension          0.072;
@@ -48,7 +48,7 @@ enablePositionUpdate    true;
 motionRadius            0.004;
 
 // Fallback radius used only when too few profile points are available.
-curvatureFallbackRadius 0.0001;
+curvatureFallbackRadius 0.001;
 writeShapeProfiles      true;
 
 // Phase 3 free-shape correction. The update follows

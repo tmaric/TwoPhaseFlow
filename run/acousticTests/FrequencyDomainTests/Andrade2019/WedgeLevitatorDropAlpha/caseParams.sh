@@ -36,7 +36,7 @@ SOLVER=acousticHelmholtzFoam
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
-: "${DRIVE_F:=25250}"
+DRIVE_F=100000
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
 : "${PISTON_U:=1.0}"
 

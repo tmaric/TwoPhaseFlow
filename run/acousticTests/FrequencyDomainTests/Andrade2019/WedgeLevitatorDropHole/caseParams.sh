@@ -5,13 +5,6 @@
 # DropHole mesh treatment: the drop is a sound-hard boundary patch named
 # dropWall instead of an alpha.water region.
 
-# ---------------------------------------------------------------------------
-# Solver
-# ---------------------------------------------------------------------------
-# Frequency-domain acoustic solver:
-# - acousticHelmholtzFoam: MPI-capable
-# - acousticHelmholtzSerialFoam: single-rank reference solver
-SOLVER=${SOLVER:-acousticHelmholtzFoam}
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -78,13 +71,13 @@ AXIS_RADIUS=${AXIS_RADIUS:-1.0e-5}
 SURFACE_THICKNESS=${SURFACE_THICKNESS:-0.1}
 
 # Sound-hard drop boundary [m].
-DROP_RADIUS=${DROP_RADIUS:-0.00002}
+DROP_RADIUS=${DROP_RADIUS:-0.001}
 DROP_CENTER_Y=${DROP_CENTER_Y:-0.0040003}
 
 # cfMesh controls [m]. These replace DropAlpha's gmsh/setAlphaField interface
 # handling and control the hard dropWall boundary resolution.
 CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
-CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-5e-6}
+CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-5e-5}
 CFMESH_DROP_SEGMENTS=${CFMESH_DROP_SEGMENTS:-128}
 
 # Optional per-run overrides used by parameter sweeps. This keeps copied sweep
