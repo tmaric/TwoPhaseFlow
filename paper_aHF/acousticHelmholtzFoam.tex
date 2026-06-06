@@ -706,11 +706,11 @@ To verify that the solver is capable to handle inhomogeneous medium. We set up t
 
 In this 1D case, the transducer at the left end viberate harmonically with the frequency $f$ and velocity amplitude $u_0$. The emitted sound wave will first travel through the medium 1 in the interval $(0,L_1)$, then  medium 2 in $(L_1,L_2)$, and finally into the PML in $(L_2,L)$.  
 
-Die analytical solution reads
+The analytical solution reads
 \begin{equation}
     P(x) = 
     \begin{cases}
-        \rho_1c_1u_0\frac{e^{ik_1x}+Re^{ik_1(2L-x)}}{1-Re^{i2k_1L}} & 0<x<L \\ \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L}}e^{i\left[k_2(x-L)+k_1L\right]} & x>L,
+        \rho_1c_1u_0\frac{e^{ik_1x}+Re^{ik_1(2L-x)}}{1-Re^{i2k_1L}} & 0<x<L_1 \\ \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L}}e^{i\left[k_2(x-L)+k_1L\right]} & L_1<x<L_2, \\  e^{\frac{\sigma_{max}(L-L_2)}{(p+1)c_2}\left(\frac{x-L_2}{L-L_2}\right)^{(p+1)}} \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L}}e^{i\left[k_2(x-L)+k_1L\right]} & L_2<x<L
     \end{cases}
 \end{equation}
 with $R=\frac{\rho_2c_2-\rho_1c_1}{\rho_2c_2+\rho_1c_1}$. The simulation parameters are listed in \Cref{tab:params1DTwoPhase}.
@@ -732,22 +732,53 @@ with $R=\frac{\rho_2c_2-\rho_1c_1}{\rho_2c_2+\rho_1c_1}$. The simulation paramet
         Interface position & $L_1$ & 0.09 & $\mathrm{m}$ \\
         PML start position & $L_2$ & 0.20 & $\mathrm{m}$ \\
         PML thickness & $L-L_2$ & 0.15 & $\mathrm{m}$ \\
-        Maximum PML damping & $\sigma_{\max}$ & $-1.0\times10^4$ & $\mathrm{s^{-1}}$ \\
+        Maximum PML damping & $\sigma_{\max}$ & $-2.0\times10^5$ & $\mathrm{s^{-1}}$ \\
         PML polynomial order & $p$ & 3 & -- \\
         Number of cells in $x$ & $N_x$ & 2000 & -- \\
         \bottomrule
     \end{tabular}
 \end{table}
-The simulation result agrees perfectly to the analytical solution as  shown in the \Cref{fig:1DLayerdCompare}. As the acoustic impedance $\rho c$ of water is much larger than the air, we have the approximation $R\approx1$. Then the analytical solution in $(0,L)$ becomes after some elementary algebra the standing wave solution
+The numerical real and imaginary pressure components agree closely with the
+updated analytical solution, including the decay inside the PML, as shown in
+\Cref{fig:1DLayerdCompare}.  Because the acoustic impedance $\rho c$ of water
+is much larger than that of air, $R\approx1$ and the field in medium~1 is
+approximately a standing wave.  Before the PML is reached, this standing-wave
+solution can be written as
 \begin{equation}
     P(x)=\rho_1c_1u_0i\frac{\cos[k_1(x-L_1)]}{\sin(k_1L)},
 \end{equation}
 which has only imaginary part. 
 \begin{figure}[h]
     \centering
-    \includegraphics[scale=0.7]{figures/pressureField_Pre_Pim_compare.png}%
-    \caption{Layered-interface validation: comparison of the numerical real and imaginary pressure fields with the analytical solution.}
+    \includegraphics[width=0.9\textwidth]{figures/pressureField_Pre_Pim_compare.png}%
+    \caption{Layered-interface validation: comparison of the numerical real and imaginary pressure components with the updated analytical solution, including attenuation inside the PML.}
     \label{fig:1DLayerdCompare}
+\end{figure}
+
+At the interface, the outgoing wave is transmitted into medium~2.  Since the
+right boundary represents an open domain, no physical reflection should return
+from that side.  The field in the undamped part of medium~2,
+$L_1<x<L_2$, is therefore a plane travelling wave with constant pressure
+amplitude.  Upon entering the PML, the complex coordinate stretching multiplies
+the wave amplitude by the attenuation factor
+$\exp[-\mathbf{k}\cdot\mathbf{h}(x)]$.  For the polynomial damping profile used
+in this case, this factor is
+\begin{equation}
+    \exp\left[
+        \frac{\sigma_{\max}(L-L_2)}{(p+1)c_2}
+        \left(\frac{x-L_2}{L-L_2}\right)^{p+1}
+    \right],
+    \qquad L_2<x<L,
+\end{equation}
+where $\sigma_{\max}<0$.  Consequently, the amplitude remains constant before
+the PML and then decreases smoothly towards the truncated boundary, as
+confirmed by \Cref{fig:1DLayerdAmplitude}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/pressureField_abs_compare.png}%
+    \caption{Layered-interface validation: numerical and analytical pressure amplitude.  The transmitted plane wave has constant amplitude in medium~2 before the PML and is smoothly attenuated inside the PML.}
+    \label{fig:1DLayerdAmplitude}
 \end{figure}
 
 \subsubsection{PML damping sensitivity}
@@ -755,7 +786,16 @@ The one-dimensional layered-interface case is also used to examine the influence
 
 \input{tables/pml_sigma_sensitivity_table.tex}
 
-The resulting relative $L_2$ errors are shown in \Cref{fig:pmlSigmaSensitivity}.  A too small value of $|\sigma_{\max}|$ does not sufficiently damp the transmitted wave and therefore produces visible reflection from the truncated boundary.  Increasing the damping improves the result up to the range around $\sigma_{\max}=-5\times10^3$ to $-10^4\,\mathrm{s}^{-1}$.  For larger damping magnitudes the error increases again, because the damping profile becomes too steep for the fixed mesh resolution and introduces additional numerical reflection.  This confirms that the PML coefficient should be chosen together with the layer thickness and mesh spacing rather than simply maximized.
+The resulting relative $L_2$ errors are shown in
+\Cref{fig:pmlSigmaSensitivity}.  With the PML coefficients scaled using the
+local sound speed of medium~2, small values of $|\sigma_{\max}|$ do not provide
+sufficient attenuation before the truncated boundary.  The error decreases as
+the damping magnitude is increased and reaches its lowest level around
+$\sigma_{\max}=-2\times10^5\,\mathrm{s}^{-1}$.  Increasing the magnitude
+further makes the damping profile increasingly steep and raises the numerical
+error.  This confirms that the PML coefficient should be selected together
+with the local sound speed, layer thickness, polynomial order, and mesh
+spacing.
 
 \begin{figure}[h]
     \centering
@@ -764,14 +804,23 @@ The resulting relative $L_2$ errors are shown in \Cref{fig:pmlSigmaSensitivity}.
     \label{fig:pmlSigmaSensitivity}
 \end{figure}
 
-To further distinguish a damping-strength effect from a mesh-resolution effect, an additional sweep is performed with the strong damping value fixed at $\sigma_{\max}=-1.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of cells in the propagation direction.  The results in \Cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} show that the imaginary-pressure error decreases with refinement, but the real-pressure and amplitude errors remain close to a plateau over the tested range.  Thus, for this configuration, the deterioration observed at very large $|\sigma_{\max}|$ is not removed simply by refining the mesh.  This reinforces the practical conclusion that the damping strength, PML thickness, polynomial order, and mesh spacing must be selected together.
+To assess mesh dependence at the selected damping strength, an additional
+sweep is performed with
+$\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of
+cells in the propagation direction.  The results in
+\Cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} quantify convergence of
+the real pressure, imaginary pressure, and pressure amplitude for the updated
+medium-dependent PML formulation.  The imaginary-pressure error decreases
+monotonically with refinement.  The real-pressure and amplitude errors show
+small non-monotonic variations at the intermediate resolutions, but all three
+error measures reach their lowest values on the finest mesh.
 
 \input{tables/pml_mesh_sensitivity_table.tex}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_mesh_sensitivity.png}%
-    \caption{Layered-interface case: mesh sensitivity with fixed strong PML damping $\sigma_{\max}=-1.0\times10^5\,\mathrm{s^{-1}}$.}
+    \caption{Layered-interface case: mesh sensitivity with fixed PML damping $\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$.}
     \label{fig:pmlMeshSensitivity}
 \end{figure}
 

@@ -6,7 +6,7 @@ parent_dir="$(dirname -- "$case_dir")"
 case_name="$(basename -- "$case_dir")"
 out_dir="$case_dir/postProcessing/pmlSensitivity"
 
-sigmas="${PML_SIGMAS:--1000 -5000 -10000 -50000 -100000}"
+sigmas="${PML_SIGMAS:--10000 -50000 -100000 -200000 -500000}"
 
 mkdir -p "$out_dir"
 rm -f "$out_dir/metrics_summary.csv"
