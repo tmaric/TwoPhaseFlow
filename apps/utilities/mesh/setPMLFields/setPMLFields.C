@@ -31,6 +31,22 @@ int main(int argc, char *argv[])
         )
     );
 
+    Info<< "Reading alpha.water\n" << endl;
+
+    volScalarField alpha
+    (
+        IOobject
+        (
+            "alpha.water",
+            runTime.timeName(),
+            mesh,
+            IOobject::READ_IF_PRESENT,
+            IOobject::NO_WRITE
+        ),
+        mesh,
+        dimensionedScalar("alpha.water", dimless, Zero)
+    );
+
     volScalarField SC0
     (
         IOobject
@@ -88,7 +104,7 @@ int main(int argc, char *argv[])
     );
 
     const acousticPML::Config cfg = acousticPML::readConfig(transportProperties);
-    acousticPML::updateFields(mesh, cfg, SC0, SC1, TC1, sigma);
+    acousticPML::updateFields(mesh, cfg, alpha, SC0, SC1, TC1, sigma);
 
     SC0.write();
     SC1.write();

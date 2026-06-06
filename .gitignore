@@ -170,6 +170,8 @@ oldData_toBeDeleted/
 *.png
 !paper_aHF/figures/
 !paper_aHF/figures/*.png
+!SLIDE/figures/
+!SLIDE/figures/*.png
 
 #jupyter notebook checkpoints
 .ipynb_checkpoints/

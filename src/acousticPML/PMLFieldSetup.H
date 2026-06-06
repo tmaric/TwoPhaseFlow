@@ -20,6 +20,7 @@ enum PMLType
 struct Config
 {
     scalar cg;
+    scalar cl;
     scalar omega;
     scalar L;
     scalar sigmaMax;
@@ -37,6 +38,7 @@ inline Config readConfig(const IOdictionary& transportProperties)
     Config cfg;
 
     const dimensionedScalar cg("cg", dimVelocity, transportProperties);
+    const dimensionedScalar cl("cl", dimVelocity, transportProperties);
     const dimensionedScalar f("f", dimless/dimTime, transportProperties);
     const dimensionedScalar L("L", dimless, transportProperties);
     const dimensionedScalar sigmaMax
@@ -57,6 +59,7 @@ inline Config readConfig(const IOdictionary& transportProperties)
     );
 
     cfg.cg = cg.value();
+    cfg.cl = cl.value();
     cfg.omega = constant::mathematical::twoPi*f.value();
     cfg.L = L.value();
     cfg.sigmaMax = sigmaMax.value();
@@ -106,6 +109,7 @@ inline void evaluatePoint
 (
     const point& x,
     const Config& cfg,
+    const scalar invSoundSpeedSqr,
     scalar& sigmaLocal,
     scalar& sc0,
     scalar& sc1,
@@ -163,8 +167,10 @@ inline void evaluatePoint
                 (sigmaLocal > 0 || cfg.omega > 0)
               ? (sigmaCubeOverOmega + cfg.omega*sigmaLocal)/(denom + VSMALL)
               : 0.0;
-            sc0 = (3*sigmaLocal*sigmaLocal)/sqr(cfg.cg);
-            sc1 = (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)/sqr(cfg.cg);
+            sc0 = (3*sigmaLocal*sigmaLocal)*invSoundSpeedSqr;
+            sc1 =
+                (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)
+               *invSoundSpeedSqr;
             break;
         }
 
@@ -189,8 +195,10 @@ inline void evaluatePoint
                 (sigmaLocal > 0 || cfg.omega > 0)
               ? (sigmaCubeOverOmega + cfg.omega*sigmaLocal)/(denom + VSMALL)
               : 0.0;
-            sc0 = (3*sigmaLocal*sigmaLocal)/sqr(cfg.cg);
-            sc1 = (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)/sqr(cfg.cg);
+            sc0 = (3*sigmaLocal*sigmaLocal)*invSoundSpeedSqr;
+            sc1 =
+                (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)
+               *invSoundSpeedSqr;
             break;
         }
 
@@ -208,6 +216,7 @@ inline void updateFields
 (
     const fvMesh& mesh,
     const Config& cfg,
+    const volScalarField& alpha,
     volScalarField& SC0,
     volScalarField& SC1,
     volScalarField& TC1,
@@ -218,11 +227,24 @@ inline void updateFields
 
     forAll(Ccs, celli)
     {
+        const scalar alphaCell = min(max(alpha[celli], scalar(0)), scalar(1));
+        const scalar invSoundSpeedSqr =
+            alphaCell/sqr(cfg.cl) + (1 - alphaCell)/sqr(cfg.cg);
+
         scalar sigmaLocal = 0.0;
         scalar sc0 = 0.0;
         scalar sc1 = 0.0;
         scalar tc1 = 0.0;
-        evaluatePoint(Ccs[celli], cfg, sigmaLocal, sc0, sc1, tc1);
+        evaluatePoint
+        (
+            Ccs[celli],
+            cfg,
+            invSoundSpeedSqr,
+            sigmaLocal,
+            sc0,
+            sc1,
+            tc1
+        );
 
         sigma[celli] = sigmaLocal;
         SC0[celli] = sc0;
@@ -253,11 +275,28 @@ inline void updateFields
 
         forAll(patch, facei)
         {
+            const scalar alphaFace = min
+            (
+                max(alpha.boundaryField()[patchi][facei], scalar(0)),
+                scalar(1)
+            );
+            const scalar invSoundSpeedSqr =
+                alphaFace/sqr(cfg.cl) + (1 - alphaFace)/sqr(cfg.cg);
+
             scalar sigmaLocal = 0.0;
             scalar sc0 = 0.0;
             scalar sc1 = 0.0;
             scalar tc1 = 0.0;
-            evaluatePoint(Cf.boundaryField()[patchi][facei], cfg, sigmaLocal, sc0, sc1, tc1);
+            evaluatePoint
+            (
+                Cf.boundaryField()[patchi][facei],
+                cfg,
+                invSoundSpeedSqr,
+                sigmaLocal,
+                sc0,
+                sc1,
+                tc1
+            );
 
             sigma.boundaryFieldRef()[patchi][facei] = sigmaLocal;
             SC0.boundaryFieldRef()[patchi][facei] = sc0;
