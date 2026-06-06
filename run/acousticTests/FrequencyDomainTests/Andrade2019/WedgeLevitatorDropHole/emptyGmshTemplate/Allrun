@@ -15,21 +15,7 @@ need_cmd()
 
 need_cmd gmsh
 
-case "${SOLVER}" in
-    acousticHelmholtzFoam)
-        solverMode="parallel"
-        ;;
-    acousticHelmholtzSerialFoam)
-        solverMode="serial"
-        ;;
-    tensorLaplacianFoam)
-        solverMode="serial"
-        ;;
-    *)
-        echo "Error: unsupported SOLVER='${SOLVER}'" >&2
-        exit 1
-        ;;
-esac
+SOLVER=acousticHelmholtzFoam
 
 if [ "${solverMode}" = "parallel" ]; then
     if [ -z "${NPROCS:-}" ]; then

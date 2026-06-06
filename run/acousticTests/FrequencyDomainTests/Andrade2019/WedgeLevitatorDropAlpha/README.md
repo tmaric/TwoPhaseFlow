@@ -66,6 +66,15 @@ Drop initialization is controlled from `caseParams.sh`:
 - `DROP_HORIZONTAL_LONG_AXIS`
 - `DROP_CENTER_Y`
 
+Directional rectangular-PML damping is controlled with:
+- `SIGMA_MAX_X`
+- `SIGMA_MAX_Y`
+- `SIGMA_MAX_Z`
+
+`prepareCase` writes these values to `sigmaMaxVector`. The scalar
+`SIGMA_MAX` remains available for backward compatibility and initializes the
+x- and y-direction values when they are not set explicitly.
+
 ## Environment
 
 Run with your OpenFOAM environment loaded:

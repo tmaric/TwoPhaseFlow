@@ -43,5 +43,6 @@ PMLType         rectangle;
 PMLMax          (__PML_MAX_X__ __PML_MAX_Y__ __PML_MAX_Z__);
 PMLMin          (__PML_MIN_X__ __PML_MIN_Y__ __PML_MIN_Z__);
 sigmaMax        __SIGMA_MAX__;
+sigmaMaxVector  (__SIGMA_MAX_X__ __SIGMA_MAX_Y__ __SIGMA_MAX_Z__);
 po              __PO__;
 // ************************************************************************* //

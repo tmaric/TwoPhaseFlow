@@ -99,11 +99,20 @@ int main(int argc, char *argv[])
 
     Info<< "\nStarting time loop\n" << endl;
 
-    const dimensionedScalar k2
+    rho = 1/(alpha1/rhol + (1 - alpha1)/rhog);
+    invRhof = alphaf/rhol + (1 - alphaf)/rhog;
+
+    volScalarField k2
     (
-        "k2",
-        dimless/dimLength/dimLength,
-        sqr(twoPi()*f/cg).value()
+        IOobject
+        (
+            "k2",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        sqr(twoPi()*f)*(alpha1/sqr(cl) + (1 - alpha1)/sqr(cg))
     );
 
     while (simple.loop())
@@ -117,23 +126,25 @@ int main(int argc, char *argv[])
 
             fvScalarMatrix AopPre
             (
-                fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
-              + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
+                rho*fvm::laplacian(invRhof, Pre)
+              + fvm::laplacian(T0, Pre)
+              + fvm::Sp(k2 - SC0, Pre)
             );
 
             fvScalarMatrix AopPim
             (
-                fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
-              + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
+                rho*fvm::laplacian(invRhof, Pim)
+              + fvm::laplacian(T0, Pim)
+              + fvm::Sp(k2 - SC0, Pim)
             );
 
             // Coupling operators built from the opposite field:
-            // Pim-row couples to Pre via (laplacian(TC1,Pre) + Sp(SC1,Pre))
-            fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));
+            // Pim-row couples to Pre via (laplacian(T1,Pre) + Sp(SC1,Pre))
+            fvScalarMatrix couplingLaplPre(fvm::laplacian(T1, Pre));
             fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));
 
-            // Pre-row couples to Pim via (laplacian(TC1,Pim) + Sp(SC1,Pim))
-            fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));
+            // Pre-row couples to Pim via (laplacian(T1,Pim) + Sp(SC1,Pim))
+            fvScalarMatrix couplingLaplPim(fvm::laplacian(T1, Pim));
             fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));
 
             assembleBlockSystem

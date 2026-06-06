@@ -34,6 +34,9 @@ PARTICLE_CENTER_Y=${PARTICLE_CENTER_Y:-0.0040003}
 # ---------------------------------------------------------------------------
 PML_L=${PML_L:-0.008}
 SIGMA_MAX=${SIGMA_MAX:-1000000}
+SIGMA_MAX_X=${SIGMA_MAX_X:-${SIGMA_MAX}}
+SIGMA_MAX_Y=${SIGMA_MAX_Y:-${SIGMA_MAX}}
+SIGMA_MAX_Z=${SIGMA_MAX_Z:-0}
 PO=${PO:-3}
 PML_MAX_Z=${PML_MAX_Z:-100}
 PML_MIN_X=${PML_MIN_X:--100}

@@ -1,4 +1,4 @@
-// Shared PML coefficient setup for the scalar frequency-domain acoustic solvers.
+// Shared PML coefficient setup for the frequency-domain acoustic solvers.
 
 #include "fvCFD.H"
 #include "emptyPolyPatch.H"
@@ -24,6 +24,7 @@ struct Config
     scalar omega;
     scalar L;
     scalar sigmaMax;
+    vector sigmaMaxVector;
     scalar po;
     PMLType type;
     vector PMLMax;
@@ -63,6 +64,11 @@ inline Config readConfig(const IOdictionary& transportProperties)
     cfg.omega = constant::mathematical::twoPi*f.value();
     cfg.L = L.value();
     cfg.sigmaMax = sigmaMax.value();
+    cfg.sigmaMaxVector = transportProperties.lookupOrDefault<vector>
+    (
+        "sigmaMaxVector",
+        vector(cfg.sigmaMax, cfg.sigmaMax, cfg.sigmaMax)
+    );
     cfg.po = po.value();
     cfg.type = UNDEFINED;
     cfg.PMLMax = Zero;
@@ -113,20 +119,23 @@ inline void evaluatePoint
     scalar& sigmaLocal,
     scalar& sc0,
     scalar& sc1,
-    scalar& tc1
+    scalar& tc1,
+    tensor& t0,
+    tensor& t1
 )
 {
     sigmaLocal = 0.0;
     sc0 = 0.0;
     sc1 = 0.0;
     tc1 = 0.0;
+    t0 = Zero;
+    t1 = Zero;
 
     switch (cfg.type)
     {
         case RECTANGLE:
         {
             vector DpFunc(Zero);
-            const scalar sigmaSign = (cfg.sigmaMax < 0) ? -1.0 : 1.0;
 
             for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
             {
@@ -138,38 +147,57 @@ inline void evaluatePoint
                     const scalar distCmpt = (distToMax < cfg.L) ? distToMax : distToMin;
                     scalar s = (cfg.L - distCmpt)/cfg.L;
                     s = min(max(s, scalar(0)), scalar(1));
-                    DpFunc.component(cmpt) = mag(cfg.sigmaMax)*Foam::pow(s, cfg.po);
+                    DpFunc.component(cmpt) =
+                        cfg.sigmaMaxVector.component(cmpt)*Foam::pow(s, cfg.po);
                 }
             }
 
             const scalar dx = DpFunc.x();
             const scalar dy = DpFunc.y();
             const scalar dz = DpFunc.z();
+            const scalar dxyzOverOmega =
+                (mag(cfg.omega) > VSMALL) ? dx*dy*dz/cfg.omega : 0.0;
+
+            // Real and imaginary parts of diag(etaY*etaZ/etaX, ...),
+            // excluding the identity contribution.
+            const scalar t0x =
+                (dx*(dy + dz - dx) - dy*dz)
+               /(sqr(cfg.omega) + sqr(dx) + VSMALL);
+            const scalar t0y =
+                (dy*(dx + dz - dy) - dx*dz)
+               /(sqr(cfg.omega) + sqr(dy) + VSMALL);
+            const scalar t0z =
+                (dz*(dx + dy - dz) - dx*dy)
+               /(sqr(cfg.omega) + sqr(dz) + VSMALL);
+
+            const scalar t1x =
+                (dxyzOverOmega + cfg.omega*(dy + dz - dx))
+               /(sqr(cfg.omega) + sqr(dx) + VSMALL);
+            const scalar t1y =
+                (dxyzOverOmega + cfg.omega*(dx + dz - dy))
+               /(sqr(cfg.omega) + sqr(dy) + VSMALL);
+            const scalar t1z =
+                (dxyzOverOmega + cfg.omega*(dx + dy - dz))
+               /(sqr(cfg.omega) + sqr(dz) + VSMALL);
+
+            t0 = tensor(t0x, 0, 0, 0, t0y, 0, 0, 0, t0z);
+            t1 = tensor(t1x, 0, 0, 0, t1y, 0, 0, 0, t1z);
+
+            // Retain TC1 for legacy consumers; directional solvers use T1.
+            tc1 = (t1x + t1y + t1z)/3.0;
 
             sigmaLocal = dx;
-            if (dy > sigmaLocal)
+            if (mag(dy) > mag(sigmaLocal))
             {
                 sigmaLocal = dy;
             }
-            if (dz > sigmaLocal)
+            if (mag(dz) > mag(sigmaLocal))
             {
                 sigmaLocal = dz;
             }
-            sigmaLocal *= sigmaSign;
-
-            const scalar denom = sqr(sigmaLocal) + sqr(cfg.omega);
-            const scalar sigmaCubeOverOmega =
-                (mag(cfg.omega) > VSMALL)
-              ? (sigmaLocal*sigmaLocal*sigmaLocal/cfg.omega)
-              : 0.0;
-
-            tc1 =
-                (sigmaLocal > 0 || cfg.omega > 0)
-              ? (sigmaCubeOverOmega + cfg.omega*sigmaLocal)/(denom + VSMALL)
-              : 0.0;
-            sc0 = (3*sigmaLocal*sigmaLocal)*invSoundSpeedSqr;
+            sc0 = (dx*dy + dx*dz + dy*dz)*invSoundSpeedSqr;
             sc1 =
-                (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)
+                (cfg.omega*(dx + dy + dz) - dxyzOverOmega)
                *invSoundSpeedSqr;
             break;
         }
@@ -199,6 +227,7 @@ inline void evaluatePoint
             sc1 =
                 (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)
                *invSoundSpeedSqr;
+            t1 = tensor(tc1, 0, 0, 0, tc1, 0, 0, 0, tc1);
             break;
         }
 
@@ -220,6 +249,8 @@ inline void updateFields
     volScalarField& SC0,
     volScalarField& SC1,
     volScalarField& TC1,
+    volTensorField& T0,
+    volTensorField& T1,
     volScalarField& sigma
 )
 {
@@ -235,6 +266,8 @@ inline void updateFields
         scalar sc0 = 0.0;
         scalar sc1 = 0.0;
         scalar tc1 = 0.0;
+        tensor t0(Zero);
+        tensor t1(Zero);
         evaluatePoint
         (
             Ccs[celli],
@@ -243,13 +276,17 @@ inline void updateFields
             sigmaLocal,
             sc0,
             sc1,
-            tc1
+            tc1,
+            t0,
+            t1
         );
 
         sigma[celli] = sigmaLocal;
         SC0[celli] = sc0;
         SC1[celli] = sc1;
         TC1[celli] = tc1;
+        T0[celli] = t0;
+        T1[celli] = t1;
     }
 
     const polyBoundaryMesh& patches = mesh.boundaryMesh();
@@ -261,6 +298,8 @@ inline void updateFields
         SC0.boundaryFieldRef()[patchi] = 0.0;
         SC1.boundaryFieldRef()[patchi] = 0.0;
         TC1.boundaryFieldRef()[patchi] = 0.0;
+        T0.boundaryFieldRef()[patchi] = tensor::zero;
+        T1.boundaryFieldRef()[patchi] = tensor::zero;
 
         const polyPatch& patch = patches[patchi];
         if
@@ -287,6 +326,8 @@ inline void updateFields
             scalar sc0 = 0.0;
             scalar sc1 = 0.0;
             scalar tc1 = 0.0;
+            tensor t0(Zero);
+            tensor t1(Zero);
             evaluatePoint
             (
                 Cf.boundaryField()[patchi][facei],
@@ -295,13 +336,17 @@ inline void updateFields
                 sigmaLocal,
                 sc0,
                 sc1,
-                tc1
+                tc1,
+                t0,
+                t1
             );
 
             sigma.boundaryFieldRef()[patchi][facei] = sigmaLocal;
             SC0.boundaryFieldRef()[patchi][facei] = sc0;
             SC1.boundaryFieldRef()[patchi][facei] = sc1;
             TC1.boundaryFieldRef()[patchi][facei] = tc1;
+            T0.boundaryFieldRef()[patchi][facei] = t0;
+            T1.boundaryFieldRef()[patchi][facei] = t1;
         }
     }
 
@@ -309,6 +354,8 @@ inline void updateFields
     SC0.correctBoundaryConditions();
     SC1.correctBoundaryConditions();
     TC1.correctBoundaryConditions();
+    T0.correctBoundaryConditions();
+    T1.correctBoundaryConditions();
 }
 
 } // End namespace acousticPML

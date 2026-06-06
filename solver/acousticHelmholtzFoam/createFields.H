@@ -195,11 +195,24 @@
         mesh
     );
 
-    volScalarField TC1
+    volTensorField T0
     (
         IOobject
         (
-            "TC1",
+            "T0",
+            runTime.timeName(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::AUTO_WRITE
+        ),
+        mesh
+    );
+
+    volTensorField T1
+    (
+        IOobject
+        (
+            "T1",
             runTime.timeName(),
             mesh,
             IOobject::MUST_READ,

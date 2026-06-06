@@ -194,9 +194,9 @@ One motivating application is acoustic levitation of liquid droplets. In single-
 
 Open-domain acoustic simulations also require a robust treatment of outgoing waves. Radiation boundary conditions can be effective in special geometries or for waves with known propagation directions, but they are less convenient for general three-dimensional fields and near-field radiation problems. Perfectly matched layers (PMLs) provide a more flexible domain-truncation strategy by attenuating outgoing waves in an artificial absorbing layer while minimizing reflections at the interface between the physical domain and the layer \cite{Kaltenbacher2013modified}. For a finite-volume implementation in OpenFOAM, the PML formulation must be expressed in terms of operators and coefficient fields that can be assembled efficiently on arbitrary meshes.
 
-This paper presents \texttt{acousticHelmholtzFoam}, a parallel OpenFOAM solver for frequency-domain acoustic waves in heterogeneous two-phase media. The complex Helmholtz equation is split into coupled real and imaginary pressure equations, producing a real-valued block system. The finite-volume operators are assembled in OpenFOAM, while the global block-coupled linear system is solved using PETSc with MUMPS. A companion utility, \texttt{setPMLFields}, generates the scalar PML coefficient fields used by the solver for rectangular and spherical absorbing layers. The solver also computes derived fields such as acoustic velocity components, pressure amplitude, radiation pressure, and momentum flux, which are useful for acoustic levitation and related multiphysics applications.
+This paper presents \texttt{acousticHelmholtzFoam}, a parallel OpenFOAM solver for frequency-domain acoustic waves in heterogeneous two-phase media. The complex Helmholtz equation is split into coupled real and imaginary pressure equations, producing a real-valued block system. The finite-volume operators are assembled in OpenFOAM, while the global block-coupled linear system is solved using PETSc with MUMPS. A companion utility, \texttt{setPMLFields}, generates the scalar and directional tensor PML coefficient fields used by the solver for rectangular and spherical absorbing layers. The solver also computes derived fields such as acoustic velocity components, pressure amplitude, radiation pressure, and momentum flux, which are useful for acoustic levitation and related multiphysics applications.
 
-The main contributions of the software are: (i) a finite-volume formulation of the heterogeneous Helmholtz equation for two-phase material fields, (ii) a PML implementation based on precomputed OpenFOAM scalar fields, (iii) a block-coupled PETSc/MUMPS solution procedure for the real and imaginary pressure components, and (iv) verification cases for piston radiation and one-dimensional two-phase wave propagation. The remainder of the paper is organized as follows. \Cref{sec:model} derives the acoustic model and PML formulation. \Cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \Cref{sec:usage} summarizes the program workflow and required input fields. \Cref{sec:verification} presents verification cases, while \Cref{sec:application} outlines the intended application to single-axis acoustic levitation.
+The main contributions of the software are: (i) a finite-volume formulation of the heterogeneous Helmholtz equation for two-phase material fields, (ii) a PML implementation based on precomputed OpenFOAM scalar and tensor fields, (iii) a block-coupled PETSc/MUMPS solution procedure for the real and imaginary pressure components, and (iv) verification cases for piston radiation and one-dimensional two-phase wave propagation. The remainder of the paper is organized as follows. \Cref{sec:model} derives the acoustic model and PML formulation. \Cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \Cref{sec:usage} summarizes the program workflow and required input fields. \Cref{sec:verification} presents verification cases, while \Cref{sec:application} outlines the intended application to single-axis acoustic levitation.
 
 
 \section{Mathematical model}
@@ -424,9 +424,11 @@ selected through \texttt{PMLType}; the current implementation supports
 The PML coefficient fields are generated before the Helmholtz solve by the
 companion utility \texttt{setPMLFields}.  This utility reads the same
 \texttt{transportProperties} dictionary and writes the scalar fields
-\texttt{sigma}, \texttt{SC0}, \texttt{SC1}, and \texttt{TC1}.  These fields
-represent the polynomial damping profile and the scalar coefficients appearing
-in the real-imaginary split of the modified Helmholtz equation.  Separating this
+\texttt{sigma}, \texttt{SC0}, and \texttt{SC1}, together with the directional
+tensor fields \texttt{T0} and \texttt{T1}.  The legacy scalar field
+\texttt{TC1} is also written for compatibility.  These fields represent the
+polynomial damping profile and the coefficients appearing in the real-imaginary
+split of the modified Helmholtz equation.  Separating this
 step from the solver makes the PML setup reproducible and allows the generated
 fields to be inspected with standard OpenFOAM post-processing tools before the
 linear system is assembled.
@@ -480,14 +482,13 @@ With the operators
         \hat B & = \nabla\cdot(\mathbf{T}_1\cdot\nabla) + C_1.
     \end{aligned}
 \end{equation}
-These operator will be constructed with the OpenFOAM implicit operators. But one problem is that in the operator fvm::laplacian(A,$\phi$) the datetype of A cannot be tensor. To avoid the modification of the OpenFoam core we simplify our equation by making the PML damping coefficients $\sigma:=\sigma_x= \sigma_y= \sigma_z$. In this case the damping in PML becomes isentropic which will barely affect the damping effect. And we are glad to see that $\mathbf{T}_0=\mathbf{0},T_1:=T_{1xx}=T_{1yy}=T_{1zz}$, then the operators can be simplified to
-\begin{equation}
-    \begin{aligned}
-        \hat A & = \rho_0 \nabla \cdot\left(\frac{1}{\rho_0} \nabla \right)  +\left(k^2-C_0\right),\\
-        \hat B & = \nabla\cdot(T_1\cdot\nabla) + C_1,
-    \end{aligned}
-\end{equation}
- which can be formulated with OpenFOAM implicit operator without problem. 
+These operators are constructed with OpenFOAM implicit finite-volume
+operators.  The directional rectangular PML is retained by storing
+$\mathbf{T}_0$ and $\mathbf{T}_1$ as diagonal volume-tensor fields and
+discretizing them with \texttt{fvm::laplacian(T0,P)} and
+\texttt{fvm::laplacian(T1,P)}.  Thus each Cartesian damping component can vary
+independently, including in edge and corner regions, without modifying the
+OpenFOAM core.  The spherical PML currently uses the isotropic tensor form.
 
 While unlike the form-extend software, the block coupled equation 
 \cref{eq:blockCoupled} can not be assembled directly within our OpenFOAM-ESI version. So we assemble the equation with the external solver PETSc through its OpenFOAM interface petsc4Foam. The assembled equation is then solved with the MUMPS direct solver also in PETSc. 
@@ -520,8 +521,9 @@ The acoustic properties are read from the entries \texttt{rhog}, \texttt{rhol},
 \texttt{cg}, \texttt{cl}, \texttt{kg}, \texttt{kl}, and \texttt{f}.  The same
 dictionary defines the PML type and damping profile.  Before the Helmholtz solve,
 \texttt{setPMLFields} writes the coefficient fields \texttt{sigma},
-\texttt{SC0}, \texttt{SC1}, and \texttt{TC1}, which can be inspected like any
-other OpenFOAM field.
+\texttt{SC0}, \texttt{SC1}, \texttt{T0}, and \texttt{T1}, which can be
+inspected like any other OpenFOAM field.  It additionally writes the legacy
+scalar compatibility field \texttt{TC1}.
 
 \subsection{Execution workflow}
 A typical case is run by generating the mesh and initial fields, evaluating the
@@ -657,8 +659,10 @@ The comparison is in \Cref{fig:pistonFarAmp}. For a clear illustration we have u
     \label{fig:pistonFarAmp}
 \end{figure}
 
-\subsection{1D Two Phase}
-To verify that the solver is capable to handle inhomogeneous medium. We set up the test case as shown in \Cref{fig:1DLayerd}. 
+\subsection{One-dimensional layered interface}
+The layered-interface case verifies both wave transmission across a strong
+material-property jump and attenuation by the directional tensor PML.  Its
+configuration is shown in \Cref{fig:1DLayerd}.
 
 \begin{figure}[h]
     \centering
@@ -704,16 +708,24 @@ To verify that the solver is capable to handle inhomogeneous medium. We set up t
     \label{fig:1DLayerd}
 \end{figure}
 
-In this 1D case, the transducer at the left end viberate harmonically with the frequency $f$ and velocity amplitude $u_0$. The emitted sound wave will first travel through the medium 1 in the interval $(0,L_1)$, then  medium 2 in $(L_1,L_2)$, and finally into the PML in $(L_2,L)$.  
+The transducer at the left boundary vibrates harmonically with frequency $f$
+and velocity amplitude $u_0$.  The emitted wave travels through medium~1 in
+$0<x<L_1$, crosses the material interface into medium~2 in $L_1<x<L_2$,
+and finally enters the PML in $L_2<x<L$.
 
 The analytical solution reads
 \begin{equation}
     P(x) = 
     \begin{cases}
-        \rho_1c_1u_0\frac{e^{ik_1x}+Re^{ik_1(2L-x)}}{1-Re^{i2k_1L}} & 0<x<L_1 \\ \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L}}e^{i\left[k_2(x-L)+k_1L\right]} & L_1<x<L_2, \\  e^{\frac{\sigma_{max}(L-L_2)}{(p+1)c_2}\left(\frac{x-L_2}{L-L_2}\right)^{(p+1)}} \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L}}e^{i\left[k_2(x-L)+k_1L\right]} & L_2<x<L
+        \rho_1c_1u_0\frac{e^{ik_1x}+Re^{ik_1(2L_1-x)}}{1-Re^{i2k_1L_1}} & 0<x<L_1, \\[1ex]
+        \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L_1}}e^{i\left[k_2(x-L_1)+k_1L_1\right]} & L_1<x<L_2, \\[1ex]
+        e^{\frac{\sigma_{\max}(L-L_2)}{(p+1)c_2}\left(\frac{x-L_2}{L-L_2}\right)^{p+1}}
+        \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L_1}}e^{i\left[k_2(x-L_1)+k_1L_1\right]} & L_2<x<L .
     \end{cases}
 \end{equation}
-with $R=\frac{\rho_2c_2-\rho_1c_1}{\rho_2c_2+\rho_1c_1}$. The simulation parameters are listed in \Cref{tab:params1DTwoPhase}.
+Here $k_j=\omega/c_j$ and
+$R=(\rho_2c_2-\rho_1c_1)/(\rho_2c_2+\rho_1c_1)$.  The simulation parameters
+are listed in \Cref{tab:params1DTwoPhase}.
 \begin{table}[htbp]
     \centering
     \caption{Simulation parameters for the one-dimensional layered-interface case.}
@@ -734,24 +746,33 @@ with $R=\frac{\rho_2c_2-\rho_1c_1}{\rho_2c_2+\rho_1c_1}$. The simulation paramet
         PML thickness & $L-L_2$ & 0.15 & $\mathrm{m}$ \\
         Maximum PML damping & $\sigma_{\max}$ & $-2.0\times10^5$ & $\mathrm{s^{-1}}$ \\
         PML polynomial order & $p$ & 3 & -- \\
-        Number of cells in $x$ & $N_x$ & 2000 & -- \\
+        Number of cells in $x$ & $N_x$ & 8000 & -- \\
         \bottomrule
     \end{tabular}
 \end{table}
+For this one-dimensional wave, only $\sigma_x$ is non-zero.  Consequently,
+the propagation-direction coefficients $T_{0xx}$ and $T_{1xx}$ are retained
+by the directional tensor formulation, while transverse tensor components do
+not contribute because the pressure has no transverse gradient.  This provides
+a direct verification of the new tensor operators and avoids replacing their
+directional contribution by the averaged legacy field \texttt{TC1}.
+
 The numerical real and imaginary pressure components agree closely with the
-updated analytical solution, including the decay inside the PML, as shown in
-\Cref{fig:1DLayerdCompare}.  Because the acoustic impedance $\rho c$ of water
-is much larger than that of air, $R\approx1$ and the field in medium~1 is
-approximately a standing wave.  Before the PML is reached, this standing-wave
-solution can be written as
+analytical solution throughout both the physical domain and the PML, as shown
+in \Cref{fig:1DLayerdCompare}.  In the physical domain, the relative $L_2$
+errors are $1.24\times10^{-3}$ and $1.52\times10^{-3}$ for
+$P_{\mathrm{re}}$ and $P_{\mathrm{im}}$, respectively.  Because the acoustic
+impedance $\rho c$ of water is much larger than that of air, $R\approx1$ and
+the field in medium~1 is approximately a standing wave.  In this limit, the
+medium-1 solution can be written as
 \begin{equation}
-    P(x)=\rho_1c_1u_0i\frac{\cos[k_1(x-L_1)]}{\sin(k_1L)},
+    P(x)=i\rho_1c_1u_0\frac{\cos[k_1(x-L_1)]}{\sin(k_1L_1)},
 \end{equation}
-which has only imaginary part. 
+which has only an imaginary component.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_Pre_Pim_compare.png}%
-    \caption{Layered-interface validation: comparison of the numerical real and imaginary pressure components with the updated analytical solution, including attenuation inside the PML.}
+    \caption{Directional tensor PML validation: comparison of the numerical real and imaginary pressure components with the analytical layered-interface solution.}
     \label{fig:1DLayerdCompare}
 \end{figure}
 
@@ -772,12 +793,15 @@ in this case, this factor is
 \end{equation}
 where $\sigma_{\max}<0$.  Consequently, the amplitude remains constant before
 the PML and then decreases smoothly towards the truncated boundary, as
-confirmed by \Cref{fig:1DLayerdAmplitude}.
+confirmed by \Cref{fig:1DLayerdAmplitude}.  Over $0.20<x<0.34\,\mathrm{m}$,
+the numerical and analytical complex pressures differ by only
+$1.39\times10^{-3}$ in relative $L_2$ norm, and their pressure amplitudes
+differ by $3.45\times10^{-4}$.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_abs_compare.png}%
-    \caption{Layered-interface validation: numerical and analytical pressure amplitude.  The transmitted plane wave has constant amplitude in medium~2 before the PML and is smoothly attenuated inside the PML.}
+    \caption{Directional tensor PML validation: numerical and analytical pressure amplitude.  The transmitted plane wave has constant amplitude in medium~2 before the PML and is smoothly attenuated inside the PML.}
     \label{fig:1DLayerdAmplitude}
 \end{figure}
 
@@ -789,18 +813,22 @@ The one-dimensional layered-interface case is also used to examine the influence
 The resulting relative $L_2$ errors are shown in
 \Cref{fig:pmlSigmaSensitivity}.  With the PML coefficients scaled using the
 local sound speed of medium~2, small values of $|\sigma_{\max}|$ do not provide
-sufficient attenuation before the truncated boundary.  The error decreases as
-the damping magnitude is increased and reaches its lowest level around
-$\sigma_{\max}=-2\times10^5\,\mathrm{s}^{-1}$.  Increasing the magnitude
-further makes the damping profile increasingly steep and raises the numerical
-error.  This confirms that the PML coefficient should be selected together
-with the local sound speed, layer thickness, polynomial order, and mesh
-spacing.
+sufficient attenuation before the truncated boundary.  The amplitude error
+decreases from $3.51\times10^{-1}$ at
+$\sigma_{\max}=-10^4\,\mathrm{s}^{-1}$ to approximately
+$9.1\times10^{-4}$ at both $-2\times10^5\,\mathrm{s}^{-1}$ and
+$-5\times10^5\,\mathrm{s}^{-1}$.  The selected value
+$\sigma_{\max}=-2\times10^5\,\mathrm{s}^{-1}$ already provides sufficient
+attenuation and avoids unnecessarily large coefficients.  In general, an
+excessively large damping coefficient produces a very steep profile that is
+poorly resolved by the mesh and can introduce numerical reflection; therefore
+$\sigma_{\max}$ should be chosen together with the PML thickness, polynomial
+order, and mesh spacing.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_sigma_sensitivity.png}%
-    \caption{Layered-interface case: sensitivity of the pressure-field error to the maximum PML damping coefficient.}
+    \caption{Layered-interface case: sensitivity of the directional tensor PML solution to the maximum damping coefficient.}
     \label{fig:pmlSigmaSensitivity}
 \end{figure}
 
@@ -809,18 +837,20 @@ sweep is performed with
 $\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of
 cells in the propagation direction.  The results in
 \Cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} quantify convergence of
-the real pressure, imaginary pressure, and pressure amplitude for the updated
-medium-dependent PML formulation.  The imaginary-pressure error decreases
-monotonically with refinement.  The real-pressure and amplitude errors show
-small non-monotonic variations at the intermediate resolutions, but all three
-error measures reach their lowest values on the finest mesh.
+the real pressure, imaginary pressure, and pressure amplitude for the
+directional, medium-dependent PML formulation.  The individual component
+errors show small non-monotonic variations because phase error redistributes
+between the real and imaginary components.  Nevertheless, the amplitude error
+decreases from $1.72\times10^{-2}$ at $N_x=500$ to
+$9.15\times10^{-4}$ at $N_x=8000$, demonstrating convergence of the pressure
+amplitude.
 
 \input{tables/pml_mesh_sensitivity_table.tex}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_mesh_sensitivity.png}%
-    \caption{Layered-interface case: mesh sensitivity with fixed PML damping $\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$.}
+    \caption{Layered-interface case: directional tensor PML mesh sensitivity with fixed damping $\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$.}
     \label{fig:pmlMeshSensitivity}
 \end{figure}
 

@@ -36,7 +36,7 @@ SOLVER=acousticHelmholtzFoam
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
-DRIVE_F=100000
+DRIVE_F=25250
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
 : "${PISTON_U:=1.0}"
 
@@ -59,8 +59,12 @@ DRIVE_F=100000
 # ---------------------------------------------------------------------------
 # PML thickness [m].
 : "${PML_L:=0.008}"
-# Max damping strength sigmaMax [1/s]. tLF:1E7 aH(S)F:2E6
-: "${SIGMA_MAX:=1700000}"
+# Directional maximum damping strengths [1/s].
+# The wedge uses rectangular PML regions in x and y, but not in z.
+: "${SIGMA_MAX:=1000000}"
+: "${SIGMA_MAX_X:=${SIGMA_MAX}}"
+: "${SIGMA_MAX_Y:=${SIGMA_MAX}}"
+: "${SIGMA_MAX_Z:=0}"
 # Polynomial profile order (po), typically 2-4.
 : "${PO:=3}"
 # Rectangle bounds for PML logic in transportProperties.

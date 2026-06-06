@@ -89,6 +89,34 @@ int main(int argc, char *argv[])
         dimensionedScalar("TC1", dimless, Zero)
     );
 
+    volTensorField T0
+    (
+        IOobject
+        (
+            "T0",
+            runTime.timeName(),
+            mesh,
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        mesh,
+        dimensionedTensor("T0", dimless, tensor::zero)
+    );
+
+    volTensorField T1
+    (
+        IOobject
+        (
+            "T1",
+            runTime.timeName(),
+            mesh,
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        mesh,
+        dimensionedTensor("T1", dimless, tensor::zero)
+    );
+
     volScalarField sigma
     (
         IOobject
@@ -104,15 +132,17 @@ int main(int argc, char *argv[])
     );
 
     const acousticPML::Config cfg = acousticPML::readConfig(transportProperties);
-    acousticPML::updateFields(mesh, cfg, alpha, SC0, SC1, TC1, sigma);
+    acousticPML::updateFields(mesh, cfg, alpha, SC0, SC1, TC1, T0, T1, sigma);
 
     SC0.write();
     SC1.write();
     TC1.write();
+    T0.write();
+    T1.write();
     sigma.write();
 
     Info<< "Wrote PML coefficient fields at time " << runTime.timeName() << nl
-        << "    SC0, SC1, TC1, sigma" << endl;
+        << "    SC0, SC1, TC1, T0, T1, sigma" << endl;
 
     return 0;
 }

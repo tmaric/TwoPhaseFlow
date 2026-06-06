@@ -26,6 +26,9 @@ render()
         -e "s|__CL__|$CL|g" \
         -e "s|__PML_L__|$PML_L|g" \
         -e "s|__SIGMA_MAX__|$SIGMA_MAX|g" \
+        -e "s|__SIGMA_MAX_X__|$SIGMA_MAX_X|g" \
+        -e "s|__SIGMA_MAX_Y__|$SIGMA_MAX_Y|g" \
+        -e "s|__SIGMA_MAX_Z__|$SIGMA_MAX_Z|g" \
         -e "s|__PO__|$PO|g" \
         -e "s|__PML_MAX_X__|$PML_MAX_X|g" \
         -e "s|__PML_MAX_Y__|$PML_MAX_Y|g" \

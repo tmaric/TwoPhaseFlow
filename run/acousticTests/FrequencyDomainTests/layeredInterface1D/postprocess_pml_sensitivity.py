@@ -77,7 +77,7 @@ def main() -> None:
     with (out_dir / "pml_sigma_sensitivity_table.tex").open("w", encoding="utf-8") as fobj:
         fobj.write("\\begin{table}[htbp]\n")
         fobj.write("    \\centering\n")
-        fobj.write("    \\caption{PML damping sensitivity for the one-dimensional layered-interface case.}\n")
+        fobj.write("    \\caption{Directional tensor PML damping sensitivity for the one-dimensional layered-interface case.}\n")
         fobj.write("    \\label{tab:pmlSigmaSensitivity}\n")
         fobj.write("    \\begin{tabular}{rrrr}\n")
         fobj.write("        \\toprule\n")

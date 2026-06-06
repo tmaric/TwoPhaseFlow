@@ -7,7 +7,7 @@ case_name="$(basename -- "$case_dir")"
 out_dir="$case_dir/postProcessing/pmlMeshSensitivity"
 
 sigma="${PML_MESH_SIGMA:--200000}"
-nx_values="${PML_MESH_NX_VALUES:-500 1000 2000 4000}"
+nx_values="${PML_MESH_NX_VALUES:-500 1000 2000 4000 8000}"
 
 mkdir -p "$out_dir"
 rm -f "$out_dir/metrics_summary.csv"

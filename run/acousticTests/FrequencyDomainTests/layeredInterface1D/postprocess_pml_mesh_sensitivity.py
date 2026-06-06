@@ -79,7 +79,7 @@ def main() -> None:
     with (out_dir / "pml_mesh_sensitivity_table.tex").open("w", encoding="utf-8") as fobj:
         fobj.write("\\begin{table}[htbp]\n")
         fobj.write("    \\centering\n")
-        fobj.write("    \\caption{Mesh sensitivity for the one-dimensional layered-interface case with fixed PML damping $\\sigma_{\\max}=-2.0\\times10^5\\,\\mathrm{s^{-1}}$.}\n")
+        fobj.write("    \\caption{Directional tensor PML mesh sensitivity for the one-dimensional layered-interface case with fixed damping $\\sigma_{\\max}=-2.0\\times10^5\\,\\mathrm{s^{-1}}$.}\n")
         fobj.write("    \\label{tab:pmlMeshSensitivity}\n")
         fobj.write("    \\begin{tabular}{rrrrr}\n")
         fobj.write("        \\toprule\n")

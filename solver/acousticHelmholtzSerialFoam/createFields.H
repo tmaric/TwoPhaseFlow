@@ -124,7 +124,20 @@
             IOobject::MUST_READ,
             IOobject::NO_WRITE
         ),
-        rhol*alpha1 + rhog*(1 - alpha1)
+        1/(alpha1/rhol + (1 - alpha1)/rhog)
+    );
+
+    surfaceScalarField invRhof
+    (
+        IOobject
+        (
+            "invRhof",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        alphaf/rhol + (1 - alphaf)/rhog
     );
 
     // radiation force pressure
@@ -182,11 +195,24 @@
         mesh
     );
 
-    volScalarField TC1
+    volTensorField T0
     (
         IOobject
         (
-            "TC1",
+            "T0",
+            runTime.timeName(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::AUTO_WRITE
+        ),
+        mesh
+    );
+
+    volTensorField T1
+    (
+        IOobject
+        (
+            "T1",
             runTime.timeName(),
             mesh,
             IOobject::MUST_READ,
