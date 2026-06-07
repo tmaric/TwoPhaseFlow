@@ -338,66 +338,93 @@
 
 
 \section{090626}
-\begin{frame}{Forschungsfortschritt}
+\begin{frame}{Ablauf des heutigen Treffens}
+    \begin{enumerate}
+        \item \textbf{Kurzer Fortschrittsbericht seit dem letzten Treffen}
+        \begin{itemize}
+            \item Axisymmetrisches, lokal verfeinertes Mesh mit cfMesh:
+            Gor'kov-Verifikation und Gleichgewichtssuche werden möglich.
+            \item Tensorielle PML: kleinere Dämpfungskoeffizienten und ein
+            geringeres Risiko numerischer Reflexionen.
+        \end{itemize}
+        \item \textbf{Gemeinsame Durchsicht des Papers}
+        \begin{itemize}
+            \item Struktur, Ergebnisse und noch offene Punkte.
+        \end{itemize}
+        \item \textbf{Diskussion des Experimentplans}
+        \begin{itemize}
+            \item Zielgrößen, Parameterbereich und Vergleich mit den Simulationen.
+        \end{itemize}
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Zwei Fortschritte seit dem letzten Treffen}
     \begin{itemize}
-        \item Aktueller Schwerpunkt: robuste Simulationskette für einen Tropfen im einachsigen Levitator.
-        \item Drei Bausteine sind jetzt lauffähig:
-        \begin{enumerate}
-            \item cfMesh-Wedge-Mesh mit Body-Fit und lokaler Verfeinerung.
-            \item Gor'kov-basierte Verifikation von \code{acousticHelmholtzFoam}.
-            \item Zwei Strategien zur Bestimmung von Gleichgewichtsposition und -form.
-        \end{enumerate}
-        \item Ziel: aus dem technischen Toolkit reproduzierbare wissenschaftliche Ergebnisse ableiten.
-        \item Aktuell: CPC paper für acousticHelmHoltzFoam
+        \item \textbf{Axisymmetrisches, lokal verfeinertes cfMesh-Mesh}
+        \begin{itemize}
+            \item verbindet eine effiziente Wedge-Domäne mit hoher Auflösung nahe dem Tropfen,
+            \item ermöglicht die Gor'kov-Verifikation,
+            \item bildet die Grundlage für \code{acousticDropEquilibriumFoam}.
+        \end{itemize}
+        \item \textbf{Tensorielle PML}
+        \begin{itemize}
+            \item dämpft nur in den jeweils offenen Raumrichtungen,
+            \item erreicht ausreichende Absorption mit kleineren Koeffizienten,
+            \item reduziert dadurch die Wahrscheinlichkeit numerischer Reflexionen.
+        \end{itemize}
     \end{itemize}
     \begin{center}
         \footnotesize
-        Mesh $\rightarrow$ akustisches Feld $\rightarrow$ Strahlungskraft $\rightarrow$ Gleichgewichtsform $\rightarrow$ Dynamik
+        Mesh und PML $\rightarrow$ zuverlässiges akustisches Feld
+        $\rightarrow$ Strahlungskraft und Gleichgewichtskonfiguration
     \end{center}
 \end{frame}
 
-\begin{frame}{cfMesh-Wedge-Mesh}
+\begin{frame}{Axisymmetrisches, lokal verfeinertes Mesh}
     \begin{columns}
     \column{.52\linewidth}
     \begin{itemize}
-        \item Neuer Standardpfad in den Andrade-Fällen:
+        \item cfMesh erzeugt zunächst ein zweidimensionales, lokal verfeinertes Mesh.
+        \item \code{extrudeMesh} überführt dieses in eine axisymmetrische
+        $1^\circ$-Wedge-Domäne.
+        \item Automatisierter Workflow:
         \begin{enumerate}
             \item \code{prepareCase}
             \item \code{cartesian2DMesh}
             \item \code{extrudeMesh} als $1^\circ$-Wedge
             \item \code{postMesh}
         \end{enumerate}
-        \item \code{meshDict} wird automatisch aus \code{caseParams.sh} erzeugt.
-        \item Body-fit für feste Tropfenkontur: Patch \code{dropWall}.
-        \item Lokale Auflösung nahe Interface/Hole über \code{objectRefinements}.
+        \item Lokale Verfeinerung und Body-Fit nahe \code{dropWall};
+        gröbere Zellen im entfernten Bereich.
     \end{itemize}
     \column{.48\linewidth}
     \begin{center}
         \includegraphics[height=3.2cm]{figures/meshLocalRefine.png}
 
         \vspace{0.2cm}
-        \scriptsize Wedge-Mesh mit lokaler Verfeinerung nahe \code{dropWall}.
+        \scriptsize Axisymmetrisches Wedge-Mesh mit lokaler Verfeinerung nahe \code{dropWall}.
     \end{center}
     \end{columns}
 \end{frame}
 
-\begin{frame}{Gor'kov-Verifikation}
+\begin{frame}{Das Mesh ermöglicht die Gor'kov-Verifikation}
     \begin{columns}
     \column{.54\linewidth}
     \begin{itemize}
-        \item Zwei komplementäre Frequenzdomänenpfade in \code{WedgeLevitatorDropHole}:
+        \item Kleine Kugeln können als lokal verfeinerte, feste
+        \code{dropWall}-Geometrie aufgelöst werden.
+        \item Zwei komplementäre Frequenzdomänenpfade:
         \begin{enumerate}
-            \item \code{emptyGmshTemplate}: kein Tropfen, Gor'kov-Felder im ungestörten Feld.
-            \item cfMesh-DropHole: kleine Kugel als \code{dropWall}, Kraft direkt durch Druckintegration.
+            \item Gor'kov-Kraft aus dem ungestörten akustischen Feld,
+            \item direkte Kraft aus der Druckintegration auf \code{dropWall}.
         \end{enumerate}
-        \item Vergleich für kleine Partikel:
         \[
             U_G = V_p\left(f_1 E_p-\frac{3}{2}f_2 E_k\right),
             \qquad
             \mathbf{F}_G=-\nabla U_G .
         \]
-        \item Skript: \code{runGorkovComparison}.
-        \item Schlussfolgerung: mit wachsendem Kugelradius verliert das Gor'kov-Potential seine Vorhersagekraft.
+        \item Ergebnis: gute Übereinstimmung für kleine Partikel;
+        mit wachsendem Radius verliert die Punktpartikel-Näherung ihre Gültigkeit.
     \end{itemize}
     \column{.46\linewidth}
     \begin{center}
@@ -409,83 +436,14 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{Gor'kov-Verifikation: Parameter}
-    \scriptsize
-    \begin{columns}[t]
-    \column{.49\linewidth}
-    \begin{tabular}{@{}ll@{}}
-        \toprule
-        \textbf{Akustik} & \textbf{Wert} \\
-        \midrule
-        Frequenz $f$ & $100\,\mathrm{kHz}$ \\
-        Kolbengeschw. $U_0$ & $1.0\,\mathrm{m/s}$ \\
-        Gas: $\rho_g, c_g$ & $1.2\,\mathrm{kg/m^3}$, $343\,\mathrm{m/s}$ \\
-        Partikel: $\rho_l, c_l$ & $2500\,\mathrm{kg/m^3}$, $5000\,\mathrm{m/s}$ \\
-        PML: $L,\sigma_{\max},p$ & $8\,\mathrm{mm}$, $10^6\,\mathrm{s^{-1}}$, $3$ \\
-        \bottomrule
-    \end{tabular}
-
-    \vspace{0.2cm}
-    \begin{tabular}{@{}ll@{}}
-        \toprule
-        \textbf{Levitator} & \textbf{Wert} \\
-        \midrule
-        Spalt $D$ & $7.64\,\mathrm{mm}$ \\
-        Transducer-Radius $R_T$ & $10\,\mathrm{mm}$ \\
-        Reflektor-Radius $R_R$ & $19\,\mathrm{mm}$ \\
-        Randpuffer / Standhoehe & $10\,\mathrm{mm}$ / $10\,\mathrm{mm}$ \\
-        Wedge-Winkel & $1^\circ$ \\
-        Partikelzentrum $y_c$ & $4.0003\,\mathrm{mm}$ \\
-        \bottomrule
-    \end{tabular}
-
-    \column{.49\linewidth}
-    \begin{tabular}{@{}ll@{}}
-        \toprule
-        \textbf{Vergleich} & \textbf{Wert} \\
-        \midrule
-        Radius-Sweep & $20$--$80\,\mu\mathrm{m}$, $\Delta r=5\,\mu\mathrm{m}$ \\
-        \bottomrule
-    \end{tabular}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{Gleichgewicht: dynamischer Weg}
-    \begin{itemize}
-        \item Fall: \code{WedgeLevitatorDynamicDrop} mit \code{interFALFlow}.
-        \item Workflow für eine robuste Initialisierung:
-        \begin{enumerate}
-            \item Kurzen Testlauf aus plausibler Tropfenposition.
-            \item Tropfen nahe der beobachteten Gleichgewichtslage neu initialisieren.
-            \item Flüssigkeitsviskosität temporär erhöhen $\rightarrow$ schnelle Dämpfung.
-            \item Nach Relaxation auf reale Viskosität zurücksetzen.
-            \item Simulation mit \code{-latestTime} fortsetzen.
-        \end{enumerate}
-        \item Monitoring: \code{postProcessing/dropGeometry/geometry.dat} mit Mittelpunkt, horizontaler/vertikaler Halbachse und Volumen.
-        \item Vorteil: Gleichgewicht wird im vollen gekoppelten VOF-Modell geprüft.
-    \end{itemize}
-\end{frame}
-
-\begin{frame}{DynamicDrop: Mesh-Fortschritt}
-    \begin{itemize}
-        \item Neue Beobachtung: mit gezielt verfeinertem Mesh kann die benötigte Simulationszeit deutlich reduziert werden.
-        \item Lokale Verfeinerung verbessert die Tropfendynamik und kann die Relaxation zur relevanten Konfiguration beschleunigen.
-        \item Tradeoff: nicht-orthogonale Zellen verschlechtern Matrixqualität, Stabilität und teilweise den Solver-Aufwand.
-        \item Für weitere AMR-Studien müssen daher drei Größen gemeinsam bewertet werden:
-        \begin{enumerate}
-            \item physikalische Genauigkeit der Tropfendynamik,
-            \item Nicht-Orthogonalität und Mesh-Qualität,
-            \item Laufzeit und Skalierung des gekoppelten Solvers.
-        \end{enumerate}
-    \end{itemize}
-\end{frame}
-
-\begin{frame}{Gleichgewicht: Pseudo-Solver}
+\begin{frame}{Das Mesh ermöglicht die Gleichgewichtssuche}
     \begin{columns}
     \column{.55\linewidth}
     \begin{itemize}
         \item Solver: \code{acousticDropEquilibriumFoam}.
-        \item Idee nach dem Stabilitäts-Workflow von Andrade et al. \citep{andrade2019numerical}:
+        \item Das Body-Fit-Mesh erlaubt die iterative Änderung von Position und
+        Form der festen Tropfenoberfläche.
+        \item Iterativer Ablauf:
         \begin{enumerate}
             \item Akustisches Feld für feste Tropfenform lösen.
             \item Kraft auf \code{dropWall} integrieren.
@@ -537,7 +495,7 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{Gleichgewicht: Pseudo-Solver -- Ergebnis}
+\begin{frame}{Erste Gleichgewichtskonfiguration}
     \begin{columns}[T]
     \column{.34\linewidth}
     \begin{center}
@@ -560,36 +518,124 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{Aktueller Stand und nächster Schritt}
+\begin{frame}{Tensorielle PML: kleinere Dämpfungskoeffizienten}
+    \begin{columns}
+    \column{.55\linewidth}
     \begin{itemize}
-        \item Verfügbares Toolkit:
+        \item Der frühere isotrope Ansatz verwendet dieselbe Dämpfung in allen
+        Raumrichtungen.
+        \item Die tensorielle PML verwendet gerichtete Komponenten:
+        \[
+            \boldsymbol{\sigma}
+            =(\sigma_x,\sigma_y,\sigma_z),
+            \qquad
+            \mathbf{T}_0,\mathbf{T}_1
+            =\operatorname{diag}(T_{xx},T_{yy},T_{zz}).
+        \]
+        \item Nur die zur offenen Grenze normale Richtung wird gedämpft;
+        tangentiale Richtungen bleiben unbeeinflusst.
+        \item Damit reicht eine deutlich kleinere maximale Dämpfung für eine
+        ausreichende Absorption.
+    \end{itemize}
+    \column{.45\linewidth}
+    \begin{block}{Numerischer Vorteil}
+        Sehr große Koeffizienten erzeugen einen steilen, vom Mesh schlecht
+        aufgelösten Dämpfungsverlauf. Das kann numerische Reflexionen auslösen.
+        Kleinere Koeffizienten reduzieren dieses Risiko deutlich.
+    \end{block}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Tensorielle PML: Verifikation}
+    \begin{columns}
+    \column{.46\linewidth}
+    \begin{itemize}
+        \item Verifikation am eindimensionalen Schichtfall mit analytischer Lösung.
+        \item Mit
+        \[
+            |\sigma_{\max}|=2\times10^5\,\mathrm{s}^{-1}
+        \]
+        wird bereits eine relative Amplitudenabweichung von etwa
+        $9.1\times10^{-4}$ erreicht.
+        \item Eine weitere Erhöhung auf
+        $5\times10^5\,\mathrm{s}^{-1}$ verbessert das Ergebnis praktisch nicht.
+        \item Schlussfolgerung: ausreichende Dämpfung ohne unnötig große
+        Koeffizienten und mit geringerem Reflexionsrisiko.
+    \end{itemize}
+    \column{.54\linewidth}
+    \begin{center}
+        \includegraphics[width=\linewidth]{../paper_aHF/figures/pml_sigma_sensitivity.png}
+
+        \vspace{0.1cm}
+        \scriptsize Relative Fehler in der physikalischen Domäne für verschiedene PML-Dämpfungen.
+    \end{center}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Zusammenfassung des Fortschritts}
+    \begin{enumerate}
+        \item \textbf{Axisymmetrisches, lokal verfeinertes cfMesh-Mesh}
+        \begin{itemize}
+            \item ermöglicht die Gor'kov-Verifikation,
+            \item ermöglicht mit \code{acousticDropEquilibriumFoam} die Suche
+            nach Gleichgewichtsposition und -form.
+        \end{itemize}
+        \item \textbf{Tensorielle PML}
+        \begin{itemize}
+            \item erreicht ausreichende Absorption mit kleineren Koeffizienten,
+            \item reduziert die Wahrscheinlichkeit numerischer Reflexionen.
+        \end{itemize}
+    \end{enumerate}
+    \vspace{0.3cm}
+    \begin{center}
+        \textbf{Als Nächstes: gemeinsame Paper-Durchsicht und Diskussion des Experimentplans.}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Zukünftige Arbeit: Rechenzeit reduzieren}
+    \begin{itemize}
+        \item Die wichtigste Herausforderung auf der numerischen Seite ist
+        weiterhin die hohe Rechenzeit der gekoppelten Simulationen.
+        \item Bereits untersuchte Optimierungsansätze:
         \begin{enumerate}
-            \item \code{acousticHelmholtzFoam}: Frequenzdomäne, PML, PETSc/MUMPS, parallel.
-            \item \code{interFALFlow}: VOF-Dynamik mit akustischer Kopplung.
-            \item \code{acousticDropEquilibriumFoam}: schnelle Gleichgewichtssuche.
-            \item Validierungsfälle: \code{Empty}, \code{GorkovHole}, \code{DynamicDrop}.
+            \item lokale Mesh-Verfeinerung,
+            \item adaptive Mesh-Verfeinerung (AMR),
+            \item Wiederverwendung des akustischen Feldes über mehrere
+            Strömungszeitschritte.
         \end{enumerate}
-        \item Damit kann das Verhalten eines Tropfens im einachsigen Levitator untersucht werden, aktuell ohne Massentransfer.
-        \item Nächste Schritte:
-        \begin{enumerate}
-            \item Mesh- und Zeitschrittkonvergenz für Drop-Dynamik.
-            \item Quantitativer Vergleich gegen Gor'kov/Andrade für kleine Tropfen.
-            \item Solver und Fälle in eine publizierbare Ergebniskette überführen.
-        \end{enumerate}
+        \item HPCToolkit ist eingerichtet und ermöglicht eine systematische
+        Analyse von Laufzeit, Skalierung und relevanten Hotspots.
+        \item Bisher liefert keiner der untersuchten Ansätze eine
+        zufriedenstellende und gleichzeitig robuste Leistungsverbesserung.
+        \item Nächster Schritt: zunächst die dominanten Kosten mit HPCToolkit
+        quantifizieren und anschließend gezielt Solver, Parallelisierung und
+        Aktualisierungsstrategie optimieren.
     \end{itemize}
 \end{frame}
 
-\begin{frame}{HPCToolkit-Diagnostik}
-    \begin{itemize}
-        \item HPCToolkit ist installiert und für \code{acousticHelmholtzFoam} getestet.
-        \item Erfolgreicher Profiling-Lauf: \code{WedgeLevitatorDropAlpha} mit 4 MPI-Ranks.
-        \item Aktuell nutzbare Metrik: \code{CPUTIME} durch Timer-Sampling.
-        \item Hardware-Counter sind noch blockiert:
-        \[
-            \code{perf\_event\_paranoid}=4
-        \]
-        \item Nächster Schritt: CPU-Hotspots im Viewer identifizieren; für Cache-/Memory-Diagnostik ist Admin-Freigabe nötig.
-    \end{itemize}
+\begin{frame}{Experimentplan zur Validierung}
+    \begin{enumerate}
+        \item \textbf{Strahlungskraft auf den Reflektor}
+        \begin{itemize}
+            \item Akustische Strahlungskraft für verschiedene Levitatorhöhen messen.
+            \item Direkter und robuster Ausgangspunkt für den Vergleich des
+            akustischen Feldes mit der Simulation.
+        \end{itemize}
+        \item \textbf{Frei levitierter Tropfen}
+        \begin{itemize}
+            \item Tropfenbewegung und -form mit einer Kamera aufzeichnen.
+            \item Durch Bildverarbeitung Schwingungsfrequenz, Schwingungsamplitude
+            und Gleichgewichts-Aspektverhältnis bestimmen.
+            \item Geeignet für eine erste Validierung der gekoppelten Simulation.
+        \end{itemize}
+        \item \textbf{Am Reflektor haftender Tropfen}
+        \begin{itemize}
+            \item Schwaches Schallfeld anwenden: Der Tropfen deformiert sich,
+            wird jedoch nicht levitiert.
+            \item Definierte Position und Randbedingungen ermöglichen einen
+            zuverlässigen Eins-zu-eins-Vergleich zwischen Experiment und Simulation.
+        \end{itemize}
+    \end{enumerate}
 \end{frame}
 
 \bibliographystyle{plainnat} % Choose an appropriate style
