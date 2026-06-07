@@ -3,7 +3,7 @@ Application
     setPMLFields
 
 Description
-    Computes and writes the scalar PML coefficient fields used by the
+    Computes and writes the scalar and tensor PML coefficient fields used by the
     frequency-domain acoustic solvers.
 \*---------------------------------------------------------------------------*/
 

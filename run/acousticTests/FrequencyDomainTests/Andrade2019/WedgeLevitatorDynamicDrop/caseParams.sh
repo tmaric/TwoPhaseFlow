@@ -108,9 +108,9 @@ CFMESH_INTERFACE_BOX_SCALE=${CFMESH_INTERFACE_BOX_SCALE:-2}
 # Volume-equivalent spherical drop radius [m].
 DROP_RADIUS=0.001
 # Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
-DROP_HORIZONTAL_LONG_AXIS=0.001165
+DROP_HORIZONTAL_LONG_AXIS=0.001
 # Small x/z offsets keep the center away from the wedge singular line.
 DROP_CENTER_X=1e-8
 # Initial drop center vertical position [m] (y-coordinate).
-DROP_CENTER_Y=0.005
+DROP_CENTER_Y=0.004
 DROP_CENTER_Z=1e-8

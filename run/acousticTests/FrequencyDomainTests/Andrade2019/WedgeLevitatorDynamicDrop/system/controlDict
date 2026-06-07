@@ -73,7 +73,7 @@ functions
 
         codeOptions
         #{
-            -I/home/cx80jevu/TwoPhaseFlow/src/VoF/lnInclude
+            -I$(FOAM_CASE)/../../../../../src/VoF/lnInclude
         #};
 
         codeLibs

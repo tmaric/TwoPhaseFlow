@@ -1,8 +1,8 @@
 // Acoustic block assembly helpers for interFALFlow.
 //
 // Design intent:
-// - Keep the algebra identical to acousticHelmholtzFoam and the serial
-//   block reference system.
+// - Keep the tensor-PML algebra identical to acousticHelmholtzFoam and the
+//   serial block reference system.
 // - Assemble matrix entries explicitly into PETSc, including processor links.
 // - Treat B1/B2 in off-diagonal blocks consistently with the current
 //   acousticHelmholtzFoam formulation: the off-diagonal PETSc blocks contain

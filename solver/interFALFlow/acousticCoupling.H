@@ -1,7 +1,7 @@
 {
     // Acoustic coupling sequence for each outer flow iteration:
-    // 1) Recompute alpha-face transport. PML coefficient fields are prepared
-    //    beforehand by setPMLFields and read as normal case data.
+    // 1) Recompute alpha-face transport. Tensor PML coefficient fields are
+    //    prepared beforehand by setPMLFields and read as normal case data.
     // 2) Assemble distributed 2x2 block Helmholtz system:
     //      [ A  -(B1 + B2) ] [Pim] = [bPim]
     //      [ (B1 + B2)  A ] [Pre]   [bPre]
@@ -37,18 +37,20 @@
         fvScalarMatrix AopPre
         (
             fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
+          + fvm::laplacian(T0, Pre)
           + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
         );
 
         fvScalarMatrix AopPim
         (
             fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
+          + fvm::laplacian(T0, Pim)
           + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
         );
 
-        fvScalarMatrix B1Pre(fvm::laplacian(TC1, Pre));
+        fvScalarMatrix B1Pre(fvm::laplacian(T1, Pre));
         fvScalarMatrix B2Pre(fvm::Sp(SC1, Pre));
-        fvScalarMatrix B1Pim(fvm::laplacian(TC1, Pim));
+        fvScalarMatrix B1Pim(fvm::laplacian(T1, Pim));
         fvScalarMatrix B2Pim(fvm::Sp(SC1, Pim));
 
         const PetscInt rowNnzUpper = estimateBlockPreallocationUpper(AopPim);

@@ -114,12 +114,6 @@ PIMPLE
     nNonOrthogonalCorrectors 1;
     nAcousticNonOrthogonalCorrectors 1;
 
-    reuseAcousticField  false;
-    acousticAlphaChangeTolerance 0.03;
-    acousticInterfaceAlphaMin 0.01;
-    acousticInterfaceAlphaMax 0.99;
-    acousticMaxReuseSteps 20;
-
     // TODO (TT): re-enable once LENT is ported into Argo
 
     residualControl

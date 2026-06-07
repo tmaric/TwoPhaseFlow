@@ -1492,8 +1492,9 @@ static void solveAcousticAndRadiationFields
     volScalarField& Pre,
     volScalarField& Pim,
     volScalarField& SC0,
-    volScalarField& TC1,
     volScalarField& SC1,
+    volTensorField& T0,
+    volTensorField& T1,
     volVectorField& Ure,
     volVectorField& Uim,
     volScalarField& pa,
@@ -1513,21 +1514,23 @@ static void solveAcousticAndRadiationFields
         fvScalarMatrix AopPre
         (
           rho*fvm::laplacian(invRhof, Pre)
+          + fvm::laplacian(T0, Pre)
           + fvm::Sp(k2 - SC0, Pre)
         );
 
         fvScalarMatrix AopPim
         (
           rho*fvm::laplacian(invRhof, Pim)
+          + fvm::laplacian(T0, Pim)
           + fvm::Sp(k2 - SC0, Pim)
         );
 
         // Keep B1 (laplacian) and B2 (Sp) as separate operators.
         // Their off-block diagonal handling differs in assembly.
-        fvScalarMatrix couplingLaplPre(fvm::laplacian(TC1, Pre));  // B1
+        fvScalarMatrix couplingLaplPre(fvm::laplacian(T1, Pre));  // B1
         fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));         // B2
 
-        fvScalarMatrix couplingLaplPim(fvm::laplacian(TC1, Pim));  // B1
+        fvScalarMatrix couplingLaplPim(fvm::laplacian(T1, Pim));  // B1
         fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));         // B2
 
         if (!dumpedOpStats)
@@ -1662,8 +1665,9 @@ static bool runFixedShapePositionUpdate
     volScalarField& Pre,
     volScalarField& Pim,
     volScalarField& SC0,
-    volScalarField& TC1,
     volScalarField& SC1,
+    volTensorField& T0,
+    volTensorField& T1,
     volVectorField& Ure,
     volVectorField& Uim,
     volScalarField& pa,
@@ -1730,8 +1734,9 @@ static bool runFixedShapePositionUpdate
             Pre,
             Pim,
             SC0,
-            TC1,
             SC1,
+            T0,
+            T1,
             Ure,
             Uim,
             pa,
@@ -2143,8 +2148,9 @@ int main(int argc, char *argv[])
             Pre,
             Pim,
             SC0,
-            TC1,
             SC1,
+            T0,
+            T1,
             Ure,
             Uim,
             pa,
@@ -2233,8 +2239,9 @@ int main(int argc, char *argv[])
                 Pre,
                 Pim,
                 SC0,
-                TC1,
                 SC1,
+                T0,
+                T1,
                 Ure,
                 Uim,
                 pa,

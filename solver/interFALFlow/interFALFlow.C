@@ -111,21 +111,6 @@ int main(int argc, char *argv[])
     PetscInitialize(&argc, &argv, nullptr, nullptr);
     AcousticPetscSystem acousticSystem;
 
-    volScalarField alpha1AtLastAcousticSolve
-    (
-        IOobject
-        (
-            "alpha1AtLastAcousticSolve",
-            runTime.timeName(),
-            mesh,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        alpha1
-    );
-    bool acousticNeedsInitialSolve = true;
-    label acousticReuseSteps = 0;
-
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     Info<< "\nStarting time loop\n" << endl;
 
@@ -205,96 +190,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            const dictionary& acousticPimpleDict =
-                mesh.solutionDict().subDict("PIMPLE");
-            const Switch reuseAcousticField =
-                acousticPimpleDict.lookupOrDefault<Switch>
-                (
-                    "reuseAcousticField",
-                    false
-                );
-            const scalar acousticAlphaChangeTolerance =
-                acousticPimpleDict.lookupOrDefault<scalar>
-                (
-                    "acousticAlphaChangeTolerance",
-                    0.01
-                );
-            const scalar acousticInterfaceAlphaMin =
-                acousticPimpleDict.lookupOrDefault<scalar>
-                (
-                    "acousticInterfaceAlphaMin",
-                    0.01
-                );
-            const scalar acousticInterfaceAlphaMax =
-                acousticPimpleDict.lookupOrDefault<scalar>
-                (
-                    "acousticInterfaceAlphaMax",
-                    0.99
-                );
-            const label acousticMaxReuseSteps =
-                acousticPimpleDict.lookupOrDefault<label>
-                (
-                    "acousticMaxReuseSteps",
-                    10
-                );
-
-            scalar acousticAlphaChange = 0.0;
-            if (reuseAcousticField && !acousticNeedsInitialSolve)
-            {
-                const scalarField& a = alpha1.primitiveField();
-                const scalarField& aLast =
-                    alpha1AtLastAcousticSolve.primitiveField();
-
-                scalar localAlphaChange = 0.0;
-                forAll(a, celli)
-                {
-                    const bool interfaceCell =
-                    (
-                        (a[celli] > acousticInterfaceAlphaMin
-                      && a[celli] < acousticInterfaceAlphaMax)
-                     || (aLast[celli] > acousticInterfaceAlphaMin
-                      && aLast[celli] < acousticInterfaceAlphaMax)
-                    );
-
-                    if (interfaceCell)
-                    {
-                        localAlphaChange =
-                            max(localAlphaChange, mag(a[celli] - aLast[celli]));
-                    }
-                }
-
-                acousticAlphaChange = returnReduce(localAlphaChange, maxOp<scalar>());
-            }
-
-            const bool solveAcousticField =
-                !reuseAcousticField
-             || acousticNeedsInitialSolve
-             || acousticAlphaChange > acousticAlphaChangeTolerance
-             || acousticReuseSteps >= acousticMaxReuseSteps;
-
-            if (solveAcousticField)
-            {
-                #include "acousticCoupling.H"
-
-                alpha1AtLastAcousticSolve = alpha1;
-                acousticNeedsInitialSolve = false;
-                acousticReuseSteps = 0;
-
-                if (reuseAcousticField)
-                {
-                    Info<< "Acoustic field updated"
-                        << " alphaChange=" << acousticAlphaChange
-                        << " reuseStepsReset=0" << nl;
-                }
-            }
-            else
-            {
-                ++acousticReuseSteps;
-                Info<< "Acoustic field reused"
-                    << " alphaChange=" << acousticAlphaChange
-                    << " reuseSteps=" << acousticReuseSteps
-                    << "/" << acousticMaxReuseSteps << nl;
-            }
+            #include "acousticCoupling.H"
 
             #include "UEqn.H"
 
