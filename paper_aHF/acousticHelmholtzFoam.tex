@@ -548,6 +548,38 @@ solution with analytical references and generate the data used in
 
 \section{Verification}
 \label{sec:verification}
+
+\subsection{Error norms and convergence assessment}
+For verification cases with an analytical reference, the numerical quantity
+$y_h(\x_i)$ is compared with the corresponding exact value
+$y_{\mathrm{ex}}(\x_i)$ at a common set of sample points $\x_i$.  The relative
+discrete $L_2$ and $L_\infty$ errors are defined as
+\begin{equation}
+    E_2 =
+    \frac{
+    \left(\sum_i |y_h(\x_i)-y_{\mathrm{ex}}(\x_i)|^2\right)^{1/2}
+    }{
+    \left(\sum_i |y_{\mathrm{ex}}(\x_i)|^2\right)^{1/2}
+    },
+    \qquad
+    E_\infty =
+    \frac{
+    \max_i |y_h(\x_i)-y_{\mathrm{ex}}(\x_i)|
+    }{
+    \max_i |y_{\mathrm{ex}}(\x_i)|
+    }.
+    \label{eq:verificationErrorNorms}
+\end{equation}
+For two successive mesh resolutions with characteristic cell sizes $h_1$ and
+$h_2$, the observed order of convergence is estimated from either error norm
+as
+\begin{equation}
+    q=\frac{\log(E_{h_1}/E_{h_2})}{\log(h_1/h_2)}.
+    \label{eq:verificationObservedOrder}
+\end{equation}
+The case-specific definitions and normalization of $y_h$ and
+$y_{\mathrm{ex}}$ are stated in the corresponding subsections below.
+
 \subsection{Piston radiation}
 An axissymmetric model of a rigid cylindrical piston with radius $a$  in an infinite baffle \Cref{fig:piston} is used to varify our frequency domain solver, where the simulation outcome can be directly compared to the known analytical solution. In our setup, the piston vibrate in vertical direction harmonically with the velocity amplitude $U_0$. $\rho_0$ and $c$ is the  density and sound speed of the air. 
 \begin{figure}[!htb]
@@ -589,39 +621,25 @@ In our simulation the value of the parameters is given in \Cref{tab:paramsPiston
 \end{table}
 
 \subsubsection{Mesh-convergence post-processing}
-For the mesh resolution 20, 50 and 100 cells per wavelength the simulated near field on axis pressure amplitude is compared with the analytical solution as shown in \Cref{fig:pistonNearAmp}. The numerical pressure amplitude is evaluated from the computed complex pressure,
+For mesh resolutions of 20, 50, and 100 cells per wavelength, the simulated
+near-field on-axis pressure amplitude is compared with the analytical solution
+as shown in \Cref{fig:pistonNearAmp}. The numerical pressure amplitude is
+evaluated from the computed complex pressure,
 \begin{equation}
     p_h(\x_i)=\sqrt{P_{re}^2(\x_i)+P_{im}^2(\x_i)} ,
 \end{equation}
-and compared to the analytical amplitude $p_{\mathrm{ex}}(\x_i)$ at sampled points $\x_i$ on the symmetry axis. Both quantities are normalized by the characteristic pressure $p_0=\rho_0 c U_0$,
+and compared with the analytical amplitude $p_{\mathrm{ex}}(\x_i)$ at sampled
+points $\x_i$ on the symmetry axis. For this case, the quantities used in
+\Cref{eq:verificationErrorNorms} are normalized by the characteristic pressure
+$p_0=\rho_0 c U_0$:
 \begin{equation}
     y_h(\x_i)=\frac{p_h(\x_i)}{p_0},
     \qquad
     y_{\mathrm{ex}}(\x_i)=\frac{p_{\mathrm{ex}}(\x_i)}{p_0}.
 \end{equation}
-The relative discrete $L_2$ and $L_\infty$ errors are then computed as
-\begin{equation}
-    E_2 =
-    \frac{
-    \left(\sum_i |y_h(\x_i)-y_{\mathrm{ex}}(\x_i)|^2\right)^{1/2}
-    }{
-    \left(\sum_i |y_{\mathrm{ex}}(\x_i)|^2\right)^{1/2}
-    },
-    \qquad
-    E_\infty =
-    \frac{
-    \max_i |y_h(\x_i)-y_{\mathrm{ex}}(\x_i)|
-    }{
-    \max_i |y_{\mathrm{ex}}(\x_i)|
-    }.
-    \label{eq:pistonErrorNorms}
-\end{equation}
-For two successive mesh resolutions with characteristic cell sizes $h_1$ and $h_2$, the observed order is estimated by
-\begin{equation}
-    q=\frac{\log(E_{h_1}/E_{h_2})}{\log(h_1/h_2)}.
-    \label{eq:pistonObservedOrder}
-\end{equation}
-The resulting errors are listed in \Cref{tab:pistonConvergence}. As the mesh becomes finer, the simulation result agree well with the analytical result.  
+The resulting errors and observed orders are listed in
+\Cref{tab:pistonConvergence}. As the mesh becomes finer, the simulation results
+approach the analytical solution.
 
 \input{tables/nearField_convergence_table.tex}
 
