@@ -17,9 +17,12 @@ need_cmd()
     fi
 }
 
-need_cmd gmsh
-
 SOLVER=acousticHelmholtzFoam
+
+need_cmd cartesian2DMesh
+need_cmd extrudeMesh
+need_cmd topoSet
+need_cmd refineMesh
 
 if [ -z "${NPROCS:-}" ]; then
     NPROCS="${RUN_NPROCS}"
@@ -27,8 +30,11 @@ fi
 : "${NPROCS:=8}"
 
 rm -f \
-    log.gmshToFoam \
-    log.changeDictionary \
+    log.cartesian2DMesh \
+    log.extrudeMesh \
+    log.topoSet.alphaInterface.* \
+    log.refineMesh.alphaInterface.* \
+    log.setAlphaField.alphaInterface.* \
     log.setAlphaField \
     log.setPMLFields \
     log.decomposePar \
@@ -37,14 +43,16 @@ rm -f \
 
 ./Allclean
 ./prepareCase
-restore0Dir
 
-gmsh -0 constant/levitatorWedgeHex.geo
-runApplication gmshToFoam  constant/levitatorWedgeHex.msh
-rm constant/levitatorWedgeHex.msh
-runApplication changeDictionary
+runApplication cartesian2DMesh
+runApplication extrudeMesh
+./postMesh
+
+restore0Dir
 need_cmd setAlphaField
 runApplication setAlphaField
+
+./refineAlphaInterface
 
 rm -f 0/Pim.in
 

@@ -8,13 +8,6 @@
 //   acousticHelmholtzFoam formulation: the off-diagonal PETSc blocks contain
 //   the full B1 + B2 operator.
 
-static scalar globalSum(const scalar local)
-{
-    scalar total = local;
-    reduce(total, sumOp<scalar>());
-    return total;
-}
-
 static bool samePatchFaceLayout
 (
     const labelList& a,
@@ -327,9 +320,6 @@ static void insertScalarOpIntoBlock
     const List<labelList>& neighbGlobals =
         cachedProcessorPatchNeighbourGlobals(op, globalCells);
     List<scalarField> neighbBcoeffs;
-    scalar procDiagAbs = 0.0;
-    scalar procOffDiagAbs = 0.0;
-    label procFaceCount = 0;
     // Processor coupling is inserted explicitly so PETSc sees the same
     // operator that OpenFOAM would otherwise apply implicitly via interfaces.
     if (Pstream::parRun())
@@ -391,34 +381,7 @@ static void insertScalarOpIntoBlock
                 }
 
                 MatSetValue(M, r, cNbr, -scale*pbc[facei], ADD_VALUES);
-                if (includeDiag)
-                {
-                    procDiagAbs += mag(pic[facei]);
-                }
-                procOffDiagAbs += mag(pbc[facei]);
-                ++procFaceCount;
             }
-        }
-    }
-
-    if (Pstream::parRun())
-    {
-        procDiagAbs = globalSum(procDiagAbs);
-        procOffDiagAbs = globalSum(procOffDiagAbs);
-        reduce(procFaceCount, sumOp<label>());
-        static label printedProcContribCount = 0;
-        if (printedProcContribCount < 4)
-        {
-            if (Pstream::master())
-            {
-                Info<< "Proc-coupling contribution (first block): rowOffset="
-                    << rowOffset << " colOffset=" << colOffset
-                    << " nFaces=" << procFaceCount
-                    << " |diagAdd|=" << procDiagAbs
-                    << " |offDiag|=" << procOffDiagAbs
-                    << nl;
-            }
-            ++printedProcContribCount;
         }
     }
 

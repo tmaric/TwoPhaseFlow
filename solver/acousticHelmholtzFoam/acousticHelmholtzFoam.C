@@ -62,7 +62,6 @@ Description
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
-#include "diagnosticsHelpers.H"
 #include "petscBlockAssembly.H"
 #include "petscBlockSolve.H"
 
@@ -88,10 +87,8 @@ int main(int argc, char *argv[])
     Mat M;
     Vec x, b;
     KSP ksp;
-    bool dumpedMatrixStats = false;
-    bool dumpedOpStats = false;
 
-    initializePetscSystem(nLocal, N, M, x, b, ksp);
+    initializePetscSystem(mesh, nLocal, N, M, x, b, ksp);
 
     Info<< "\nStarting time loop\n" << endl;
 
@@ -142,30 +139,13 @@ int main(int argc, char *argv[])
             fvScalarMatrix couplingLaplPim(fvm::laplacian(T1, Pim));  // B1
             fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));         // B2
 
-            if (!dumpedOpStats)
-            {
-                reportFvMatrixBreakdown("AopPre beforeBoundaryManipulate", AopPre);
-                reportFvMatrixBreakdown("AopPim beforeBoundaryManipulate", AopPim);
-                reportFvMatrixBreakdown("couplingLaplPre beforeBoundaryManipulate", couplingLaplPre);
-                reportFvMatrixBreakdown("couplingMassPre beforeBoundaryManipulate", couplingMassPre);
-            }
-
             assembleBlockSystem
             (
-                M, globalCells, N,
+                M, globalCells,
                 AopPim, AopPre,
                 couplingLaplPre, couplingMassPre,
                 couplingLaplPim, couplingMassPim
             );
-
-            if (!dumpedOpStats)
-            {
-                reportFvMatrixBreakdown("AopPre afterBoundaryManipulate", AopPre);
-                reportFvMatrixBreakdown("AopPim afterBoundaryManipulate", AopPim);
-                reportFvMatrixBreakdown("couplingLaplPre afterBoundaryManipulate", couplingLaplPre);
-                reportFvMatrixBreakdown("couplingMassPre afterBoundaryManipulate", couplingMassPre);
-                dumpedOpStats = true;
-            }
 
             scalarField bPim;
             scalarField bPre;
@@ -181,23 +161,15 @@ int main(int argc, char *argv[])
                 bPre
             );
 
-            setBlockRhs(b, globalCells, N, bPim, bPre);
+            setBlockRhs(b, bPim, bPre);
 
             MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY);
             MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY);
             VecAssemblyBegin(b);
             VecAssemblyEnd(b);
 
-            if (!dumpedMatrixStats)
-            {
-                dumpedMatrixStats = true;
-                reportMatrixStats(M, b, N);
-                dumpProcessorInterfaceRows(M, AopPim, globalCells, N);
-            }
-
             KSPSolve(ksp, b, x);
-            reportKspStats(ksp, b);
-            scatterBlockSolution(x, globalCells, N, Pim, Pre);
+            scatterBlockSolution(x, globalCells, Pim, Pre);
 
             Pre.correctBoundaryConditions();
             Pim.correctBoundaryConditions();

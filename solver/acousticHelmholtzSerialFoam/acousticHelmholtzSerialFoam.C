@@ -58,8 +58,6 @@ Description
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
-// Keep PETSc/helper code
-#include "diagnosticsHelpers.H"
 #include "petscBlockAssembly.H"
 #include "petscBlockSolve.H"
 
@@ -93,7 +91,6 @@ int main(int argc, char *argv[])
     Mat M;
     Vec x, b;
     KSP ksp;
-    bool dumpedMatrixStats = false;
 
     initializePetscSystem(nLocal, N, M, x, b, ksp);
 
@@ -175,14 +172,7 @@ int main(int argc, char *argv[])
             VecAssemblyBegin(b);
             VecAssemblyEnd(b);
 
-            if (!dumpedMatrixStats)
-            {
-                dumpedMatrixStats = true;
-                reportMatrixStats(M, b);
-            }
-
             KSPSolve(ksp, b, x);
-            reportKspStats(ksp, b);
             scatterBlockSolution(x, globalCells, N, Pim, Pre);
 
             Pre.correctBoundaryConditions();

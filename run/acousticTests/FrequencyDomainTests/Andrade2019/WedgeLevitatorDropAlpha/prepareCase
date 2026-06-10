@@ -45,19 +45,23 @@ render()
         -e "s|__RR__|$RR|g" \
         -e "s|__BU__|$BU|g" \
         -e "s|__HS__|$HS|g" \
-        -e "s|__MESH_N__|$MESH_N|g" \
-        -e "s|__MESH_LC__|$MESH_LC|g" \
-        -e "s|__ROTATE_HALF_DEG__|$ROTATE_HALF_DEG|g" \
         -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
         -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
         -e "s|__DROP_HORIZONTAL_LONG_AXIS__|$DROP_HORIZONTAL_LONG_AXIS|g" \
         -e "s|__DROP_CENTER_X__|$DROP_CENTER_X|g" \
         -e "s|__DROP_CENTER_Y__|$DROP_CENTER_Y|g" \
         -e "s|__DROP_CENTER_Z__|$DROP_CENTER_Z|g" \
+        -e "s|__ALPHA_INTERFACE_ADJACENT_LAYERS__|$ALPHA_INTERFACE_ADJACENT_LAYERS|g" \
         "$inFile" > "$outFile"
 }
 
 render constant/transportProperties.in constant/transportProperties
-render constant/levitatorWedgeHex.geo.in constant/levitatorWedgeHex.geo
 render 0.orig/Pim.in 0.orig/Pim
 render system/setAlphaFieldDict.in system/setAlphaFieldDict
+
+export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
+export CFMESH_MAX_CELL_SIZE
+
+python3 ./generateCfMeshInputs.py
+
+render system/topoSetDict.alphaInterface.in system/topoSetDict.alphaInterface

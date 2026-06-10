@@ -357,7 +357,7 @@ Applying the same expansion to the second term in \cref{eq:dampEtaDef} gives
      \frac{\eta_y\eta_z}{\eta_x}\frac{\partial P}{\partial x} &= \frac{\left(1+\frac{\sigma_y}{i\omega}\right)\left(1+\frac{\sigma_z}{i\omega}\right)}{\left(1+\frac{\sigma_x}{i\omega}\right)}\frac{\partial}{\partial x}(P_{re} + iP_{im}) \\
      &= \left(A\frac{\partial P_{re}}{\partial x} - B\frac{\partial P_{im}}{\partial x}\right)
 + i\left(A\frac{\partial P_{im}}{\partial x} + B\frac{\partial P_{re}}{\partial x}\right) \quad \text{with} \\
-A&=1 + \frac{\sigma_x(\sigma_y+\sigma_z -\sigma_x) - \sigma_y\sigma_z }{(\omega^2 + \sigma^2(x))} ,\\
+A&=1 + \frac{\sigma_x(\sigma_y+\sigma_z -\sigma_x) - \sigma_y\sigma_z }{(\omega^2 + \sigma^2_x)} ,\\
 B&= -\frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_y+\sigma_z-\sigma_x)}{(\omega^2 + \sigma^2_x)}.
     \end{aligned}
  \end{equation}
@@ -377,9 +377,9 @@ where $C_0$, $C_1$ and the tensor coefficients $\mathbf{T}_0$, $\mathbf{T}_1$ ar
       %\footnotesize
         \begin{aligned}
             C_0 &= \frac{\sigma_x\sigma_y + \sigma_x\sigma_z + \sigma_y\sigma_z}{c^2} \\%[1ex]
-            T_{0xx} &= \frac{\sigma_x(\sigma_y+\sigma_z-\sigma_x) - \sigma_y\sigma_z}{(\omega^2 + \sigma^2(x))}, \\
-            T_{0yy} &= \frac{\sigma_y(\sigma_x+\sigma_z-\sigma_y)-\sigma_x\sigma_z}{(\omega^2 + \sigma^2(y))}, \\
-            T_{0zz} &= \frac{\sigma_z(\sigma_x+\sigma_y-\sigma_z)-\sigma_x\sigma_y}{(\omega^2 + \sigma^2(z))}, \\
+            T_{0xx} &= \frac{\sigma_x(\sigma_y+\sigma_z-\sigma_x) - \sigma_y\sigma_z}{(\omega^2 + \sigma^2_x)}, \\
+            T_{0yy} &= \frac{\sigma_y(\sigma_x+\sigma_z-\sigma_y)-\sigma_x\sigma_z}{(\omega^2 + \sigma^2_y)}, \\
+            T_{0zz} &= \frac{\sigma_z(\sigma_x+\sigma_y-\sigma_z)-\sigma_x\sigma_y}{(\omega^2 + \sigma^2_z)}, \\
             \mathbf{T_0} &= \begin{pmatrix}
               T_{0xx} & 0 & 0 \\
              0 &  T_{0yy} & 0 \\
@@ -392,9 +392,9 @@ where $C_0$, $C_1$ and the tensor coefficients $\mathbf{T}_0$, $\mathbf{T}_1$ ar
       % \footnotesize
         \begin{aligned}
             C_1 &= \frac{\omega(\sigma_x+\sigma_y+\sigma_z) - (\sigma_x\sigma_y\sigma_z)/\omega}{c^2} \\%[1ex]
-            T_{1xx} &= \frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_y+\sigma_z-\sigma_x)}{(\omega^2 + \sigma^2(x))}, \\
-            T_{1yy} &= \frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_x+\sigma_z-\sigma_y)}{(\omega^2 + \sigma^2(y))}, \\
-            T_{1zz} &= \frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_x+\sigma_y-\sigma_z)}{(\omega^2 + \sigma^2(z))}, \\
+            T_{1xx} &= \frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_y+\sigma_z-\sigma_x)}{(\omega^2 + \sigma^2_x)}, \\
+            T_{1yy} &= \frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_x+\sigma_z-\sigma_y)}{(\omega^2 + \sigma^2_y)}, \\
+            T_{1zz} &= \frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_x+\sigma_y-\sigma_z)}{(\omega^2 + \sigma^2_z)}, \\
             \mathbf{T_1} &= \begin{pmatrix}
               T_{1xx} & 0 & 0 \\
              0 &  T_{1yy} & 0 \\

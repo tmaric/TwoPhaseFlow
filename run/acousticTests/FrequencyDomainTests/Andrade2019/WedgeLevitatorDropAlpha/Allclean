@@ -4,5 +4,11 @@ cd "${0%/*}" || exit                                # Run from this directory
 #------------------------------------------------------------------------------
 
 cleanCase0
+rm -rf processor*
 rm -f constant/*unrolled*
+rm -rf constant/polyMesh
+rm -f constant/levitator2D.fms
+rm -f system/meshDict system/extrudeMeshDict system/topoSetDict.alphaInterface
+rm -f log.topoSet.alphaInterface.* log.refineMesh.alphaInterface.*
+rm -f log.setAlphaField.alphaInterface.*
 #------------------------------------------------------------------------------

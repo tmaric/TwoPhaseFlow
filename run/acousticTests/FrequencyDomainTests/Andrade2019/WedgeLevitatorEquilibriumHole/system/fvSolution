@@ -19,48 +19,10 @@ solvers
 {
     "alpha.*"
     {
-        // This required bei InterIsoRhoFoam, but not by InterIsoFoam, why? (TT)
-        nAlphaCorr      2;
-
-        isoFaceTol      1e-8;
-        surfCellTol     1e-8;
-        nAlphaBounds    3;
-        snapTol         0;
-        clip            false;
-        cAlpha          1;
-        nAlphaSubCycles 1;
-        advectionScheme isoAdvection;
+        // The fixed interface is reconstructed once to compute sharp alphaf.
         reconstructionScheme plicRDF;
-    }
-
-    "P.*"
-    {
-        solver          petsc;
-        petsc
-        {
-            options
-            {
-                ksp_type      fgmres;
-                pc_type       gamg;
-            }
-
-            use_petsc_residual_norm false;
-            caching
-            {
-                matrix
-                {
-                    update always;
-                }
-                preconditioner
-                {
-                    update always;
-                }
-            }
-
-        }
-        tolerance       1e-12;
-        relTol          1e-1;
-        maxIter         1000;
+        isoFaceTol           1e-8;
+        surfCellTol          1e-8;
     }
 
     cellDisplacement
@@ -80,17 +42,6 @@ solvers
 SIMPLE
 {
     nNonOrthogonalCorrectors 2;
-    residualControl
-    {
-        Pre 1e-5;
-        Pim 1e-5;
-    }
-    pRefCell        0;
-    pRefValue       0;
 }
-
-
-
-
 
 // ************************************************************************* //

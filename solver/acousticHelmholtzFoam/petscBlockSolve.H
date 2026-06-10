@@ -1,12 +1,54 @@
 // PETSc solve helpers for acousticHelmholtzFoam.
 //
-// After distributed KSPSolve, scatterBlockSolution() gathers the full block
-// vector on each rank to keep OpenFOAM field updates straightforward.
+// Interleaved cell ordering keeps each rank's OpenFOAM cells in its PETSc
+// ownership range:
+//   cell g -> Pim row 2*g, Pre row 2*g + 1.
 // buildRhs() mirrors the serial reference formulation to ease one-to-one
 // comparisons.
 
+static void buildBlockPreallocation
+(
+    const fvMesh& mesh,
+    List<PetscInt>& dNnz,
+    List<PetscInt>& oNnz
+)
+{
+    dNnz.setSize(2*mesh.nCells(), 2);
+    oNnz.setSize(2*mesh.nCells(), 0);
+
+    const labelUList& owner = mesh.owner();
+    const labelUList& neighbour = mesh.neighbour();
+    forAll(neighbour, facei)
+    {
+        for (label component = 0; component < 2; ++component)
+        {
+            dNnz[2*owner[facei] + component] += 2;
+            dNnz[2*neighbour[facei] + component] += 2;
+        }
+    }
+
+    const polyBoundaryMesh& patches = mesh.boundaryMesh();
+    forAll(patches, patchi)
+    {
+        if (!isA<processorPolyPatch>(patches[patchi]))
+        {
+            continue;
+        }
+
+        const labelUList& faceCells = patches[patchi].faceCells();
+        forAll(faceCells, facei)
+        {
+            for (label component = 0; component < 2; ++component)
+            {
+                oNnz[2*faceCells[facei] + component] += 2;
+            }
+        }
+    }
+}
+
 static void initializePetscSystem
 (
+    const fvMesh& mesh,
     const PetscInt nLocal,
     const PetscInt N,
     Mat& M,
@@ -18,7 +60,20 @@ static void initializePetscSystem
     MatCreate(PETSC_COMM_WORLD, &M);
     MatSetSizes(M, 2*nLocal, 2*nLocal, 2*N, 2*N);
     MatSetType(M, MATAIJ);
+
+    List<PetscInt> dNnz;
+    List<PetscInt> oNnz;
+    buildBlockPreallocation(mesh, dNnz, oNnz);
+    if (Pstream::parRun())
+    {
+        MatMPIAIJSetPreallocation(M, 0, dNnz.begin(), 0, oNnz.begin());
+    }
+    else
+    {
+        MatSeqAIJSetPreallocation(M, 0, dNnz.begin());
+    }
     MatSetUp(M);
+    MatSetOption(M, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
 
     VecCreate(PETSC_COMM_WORLD, &x);
     VecSetSizes(x, 2*nLocal, 2*N);
@@ -38,28 +93,37 @@ static void scatterBlockSolution
 (
     Vec& x,
     const globalIndex& globalCells,
-    const PetscInt N,
     volScalarField& Pim,
     volScalarField& Pre
 )
 {
-    Vec xAll = nullptr;
-    VecScatter allScatter = nullptr;
-    VecScatterCreateToAll(x, &allScatter, &xAll);
-    VecScatterBegin(allScatter, x, xAll, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(allScatter, x, xAll, INSERT_VALUES, SCATTER_FORWARD);
+    PetscInt ownershipStart = 0;
+    PetscInt ownershipEnd = 0;
+    VecGetOwnershipRange(x, &ownershipStart, &ownershipEnd);
+
+    const PetscInt expectedStart =
+        Pim.size() ? 2*(PetscInt)globalCells.toGlobal(0) : ownershipStart;
+    if
+    (
+        ownershipStart != expectedStart
+     || ownershipEnd - ownershipStart != 2*(PetscInt)Pim.size()
+    )
+    {
+        FatalErrorInFunction
+            << "PETSc/OpenFOAM ownership mismatch: PETSc range ["
+            << ownershipStart << ',' << ownershipEnd << "), expected start "
+            << expectedStart << " and local size " << 2*Pim.size()
+            << exit(FatalError);
+    }
 
     const PetscScalar* xArr = nullptr;
-    VecGetArrayRead(xAll, &xArr);
+    VecGetArrayRead(x, &xArr);
     forAll(Pim, i)
     {
-        const PetscInt gi = globalCells.toGlobal(i);
-        Pim[i] = (scalar)PetscRealPart(xArr[gi + 0]);
-        Pre[i] = (scalar)PetscRealPart(xArr[gi + N]);
+        Pim[i] = (scalar)PetscRealPart(xArr[2*i]);
+        Pre[i] = (scalar)PetscRealPart(xArr[2*i + 1]);
     }
-    VecRestoreArrayRead(xAll, &xArr);
-    VecScatterDestroy(&allScatter);
-    VecDestroy(&xAll);
+    VecRestoreArrayRead(x, &xArr);
 }
 
 static void buildRhs

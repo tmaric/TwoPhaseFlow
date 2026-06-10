@@ -44,8 +44,11 @@ run_series()
         # Force a fresh run for each sweep point; RunFunctions otherwise skips
         # applications when log.<app> exists from previous point.
         rm -f \
-            log.gmshToFoam \
-            log.changeDictionary \
+            log.cartesian2DMesh \
+            log.extrudeMesh \
+            log.topoSet.alphaInterface.* \
+            log.refineMesh.alphaInterface.* \
+            log.setAlphaField.alphaInterface.* \
             log.setPMLFields \
             log.setAlphaField \
             log.decomposePar \
