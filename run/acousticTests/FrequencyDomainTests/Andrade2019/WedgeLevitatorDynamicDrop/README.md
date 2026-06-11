@@ -9,7 +9,6 @@ Edit one file and regenerate all dependent inputs automatically.
   - includes `DROP_RADIUS` and `DROP_CENTER_Y` for initial drop size/vertical position (`setAlphaField`).
 - `prepareCase`: renders templates using values from `caseParams.sh`.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
-- `constant/levitatorWedgeHex.geo.in`: template for `constant/levitatorWedgeHex.geo`.
 - `0.orig/Pim.in`: template for `0.orig/Pim`.
 - `Allrun`: full workflow with decomposed MPI run.
 
@@ -24,7 +23,7 @@ Edit one file and regenerate all dependent inputs automatically.
    - `./Allrun`
 
 `Allrun` already calls `./prepareCase`, so manual rendering is optional.
-`Allrun` also checks `gmsh` and auto-builds the selected solver if needed.
+`Allrun` uses cfMesh and auto-builds the selected solver if needed.
 
 ## Contributor quick check (recommended)
 
@@ -72,7 +71,6 @@ Use this when you want to inspect generated files without running the solver:
 
 This updates:
 - `constant/transportProperties`
-- `constant/levitatorWedgeHex.geo`
 - `0.orig/Pim`
 - `system/setAlphaFieldDict`
 

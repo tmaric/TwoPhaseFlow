@@ -36,6 +36,7 @@
 \usepackage{caption}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage[section]{placeins}
 \usepackage{color}
 \usepackage{amsmath}
 \usepackage{algorithm}%
@@ -48,6 +49,7 @@
 
 % MACROS
 \renewcommand{\v}{\TextOrMath{\textv}{\mathbf{v}}}
+\newcommand{\V}{\mathbf{V}}
 \newcommand{\g}{\mathbf{g}}
 \newcommand{\x}{\mathbf{x}}
 \newcommand{\y}{\mathbf{y}}
@@ -249,7 +251,7 @@ While the propagation of ist sound a adiabatic process, means  $\frac{d s}{d t}=
 \begin{equation}
      \frac{d \rho}{dt} =\left( \frac{\partial \rho}{\partial p}\right)_s\frac{d p}{\partial t} + \left(\frac{\partial \rho}{\partial s}\right)_p\frac{d s}{d t} = \frac{\partial \rho}{\partial p}\frac{d p}{\partial t} = \frac{1}{c^2}\left(\frac{\partial p}{\partial t} + (\v\cdot\nabla)p\right)
 \end{equation}
-Where we have use the defintion of the sound speed. The mass conservation now becomes 
+Where we have use the definition of the sound speed $c:=\sqrt{\frac{\partial p}{\partial \rho}}$. The mass conservation now becomes
 \begin{equation}
     \frac{\partial p}{\partial t} + (\v\cdot\nabla)p + \rho c^2 \, \nabla\cdot\v = 0
     \label{eq:pMassConti}
@@ -271,17 +273,79 @@ which is the pressure wave equation for heterogeneous medium. Taken $\rho_0$ as 
 \end{equation}
 
 \subsection{Helmholtz equation}
-If the acoustic system is driven by single frequency and the timescale is much larger then the period of the sound wave. The acoustic pressure field can be written in the following time harmonic form
+If the acoustic system is driven by single frequency and the timescale is much larger then the period of the sound wave. The acoustic pressure and velocity field can be written in the following time harmonic form
 \begin{equation}
-    p_1(x,t) = \mathrm{Re}(e^{-i\omega t}P(x))
+    \begin{aligned}
+        p_1(x,t) &= \mathrm{Re}(e^{-i\omega t}P(x)),\\
+        \v_1(x,t) &= \mathrm{Re}(e^{-i\omega t}\V(x)).
+    \end{aligned}
     \label{as:timeHarmonic}
 \end{equation}
-Where the complex pressure $P(x)=P_{re}+ iP_{im}(x)$ is spatial function. We substitute \cref{as:timeHarmonic} into the general wave equation \cref{eq:heteWaveP} , than it follows
+Where the complex pressure $P(x)=P_{re}+ iP_{im}(x)$ is spatial function.
+Insert the \cref{as:timeHarmonic} into the first order momentum equation \cref{eq:1stMomConserv} we have 
+\begin{equation}
+    i\omega\rho_0 \V = -\nabla P
+\end{equation}
+We substitute then \cref{as:timeHarmonic} into the general wave equation \cref{eq:heteWaveP} , than it follows
 \begin{equation}
     \rho_0\nabla\cdot\left(\frac{\nabla P}{\rho_0}\right) + k^2P=0,
     \label{eq:heteHelmholtz}
 \end{equation}
 where $k=\frac{\omega}{c}$ is the wave number. 
+
+
+\subsection{Acoustic Radiation Pressure}
+One major motivation for developing the frequency-domain solver is the
+simulation of droplets in single-axis acoustic levitators. The time-averaged
+force that supports the droplet results from the acoustic radiation pressure,
+whose derivation requires a second-order perturbation expansion:
+\begin{equation}
+    \begin{aligned}
+        \rho &= \rho_0 + \rho_1 + \rho_2, \\
+        p &= p_0 + p_1 + p_2, \\
+        \v &= \v_1 + \v_2.
+        \label{eq:2stPert}
+    \end{aligned}
+\end{equation}
+Substituting this expansion into the momentum equation
+\cref{eq:momConserv}, neglecting terms above second order, and using the
+first-order momentum equation \cref{eq:1stMomConserv} gives
+\begin{equation}
+    \nabla p_2 =
+    -\rho_0\frac{\partial \v_2}{\partial t}
+    -\frac{\partial (\rho_1\v_1)}{\partial t}
+    -\rho_0\nabla\cdot(\v_1\v_1).
+\end{equation}
+Assuming constant unperturbed material properties within each medium,
+expanding $\partial(\rho_1\v_1)/\partial t$, and using the first-order
+momentum and mass equations \cref{eq:1stMomConserv,eq:1stMassConserv} yields
+\begin{equation}
+    \nabla p_2 =
+    -\rho_0\frac{\partial \v_2}{\partial t}
+    +\frac{\nabla p_1^2}{2c^2\rho_0}
+    -\rho_0(\nabla\v_1)\cdot\v_1.
+\end{equation}
+Here the isentropic relation $p_1=c^2\rho_1$ has been used. For an
+irrotational first-order velocity field, $\v_1=\nabla\Phi$, the identity
+$(\nabla\v_1)\cdot\v_1=\frac{1}{2}\nabla|\v_1|^2$ applies. Moreover, the
+time average of $\partial\v_2/\partial t$ over one driving period vanishes.
+Denoting the time average by $\langle\cdot\rangle:= \frac{1}{T}\int_0^T \cdot \, dt$ therefore gives
+\begin{equation}
+    \langle p_2\rangle =
+    \frac{\langle p_1^2\rangle}{2\rho_0c^2}
+    -\frac{\rho_0}{2}\langle|\v_1|^2\rangle.
+\end{equation}
+Finally, after employing the time harmonic ansatz \cref{as:timeHarmonic} we have
+\begin{equation}
+    \langle p_2\rangle =
+    \frac{\langle |e^{-\omega t}P(x)|^2\rangle}{2\rho_0c^2}
+    -\frac{\rho_0}{2}\langle|e^{-\omega t}\V(x)|^2\rangle =  \frac{\langle |P(x)|^2\rangle}{4\omega\rho_0c^2}
+    -\frac{\rho_0}{4\omega}\langle|\V(x)|^2\rangle.
+\end{equation}
+Thus, the acoustic radiation pressure $p_{\mathrm{rad}}:=\langle p_2\rangle$
+can be evaluated from the first-order pressure and velocity fields computed by
+the frequency-domain solver.
+
 
 \subsection{Perfect Matched Layer}
 As the simulation domain must be closed, it could be tricky if the acoustic system to be simulated is not closed, such as the sound wave from a speaker that travels far away. For this reason, we must modify the "open boundary" with some sort of boundary condition so we can enclose the simulation domain. For the case where the outgoing wave has a specific form or fixed direction a absorbing or radiation boundary condition could be a simple  way to model the open boundary. While for more general cases, the Perfect Matched Layer(PML) is by far the most effective boundary condition for the open boundary.
@@ -461,6 +525,70 @@ The modified Helmholtz equation \cref{eq:helmholtzPML} is solved with the open s
 \end{equation}
 where the field $\alpha$ is the liquid volume fraction which takes the value 1 in liquid phase, 0 in gas phase, and some value between 0 and 1 in the interface. 
 
+\subsection{Finite-volume discretisation}
+\label{sec:fvmDiscretisation}
+The governing equations are discretised with the cell-centred finite-volume
+method implemented in OpenFOAM.  The computational domain is partitioned into
+non-overlapping polyhedral control volumes, and the differential equations are
+integrated over each control volume.  Surface-divergence terms are converted
+into sums of fluxes through the control-volume faces by the Gauss theorem.  This
+procedure and the associated OpenFOAM notation are described in standard finite-volume
+references \cite{Versteeg2007,Ferziger2020}.
+
+For a cell $P$ with volume $V_P$ and boundary faces $f$, the discrete diagonal
+operator $\hat A$ applied to a pressure component $P$ has the form
+\begin{equation}
+\begin{aligned}
+    (\hat A_h P)_P ={}&
+    \rho_P \sum_{f\in\partial V_P}
+        \left(\frac{1}{\rho}\right)_f
+        (\nabla P)_f\cdot\Sf
+    + \sum_{f\in\partial V_P}
+        \left(\mathbf{T}_{0,f}\cdot(\nabla P)_f\right)\cdot\Sf \\
+    &+ (k_P^2-C_{0,P})P_P V_P ,
+\end{aligned}
+\label{eq:discreteDiagonalOperator}
+\end{equation}
+where $\Sf$ is the outward-pointing face-area vector.  The corresponding
+real--imaginary coupling operator is
+\begin{equation}
+    (\hat B_h P)_P =
+    \sum_{f\in\partial V_P}
+        \left(\mathbf{T}_{1,f}\cdot(\nabla P)_f\right)\cdot\Sf
+    + C_{1,P}P_P V_P .
+\label{eq:discreteCouplingOperator}
+\end{equation}
+The reaction terms are treated implicitly.  The Laplacian terms are assembled
+with \texttt{fvm::laplacian}, using linear face interpolation and the
+face-normal gradient scheme selected in \texttt{system/fvSchemes}.  On
+orthogonal meshes, the normal gradient at an internal face shared by cells
+$P$ and $N$ is approximated by a centred difference.  For non-orthogonal
+meshes, OpenFOAM's corrected Laplacian scheme can be selected; its explicit
+non-orthogonal contribution is updated through the non-orthogonal correction
+loop.
+
+Special care is required at the material interface because the acoustic
+impedance and density can change sharply.  Instead of interpolating the
+cell-centred density directly, the face coefficient is constructed from the
+face liquid fraction,
+\begin{equation}
+    \left(\frac{1}{\rho}\right)_f
+    = \frac{\alpha_f}{\rho_l}+\frac{1-\alpha_f}{\rho_g}.
+\label{eq:faceInverseDensity}
+\end{equation}
+The field $\alpha_f$ is obtained from the geometrically reconstructed
+volume-fraction interface.  Thus, the variable-density flux in
+\cref{eq:discreteDiagonalOperator} uses an interface-aware face coefficient,
+while the wave-number and PML reaction coefficients remain cell-centred.
+
+OpenFOAM first assembles each scalar operator into its lower-diagonal-upper
+matrix representation, including physical-boundary contributions.  The
+diagonal operators and the two PML coupling operators are then inserted into
+the corresponding blocks of the global PETSc matrix.  In parallel, couplings
+across processor patches are inserted explicitly using global cell indices, so
+the distributed PETSc system represents the same finite-volume stencil as the
+undecomposed mesh.
+
 
 \subsection{Block coupled approach}
 While the Helmholtz equation with large wave number can be easily unstable as solved iteratively or segregately, we rewrite  \cref{eq:helmholtzPML} first in a block coupled equation system
@@ -582,7 +710,7 @@ $y_{\mathrm{ex}}$ are stated in the corresponding subsections below.
 
 \subsection{Piston radiation}
 An axissymmetric model of a rigid cylindrical piston with radius $a$  in an infinite baffle \Cref{fig:piston} is used to varify our frequency domain solver, where the simulation outcome can be directly compared to the known analytical solution. In our setup, the piston vibrate in vertical direction harmonically with the velocity amplitude $U_0$. $\rho_0$ and $c$ is the  density and sound speed of the air. 
-\begin{figure}[!htb]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[scale=0.7]{figures/piston_sketch.png}%
     \caption{Geometry of the piston in an infinite baffle model}
@@ -610,7 +738,7 @@ Where $J_1$ is the first order Bessel function.
 
 In our simulation the value of the parameters is given in \Cref{tab:paramsPiston}.
 
-\begin{table}
+\begin{table}[!htbp]
     \centering
     \begin{tabular}{ccccccccc}
         $\rho_0$ & $U_0$  & $f$ & $c$ & $a$  & $R_{min}$  & $R_{max}$  & $po$  & $\sigma_{max}$ \\
@@ -643,15 +771,14 @@ approach the analytical solution.
 
 \input{tables/nearField_convergence_table.tex}
 
-One more thing to be mentioned is, if we further increase the PML damping $\sigma_{max}$. Then the numeric reflection is clear to see in the figure. In the practice, the PML damping factor must be tuned to ensure no numeric reflection while provide sufficient damping effect. 
-
-
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.85\textwidth]{figures/piston_nearField_onAxis_meshConvergence.png}%
     \caption{Piston radiation: Comparison of near field on axis pressure amplitude}
     \label{fig:pistonNearAmp}
 \end{figure}
+
+One more thing to be mentioned is, if we further increase the PML damping $\sigma_{max}$. Then the numeric reflection is clear to see in the figure. In the practice, the PML damping factor must be tuned to ensure no numeric reflection while provide sufficient damping effect.
 
 For far field case, we choose the fixed radius $R=4m$ and compare the pressure field at different angle from $0$ to $90$ degree. Because of the enormous computational resource we will not simulate the pressure field in the hemispheric domain with $4m$ radius. Instead we use the simulated pressure at the outer boundary of the solution domain $r=0.2m$ to compute the far field pressure with the boundary integration 
 \begin{equation}                   
@@ -661,28 +788,29 @@ Where $G(x,\tilde{x})=\frac{e^{ik|x-\tilde{x}|}}{4\pi|x-\tilde{x}| }$ is the Gre
 
 The comparison is in \Cref{fig:pistonFarAmp}. For a clear illustration we have used the polar diagram with log value. As the mesh resolution increase, the simulation outcome is very close to the analytical profile with only slight difference when the polar angle is near zero.
 
-\input{tables/farField_convergence_table.tex}
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.85\textwidth]{figures/piston_metrics_meshConvergence.png}%
-    \caption{Piston radiation: Mesh-convergence metrics for the near-field pressure amplitude and far-field directivity.}
-    \label{fig:pistonMetricsConvergence}
-\end{figure}
-
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.72\textwidth]{figures/piston_farFieldPatternPolar.png}%
     \caption{Piston radiation: Comparison of far field radial pressure amplitude at radius 4}
     \label{fig:pistonFarAmp}
 \end{figure}
 
+\input{tables/farField_convergence_table.tex}
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/piston_metrics_meshConvergence.png}%
+    \caption{Piston radiation: Mesh-convergence metrics for the near-field pressure amplitude and far-field directivity.}
+    \label{fig:pistonMetricsConvergence}
+\end{figure}
+
+\FloatBarrier
 \subsection{One-dimensional layered interface}
 The layered-interface case verifies both wave transmission across a strong
 material-property jump and attenuation by the directional tensor PML.  Its
 configuration is shown in \Cref{fig:1DLayerd}.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \begin{tikzpicture}[x=1cm,y=1cm,>=latex]
         \def\xzero{0}
@@ -744,7 +872,7 @@ The analytical solution reads
 Here $k_j=\omega/c_j$ and
 $R=(\rho_2c_2-\rho_1c_1)/(\rho_2c_2+\rho_1c_1)$.  The simulation parameters
 are listed in \Cref{tab:params1DTwoPhase}.
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{Simulation parameters for the one-dimensional layered-interface case.}
     \label{tab:params1DTwoPhase}
@@ -787,7 +915,7 @@ medium-1 solution can be written as
     P(x)=i\rho_1c_1u_0\frac{\cos[k_1(x-L_1)]}{\sin(k_1L_1)},
 \end{equation}
 which has only an imaginary component.
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_Pre_Pim_compare.png}%
     \caption{Directional tensor PML validation: comparison of the numerical real and imaginary pressure components with the analytical layered-interface solution.}
@@ -816,13 +944,14 @@ the numerical and analytical complex pressures differ by only
 $1.39\times10^{-3}$ in relative $L_2$ norm, and their pressure amplitudes
 differ by $3.45\times10^{-4}$.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_abs_compare.png}%
     \caption{Directional tensor PML validation: numerical and analytical pressure amplitude.  The transmitted plane wave has constant amplitude in medium~2 before the PML and is smoothly attenuated inside the PML.}
     \label{fig:1DLayerdAmplitude}
 \end{figure}
 
+\FloatBarrier
 \subsubsection{PML damping sensitivity}
 The one-dimensional layered-interface case is also used to examine the influence of the PML damping strength.  All physical parameters, the mesh, the PML thickness, and the polynomial order are kept fixed, while only the maximum damping coefficient $\sigma_{\max}$ is varied.  The comparison with the analytical solution is evaluated in the physical part of the domain, excluding the PML and a small offset from the boundaries.  This isolates the error induced by imperfect absorption from the strongly damped layer itself.
 
@@ -843,7 +972,7 @@ poorly resolved by the mesh and can introduce numerical reflection; therefore
 $\sigma_{\max}$ should be chosen together with the PML thickness, polynomial
 order, and mesh spacing.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_sigma_sensitivity.png}%
     \caption{Layered-interface case: sensitivity of the directional tensor PML solution to the maximum damping coefficient.}
@@ -865,13 +994,14 @@ amplitude.
 
 \input{tables/pml_mesh_sensitivity_table.tex}
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_mesh_sensitivity.png}%
     \caption{Layered-interface case: directional tensor PML mesh sensitivity with fixed damping $\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$.}
     \label{fig:pmlMeshSensitivity}
 \end{figure}
 
+\FloatBarrier
 \section{Application example}
 \label{sec:application}
 
@@ -884,7 +1014,7 @@ The OpenFOAM case \texttt{WedgeLevitatorDropAlpha} follows the same workflow.  A
 \end{equation}
 where $\Gamma_r$ is the reflector surface and $\normal_r$ is the mean reflector normal.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/4sweep2.png}
     \caption{Application example: reflector radiation force during a height sweep of the wedge levitator for an empty cavity and constant-volume drops with different aspect ratios, computed with \texttt{acousticHelmholtzFoam}.}
@@ -893,6 +1023,7 @@ where $\Gamma_r$ is the reflector surface and $\normal_r$ is the mean reflector 
 
 \Cref{fig:heightSweepAspectRatio} shows the resulting force curves.  They reproduce the main trends reported in the COMSOL study of Andrade and Marzo \cite{andrade2019numerical}: the force is strongly amplified near the acoustic resonance, the drop shifts the resonance response, and the force level near the peak increases systematically with the drop aspect ratio.  Because the levitator operates close to resonance, the radiation force is highly sensitive to small changes in geometry, material parameters, acoustic drive, and numerical representation of the drop.  The agreement in resonance scale, curve ordering, and force magnitude is therefore a meaningful application-level comparison.  This example demonstrates that the solver can use the same interface-resolved material description required for two-phase flow simulations while producing acoustic-force trends consistent with the established finite-element reference.
 
+\FloatBarrier
 \section{Performance}
 \label{sec:performance}
 \todoin{Add representative runtime, memory usage, and parallel-scaling data for the verification and levitator cases. Report mesh size, number of MPI ranks, PETSc/MUMPS solver settings, and wall-clock time.}

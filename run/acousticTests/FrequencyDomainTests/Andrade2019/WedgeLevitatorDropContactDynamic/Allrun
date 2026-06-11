@@ -13,20 +13,8 @@ need_cmd()
     fi
 }
 
-case "${MESH_BACKEND:-cfmesh}" in
-    cfmesh)
-        need_cmd cartesian2DMesh
-        need_cmd extrudeMesh
-        ;;
-    gmsh)
-        need_cmd gmsh
-        ;;
-    *)
-        echo "Error: unsupported MESH_BACKEND='${MESH_BACKEND}'" >&2
-        echo "Use MESH_BACKEND=cfmesh or MESH_BACKEND=gmsh." >&2
-        exit 1
-        ;;
-esac
+need_cmd cartesian2DMesh
+need_cmd extrudeMesh
 
 if [ -z "${NPROCS:-}" ]; then
     NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
@@ -36,26 +24,16 @@ fi
 ./Allclean
 ./prepareCase
 
-case "${MESH_BACKEND:-cfmesh}" in
-    cfmesh)
-        runApplication cartesian2DMesh
-        runApplication extrudeMesh
-        ./postMesh
-        ;;
-    gmsh)
-        gmsh -0 constant/levitatorWedgeHex.geo
-        runApplication gmshToFoam constant/levitatorWedgeHex.msh
-        rm constant/levitatorWedgeHex.msh
-        runApplication changeDictionary
-        ;;
-esac
+runApplication cartesian2DMesh
+runApplication extrudeMesh
+./postMesh
 
 restore0Dir
 runApplication setAlphaField
 rm -f 0/Pim.in
 
 need_cmd setPMLFields
-runApplication setPMLFields
+runApplication setPMLFields -lib libVoF.so
 
 need_cmd "${SOLVER}"
 rm -f "log.${SOLVER}"

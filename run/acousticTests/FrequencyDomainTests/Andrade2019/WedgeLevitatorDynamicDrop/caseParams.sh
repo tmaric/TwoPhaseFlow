@@ -3,7 +3,6 @@
 # Single source of truth for WedgeLevitatorDropAlpha setup.
 # Values in this file are injected into:
 # - constant/transportProperties
-# - constant/levitatorWedgeHex.geo
 # - 0.orig/Pim
 #
 # Workflow:
@@ -65,14 +64,8 @@ PML_MIN_X=-100
 PML_MIN_Z=-100
 
 # ---------------------------------------------------------------------------
-# Geometry / mesh parameters (gmsh template)
+# Geometry / mesh parameters
 # ---------------------------------------------------------------------------
-# Mesh backend:
-# - cfmesh: generate a 2D background mesh with cartesian2DMesh and extrude it
-#           to a wedge. This is the preferred path for AMR runs.
-# - gmsh:   keep the original transfinite gmsh wedge mesh path.
-MESH_BACKEND=${MESH_BACKEND:-cfmesh}
-
 # Levitator geometry dimensions [m].
 # D: gap between transducer plane and reflector plane.
 D=0.00764
@@ -85,13 +78,7 @@ BU=0.01
 # HS: vertical stand height above/below the active gap.
 HS=0.01
 
-# Mesh controls.
-# N is the number of cells per wavelength used to set gs = lambda/N.
-MESH_N=100
-# Gmsh point characteristic length (kept as in original setup).
-MESH_LC=1.0
-# Wedge half/total angle settings [deg].
-ROTATE_HALF_DEG=0.5
+# Wedge total angle [deg].
 WEDGE_DEG=1.0
 
 # cfMesh controls [m].

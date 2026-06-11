@@ -87,6 +87,48 @@ Directional rectangular-PML damping is controlled with:
 `SIGMA_MAX` remains available for backward compatibility and initializes the
 x- and y-direction values when they are not set explicitly.
 
+## Performance studies
+
+`runPerformanceScaling.sh` generates CSV data for strong scaling and
+problem-size scaling. Strong scaling prepares one mesh and reuses it across
+MPI-rank counts. Problem-size scaling varies `CFMESH_MAX_CELL_SIZE` while
+holding the MPI-rank count fixed.
+
+```bash
+# Run both studies with the defaults
+./runPerformanceScaling.sh
+
+# Fixed mesh with selected MPI-rank counts
+STRONG_RANKS="1 2 4 8 16" ./runPerformanceScaling.sh strong
+
+# Selected mesh sizes at eight MPI ranks
+SIZE_CELL_SIZES="8e-5 6e-5 4e-5 3e-5" SIZE_RANKS=8 \
+    ./runPerformanceScaling.sh size
+```
+
+Results and per-run logs are written under `performanceResults/`. The CSV files
+report the cell count, block-system unknown count (`2*cells`), measured elapsed
+time, and solver-reported clock time. The strong-scaling CSV additionally
+reports speedup and parallel efficiency relative to the first rank count. A
+single unreported warm-up solve prevents one-time coded-function compilation
+from contaminating the timings. Set `PERFORMANCE_WARMUP=0` to disable it.
+Additional launcher arguments can be supplied with `MPI_OPTIONS`; OpenMPI uses
+`--oversubscribe` by default to match the standard OpenFOAM run helper.
+
+Generate publication-ready PNG and PDF plots with:
+
+```bash
+# Plot the newest benchmark under performanceResults/
+./plotPerformanceScaling.py
+
+# Plot a selected benchmark directory
+./plotPerformanceScaling.py performanceResults/20260611-120000
+```
+
+The figures are written to `<results_dir>/figures/`. Strong-scaling output
+contains runtime, speedup, and efficiency panels. Problem-size output contains
+total runtime and runtime per block-system unknown.
+
 ## Environment
 
 Run with your OpenFOAM environment loaded:

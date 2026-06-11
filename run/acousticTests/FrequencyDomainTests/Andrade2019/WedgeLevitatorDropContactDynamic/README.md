@@ -14,11 +14,9 @@ and velocity scale `uTheta 0.01`.
 
 - `caseParams.sh`: single source of truth for drive, PML, and mesh controls.
   - includes `DROP_RADIUS` and `DROP_CENTER_Y` for initial drop size/vertical position (`setAlphaField`).
-  - selects the mesh backend with `MESH_BACKEND` (`cfmesh` by default, `gmsh` for the original gmsh routine).
 - `prepareCase`: renders templates using values from `caseParams.sh`.
-  - also generates `constant/levitator2D.fms`, `system/meshDict`, and `system/extrudeMeshDict` for cfMesh.
+  - generates `constant/levitator2D.fms`, `system/meshDict`, and `system/extrudeMeshDict`.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
-- `constant/levitatorWedgeHex.geo.in`: template for `constant/levitatorWedgeHex.geo`.
 - `0.orig/Pim.in`: template for `0.orig/Pim`.
 - `Allrun`: full workflow with decomposed MPI run.
 
@@ -33,12 +31,7 @@ and velocity scale `uTheta 0.01`.
    - `./Allrun`
 
 `Allrun` already calls `./prepareCase`, so manual rendering is optional.
-`Allrun` uses cfMesh by default and auto-builds the selected solver if needed.
-To use the original gmsh meshing routine:
-
-```bash
-MESH_BACKEND=gmsh ./Allrun
-```
+`Allrun` uses cfMesh and auto-builds the selected solver if needed.
 
 ## Contributor quick check (recommended)
 
@@ -86,7 +79,6 @@ Use this when you want to inspect generated files without running the solver:
 
 This updates:
 - `constant/transportProperties`
-- `constant/levitatorWedgeHex.geo`
 - `0.orig/Pim`
 - `system/setAlphaFieldDict`
 - `constant/levitator2D.fms`

@@ -4,7 +4,6 @@ cd "${0%/*}" || exit                                # Run from this directory
 #------------------------------------------------------------------------------
 
 cleanCase0
-rm -f constant/*unrolled*
 rm -rf constant/polyMesh
 rm -f constant/levitator2D.fms
 
