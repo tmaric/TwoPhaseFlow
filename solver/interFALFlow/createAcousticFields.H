@@ -178,7 +178,7 @@ volTensorField T1
     mesh
 );
 
-volScalarField sigma
+volTensorField sigma
 (
     IOobject
     (

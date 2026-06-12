@@ -488,9 +488,8 @@ selected through \texttt{PMLType}; the current implementation supports
 The PML coefficient fields are generated before the Helmholtz solve by the
 companion utility \texttt{setPMLFields}.  This utility reads the same
 \texttt{transportProperties} dictionary and writes the scalar fields
-\texttt{sigma}, \texttt{SC0}, and \texttt{SC1}, together with the directional
-tensor fields \texttt{T0} and \texttt{T1}.  The legacy scalar field
-\texttt{TC1} is also written for compatibility.  These fields represent the
+\texttt{SC0} and \texttt{SC1}, together with the directional tensor fields
+\texttt{sigma}, \texttt{T0}, and \texttt{T1}.  These fields represent the
 polynomial damping profile and the coefficients appearing in the real-imaginary
 split of the modified Helmholtz equation.  Separating this
 step from the solver makes the PML setup reproducible and allows the generated
@@ -648,10 +647,9 @@ denotes the liquid phase; intermediate values may occur at a resolved interface.
 The acoustic properties are read from the entries \texttt{rhog}, \texttt{rhol},
 \texttt{cg}, \texttt{cl}, \texttt{kg}, \texttt{kl}, and \texttt{f}.  The same
 dictionary defines the PML type and damping profile.  Before the Helmholtz solve,
-\texttt{setPMLFields} writes the coefficient fields \texttt{sigma},
-\texttt{SC0}, \texttt{SC1}, \texttt{T0}, and \texttt{T1}, which can be
-inspected like any other OpenFOAM field.  It additionally writes the legacy
-scalar compatibility field \texttt{TC1}.
+\texttt{setPMLFields} writes the scalar coefficient fields \texttt{SC0} and
+\texttt{SC1}, and the directional tensor fields \texttt{sigma}, \texttt{T0},
+and \texttt{T1}, which can be inspected like any other OpenFOAM field.
 
 \subsection{Execution workflow}
 A typical case is run by generating the mesh and initial fields, evaluating the
@@ -900,8 +898,7 @@ For this one-dimensional wave, only $\sigma_x$ is non-zero.  Consequently,
 the propagation-direction coefficients $T_{0xx}$ and $T_{1xx}$ are retained
 by the directional tensor formulation, while transverse tensor components do
 not contribute because the pressure has no transverse gradient.  This provides
-a direct verification of the new tensor operators and avoids replacing their
-directional contribution by the averaged legacy field \texttt{TC1}.
+a direct verification of the directional tensor operators.
 
 The numerical real and imaginary pressure components agree closely with the
 analytical solution throughout both the physical domain and the PML, as shown

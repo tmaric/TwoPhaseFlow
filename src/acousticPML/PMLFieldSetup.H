@@ -116,18 +116,16 @@ inline void evaluatePoint
     const point& x,
     const Config& cfg,
     const scalar invSoundSpeedSqr,
-    scalar& sigmaLocal,
+    tensor& sigmaLocal,
     scalar& sc0,
     scalar& sc1,
-    scalar& tc1,
     tensor& t0,
     tensor& t1
 )
 {
-    sigmaLocal = 0.0;
+    sigmaLocal = Zero;
     sc0 = 0.0;
     sc1 = 0.0;
-    tc1 = 0.0;
     t0 = Zero;
     t1 = Zero;
 
@@ -157,6 +155,7 @@ inline void evaluatePoint
             const scalar dz = DpFunc.z();
             const scalar dxyzOverOmega =
                 (mag(cfg.omega) > VSMALL) ? dx*dy*dz/cfg.omega : 0.0;
+            sigmaLocal = tensor(dx, 0, 0, 0, dy, 0, 0, 0, dz);
 
             // Real and imaginary parts of diag(etaY*etaZ/etaX, ...),
             // excluding the identity contribution.
@@ -183,18 +182,6 @@ inline void evaluatePoint
             t0 = tensor(t0x, 0, 0, 0, t0y, 0, 0, 0, t0z);
             t1 = tensor(t1x, 0, 0, 0, t1y, 0, 0, 0, t1z);
 
-            // Retain TC1 for legacy consumers; directional solvers use T1.
-            tc1 = (t1x + t1y + t1z)/3.0;
-
-            sigmaLocal = dx;
-            if (mag(dy) > mag(sigmaLocal))
-            {
-                sigmaLocal = dy;
-            }
-            if (mag(dz) > mag(sigmaLocal))
-            {
-                sigmaLocal = dz;
-            }
             sc0 = (dx*dy + dx*dz + dy*dz)*invSoundSpeedSqr;
             sc1 =
                 (cfg.omega*(dx + dy + dz) - dxyzOverOmega)
@@ -210,24 +197,37 @@ inline void evaluatePoint
             {
                 scalar s = (cfg.L - (cfg.Rmax - dist))/cfg.L;
                 s = min(max(s, scalar(0)), scalar(1));
-                sigmaLocal = cfg.sigmaMax*Foam::pow(s, cfg.po);
+                const scalar sigmaValue =
+                    cfg.sigmaMax*Foam::pow(s, cfg.po);
+                sigmaLocal = tensor
+                (
+                    sigmaValue, 0, 0,
+                    0, sigmaValue, 0,
+                    0, 0, sigmaValue
+                );
             }
 
-            const scalar denom = sqr(sigmaLocal) + sqr(cfg.omega);
+            const scalar sigmaValue = sigmaLocal.xx();
+            const scalar denom = sqr(sigmaValue) + sqr(cfg.omega);
             const scalar sigmaCubeOverOmega =
                 (mag(cfg.omega) > VSMALL)
-              ? (sigmaLocal*sigmaLocal*sigmaLocal/cfg.omega)
+              ? (sigmaValue*sigmaValue*sigmaValue/cfg.omega)
               : 0.0;
 
-            tc1 =
-                (sigmaLocal > 0 || cfg.omega > 0)
-              ? (sigmaCubeOverOmega + cfg.omega*sigmaLocal)/(denom + VSMALL)
+            const scalar t1Scalar =
+                (sigmaValue > 0 || cfg.omega > 0)
+              ? (sigmaCubeOverOmega + cfg.omega*sigmaValue)/(denom + VSMALL)
               : 0.0;
-            sc0 = (3*sigmaLocal*sigmaLocal)*invSoundSpeedSqr;
+            sc0 = (3*sigmaValue*sigmaValue)*invSoundSpeedSqr;
             sc1 =
-                (cfg.omega*(3*sigmaLocal) - sigmaCubeOverOmega)
+                (cfg.omega*(3*sigmaValue) - sigmaCubeOverOmega)
                *invSoundSpeedSqr;
-            t1 = tensor(tc1, 0, 0, 0, tc1, 0, 0, 0, tc1);
+            t1 = tensor
+            (
+                t1Scalar, 0, 0,
+                0, t1Scalar, 0,
+                0, 0, t1Scalar
+            );
             break;
         }
 
@@ -248,10 +248,9 @@ inline void updateFields
     const volScalarField& alpha,
     volScalarField& SC0,
     volScalarField& SC1,
-    volScalarField& TC1,
     volTensorField& T0,
     volTensorField& T1,
-    volScalarField& sigma
+    volTensorField& sigma
 )
 {
     const auto& Ccs = mesh.C();
@@ -262,10 +261,9 @@ inline void updateFields
         const scalar invSoundSpeedSqr =
             alphaCell/sqr(cfg.cl) + (1 - alphaCell)/sqr(cfg.cg);
 
-        scalar sigmaLocal = 0.0;
+        tensor sigmaLocal(Zero);
         scalar sc0 = 0.0;
         scalar sc1 = 0.0;
-        scalar tc1 = 0.0;
         tensor t0(Zero);
         tensor t1(Zero);
         evaluatePoint
@@ -276,7 +274,6 @@ inline void updateFields
             sigmaLocal,
             sc0,
             sc1,
-            tc1,
             t0,
             t1
         );
@@ -284,7 +281,6 @@ inline void updateFields
         sigma[celli] = sigmaLocal;
         SC0[celli] = sc0;
         SC1[celli] = sc1;
-        TC1[celli] = tc1;
         T0[celli] = t0;
         T1[celli] = t1;
     }
@@ -294,10 +290,9 @@ inline void updateFields
 
     forAll(patches, patchi)
     {
-        sigma.boundaryFieldRef()[patchi] = 0.0;
+        sigma.boundaryFieldRef()[patchi] = tensor::zero;
         SC0.boundaryFieldRef()[patchi] = 0.0;
         SC1.boundaryFieldRef()[patchi] = 0.0;
-        TC1.boundaryFieldRef()[patchi] = 0.0;
         T0.boundaryFieldRef()[patchi] = tensor::zero;
         T1.boundaryFieldRef()[patchi] = tensor::zero;
 
@@ -322,10 +317,9 @@ inline void updateFields
             const scalar invSoundSpeedSqr =
                 alphaFace/sqr(cfg.cl) + (1 - alphaFace)/sqr(cfg.cg);
 
-            scalar sigmaLocal = 0.0;
+            tensor sigmaLocal(Zero);
             scalar sc0 = 0.0;
             scalar sc1 = 0.0;
-            scalar tc1 = 0.0;
             tensor t0(Zero);
             tensor t1(Zero);
             evaluatePoint
@@ -336,7 +330,6 @@ inline void updateFields
                 sigmaLocal,
                 sc0,
                 sc1,
-                tc1,
                 t0,
                 t1
             );
@@ -344,7 +337,6 @@ inline void updateFields
             sigma.boundaryFieldRef()[patchi][facei] = sigmaLocal;
             SC0.boundaryFieldRef()[patchi][facei] = sc0;
             SC1.boundaryFieldRef()[patchi][facei] = sc1;
-            TC1.boundaryFieldRef()[patchi][facei] = tc1;
             T0.boundaryFieldRef()[patchi][facei] = t0;
             T1.boundaryFieldRef()[patchi][facei] = t1;
         }
@@ -353,7 +345,6 @@ inline void updateFields
     sigma.correctBoundaryConditions();
     SC0.correctBoundaryConditions();
     SC1.correctBoundaryConditions();
-    TC1.correctBoundaryConditions();
     T0.correctBoundaryConditions();
     T1.correctBoundaryConditions();
 }
