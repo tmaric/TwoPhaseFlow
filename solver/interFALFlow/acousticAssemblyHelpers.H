@@ -111,7 +111,9 @@ static const List<labelList>& cachedProcessorPatchNeighbourGlobals
     const labelList& localGlobalIds =
         cachedLocalGlobalIds(op.psi().mesh(), globalCells);
 
-    // Stage 1: send local global-cell ids once to build processor-neighbour ids.
+    // Processor-neighbour IDs depend only on mesh topology, so exchange once.
+    // Post both sides before waiting to avoid deadlock above MPI's eager limit.
+    const label startOfRequests = UPstream::nRequests();
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -129,13 +131,14 @@ static const List<labelList>& cachedProcessorPatchNeighbourGlobals
 
         lduInt.initInternalFieldTransfer
         (
-            Pstream::commsTypes::scheduled,
+            Pstream::commsTypes::nonBlocking,
             localGlobalIds,
             faceCells
         );
     }
 
-    // Stage 2: receive neighbour ids in interface-face order.
+    UPstream::waitRequests(startOfRequests);
+
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -153,7 +156,7 @@ static const List<labelList>& cachedProcessorPatchNeighbourGlobals
         neighbGlobals[patchi] =
             lduInt.internalFieldTransfer
             (
-                Pstream::commsTypes::scheduled,
+                Pstream::commsTypes::nonBlocking,
                 localGlobalIds
             );
         if
@@ -194,6 +197,9 @@ static void exchangeProcessorPatchBoundaryCoeffs
         return;
     }
 
+    // nonBlocking send posts both the receive and send into interface-owned
+    // buffers. Wait before copying the received values into output fields.
+    const label startOfRequests = UPstream::nRequests();
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -209,8 +215,10 @@ static void exchangeProcessorPatchBoundaryCoeffs
 
         const processorLduInterface& procInt =
             refCast<const processorLduInterface>(lduInt);
-        procInt.send(Pstream::commsTypes::scheduled, bcoeffs[patchi]);
+        procInt.send(Pstream::commsTypes::nonBlocking, bcoeffs[patchi]);
     }
+
+    UPstream::waitRequests(startOfRequests);
 
     forAll(bpsi, patchi)
     {
@@ -230,7 +238,7 @@ static void exchangeProcessorPatchBoundaryCoeffs
         const label nFaces = lduInt.faceCells().size();
 
         scalarField recvCoeff(nFaces);
-        procInt.receive(Pstream::commsTypes::scheduled, recvCoeff);
+        procInt.receive(Pstream::commsTypes::nonBlocking, recvCoeff);
         neighbBcoeffs[patchi].transfer(recvCoeff);
     }
 }

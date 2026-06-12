@@ -6,6 +6,16 @@
 // buildRhs() mirrors the serial reference formulation to ease one-to-one
 // comparisons.
 
+static void setDefaultPetscOption(const char* name, const char* value)
+{
+    PetscBool optionSet = PETSC_FALSE;
+    PetscOptionsHasName(nullptr, nullptr, name, &optionSet);
+    if (!optionSet)
+    {
+        PetscOptionsSetValue(nullptr, name, value);
+    }
+}
+
 static void buildBlockPreallocation
 (
     const fvMesh& mesh,
@@ -83,9 +93,9 @@ static void initializePetscSystem
     KSPCreate(PETSC_COMM_WORLD, &ksp);
     KSPSetOperators(ksp, M, M);
 
-    PetscOptionsSetValue(nullptr, "-ksp_type", "preonly");
-    PetscOptionsSetValue(nullptr, "-pc_type", "lu");
-    PetscOptionsSetValue(nullptr, "-pc_factor_mat_solver_type", "mumps");
+    setDefaultPetscOption("-ksp_type", "preonly");
+    setDefaultPetscOption("-pc_type", "lu");
+    setDefaultPetscOption("-pc_factor_mat_solver_type", "mumps");
     KSPSetFromOptions(ksp);
 }
 

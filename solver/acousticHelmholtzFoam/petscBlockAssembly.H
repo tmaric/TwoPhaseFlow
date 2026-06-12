@@ -109,6 +109,9 @@ static const List<labelList>& cachedProcessorPatchNeighbourGlobals
         cachedLocalGlobalIds(op.psi().mesh(), globalCells);
 
     // Processor-neighbour IDs depend only on mesh topology, so exchange once.
+    // Use nonblocking transfers: posting scheduled/blocking sends on both sides
+    // can deadlock when a processor-patch message exceeds MPI's eager limit.
+    const label startOfRequests = UPstream::nRequests();
     forAll(bpsi, patchi)
     {
         if (!interfaces.set(patchi))
@@ -126,11 +129,13 @@ static const List<labelList>& cachedProcessorPatchNeighbourGlobals
 
         lduInt.initInternalFieldTransfer
         (
-            Pstream::commsTypes::scheduled,
+            Pstream::commsTypes::nonBlocking,
             localGlobalIds,
             faceCells
         );
     }
+
+    UPstream::waitRequests(startOfRequests);
 
     forAll(bpsi, patchi)
     {
@@ -149,7 +154,7 @@ static const List<labelList>& cachedProcessorPatchNeighbourGlobals
         neighbGlobals[patchi] =
             lduInt.internalFieldTransfer
             (
-                Pstream::commsTypes::scheduled,
+                Pstream::commsTypes::nonBlocking,
                 localGlobalIds
             );
 

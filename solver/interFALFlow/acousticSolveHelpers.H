@@ -20,6 +20,20 @@ struct AcousticPetscSystem
     PetscInt rowNnzUpper = -1;
 };
 
+static void setDefaultAcousticPetscOption
+(
+    const char* name,
+    const char* value
+)
+{
+    PetscBool optionSet = PETSC_FALSE;
+    PetscOptionsHasName(nullptr, nullptr, name, &optionSet);
+    if (!optionSet)
+    {
+        PetscOptionsSetValue(nullptr, name, value);
+    }
+}
+
 static void destroyPetscSystem
 (
     AcousticPetscSystem& system
@@ -88,9 +102,16 @@ static void initializePetscSystem
     KSPCreate(PETSC_COMM_WORLD, &system.ksp);
     KSPSetOperators(system.ksp, system.M, system.M);
 
-    PetscOptionsSetValue(nullptr, "-ksp_type", "preonly");
-    PetscOptionsSetValue(nullptr, "-pc_type", "lu");
-    PetscOptionsSetValue(nullptr, "-pc_factor_mat_solver_type", "mumps");
+    setDefaultAcousticPetscOption("-ksp_type", "preonly");
+    setDefaultAcousticPetscOption("-pc_type", "lu");
+    setDefaultAcousticPetscOption("-pc_factor_mat_solver_type", "mumps");
+    if (Pstream::parRun())
+    {
+        // Exact MUMPS LU with parallel ParMETIS ordering gave the best
+        // measured direct-solver scaling. User PETSc options still override.
+        setDefaultAcousticPetscOption("-mat_mumps_icntl_28", "2");
+        setDefaultAcousticPetscOption("-mat_mumps_icntl_29", "2");
+    }
     KSPSetFromOptions(system.ksp);
 
     system.nLocal = nLocal;
