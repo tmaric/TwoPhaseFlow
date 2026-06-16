@@ -36,6 +36,7 @@
 \usepackage{caption}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage[section]{placeins}
 \usepackage{color}
 \usepackage{amsmath}
@@ -46,6 +47,13 @@
 \usepackage{paracol}
 \renewcommand{\lstlistingname}{Code}% Listing -> Algorithm
 \renewcommand{\lstlistlistingname}{List of \lstlistingname s}% List of Listings 
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.8}
 
 % MACROS
 \renewcommand{\v}{\TextOrMath{\textv}{\mathbf{v}}}
@@ -133,7 +141,7 @@
 %% Abstract
 \begin{abstract}
 %% Text of abstract
-\texttt{acousticHelmholtzFoam} is a parallel finite-volume solver for frequency-domain acoustic wave propagation in heterogeneous two-phase media. The solver is implemented in OpenFOAM and solves the complex Helmholtz equation in terms of coupled real and imaginary pressure fields. Perfectly matched layers are used to truncate open domains, and the resulting block-coupled linear system is assembled and solved through PETSc with MUMPS. This paper describes the mathematical model, the finite-volume implementation, the PML field setup, and verification cases for piston radiation and one-dimensional two-phase acoustic propagation.
+\texttt{acousticHelmholtzFoam} is a parallel finite-volume solver for frequency-domain acoustic wave propagation in heterogeneous two-phase media. The solver is implemented in OpenFOAM and solves the complex Helmholtz equation in terms of coupled real and imaginary pressure fields. Perfectly matched layers are used to truncate open domains, and the resulting block-coupled linear system is assembled and solved through PETSc with MUMPS. This paper describes the mathematical model, the finite-volume implementation, the PML field setup.
 \end{abstract}
 
 %%Graphical abstract
@@ -198,7 +206,7 @@ Open-domain acoustic simulations also require a robust treatment of outgoing wav
 
 This paper presents \texttt{acousticHelmholtzFoam}, a parallel OpenFOAM solver for frequency-domain acoustic waves in heterogeneous two-phase media. The complex Helmholtz equation is split into coupled real and imaginary pressure equations, producing a real-valued block system. The finite-volume operators are assembled in OpenFOAM, while the global block-coupled linear system is solved using PETSc with MUMPS. A companion utility, \texttt{setPMLFields}, generates the directional PML damping tensor \texttt{sigma} for rectangular and spherical absorbing layers. The solver then derives the scalar and tensor coefficient fields required by the frequency-domain formulation. The solver also computes derived fields such as acoustic velocity components, pressure amplitude, radiation pressure, and momentum flux, which are useful for acoustic levitation and related multiphysics applications.
 
-The main contributions of the software are: (i) a finite-volume formulation of the heterogeneous Helmholtz equation for two-phase material fields, (ii) a PML implementation based on a precomputed OpenFOAM damping tensor and solver-local coefficient construction, (iii) a block-coupled PETSc/MUMPS solution procedure for the real and imaginary pressure components, and (iv) verification cases for piston radiation and one-dimensional two-phase wave propagation. The remainder of the paper is organized as follows. \Cref{sec:model} derives the acoustic model and PML formulation. \Cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \Cref{sec:usage} summarizes the program workflow and required input fields. \Cref{sec:verification} presents verification cases, while \Cref{sec:application} outlines the intended application to single-axis acoustic levitation.
+The main contributions of the software are: (i) a finite-volume formulation of the heterogeneous Helmholtz equation for two-phase material fields, (ii) a PML implementation based on a precomputed OpenFOAM damping tensor and solver-local coefficient construction, (iii) a block-coupled PETSc/MUMPS solution procedure for the real and imaginary pressure components, and (iv) verification cases for piston radiation and one-dimensional two-phase wave propagation. The remainder of the paper is organized as follows. \Cref{sec:model} derives the acoustic model and PML formulation. \Cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \Cref{sec:verification} presents verification cases, while \Cref{sec:application} outlines the intended application to single-axis acoustic levitation.
 
 
 \section{Mathematical model}
@@ -491,12 +499,7 @@ utility \texttt{setPMLFields}.  This utility reads the same
 field \texttt{sigma}, which represents the polynomial damping profile.  The
 solver subsequently reads \texttt{sigma} and computes the formulation-specific
 fields \texttt{SC0}, \texttt{SC1}, \texttt{T0}, and \texttt{T1} internally from
-the relations given above.  Separating the geometry-dependent damping profile
-from the solver-specific coefficient construction keeps \texttt{setPMLFields}
-independent of the acoustic formulation while still allowing the generated
-damping field to be inspected with standard OpenFOAM post-processing tools
-before the linear system is assembled.
-
+the relations given above.  
 After the PML damping field has been prepared and the solver-local coefficient
 fields have been constructed, \texttt{acousticHelmholtzFoam} forms the
 block-coupled system for \texttt{Pim} and \texttt{Pre}.  The diagonal block
@@ -511,34 +514,75 @@ The primary outputs are the converged real and imaginary pressure fields.  The
 solver also writes derived quantities that are useful for acoustic-force
 analysis: the pressure amplitude \texttt{pa}, the real and imaginary velocity
 components \texttt{Ure} and \texttt{Uim}, the acoustic radiation-pressure-like
-field \texttt{pr}, and the momentum-flux tensor \texttt{momFlux}.  A typical
-case first generates the mesh and initial fields.  The PML damping tensor is
-then written with \texttt{setPMLFields}, after which the solver computes the
-required PML coefficients, solves the Helmholtz system, and post-processes the
-complex pressure field.
+field \texttt{pr}, and the momentum-flux tensor \texttt{momFlux}.  
 
-\subsection{Two Phase Formulation}
-The modified Helmholtz equation \cref{eq:helmholtzPML} is solved with the open source FVM software OpenFOAM(ESI). For typical two phase system like a droplet in the air, the soundspeed and unpertubated density in liquid and gas domain are constant, which are $c_l,\rho_l$ and $c_g, \rho_g$. Through the interface these material constant will have a jump change. To obtain a one field formulation we use the approach in geometric volume of fluid(gVOF) method and write density and soundspeed as below
+\subsection{Finite-volume discretisation}
+\label{sec:fvmDiscretisation}
+The PML-modified Helmholtz equations are discretised with the cell-centred
+finite-volume method implemented in OpenFOAM.  The computational domain is
+partitioned into non-overlapping polyhedral control volumes, and each
+divergence term is integrated over a control volume and converted into face
+fluxes by the Gauss theorem.  The notation follows standard finite-volume
+references \cite{Versteeg2007,Ferziger2020}.
+
+The heterogeneous two-phase material properties are represented with the liquid
+volume fraction $\alpha$.  The liquid phase has density $\rho_l$ and sound speed
+$c_l$, while the gas phase has density $\rho_g$ and sound speed $c_g$.  A
+one-field coefficient representation is used,
 \begin{equation}
     \begin{aligned}
            \frac{1}{\rho}& = \frac{\alpha}{\rho_l} + \frac{1-\alpha}{\rho_g},  \\
            k^2 &= \omega^2\left(\frac{\alpha}{c_l^2}+\frac{1-\alpha}{c_g^2}\right),
     \end{aligned}
+\label{eq:twoPhaseCoefficients}
 \end{equation}
-where the field $\alpha$ is the liquid volume fraction which takes the value 1 in liquid phase, 0 in gas phase, and some value between 0 and 1 in the interface. 
+where $\alpha=1$ denotes liquid, $\alpha=0$ denotes gas, and intermediate values
+occur only in interface cells.  At material interfaces, the density coefficient
+is evaluated on faces from the geometrically reconstructed face fraction
+$\alpha_f$,
+\begin{equation}
+    \left(\frac{1}{\rho}\right)_f
+    = \frac{\alpha_f}{\rho_l}+\frac{1-\alpha_f}{\rho_g}.
+\label{eq:faceInverseDensity}
+\end{equation}
+Thus the variable-density flux uses an interface-aware face coefficient, while
+the wave-number and PML reaction coefficients remain cell-centred.
 
-\subsection{Finite-volume discretisation}
-\label{sec:fvmDiscretisation}
-The governing equations are discretised with the cell-centred finite-volume
-method implemented in OpenFOAM.  The computational domain is partitioned into
-non-overlapping polyhedral control volumes, and the differential equations are
-integrated over each control volume.  Surface-divergence terms are converted
-into sums of fluxes through the control-volume faces by the Gauss theorem.  This
-procedure and the associated OpenFOAM notation are described in standard finite-volume
-references \cite{Versteeg2007,Ferziger2020}.
+After splitting the complex pressure into real and imaginary components, the
+equations are assembled as the block system
+\begin{equation}
+\begin{bmatrix}
+    \hat A & \hat B \\
+    -\hat B & \hat A
+\end{bmatrix}
+\begin{bmatrix}
+    P_{re} \\ P_{im} 
+\end{bmatrix}
+=0,
+\label{eq:blockCoupled}
+\end{equation}
+with
+\begin{equation}
+    \begin{aligned}
+        \hat A & =
+        \rho \nabla\cdot\left(\frac{1}{\rho}\nabla\right)
+        + \nabla\cdot(\mathbf{T}_0\cdot\nabla)
+        + \left(k^2-C_0\right),\\
+        \hat B & =
+        \nabla\cdot(\mathbf{T}_1\cdot\nabla) + C_1 .
+    \end{aligned}
+\label{eq:blockOperators}
+\end{equation}
+The diagonal block $\hat A$ contains the heterogeneous Helmholtz operator and
+the real PML contribution.  The off-diagonal block $\hat B$ contains the PML
+terms that couple $P_{re}$ and $P_{im}$.  Storing $\mathbf{T}_0$ and
+$\mathbf{T}_1$ as diagonal volume-tensor fields preserves the directional
+rectangular PML: each Cartesian damping component can vary independently,
+including in edge and corner regions.  The tensor Laplacian terms are assembled
+with \texttt{fvm::laplacian(T0,P)} and \texttt{fvm::laplacian(T1,P)}.
 
 For a cell $P$ with volume $V_P$ and boundary faces $f$, the discrete diagonal
-operator $\hat A$ applied to a pressure component $P$ has the form
+operator applied to a pressure component has the form
 \begin{equation}
 \begin{aligned}
     (\hat A_h P)_P ={}&
@@ -561,27 +605,12 @@ real--imaginary coupling operator is
 \label{eq:discreteCouplingOperator}
 \end{equation}
 The reaction terms are treated implicitly.  The Laplacian terms are assembled
-with \texttt{fvm::laplacian}, using linear face interpolation and the
-face-normal gradient scheme selected in \texttt{system/fvSchemes}.  On
-orthogonal meshes, the normal gradient at an internal face shared by cells
-$P$ and $N$ is approximated by a centred difference.  For non-orthogonal
-meshes, OpenFOAM's corrected Laplacian scheme can be selected; its explicit
-non-orthogonal contribution is updated through the non-orthogonal correction
-loop.
-
-Special care is required at the material interface because the acoustic
-impedance and density can change sharply.  Instead of interpolating the
-cell-centred density directly, the face coefficient is constructed from the
-face liquid fraction,
-\begin{equation}
-    \left(\frac{1}{\rho}\right)_f
-    = \frac{\alpha_f}{\rho_l}+\frac{1-\alpha_f}{\rho_g}.
-\label{eq:faceInverseDensity}
-\end{equation}
-The field $\alpha_f$ is obtained from the geometrically reconstructed
-volume-fraction interface.  Thus, the variable-density flux in
-\cref{eq:discreteDiagonalOperator} uses an interface-aware face coefficient,
-while the wave-number and PML reaction coefficients remain cell-centred.
+using linear face interpolation and the selected OpenFOAM face-normal gradient
+scheme.  On orthogonal meshes, the normal gradient at an internal face shared
+by cells $P$ and $N$ is approximated by a centred difference.  For
+non-orthogonal meshes, OpenFOAM's corrected Laplacian scheme can be selected;
+its explicit non-orthogonal contribution is updated through the non-orthogonal
+correction loop.
 
 OpenFOAM first assembles each scalar operator into its lower-diagonal-upper
 matrix representation, including physical-boundary contributions.  The
@@ -589,94 +618,64 @@ diagonal operators and the two PML coupling operators are then inserted into
 the corresponding blocks of the global PETSc matrix.  In parallel, couplings
 across processor patches are inserted explicitly using global cell indices, so
 the distributed PETSc system represents the same finite-volume stencil as the
-undecomposed mesh.
-
-
-\subsection{Block coupled approach}
-While the Helmholtz equation with large wave number can be easily unstable as solved iteratively or segregately, we rewrite  \cref{eq:helmholtzPML} first in a block coupled equation system
-\begin{equation}
-\begin{bmatrix}
-    \hat A & \hat B \\
-    -\hat B & \hat A
-\end{bmatrix}
-\begin{bmatrix}
-    P_{re} \\ P_{im} 
-\end{bmatrix}
-=0.
-\label{eq:blockCoupled}
-\end{equation}
-With the operators 
-\begin{equation}
-    \begin{aligned}
-        \hat A & = \rho_0 \nabla \cdot\left(\frac{1}{\rho_0} \nabla \right) + \nabla\cdot(\mathbf{T}_0\cdot\nabla) +\left(k^2-C_0\right),\\
-        \hat B & = \nabla\cdot(\mathbf{T}_1\cdot\nabla) + C_1.
-    \end{aligned}
-\end{equation}
-These operators are constructed with OpenFOAM implicit finite-volume
-operators.  The directional rectangular PML is retained by storing
-$\mathbf{T}_0$ and $\mathbf{T}_1$ as diagonal volume-tensor fields and
-discretizing them with \texttt{fvm::laplacian(T0,P)} and
-\texttt{fvm::laplacian(T1,P)}.  Thus each Cartesian damping component can vary
-independently, including in edge and corner regions, without modifying the
-OpenFOAM core.  The spherical PML currently uses the isotropic tensor form.
-
-While unlike the form-extend software, the block coupled equation 
-\cref{eq:blockCoupled} can not be assembled directly within our OpenFOAM-ESI version. So we assemble the equation with the external solver PETSc through its OpenFOAM interface petsc4Foam. The assembled equation is then solved with the MUMPS direct solver also in PETSc. 
+undecomposed mesh.  The resulting block system is solved with PETSc/MUMPS.
 
 \subsection{PML configuration}
-The proper choice of the damping coefficient $\sigma$ is of huge importance.  A discontinuous changing of $\sigma$ or too rapid damping in a narrow PML region will lead to numerical reflection or instability if iterativ solver is applied.  In our PML approach the $\sigma$ is a polynomial function of the distance to the open boundary whose order can be adjusted as needed.  At moment, two type of the PML geometry is included in the utilitiy \textbf{setPMLFields}
- \begin{itemize}
-     \item Rectangular annulus: we set the type of PML \texttt{PMLType} as \texttt{rectangle}, PML region thickness \texttt{L}, the maximum/minium components of PML region coordinates \texttt{PMLMax=(xMax yMax zMax)} and \texttt{PMLMin=(xMin yMin zMin)}.
-     \item Spherical annulus: we set the type of PML \texttt{PMLType} as \texttt{spherical}, PML region thickness \texttt{L}, the maximum/minium radius of PML region coordinates \texttt{Rmax} and \texttt{Rmin}.
- \end{itemize}
-The algorithm that detect the open boundary and set up the PML automatically could be a interesting future work. 
+The PML damping profile is generated by the utility \texttt{setPMLFields}.  The
+utility reads \texttt{constant/transportProperties}, evaluates the damping at
+cell centres and boundary-face centres, and writes the diagonal tensor field
+\texttt{sigma}.  Empty, wedge, and processor patches are not assigned a physical
+boundary damping value.  The Helmholtz solver then reads \texttt{sigma} and
+constructs the formulation-specific fields \texttt{SC0}, \texttt{SC1},
+\texttt{T0}, and \texttt{T1}; these fields are therefore not inputs to
+\texttt{setPMLFields}.
 
-Another important thing is, if the damping coefficient is too large or increase too quickly in a narrow band, there will be numeric reflection. In practice, the thickness of the PML is set to about one wave length.
+The common profile parameters are the PML thickness \texttt{L}, the polynomial
+order \texttt{po}, and the peak damping strength.  The entry \texttt{sigmaMax}
+defines a scalar peak value.  For directional rectangular PMLs it can be
+overridden component-wise by \texttt{sigmaMaxVector}; if this vector is absent,
+all three components use \texttt{sigmaMax}.  The current implementation supports
+two geometries:
+\begin{itemize}
+    \item \texttt{PMLType rectangle}: the user supplies the outer coordinate
+    bounds \texttt{PMLMax} and \texttt{PMLMin}.  For each Cartesian component
+    $i$, the distance $d_i$ to the nearest corresponding bound is used to define
+    \begin{equation}
+        \sigma_i
+        =
+        \sigma_{\max,i}
+        \left[
+        \min\left(\max\left(\frac{L-d_i}{L},0\right),1\right)
+        \right]^{p_o}.
+    \end{equation}
+    This produces a diagonal tensor
+    $\boldsymbol{\sigma}=\mathrm{diag}(\sigma_x,\sigma_y,\sigma_z)$ and allows,
+    for example, a wedge levitator case to damp only the $x$ and $y$ directions
+    by setting the $z$ component of \texttt{sigmaMaxVector} to zero.
 
-\section{Program structure and usage}
-\label{sec:usage}
+    \item \texttt{PMLType spherical}: the user supplies \texttt{origin},
+    \texttt{Rmax}, and \texttt{L}.  With $r=|\mathbf{x}-\mathbf{x}_0|$, the
+    scalar profile is
+    \begin{equation}
+        \sigma
+        =
+        \sigma_{\max}
+        \left[
+        \min\left(\max\left(\frac{L-(R_{\max}-r)}{L},0\right),1\right)
+        \right]^{p_o},
+    \end{equation}
+    and the utility writes
+    $\boldsymbol{\sigma}=\mathrm{diag}(\sigma,\sigma,\sigma)$.  Some cases define
+    an auxiliary \texttt{Rmin} entry and set \texttt{Rmax = Rmin + L}; however,
+    \texttt{setPMLFields} uses \texttt{Rmax}, \texttt{origin}, and \texttt{L}
+    directly.
+\end{itemize}
 
-\subsection{Case setup and input fields}
-The solver follows the standard OpenFOAM case structure.  The initial and
-boundary data are provided in the time directory, while material and PML
-parameters are specified in \texttt{constant/transportProperties}.  The complex
-pressure is represented by the scalar fields \texttt{Pre} and \texttt{Pim}.
-Acoustic excitation is prescribed through their boundary conditions, for example
-as a pressure-gradient condition corresponding to a harmonic wall velocity.
-
-The material distribution is supplied by the volume-fraction field
-\texttt{alpha.water}.  A value of zero denotes the gas phase and a value of one
-denotes the liquid phase; intermediate values may occur at a resolved interface.
-The acoustic properties are read from the entries \texttt{rhog}, \texttt{rhol},
-\texttt{cg}, \texttt{cl}, \texttt{kg}, \texttt{kl}, and \texttt{f}.  The same
-dictionary defines the PML type and damping profile.  Before the Helmholtz solve,
-\texttt{setPMLFields} writes the directional damping tensor \texttt{sigma},
-which can be inspected like any other OpenFOAM field.  The solver reads this
-tensor and constructs the scalar coefficient fields \texttt{SC0} and
-\texttt{SC1}, together with the directional tensor fields \texttt{T0} and
-\texttt{T1}, at run time.
-
-\subsection{Execution workflow}
-A typical case is run by generating the mesh and initial fields, evaluating the
-PML damping field with \texttt{setPMLFields}, solving the block-coupled
-Helmholtz system with solver-local PML coefficients, and then reconstructing
-the latest-time results for post-processing.  In parallel this uses the usual
-OpenFOAM decomposition workflow with \texttt{decomposePar},
-\texttt{acousticHelmholtzFoam -parallel}, and \texttt{reconstructPar}.  The
-supplied verification cases provide \texttt{Allrun} scripts that automate these
-steps and keep the parameter substitutions reproducible.
-
-\subsection{Output and post-processing}
-The primary solver outputs are \texttt{Pre} and \texttt{Pim}.  The solver also
-writes the pressure amplitude \texttt{pa}, the real and imaginary acoustic
-velocity components \texttt{Ure} and \texttt{Uim}, the radiation-pressure field
-\texttt{pr}, and the momentum-flux tensor \texttt{momFlux}.  These fields are
-stored in standard OpenFOAM format and can be visualized or sampled with the
-usual OpenFOAM and VTK-based tools.
-
-The validation cases include post-processing scripts that compare the numerical
-solution with analytical references and generate the data used in
-\cref{sec:verification}.  
+The utility does not infer the absorbing layer from boundary names.  The PML
+extent and damping strength must therefore be chosen consistently with the mesh,
+wavelength, and expected outgoing-wave directions.  Excessive damping over too
+few cells can still introduce numerical reflection, so the layer thickness and
+polynomial order are selected together with the mesh resolution.
 
 \section{Verification}
 \label{sec:verification}
@@ -714,7 +713,7 @@ $y_{\mathrm{ex}}$ are stated in the corresponding subsections below.
 
 \subsection{Piston radiation}
 An axissymmetric model of a rigid cylindrical piston with radius $a$  in an infinite baffle \Cref{fig:piston} is used to varify our frequency domain solver, where the simulation outcome can be directly compared to the known analytical solution. In our setup, the piston vibrate in vertical direction harmonically with the velocity amplitude $U_0$. $\rho_0$ and $c$ is the  density and sound speed of the air. 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[scale=0.7]{figures/piston_sketch.png}%
     \caption{Geometry of the piston in an infinite baffle model}
@@ -742,7 +741,7 @@ Where $J_1$ is the first order Bessel function.
 
 In our simulation the value of the parameters is given in \Cref{tab:paramsPiston}.
 
-\begin{table}[!htbp]
+\begin{table}[H]
     \centering
     \begin{tabular}{ccccccccc}
         $\rho_0$ & $U_0$  & $f$ & $c$ & $a$  & $R_{min}$  & $R_{max}$  & $po$  & $\sigma_{max}$ \\
@@ -775,7 +774,7 @@ approach the analytical solution.
 
 \input{tables/nearField_convergence_table.tex}
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{figures/piston_nearField_onAxis_meshConvergence.png}%
     \caption{Piston radiation: Comparison of near field on axis pressure amplitude}
@@ -792,7 +791,7 @@ Where $G(x,\tilde{x})=\frac{e^{ik|x-\tilde{x}|}}{4\pi|x-\tilde{x}| }$ is the Gre
 
 The comparison is in \Cref{fig:pistonFarAmp}. For a clear illustration we have used the polar diagram with log value. As the mesh resolution increase, the simulation outcome is very close to the analytical profile with only slight difference when the polar angle is near zero.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.72\textwidth]{figures/piston_farFieldPatternPolar.png}%
     \caption{Piston radiation: Comparison of far field radial pressure amplitude at radius 4}
@@ -801,7 +800,7 @@ The comparison is in \Cref{fig:pistonFarAmp}. For a clear illustration we have u
 
 \input{tables/farField_convergence_table.tex}
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{figures/piston_metrics_meshConvergence.png}%
     \caption{Piston radiation: Mesh-convergence metrics for the near-field pressure amplitude and far-field directivity.}
@@ -814,7 +813,7 @@ The layered-interface case verifies both wave transmission across a strong
 material-property jump and attenuation by the directional tensor PML.  Its
 configuration is shown in \Cref{fig:1DLayerd}.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \begin{tikzpicture}[x=1cm,y=1cm,>=latex]
         \def\xzero{0}
@@ -876,7 +875,7 @@ The analytical solution reads
 Here $k_j=\omega/c_j$ and
 $R=(\rho_2c_2-\rho_1c_1)/(\rho_2c_2+\rho_1c_1)$.  The simulation parameters
 are listed in \Cref{tab:params1DTwoPhase}.
-\begin{table}[!htbp]
+\begin{table}[H]
     \centering
     \caption{Simulation parameters for the one-dimensional layered-interface case.}
     \label{tab:params1DTwoPhase}
@@ -918,7 +917,7 @@ medium-1 solution can be written as
     P(x)=i\rho_1c_1u_0\frac{\cos[k_1(x-L_1)]}{\sin(k_1L_1)},
 \end{equation}
 which has only an imaginary component.
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_Pre_Pim_compare.png}%
     \caption{Directional tensor PML validation: comparison of the numerical real and imaginary pressure components with the analytical layered-interface solution.}
@@ -947,7 +946,7 @@ the numerical and analytical complex pressures differ by only
 $1.39\times10^{-3}$ in relative $L_2$ norm, and their pressure amplitudes
 differ by $3.45\times10^{-4}$.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_abs_compare.png}%
     \caption{Directional tensor PML validation: numerical and analytical pressure amplitude.  The transmitted plane wave has constant amplitude in medium~2 before the PML and is smoothly attenuated inside the PML.}
@@ -975,7 +974,7 @@ poorly resolved by the mesh and can introduce numerical reflection; therefore
 $\sigma_{\max}$ should be chosen together with the PML thickness, polynomial
 order, and mesh spacing.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_sigma_sensitivity.png}%
     \caption{Layered-interface case: sensitivity of the directional tensor PML solution to the maximum damping coefficient.}
@@ -997,7 +996,7 @@ amplitude.
 
 \input{tables/pml_mesh_sensitivity_table.tex}
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_mesh_sensitivity.png}%
     \caption{Layered-interface case: directional tensor PML mesh sensitivity with fixed damping $\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$.}
@@ -1017,7 +1016,7 @@ The OpenFOAM case \texttt{WedgeLevitatorDropAlpha} follows the same workflow.  A
 \end{equation}
 where $\Gamma_r$ is the reflector surface and $\normal_r$ is the mean reflector normal.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/4sweep2.png}
     \caption{Application example: reflector radiation force during a height sweep of the wedge levitator for an empty cavity and constant-volume drops with different aspect ratios, computed with \texttt{acousticHelmholtzFoam}.}
@@ -1029,7 +1028,41 @@ where $\Gamma_r$ is the reflector surface and $\normal_r$ is the mean reflector 
 \FloatBarrier
 \section{Performance}
 \label{sec:performance}
-\todoin{Add representative runtime, memory usage, and parallel-scaling data for the verification and levitator cases. Report mesh size, number of MPI ranks, PETSc/MUMPS solver settings, and wall-clock time.}
+Performance was assessed with the \texttt{WedgeLevitatorDropAlpha} application case, which exercises the same heterogeneous two-phase coefficients, PML treatment, and radiation-pressure post-processing used in the height-sweep example.  The timings were collected on the workstation \texttt{legion5}, equipped with an AMD Ryzen 7 4800H processor with 8 physical cores and 16 hardware threads, using OpenFOAM v2312.  Each reported value is the elapsed wall-clock time for one \texttt{acousticHelmholtzFoam} solve after mesh generation and, for MPI runs, after domain decomposition.  The solver assembles the real-imaginary block system with two unknowns per finite-volume cell and solves it with PETSc using \texttt{-ksp\_type preonly}, \texttt{-pc\_type lu}, and the MUMPS sparse direct factorisation backend.  The MPI cases used Scotch decomposition.  A single unreported warm-up solve was performed before recording the benchmark data.
+
+\begin{table}[H]
+    \centering
+    \caption{\texttt{WedgeLevitatorDropAlpha} strong-scaling timings for the $570\,818$-cell mesh, corresponding to $1\,141\,636$ block-system unknowns.}
+    \label{tab:dropAlphaStrongScaling}
+    \begin{tabular}{rrrr}
+        \toprule
+        MPI ranks & Elapsed time [s] & Speedup & Parallel efficiency [\%] \\
+        \midrule
+        1 & 23.81 & 1.00 & 100.0 \\
+        2 & 15.58 & 1.53 & 76.4 \\
+        4 & 11.13 & 2.14 & 53.5 \\
+        8 & 10.02 & 2.38 & 29.7 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\Cref{tab:dropAlphaStrongScaling,fig:dropAlphaStrongScaling} show the strong-scaling behaviour for the finest benchmark mesh.  Increasing the rank count from one to eight reduces the elapsed solve time from $23.81\,\mathrm{s}$ to $10.02\,\mathrm{s}$, giving a speedup of $2.38$.  Most of the improvement is obtained between one and four ranks.  The additional reduction from four to eight ranks is modest, and the parallel efficiency decreases to $29.7\%$, indicating that this problem size is already too small to keep eight MUMPS factorisation processes efficiently occupied on the workstation.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/dropalpha_strong_scaling.png}
+    \caption{\texttt{WedgeLevitatorDropAlpha} strong scaling for the $570\,818$-cell mesh.  The block system contains $1\,141\,636$ unknowns because the real and imaginary pressure components are solved in one coupled PETSc system.}
+    \label{fig:dropAlphaStrongScaling}
+\end{figure}
+
+\Cref{fig:dropAlphaProblemSizeScaling} reports the fixed-rank problem-size study.  With four MPI ranks, decreasing the cfMesh maximum cell size from $8.0\times10^{-5}\,\mathrm{m}$ to $3.0\times10^{-5}\,\mathrm{m}$ increases the mesh from $80\,569$ to $570\,818$ cells and the block system from $161\,138$ to $1\,141\,636$ unknowns.  Over this range the measured elapsed time increases from $1.75\,\mathrm{s}$ to $11.24\,\mathrm{s}$.  Thus the unknown count increases by a factor of $7.08$ while the solve time increases by a factor of $6.42$; a log-log fit gives an empirical exponent of approximately $0.95$.  The corresponding cost per unknown remains nearly constant, between $8.84\times10^{-6}$ and $1.09\times10^{-5}\,\mathrm{s}$ per unknown.  For these moderately sized axisymmetric wedge meshes, the assembled PETSc/MUMPS workflow therefore shows close to linear growth in wall-clock time with problem size when the rank count is fixed.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{figures/dropalpha_problem_size_scaling.png}
+    \caption{\texttt{WedgeLevitatorDropAlpha} problem-size scaling at four MPI ranks.  The mesh size is controlled by the cfMesh maximum cell size, and the plotted unknown count is twice the cell count.}
+    \label{fig:dropAlphaProblemSizeScaling}
+\end{figure}
 
 \section{Conclusions}
 
