@@ -27,7 +27,7 @@ def main() -> int:
     n_axis = 7
     n_theta = 9
     y_start = 0.5 * a
-    y_end = 4.0 * a
+    y_end = min(4.0 * a, 0.9 * R0)
     r_ring = 0.5 * R0
 
     # Axis points along +y (x=z=0)

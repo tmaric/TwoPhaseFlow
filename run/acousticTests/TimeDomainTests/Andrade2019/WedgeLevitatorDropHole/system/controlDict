@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     acousticTDSPMLFoam;
+application     acousticWaveFoam;
 
 startFrom       startTime;
 
@@ -157,4 +157,3 @@ probes
     fields              (pr p U);
 }
 }
-

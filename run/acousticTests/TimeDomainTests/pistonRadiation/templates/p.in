@@ -15,9 +15,9 @@ FoamFile
 dimensions      [1 -1 -2 0 0 0 0];
 internalField   uniform 0;
 
-pistonFrequency 10000;
-pistonVelocity  1;
-gasDensity      1.2;
+pistonFrequency __DRIVE_F__;
+pistonVelocity  __PISTON_U__;
+gasDensity      __RHOG__;
 
 boundaryField
 {

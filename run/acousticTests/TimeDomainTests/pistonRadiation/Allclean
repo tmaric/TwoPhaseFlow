@@ -9,5 +9,7 @@ rm -rf dynamicCode
 rm -rf constant/coarseMesh
 rm -f system/coarseMesh/decomposeParDict
 rm -f *.dat
+rm -f constant/*unrolled*
 rm -f verification_*.csv verification_*.png
+rm -f system/decomposeParDict.run
 #------------------------------------------------------------------------------

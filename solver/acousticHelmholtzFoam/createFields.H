@@ -176,10 +176,11 @@
             "SC0",
             runTime.timeName(),
             mesh,
-            IOobject::MUST_READ,
+            IOobject::NO_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh
+        mesh,
+        dimensionedScalar("SC0", dimless/sqr(dimLength), Zero)
     );
 
     volScalarField SC1
@@ -189,10 +190,11 @@
             "SC1",
             runTime.timeName(),
             mesh,
-            IOobject::MUST_READ,
+            IOobject::NO_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh
+        mesh,
+        dimensionedScalar("SC1", dimless/sqr(dimLength), Zero)
     );
 
     volTensorField T0
@@ -202,10 +204,11 @@
             "T0",
             runTime.timeName(),
             mesh,
-            IOobject::MUST_READ,
+            IOobject::NO_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh
+        mesh,
+        dimensionedTensor("T0", dimless, tensor::zero)
     );
 
     volTensorField T1
@@ -215,10 +218,11 @@
             "T1",
             runTime.timeName(),
             mesh,
-            IOobject::MUST_READ,
+            IOobject::NO_READ,
             IOobject::AUTO_WRITE
         ),
-        mesh
+        mesh,
+        dimensionedTensor("T1", dimless, tensor::zero)
     );
 
     volTensorField sigma

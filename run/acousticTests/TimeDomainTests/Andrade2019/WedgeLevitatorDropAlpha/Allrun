@@ -11,7 +11,8 @@ rm constant/levitatorWedgeHex.msh
 runApplication changeDictionary
 restore0Dir
 runApplication setAlphaField
+runApplication setPMLFields
 runApplication decomposePar
 
-runParallel acousticTDSPMLFoam
+runParallel acousticWaveFoam
 #------------------------------------------------------------------------------

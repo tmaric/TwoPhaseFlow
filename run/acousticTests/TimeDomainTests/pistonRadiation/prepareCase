@@ -1,0 +1,44 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+calc()
+{
+    awk "BEGIN { printf \"%.12g\", $* }"
+}
+
+END_TIME=$(calc "$N_PERIODS / $DRIVE_F")
+WRITE_INTERVAL=$(calc "1 / $DRIVE_F")
+PROBE_INTERVAL=$(calc "1 / ($DRIVE_F * $PROBE_SAMPLES_PER_PERIOD)")
+
+render()
+{
+    inFile="$1"
+    outFile="$2"
+
+    sed \
+        -e "s|__SOLVER__|$SOLVER|g" \
+        -e "s|__DRIVE_F__|$DRIVE_F|g" \
+        -e "s|__PISTON_U__|$PISTON_U|g" \
+        -e "s|__RHOL__|$RHOL|g" \
+        -e "s|__RHOG__|$RHOG|g" \
+        -e "s|__CG__|$CG|g" \
+        -e "s|__CL__|$CL|g" \
+        -e "s|__PISTON_RADIUS__|$PISTON_RADIUS|g" \
+        -e "s|__PML_RMIN__|$PML_RMIN|g" \
+        -e "s|__PML_L__|$PML_L|g" \
+        -e "s|__MESH_CELLS_PER_LAMBDA__|$MESH_CELLS_PER_LAMBDA|g" \
+        -e "s|__MESH_GR__|$MESH_GR|g" \
+        -e "s|__WEDGE_ANGLE_DEG__|$WEDGE_ANGLE_DEG|g" \
+        -e "s|__END_TIME__|$END_TIME|g" \
+        -e "s|__WRITE_INTERVAL__|$WRITE_INTERVAL|g" \
+        -e "s|__PROBE_INTERVAL__|$PROBE_INTERVAL|g" \
+        "$inFile" > "$outFile"
+}
+
+render constant/transportProperties.in constant/transportProperties
+render constant/pistonRadiation.geo.in constant/pistonRadiation.geo
+render system/topoSetDict.in system/topoSetDict
+render templates/p.in 0.orig/p

@@ -33,6 +33,13 @@ dimensionedScalar cg
     transportProperties
 );
 
+dimensionedScalar cl
+(
+    "cl",
+    dimVelocity,
+    transportProperties
+);
+
 dimensionedScalar f
 (
     "f",

@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
     #include "createMesh.H"
     #include "createFields.H"
     #include "computeAlphaf.H"
+    #include "computePMLCoefs.H"
 
     simpleControl simple(mesh);
 

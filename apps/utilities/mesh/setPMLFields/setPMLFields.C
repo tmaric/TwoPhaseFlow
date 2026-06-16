@@ -3,8 +3,8 @@ Application
     setPMLFields
 
 Description
-    Computes and writes the scalar and tensor PML coefficient fields used by the
-    frequency-domain acoustic solvers.
+    Computes and writes the directional PML damping tensor sigma. Each acoustic
+    solver derives its formulation-specific PML coefficients from this field.
 \*---------------------------------------------------------------------------*/
 
 #include "fvCFD.H"
@@ -31,78 +31,6 @@ int main(int argc, char *argv[])
         )
     );
 
-    Info<< "Reading alpha.water\n" << endl;
-
-    volScalarField alpha
-    (
-        IOobject
-        (
-            "alpha.water",
-            runTime.timeName(),
-            mesh,
-            IOobject::READ_IF_PRESENT,
-            IOobject::NO_WRITE
-        ),
-        mesh,
-        dimensionedScalar("alpha.water", dimless, Zero)
-    );
-
-    volScalarField SC0
-    (
-        IOobject
-        (
-            "SC0",
-            runTime.timeName(),
-            mesh,
-            IOobject::READ_IF_PRESENT,
-            IOobject::AUTO_WRITE
-        ),
-        mesh,
-        dimensionedScalar("SC0", dimensionSet(0, -2, 0, 0, 0, 0, 0), Zero)
-    );
-
-    volScalarField SC1
-    (
-        IOobject
-        (
-            "SC1",
-            runTime.timeName(),
-            mesh,
-            IOobject::READ_IF_PRESENT,
-            IOobject::AUTO_WRITE
-        ),
-        mesh,
-        dimensionedScalar("SC1", dimensionSet(0, -2, 0, 0, 0, 0, 0), Zero)
-    );
-
-    volTensorField T0
-    (
-        IOobject
-        (
-            "T0",
-            runTime.timeName(),
-            mesh,
-            IOobject::READ_IF_PRESENT,
-            IOobject::AUTO_WRITE
-        ),
-        mesh,
-        dimensionedTensor("T0", dimless, tensor::zero)
-    );
-
-    volTensorField T1
-    (
-        IOobject
-        (
-            "T1",
-            runTime.timeName(),
-            mesh,
-            IOobject::READ_IF_PRESENT,
-            IOobject::AUTO_WRITE
-        ),
-        mesh,
-        dimensionedTensor("T1", dimless, tensor::zero)
-    );
-
     volTensorField sigma
     (
         IOobject
@@ -118,16 +46,11 @@ int main(int argc, char *argv[])
     );
 
     const acousticPML::Config cfg = acousticPML::readConfig(transportProperties);
-    acousticPML::updateFields(mesh, cfg, alpha, SC0, SC1, T0, T1, sigma);
-
-    SC0.write();
-    SC1.write();
-    T0.write();
-    T1.write();
+    acousticPML::updateSigma(mesh, cfg, sigma);
     sigma.write();
 
-    Info<< "Wrote PML coefficient fields at time " << runTime.timeName() << nl
-        << "    SC0, SC1, T0, T1, sigma" << endl;
+    Info<< "Wrote PML damping field sigma at time "
+        << runTime.timeName() << endl;
 
     return 0;
 }

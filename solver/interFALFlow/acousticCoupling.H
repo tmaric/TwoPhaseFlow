@@ -1,13 +1,14 @@
 {
     // Acoustic coupling sequence for each outer flow iteration:
-    // 1) Recompute alpha-face transport. Tensor PML coefficient fields are
-    //    prepared beforehand by setPMLFields and read as normal case data.
+    // 1) Recompute alpha-face transport and formulation-specific PML
+    //    coefficients from the sigma field prepared by setPMLFields.
     // 2) Assemble distributed 2x2 block Helmholtz system:
     //      [ A  -(B1 + B2) ] [Pim] = [bPim]
     //      [ (B1 + B2)  A ] [Pre]   [bPre]
     // 3) Solve with PETSc in distributed mode and scatter solution fields.
     // 4) Recompute pr/momFlux to feed the flow-side forcing terms.
     #include "computeAlphaf.H"
+    #include "computePMLCoefs.H"
 
     const dimensionedScalar k2
     (

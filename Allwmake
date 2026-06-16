@@ -26,12 +26,12 @@ wmake $withBear apps/benchmark/advectorVoF
 wmake $withBear apps/benchmark/reconstructInterface
 
 wmake $withBear apps/utilities/mesh/manipulation/foamPerturbMesh
+wmake $withBear apps/utilities/mesh/setPMLFields
 
 wmake $withBear solver/multiRegionPhaseChangeFlow
 wmake $withBear solver/interFlow
 wmake $withBear solver/compressibleInterFlow
 
-wmake $withBear solver/acousticTDSPMLFoam
+wmake $withBear solver/acousticWaveFoam
 wmake $withBear solver/acousticFDSPMLFoam
 wmake $withBear solver/interALFlow
-

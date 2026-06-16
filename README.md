@@ -82,8 +82,9 @@ Notes:
 - `setAlphaField` above refers to the modified utility in
   `apps/utilities/preProcessing/setAlphaField`.
 - The PML utility executable is `setPMLFields` (plural).
-- Rerun `setPMLFields` before `acousticHelmholtzFoam`; the directional PML
-  solver requires the generated tensor fields `T0` and `T1`.
+- Rerun `setPMLFields` before an acoustic solver. The utility writes only the
+  directional damping tensor `sigma`; each solver derives its own
+  formulation-specific PML coefficients from `sigma`.
 - `petsc_build.sh` expects the OpenFOAM environment to be available. If it is
   not already sourced, pass `--openfoam-bashrc /path/to/OpenFOAM/etc/bashrc`.
 - The script creates local third-party build directories such as `petsc/` and

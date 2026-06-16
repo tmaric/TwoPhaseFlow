@@ -1,61 +1,50 @@
 #!/bin/sh
+set -e
 cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+. ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
+need_cmd()
+{
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "Error: required command '$1' not found in PATH" >&2
+        exit 1
+    fi
+}
+
+need_cmd gmsh
+need_cmd python3
+need_cmd setPMLFields
+need_cmd "${SOLVER}"
+
+if [ -z "${NPROCS:-}" ]; then
+    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
+fi
+: "${NPROCS:=4}"
+
 ./Allclean
+./prepareCase
 restore0Dir
-
-pistonRadius=$(foamDictionary -entry pistonRadius -value constant/transportProperties)
-domainRadius=$(foamDictionary -entry domainRadius -value constant/transportProperties)
-pmlThickness=$(foamDictionary -entry pmlThickness -value constant/transportProperties)
-soundSpeed=$(foamDictionary -entry soundSpeed -value constant/transportProperties)
-frequency=$(foamDictionary -entry f -value constant/transportProperties)
-cellsPerLambda=$(foamDictionary -entry cellsPerLambda -value constant/transportProperties)
-probeCoord=$(python3 - <<PY
-R = float(${domainRadius})
-print(f"{0.5*R} {0.5*R} 0")
-PY
-)
-
-sed -e "s/@PISTON_RADIUS@/${pistonRadius}/g" \
-    -e "s/@DOMAIN_RADIUS@/${domainRadius}/g" \
-    -e "s/@PML_THICKNESS@/${pmlThickness}/g" \
-    -e "s/@SOUND_SPEED@/${soundSpeed}/g" \
-    -e "s/@FREQUENCY@/${frequency}/g" \
-    -e "s/@CELLS_PER_LAMBDA@/${cellsPerLambda}/g" \
-    constant/pistonRadiation.geo.template \
-    > constant/pistonRadiation.geo
-
-foamDictionary -entry pistonRadius -set "${pistonRadius}" system/topoSetDict >/dev/null
-foamDictionary -entry functions.probes.probeLocations -set "((${probeCoord}))" system/controlDict >/dev/null
 python3 generate_verification_probes.py >/dev/null
-probeList=$(tr '\n' ' ' < system/verificationProbesLocations | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-foamDictionary -entry functions.verificationProbes.probeLocations -set "(${probeList})" system/controlDict >/dev/null
 
 gmsh -0 constant/pistonRadiation.geo
-runApplication gmshToFoam  constant/pistonRadiation.msh
+runApplication gmshToFoam constant/pistonRadiation.msh
 rm constant/pistonRadiation.msh
 
 runApplication topoSet
 runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
-runApplication decomposePar
-runParallel acousticTDSPMLFoam &
-solverPid=$!
-python3 monitor_amplitude.py \
-    --case . \
-    --field p \
-    --frequency "${frequency}" \
-    --cycles 5 \
-    --tol 1e-3 \
-    --pid "${solverPid}" \
-    --check-interval 2 \
-    --endtime-buffer 0 &
-monitorPid=$!
-wait "${solverPid}"
-kill "${monitorPid}" 2>/dev/null || true
+runApplication setPMLFields
 
-# Verification + plots
-python3 verify_piston_radiation.py --plots
+cp system/decomposeParDict system/decomposeParDict.run
+trap 'mv -f system/decomposeParDict.run system/decomposeParDict' EXIT
+foamDictionary -entry numberOfSubdomains -set "${NPROCS}" system/decomposeParDict >/dev/null
+runApplication decomposePar -force
+runParallel -np "${NPROCS}" "${SOLVER}"
+runApplication reconstructPar -latestTime
+
+python3 verify_piston_radiation.py
+mv -f system/decomposeParDict.run system/decomposeParDict
+trap - EXIT
 #------------------------------------------------------------------------------

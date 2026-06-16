@@ -104,7 +104,7 @@ def main() -> int:
     # Read constants
     a = read_scalar(TRANSPORT, "pistonRadius")
     R0 = read_scalar(TRANSPORT, "domainRadius")
-    c0 = read_scalar(TRANSPORT, "soundSpeed")
+    c0 = read_scalar(TRANSPORT, "cg")
     rho0 = read_scalar(TRANSPORT, "rho0")
     f = read_scalar(TRANSPORT, "f")
     U0 = read_scalar(P_FIELD, "pistonVelocity")

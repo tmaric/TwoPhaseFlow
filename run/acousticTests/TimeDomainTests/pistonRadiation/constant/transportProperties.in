@@ -16,23 +16,23 @@ transportModel  Newtonian;
 
 mu              [ 1 -1 -1 0 0 0 0 ] 0.0;
 psi             [ 0 -2 2 0 0 0 0 ] 8.5e-6;
-rho0            [ 1 -3 0 0 0 0 0 ] 1.2;
+rho0            [ 1 -3 0 0 0 0 0 ] __RHOG__;
 R               1.51e-3;
 p0              0.0;
 
-rhol            998.3;
-rhog            1.2;
-cg              343;
-cl              1480;
+rhol            __RHOL__;
+rhog            __RHOG__;
+cg              __CG__;
+cl              __CL__;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 
-pistonRadius    0.1;
-domainRadius    0.2;
-pmlThickness    0.08;
+pistonRadius    __PISTON_RADIUS__;
+domainRadius    __PML_RMIN__;
+pmlThickness    __PML_L__;
 
-f               10000;
-cellsPerLambda  60;
+f               __DRIVE_F__;
+cellsPerLambda  __MESH_CELLS_PER_LAMBDA__;
 wl              #eval{$cg/$f};
 cellSize        #eval{$wl/$cellsPerLambda};
 

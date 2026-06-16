@@ -14,7 +14,8 @@ runApplication -s 1 changeDictionary -dict system/changeDictionaryDict1
 #runApplication topoSet
 #runApplication subsetMesh -overwrite c0 -patch dropWall
 #runApplication -s 2 changeDictionary -dict system/changeDictionaryDict2
+runApplication setPMLFields
 runApplication decomposePar
 
-runParallel acousticTDSPMLFoam
+runParallel acousticWaveFoam
 #------------------------------------------------------------------------------

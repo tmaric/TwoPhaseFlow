@@ -2,19 +2,19 @@
 SetFactory("OpenCASCADE");
 Geometry.OCCSewFaces = 0;
 
-f = 10000;
-c = 343;
+f = __DRIVE_F__;
+c = __CG__;
 lambda = c/f;
 
-N = 60;
+N = __MESH_CELLS_PER_LAMBDA__;
 gs = lambda/N;
-gr = 1.0;
+gr = __MESH_GR__;
 
-R0 = 0.2;
-L = 0.08;
+R0 = __PML_RMIN__;
+L = __PML_L__;
 R = R0 + L;
 
-angle = 2*Pi/180;
+angle = __WEDGE_ANGLE_DEG__*Pi/180;
 rotateHalf = -angle/2;
 
 Point(1) = {0, 0, 0, gs};

@@ -5282,12 +5282,12 @@
       "-fPIC",
       "-c",
       "-o",
-      "Make/linux64GccDPInt32Opt/acousticTDSPMLFoam.o",
-      "acousticTDSPMLFoam.C"
+      "Make/linux64GccDPInt32Opt/acousticWaveFoam.o",
+      "acousticWaveFoam.C"
     ],
-    "directory": "/home/cx80jevu/TwoPhaseFlow/solver/acousticTDSPMLFoam",
-    "file": "/home/cx80jevu/TwoPhaseFlow/solver/acousticTDSPMLFoam/acousticTDSPMLFoam.C",
-    "output": "/home/cx80jevu/TwoPhaseFlow/solver/acousticTDSPMLFoam/Make/linux64GccDPInt32Opt/acousticTDSPMLFoam.o"
+    "directory": "/home/cx80jevu/TwoPhaseFlow/solver/acousticWaveFoam",
+    "file": "/home/cx80jevu/TwoPhaseFlow/solver/acousticWaveFoam/acousticWaveFoam.C",
+    "output": "/home/cx80jevu/TwoPhaseFlow/solver/acousticWaveFoam/Make/linux64GccDPInt32Opt/acousticWaveFoam.o"
   },
   {
     "arguments": [

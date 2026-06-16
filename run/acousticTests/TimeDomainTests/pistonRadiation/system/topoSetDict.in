@@ -30,7 +30,7 @@ actions
         {
             p1 (0 -0.0001 0);
             p2 (0  0.0001 0);
-            radius 0.1;
+            radius __PISTON_RADIUS__;
         }
     }
 );

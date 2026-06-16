@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     acousticTDSPMLFoam;
+application     acousticWaveFoam;
 
 startFrom       startTime;
 
@@ -127,4 +127,3 @@ functions
 //    #include "referencePressure"
     #include "runTimeControls"
 }
-
