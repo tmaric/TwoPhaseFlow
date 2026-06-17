@@ -5,6 +5,8 @@ const cellList& cellFaces = mesh.cells();
 alphaf == upwind<scalar>(phi.mesh(), phi).interpolate(alpha1);
 
  reconstructionSchemes& surf = mesh.lookupObjectRef<reconstructionSchemes>("reconstructionScheme");
+ // The flow step refreshes the reconstruction after alpha advection when
+ // needed; avoid forcing a duplicate PLIC/RDF rebuild here.
  surf.reconstruct(false);
 
 const scalarField& phiIn = phi.primitiveField();

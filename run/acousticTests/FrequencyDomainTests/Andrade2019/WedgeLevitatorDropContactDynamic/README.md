@@ -56,9 +56,10 @@ Then in this case directory:
 
 ```bash
 ./Allrun
-# optional override for MPI ranks
-NPROCS=8 ./Allrun
 ```
+
+Set the MPI rank count with `numberOfSubdomains` in
+`system/decomposeParDict`.
 
 Log file:
 - `log.interFALFlow`

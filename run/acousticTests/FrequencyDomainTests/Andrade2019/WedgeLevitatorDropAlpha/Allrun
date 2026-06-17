@@ -9,25 +9,7 @@ if [ "${RUN_MODE}" = "fullFig4Sweep" ] && [ "${TPF_INTERNAL_SWEEP_RUN:-0}" != "1
     exec ./runHeightSweep.sh
 fi
 
-need_cmd()
-{
-    if ! command -v "$1" >/dev/null 2>&1; then
-        echo "Error: required command '$1' not found in PATH" >&2
-        exit 1
-    fi
-}
-
 SOLVER=acousticHelmholtzFoam
-
-need_cmd cartesian2DMesh
-need_cmd extrudeMesh
-need_cmd topoSet
-need_cmd refineMesh
-
-if [ -z "${NPROCS:-}" ]; then
-    NPROCS="${RUN_NPROCS}"
-fi
-: "${NPROCS:=8}"
 
 rm -f \
     log.cartesian2DMesh \
@@ -49,17 +31,14 @@ runApplication extrudeMesh
 ./postMesh
 
 restore0Dir
-need_cmd setAlphaField
 runApplication setAlphaField
 
 ./refineAlphaInterface
 
 rm -f 0/Pim.in
 
-need_cmd setPMLFields
 runApplication setPMLFields
 
-need_cmd "${SOLVER}"
 rm -f "log.${SOLVER}"
 runApplication decomposePar -force
 runParallel "${SOLVER}"

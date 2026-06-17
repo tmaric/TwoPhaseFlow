@@ -39,22 +39,6 @@ case "$MODE" in
         ;;
 esac
 
-need_cmd()
-{
-    command -v "$1" >/dev/null 2>&1 || {
-        echo "Error: required command '$1' not found in PATH" >&2
-        exit 1
-    }
-}
-
-for commandName in \
-    cartesian2DMesh extrudeMesh setAlphaField setPMLFields \
-    decomposePar checkMesh foamDictionary acousticHelmholtzFoam \
-    "$MPIEXEC" /usr/bin/time
-do
-    need_cmd "$commandName"
-done
-
 mkdir -p "$RESULTS_DIR/logs"
 RESULTS_DIR="$(cd "$RESULTS_DIR" && pwd)"
 

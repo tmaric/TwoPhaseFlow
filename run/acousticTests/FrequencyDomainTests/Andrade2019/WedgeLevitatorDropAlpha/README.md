@@ -66,12 +66,8 @@ and reconstructs `alpha.water`. Configure it in `caseParams.sh` using:
 
 ## MPI run
 
-`Allrun` runs decomposed MPI by default.  
-Optional rank override:
-
-```bash
-NPROCS=8 ./Allrun
-```
+`Allrun` runs decomposed MPI by default. Set the MPI rank count with
+`numberOfSubdomains` in `system/decomposeParDict`.
 
 Drop initialization is controlled from `caseParams.sh`:
 - `DROP_RADIUS`

@@ -68,7 +68,6 @@ PIMPLE
     nOuterCorrectors    1;
     nCorrectors         3;
     nNonOrthogonalCorrectors 1;
-    nAcousticNonOrthogonalCorrectors 1;
 
     // TODO (TT): re-enable once LENT is ported into Argo
 

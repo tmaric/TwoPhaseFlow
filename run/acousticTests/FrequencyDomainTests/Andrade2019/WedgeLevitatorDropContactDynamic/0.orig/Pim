@@ -27,7 +27,7 @@ boundaryField
     transducer1
     {
          type            fixedGradient;
-         gradient        uniform #eval{-2*pi()*25250*1.2*0.6};
+         gradient        uniform #eval{-2*pi()*25250*1.2*0.2};
     }
     "(transducer2|reflector2|reflector1)"
     {

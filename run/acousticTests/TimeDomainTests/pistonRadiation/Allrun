@@ -5,24 +5,6 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
-need_cmd()
-{
-    if ! command -v "$1" >/dev/null 2>&1; then
-        echo "Error: required command '$1' not found in PATH" >&2
-        exit 1
-    fi
-}
-
-need_cmd gmsh
-need_cmd python3
-need_cmd setPMLFields
-need_cmd "${SOLVER}"
-
-if [ -z "${NPROCS:-}" ]; then
-    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
-fi
-: "${NPROCS:=4}"
-
 ./Allclean
 ./prepareCase
 restore0Dir
@@ -37,14 +19,9 @@ runApplication createPatch -overwrite
 runApplication changeDictionary -dict system/changeDictionaryDict
 runApplication setPMLFields
 
-cp system/decomposeParDict system/decomposeParDict.run
-trap 'mv -f system/decomposeParDict.run system/decomposeParDict' EXIT
-foamDictionary -entry numberOfSubdomains -set "${NPROCS}" system/decomposeParDict >/dev/null
 runApplication decomposePar -force
-runParallel -np "${NPROCS}" "${SOLVER}"
+runParallel "${SOLVER}"
 runApplication reconstructPar -latestTime
 
 python3 verify_piston_radiation.py
-mv -f system/decomposeParDict.run system/decomposeParDict
-trap - EXIT
 #------------------------------------------------------------------------------

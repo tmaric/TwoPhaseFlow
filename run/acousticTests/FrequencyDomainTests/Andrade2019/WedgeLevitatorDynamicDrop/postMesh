@@ -2,6 +2,7 @@
 set -eu
 
 cd "${0%/*}" || exit 1
+. ./caseParams.sh
 
 boundaryFile="constant/polyMesh/boundary"
 
@@ -22,3 +23,151 @@ perl -0pi -e '
     s/(transducer2\s*\{[^}]*?\btype\s*)wall;/${1}patch;/s;
     s/(transducer2\s*\{[^}]*?\binGroups\s*)1\(wall\);/${1}1(patch);/s;
 ' "$boundaryFile"
+
+export WEDGE_DEG
+python3 - <<'PY'
+from array import array
+from math import radians, tan
+from os import environ
+from pathlib import Path
+import re
+import struct
+import sys
+
+
+poly_mesh = Path("constant/polyMesh")
+points_path = Path("constant/polyMesh/points")
+data = points_path.read_bytes()
+half_tan = tan(0.5*radians(float(environ["WEDGE_DEG"])))
+
+
+def patch_range(name):
+    boundary = (poly_mesh/"boundary").read_bytes().decode("latin1", errors="ignore")
+    match = re.search(
+        rf"{name}\s*\{{[^}}]*?\bnFaces\s+([0-9]+);"
+        rf"[^}}]*?\bstartFace\s+([0-9]+);",
+        boundary,
+        re.S,
+    )
+    if not match:
+        raise SystemExit(f"Cannot find patch {name} in {poly_mesh/'boundary'}")
+
+    return int(match.group(2)), int(match.group(1))
+
+
+def read_binary_face_points():
+    faces_path = poly_mesh/"faces"
+    faces = faces_path.read_bytes()
+    match = re.search(rb"\n([0-9]+)\s*\n\(", faces)
+    if not match:
+        raise SystemExit(f"Cannot locate compact face offsets in {faces_path}")
+
+    n_offsets = int(match.group(1))
+    offsets_start = match.end()
+    offsets_end = offsets_start + n_offsets*4
+    if offsets_end > len(faces):
+        raise SystemExit(f"Unexpected compact face offset size in {faces_path}")
+
+    offsets = struct.unpack_from(f"<{n_offsets}i", faces, offsets_start)
+
+    values_match = re.match(rb"\)\n([0-9]+)\n\(", faces[offsets_end:])
+    if not values_match:
+        raise SystemExit(f"Cannot locate compact face values in {faces_path}")
+
+    n_values = int(values_match.group(1))
+    values_start = offsets_end + values_match.end()
+    if values_start + n_values*4 > len(faces):
+        raise SystemExit(f"Unexpected compact face value size in {faces_path}")
+
+    return faces, offsets, values_start
+
+
+def collect_patch_points(start_face, n_faces, faces, offsets, values_start):
+    labels = set()
+    for facei in range(start_face, start_face + n_faces):
+        n_labels = offsets[facei + 1] - offsets[facei]
+        labels.update
+        (
+            struct.unpack_from
+            (
+                f"<{n_labels}i",
+                faces,
+                values_start + offsets[facei]*4,
+            )
+        )
+    return labels
+
+
+front_start, front_n_faces = patch_range("front")
+back_start, back_n_faces = patch_range("back")
+faces, offsets, values_start = read_binary_face_points()
+front_points = collect_patch_points(front_start, front_n_faces, faces, offsets, values_start)
+back_points = collect_patch_points(back_start, back_n_faces, faces, offsets, values_start)
+axis_points = front_points & back_points
+
+
+def project_point(label, x, y, z):
+    if label in axis_points:
+        return 0.0, y, 0.0
+    if label in front_points:
+        return x, y, half_tan*x
+    if label in back_points:
+        return x, y, -half_tan*x
+    return x, y, z
+
+
+if b"format      binary;" in data:
+    match = re.search(rb"\n([0-9]+)\s*\n\(", data)
+    if not match:
+        raise SystemExit(f"Cannot locate binary point field in {points_path}")
+
+    n_points = int(match.group(1))
+    body_start = match.end()
+    body_end = body_start + n_points*3*8
+    if body_end > len(data):
+        raise SystemExit(f"Unexpected binary point field size in {points_path}")
+
+    coords = array("d")
+    coords.frombytes(data[body_start:body_end])
+    if sys.byteorder != "little":
+        coords.byteswap()
+
+    for label, i in enumerate(range(0, len(coords), 3)):
+        coords[i], coords[i + 1], coords[i + 2] = project_point(
+            label,
+            coords[i],
+            coords[i + 1],
+            coords[i + 2],
+        )
+
+    if sys.byteorder != "little":
+        coords.byteswap()
+
+    points_path.write_bytes(data[:body_start] + coords.tobytes() + data[body_end:])
+else:
+    text = data.decode()
+    match = re.search(r"\n([0-9]+)\s*\n\(\s*\n", text)
+    if not match:
+        raise SystemExit(f"Cannot locate ascii point field in {points_path}")
+
+    start = match.end()
+    end = text.rfind("\n)")
+    if end < start:
+        raise SystemExit(f"Cannot locate end of ascii point field in {points_path}")
+
+    projected = []
+    point_re = re.compile(
+        r"^\s*\(([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\)\s*$"
+    )
+    for label, line in enumerate(text[start:end].splitlines()):
+        pmatch = point_re.match(line)
+        if not pmatch:
+            projected.append(line)
+            continue
+
+        x, y, z = (float(pmatch.group(i)) for i in range(1, 4))
+        x, y, z = project_point(label, x, y, z)
+        projected.append(f"({x:.16g} {y:.16g} {z:.16g})")
+
+    points_path.write_text(text[:start] + "\n".join(projected) + text[end:])
+PY

@@ -24,9 +24,6 @@ SOLVER=acousticHelmholtzFoam
 # - fullFig4Sweep: launch ./runHeightSweep.sh
 : "${RUN_MODE:=singlePoint}"
 
-# Default processor count used by Allrun/runHeightSweep when NPROCS is unset.
-: "${RUN_NPROCS:=8}"
-
 # Output location for the full Fig. 4 sweep.
 : "${RESULTS_DIR:=sweepResults}"
 : "${FIG4_OUTPUT_BASENAME:=reproducedFig4}"

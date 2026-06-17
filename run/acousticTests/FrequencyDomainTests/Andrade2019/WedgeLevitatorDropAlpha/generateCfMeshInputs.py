@@ -50,18 +50,19 @@ points2d = [
     (RT, D),
     (AXIS_RADIUS, D),
 ]
+# Match the Gmsh physical surfaces for the same wedge geometry.
 segment_patches = [
-    "transducer1",
     "reflector1",
     "reflector1",
-    "openAir",
-    "openAir",
-    "openAir",
-    "openAir",
-    "openAir",
-    "openAir",
     "reflector2",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
     "transducer2",
+    "transducer1",
     "axis",
 ]
 

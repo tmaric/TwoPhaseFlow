@@ -5,37 +5,39 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
-need_cmd()
-{
-    if ! command -v "$1" >/dev/null 2>&1; then
-        echo "Error: required command '$1' not found in PATH" >&2
+case "${MESHER:-gmsh}" in
+    gmsh|cfmesh)
+        ;;
+    *)
+        echo "Error: unsupported MESHER='${MESHER}'. Use 'gmsh' or 'cfmesh'." >&2
         exit 1
-    fi
-}
-
-need_cmd cartesian2DMesh
-need_cmd extrudeMesh
-
-if [ -z "${NPROCS:-}" ]; then
-    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
-fi
-: "${NPROCS:=8}"
+        ;;
+esac
 
 ./Allclean
 ./prepareCase
 
-runApplication cartesian2DMesh
-runApplication extrudeMesh
-./postMesh
+case "${MESHER:-gmsh}" in
+    gmsh)
+        restore0Dir
+        gmsh -0 constant/levitatorWedgeHex.geo
+        runApplication gmshToFoam  constant/levitatorWedgeHex.msh
+        rm constant/levitatorWedgeHex.msh
+        runApplication changeDictionary
+        ;;
+    cfmesh)
+        runApplication cartesian2DMesh
+        runApplication extrudeMesh
+        ./postMesh
+        restore0Dir
+        ;;
+esac
 
-restore0Dir
 runApplication setAlphaField
 rm -f 0/Pim.in
 
-need_cmd setPMLFields
-runApplication setPMLFields -lib libVoF.so
+runApplication setPMLFields
 
-need_cmd "${SOLVER}"
 rm -f "log.${SOLVER}"
 runApplication decomposePar -force
 runParallel "${SOLVER}"

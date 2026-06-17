@@ -4,30 +4,15 @@ cd "${0%/*}" || exit 1
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
 . ./caseParams.sh
 
-need_cmd()
-{
-    if ! command -v "$1" >/dev/null 2>&1; then
-        echo "Error: required command '$1' not found in PATH" >&2
-        exit 1
-    fi
-}
-
-need_cmd blockMesh
-need_cmd decomposePar
-need_cmd reconstructPar
-
 ./Allclean
 ./prepareCase
 restore0Dir
 rm -f 0/*.in
 
 runApplication blockMesh
-need_cmd setAlphaField
 runApplication setAlphaField
-need_cmd setPMLFields
 runApplication setPMLFields
 runApplication decomposePar -force
-need_cmd "${SOLVER}"
 runParallel "${SOLVER}"
 runApplication reconstructPar -latestTime
 

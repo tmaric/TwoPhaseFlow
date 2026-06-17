@@ -23,7 +23,7 @@ field and derives its time-domain PML coefficients.
 For a short smoke test:
 
 ```bash
-MESH_CELLS_PER_LAMBDA=10 N_PERIODS=12 NPROCS=2 ./Allrun
+MESH_CELLS_PER_LAMBDA=10 N_PERIODS=12 ./Allrun
 ```
 
 The run reconstructs the latest pressure field and writes analytical

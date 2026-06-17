@@ -23,7 +23,6 @@ Environment overrides:
   EMPTY_STUDY_ROOT    default: emptyGorkovStudy
   HOLE_STUDY_ROOT     default: solidBallGorkovStudy
   COMPARISON_ROOT     default: gorkovComparison
-  NPROCS              passed to both acoustic solves
   SOLID_RHO, SOLID_C  particle/solid properties
 EOF
 }
@@ -129,7 +128,7 @@ run_empty_field_case()
     copy_empty_template "$EMPTY_FIELD_CASE"
     (
         cd "$EMPTY_FIELD_CASE" || exit 1
-        NPROCS="${NPROCS:-}" ./Allrun
+        ./Allrun
     )
 }
 

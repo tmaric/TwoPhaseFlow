@@ -41,6 +41,9 @@ render()
         -e "s|__RR__|$RR|g" \
         -e "s|__BU__|$BU|g" \
         -e "s|__HS__|$HS|g" \
+        -e "s|__MESH_N__|$MESH_N|g" \
+        -e "s|__MESH_LC__|$MESH_LC|g" \
+        -e "s|__ROTATE_HALF_DEG__|$ROTATE_HALF_DEG|g" \
         -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
         -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
         -e "s|__DROP_CENTER_Y__|$DROP_CENTER_Y|g" \
@@ -51,12 +54,19 @@ render constant/transportProperties.in constant/transportProperties
 render 0.orig/Pim.in 0.orig/Pim
 render system/setAlphaFieldDict.in system/setAlphaFieldDict
 
-export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
-export CFMESH_MAX_CELL_SIZE CFMESH_INTERFACE_REFINEMENT
-export CFMESH_INTERFACE_CELL_SIZE CFMESH_INTERFACE_BOX_SCALE
-export DROP_RADIUS DROP_CENTER_Y
+case "${MESHER:-gmsh}" in
+    gmsh)
+        rm -f constant/levitator2D.fms system/meshDict system/extrudeMeshDict
+        render constant/levitatorWedgeHex.geo.in constant/levitatorWedgeHex.geo
+        ;;
+    cfmesh)
+        rm -f constant/levitatorWedgeHex.msh constant/*unrolled*
+        export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
+        export CFMESH_MAX_CELL_SIZE CFMESH_INTERFACE_REFINEMENT
+        export CFMESH_INTERFACE_CELL_SIZE CFMESH_INTERFACE_BOX_SCALE
+        export DROP_RADIUS DROP_CENTER_Y
 
-python3 - <<'PY'
+        python3 - <<'PY'
 from os import environ
 from pathlib import Path
 
@@ -113,18 +123,19 @@ points2d = [
     (AXIS_RADIUS, D),
 ]
 
+# Match the Gmsh physical surfaces for the same wedge geometry.
 segment_patches = [
-    "transducer1",
     "reflector1",
     "reflector1",
-    "openAir",
-    "openAir",
-    "openAir",
-    "openAir",
-    "openAir",
-    "openAir",
     "reflector2",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
+    "openAir",
     "transducer2",
+    "transducer1",
     "axis",
 ]
 
@@ -242,3 +253,9 @@ mergeFaces false;
 """
 (system / "extrudeMeshDict").write_text(extrude_dict)
 PY
+        ;;
+    *)
+        echo "Error: unsupported MESHER='${MESHER}'. Use 'gmsh' or 'cfmesh'." >&2
+        exit 1
+        ;;
+esac

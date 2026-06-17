@@ -48,9 +48,10 @@ Then in this case directory:
 
 ```bash
 ./Allrun
-# optional override for MPI ranks
-NPROCS=8 ./Allrun
 ```
+
+Set the MPI rank count with `numberOfSubdomains` in
+`system/decomposeParDict`.
 
 Log file:
 - `log.acousticHelmholtzFoam`
@@ -129,6 +130,6 @@ orders between successive mesh resolutions.
 Optional overrides:
 
 ```bash
-MESH_CONV_RESOLUTIONS="20 50" NPROCS=4 ./meshConv.sh
+MESH_CONV_RESOLUTIONS="20 50" ./meshConv.sh
 POSTPROCESS_ARGS="--n-points 300 --n-theta 91" ./meshConv.sh
 ```

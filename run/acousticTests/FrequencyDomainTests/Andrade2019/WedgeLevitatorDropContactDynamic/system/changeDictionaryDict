@@ -1,34 +1,25 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  2.0.1                                 |
-|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|  \\    /   O peration     | Version:  2212                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
 FoamFile
 {
     version     2.0;
     format      ascii;
+    arch        "LSB;label=32;scalar=64";
     class       dictionary;
     location    "system";
-    object      fvSolution;
+    object      changeDictionaryDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-solvers
+boundary
 {
-    "alpha.*"
+    "(front|back)"
     {
-        // The fixed interface is reconstructed once to compute sharp alphaf.
-        reconstructionScheme plicRDF;
-        isoFaceTol           1e-8;
-        surfCellTol          1e-8;
+        type wedge;
     }
 }
-
-SIMPLE
-{
-    nNonOrthogonalCorrectors 3;
-}
-
-// ************************************************************************* //

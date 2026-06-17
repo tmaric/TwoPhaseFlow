@@ -110,7 +110,7 @@ functions
             const vector forceAxisym = axisymScale*forceSlice;
             const scalar interfaceAreaAxisym = axisymScale*interfaceAreaSlice;
             const scalar wetVolumeAxisym =
-                4.0*constant::mathematical::pi*pow3(0.0002)/3.0;
+                4.0*constant::mathematical::pi*pow3(0.001)/3.0;
             const scalar wetVolumeSlice = wetVolumeAxisym/axisymScale;
 
             if (Pstream::master())

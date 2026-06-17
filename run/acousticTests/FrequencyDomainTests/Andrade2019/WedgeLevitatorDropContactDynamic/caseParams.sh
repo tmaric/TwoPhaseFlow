@@ -14,6 +14,8 @@
 # ---------------------------------------------------------------------------
 # MPI-capable coupled solver.
 SOLVER=interFALFlow
+# Mesh generation backend: gmsh or cfmesh.
+MESHER=${MESHER:-cfmesh}
 
 # ---------------------------------------------------------------------------
 # Drive parameters
@@ -21,7 +23,7 @@ SOLVER=interFALFlow
 # Driven acoustic frequency [Hz].
 DRIVE_F=25250
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
-PISTON_U=1
+PISTON_U=0.2
 
 # ---------------------------------------------------------------------------
 # Fluid / acoustic medium properties
@@ -78,11 +80,17 @@ BU=0.01
 # HS: vertical stand height above/below the active gap.
 HS=0.01
 
-# Wedge total angle [deg].
+# Mesh controls.
+# N is the number of cells per wavelength used to set gs = lambda/N.
+MESH_N=200
+# Gmsh point characteristic length (kept as in original setup).
+MESH_LC=1.0
+# Wedge half/total angle settings [deg].
+ROTATE_HALF_DEG=0.5
 WEDGE_DEG=1.0
 
 # cfMesh controls [m].
-AXIS_RADIUS=${AXIS_RADIUS:-1.0e-5}
+AXIS_RADIUS=${AXIS_RADIUS:-1.0e-6}
 SURFACE_THICKNESS=${SURFACE_THICKNESS:-0.1}
 CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-5e-5}
 CFMESH_INTERFACE_REFINEMENT=${CFMESH_INTERFACE_REFINEMENT:-0}

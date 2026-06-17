@@ -40,6 +40,32 @@
 	     fvc::interpolate(alpha1)
 	);
 
+volScalarField rhoAcoustic
+(
+    IOobject
+    (
+        "rhoAcoustic",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    1/(alpha1/rhol + (1 - alpha1)/rhog)
+);
+
+surfaceScalarField invRhof
+(
+    IOobject
+    (
+        "invRhof",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    alphaf/rhol + (1 - alphaf)/rhog
+);
+
 // radiation force pressure
 volScalarField pr
      (

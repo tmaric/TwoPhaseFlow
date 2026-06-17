@@ -5,23 +5,7 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
-need_cmd()
-{
-    if ! command -v "$1" >/dev/null 2>&1; then
-        echo "Error: required command '$1' not found in PATH" >&2
-        exit 1
-    fi
-}
-
-need_cmd cartesian2DMesh
-need_cmd extrudeMesh
-
 SOLVER=acousticHelmholtzFoam
-
-if [ -z "${NPROCS:-}" ]; then
-    NPROCS="$(awk '/^[[:space:]]*numberOfSubdomains[[:space:]]+/ {gsub(/;/, "", $2); print $2; exit}' system/decomposeParDict)"
-fi
-: "${NPROCS:=4}"
 
 ./Allclean
 ./prepareCase
@@ -32,10 +16,8 @@ runApplication extrudeMesh
 restore0Dir
 rm -f 0/Pim.in
 
-need_cmd setPMLFields
 runApplication setPMLFields
 
-need_cmd "${SOLVER}"
 rm -f "log.${SOLVER}"
 runApplication decomposePar -force
 runParallel "${SOLVER}"

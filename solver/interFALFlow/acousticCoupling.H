@@ -10,43 +10,48 @@
     #include "computeAlphaf.H"
     #include "computePMLCoefs.H"
 
-    const dimensionedScalar k2
+    rhoAcoustic == 1/(alpha1/rhol + (1 - alpha1)/rhog);
+    rhoAcoustic.correctBoundaryConditions();
+    invRhof == alphaf/rhol + (1 - alphaf)/rhog;
+
+    volScalarField k2
     (
-        "k2",
-        dimless/dimLength/dimLength,
-        sqr(twoPi()*f/cg).value()
+        IOobject
+        (
+            "k2",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        sqr(twoPi()*f)*(alpha1/sqr(cl) + (1 - alpha1)/sqr(cg))
     );
 
     globalIndex globalCells(mesh.nCells());
     const PetscInt N = (PetscInt)globalCells.size();
     const PetscInt nLocal = (PetscInt)mesh.nCells();
 
-    const label nAcousticNonOrthogonalCorrectors =
-        mesh.solutionDict().subDict("PIMPLE").lookupOrDefault<label>
-        (
-            "nAcousticNonOrthogonalCorrectors",
-            0
-        );
+    const label nNonOrthogonalCorrectors = pimple.nNonOrthCorr();
 
     for
     (
         label acousticNonOrthCorr = 0;
-        acousticNonOrthCorr <= nAcousticNonOrthogonalCorrectors;
+        acousticNonOrthCorr <= nNonOrthogonalCorrectors;
         ++acousticNonOrthCorr
     )
     {
         fvScalarMatrix AopPre
         (
-            fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pre)
+            rhoAcoustic*fvm::laplacian(invRhof, Pre)
           + fvm::laplacian(T0, Pre)
-          + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pre)
+          + fvm::Sp(k2 - SC0, Pre)
         );
 
         fvScalarMatrix AopPim
         (
-            fvm::laplacian(1 - (rhol - rhog)/rhol*alphaf, Pim)
+            rhoAcoustic*fvm::laplacian(invRhof, Pim)
           + fvm::laplacian(T0, Pim)
-          + fvm::Sp(k2*(1 + ((kl - kg)/kg)*alpha1) - SC0, Pim)
+          + fvm::Sp(k2 - SC0, Pim)
         );
 
         fvScalarMatrix B1Pre(fvm::laplacian(T1, Pre));
@@ -103,6 +108,6 @@
 
     updateDerivedAcousticFields
     (
-        pr, Pa, Ua, momFlux, Pim, Pre, alpha1, rho, f, kl, kg
+        pr, Pa, Ua, momFlux, Pim, Pre, alpha1, rhoAcoustic, f, kl, kg
     );
 }

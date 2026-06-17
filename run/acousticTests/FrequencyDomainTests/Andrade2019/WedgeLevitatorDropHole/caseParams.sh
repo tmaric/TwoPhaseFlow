@@ -10,7 +10,7 @@
 # Drive parameters
 # ---------------------------------------------------------------------------
 # Driven acoustic frequency [Hz].
-DRIVE_F=${DRIVE_F:-100000}
+DRIVE_F=${DRIVE_F:-25250}
 # Piston normal velocity amplitude for transducer gradient BC [m/s].
 PISTON_U=${PISTON_U:-1.0}
 
@@ -35,7 +35,7 @@ CL=${CL:-5000}
 PML_L=${PML_L:-0.008}
 # Directional maximum damping strengths [1/s].
 # The wedge uses rectangular PML regions in x and y, but not in z.
-SIGMA_MAX=${SIGMA_MAX:-1000000}
+SIGMA_MAX=${SIGMA_MAX:-2000000}
 SIGMA_MAX_X=${SIGMA_MAX_X:-${SIGMA_MAX}}
 SIGMA_MAX_Y=${SIGMA_MAX_Y:-${SIGMA_MAX}}
 SIGMA_MAX_Z=${SIGMA_MAX_Z:-0}
@@ -70,7 +70,7 @@ HS=${HS:-0.01}
 WEDGE_DEG=${WEDGE_DEG:-1.0}
 
 # Small nonzero radius used to avoid a degenerate axis surface before extrusion.
-AXIS_RADIUS=${AXIS_RADIUS:-1.0e-5}
+AXIS_RADIUS=${AXIS_RADIUS:-1.0e-6}
 # Dummy thickness for the 2D cfMesh surface ribbon.
 SURFACE_THICKNESS=${SURFACE_THICKNESS:-0.1}
 
@@ -80,8 +80,8 @@ DROP_CENTER_Y=${DROP_CENTER_Y:-0.0040003}
 
 # cfMesh controls [m]. These replace DropAlpha's gmsh/setAlphaField interface
 # handling and control the hard dropWall boundary resolution.
-CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-1e-4}
-CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-5e-5}
+CFMESH_MAX_CELL_SIZE=${CFMESH_MAX_CELL_SIZE:-3e-5}
+CFMESH_DROP_CELL_SIZE=${CFMESH_DROP_CELL_SIZE:-6e-5}
 CFMESH_DROP_SEGMENTS=${CFMESH_DROP_SEGMENTS:-128}
 
 # Optional per-run overrides used by parameter sweeps. This keeps copied sweep

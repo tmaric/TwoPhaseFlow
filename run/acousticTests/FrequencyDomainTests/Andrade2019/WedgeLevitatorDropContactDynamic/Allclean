@@ -7,5 +7,7 @@ cleanCase0
 rm -rf processor*
 rm -rf constant/polyMesh
 rm -f constant/levitator2D.fms
+rm -f constant/levitatorWedgeHex.msh
+rm -f constant/*unrolled*
 rm -f system/meshDict system/extrudeMeshDict
 #------------------------------------------------------------------------------
