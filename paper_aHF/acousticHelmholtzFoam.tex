@@ -715,7 +715,43 @@ $y_{\mathrm{ex}}$ are stated in the corresponding subsections below.
 An axissymmetric model of a rigid cylindrical piston with radius $a$  in an infinite baffle \Cref{fig:piston} is used to varify our frequency domain solver, where the simulation outcome can be directly compared to the known analytical solution. In our setup, the piston vibrate in vertical direction harmonically with the velocity amplitude $U_0$. $\rho_0$ and $c$ is the  density and sound speed of the air. 
 \begin{figure}[H]
     \centering
-    \includegraphics[scale=0.7]{figures/piston_sketch.png}%
+    \begin{tikzpicture}[x=1cm,y=1cm,>=latex]
+        \def\rmin{3.0}
+        \def\rmax{4.2}
+        \def\piston{1.15}
+        \def\pistony{0.05}
+
+        % Computational domain and spherical PML.
+        \fill[blue!6] (0,0) -- (0:\rmin) arc (0:180:\rmin) -- cycle;
+        \fill[gray!18] (0:\rmin) arc (0:180:\rmin)
+            -- (180:\rmax) arc (180:0:\rmax) -- cycle;
+
+        \draw[thick] (-\rmax,0) -- (\rmax,0);
+        \draw[thick] (0:\rmin) arc (0:180:\rmin);
+        \draw[thick] (0:\rmax) arc (0:180:\rmax);
+
+        % Piston mounted in the infinite baffle.
+        \draw[line width=1.3pt] (-\piston,\pistony) -- (\piston,\pistony);
+        \draw[<->] (-\piston,-0.55) -- (\piston,-0.55)
+            node[midway,below] {$2a$};
+        \draw[->,thick] (0,\pistony) -- (0,0.78)
+            node[right] {$u_0 e^{-i\omega t}$};
+        \node[below] at (0,-0.05) {piston};
+
+        % Radius markers.
+        % \draw[<->] (-\rmin,-0.95) -- (\rmin,-0.95)
+        %     node[midway,below] {$2R_{\min}$};
+        % \draw[<->] (-\rmax,-1.35) -- (\rmax,-1.35)
+        %     node[midway,below] {$2R_{\max}$};
+        % \draw[dashed] (-\rmin,0) -- (-\rmin,0.35);
+        % \draw[dashed] (\rmin,0) -- (\rmin,0.35);
+        % \draw[dashed] (-\rmax,0) -- (-\rmax,0.35);
+        % \draw[dashed] (\rmax,0) -- (\rmax,0.35);
+
+        \node at (0,1.55) {simulation domain};
+        \node[rotate=0] at (2.65,2.35) {PML};
+        \node[above] at (-2.8,0.02) {infinite baffle};
+    \end{tikzpicture}
     \caption{Geometry of the piston in an infinite baffle model}
     \label{fig:piston}
 \end{figure}
