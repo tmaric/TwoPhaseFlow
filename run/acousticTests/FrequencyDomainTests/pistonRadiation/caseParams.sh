@@ -49,8 +49,8 @@ PO=3
 SHIFTED_LAPLACIAN_BETA=0.2
 # Inner radius of PML region [m].
 PML_RMIN=0.2
-# PML thickness [m]. Outer radius is Rmin + L.
-PML_L=0.08
+# Outer radius of PML region [m].
+PML_RMAX=0.28
 
 # ---------------------------------------------------------------------------
 # Mesh parameters (gmsh template)

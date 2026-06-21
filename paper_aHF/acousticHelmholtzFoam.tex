@@ -712,7 +712,14 @@ The case-specific definitions and normalization of $y_h$ and
 $y_{\mathrm{ex}}$ are stated in the corresponding subsections below.
 
 \subsection{Piston radiation}
-An axissymmetric model of a rigid cylindrical piston with radius $a$  in an infinite baffle \Cref{fig:piston} is used to varify our frequency domain solver, where the simulation outcome can be directly compared to the known analytical solution. In our setup, the piston vibrate in vertical direction harmonically with the velocity amplitude $U_0$. $\rho_0$ and $c$ is the  density and sound speed of the air. 
+The baffled-piston radiation problem is used as a verification case for the
+frequency-domain solver because it has a closed-form analytical reference for
+both the on-axis near field and the far-field directivity.  The axisymmetric
+configuration is shown in \Cref{fig:piston}.  A rigid circular piston of radius
+$a$ is mounted in an infinite rigid baffle and oscillates harmonically in the
+normal direction with velocity amplitude $U_0$.  The physical acoustic domain
+is the half-space above the baffle, truncated numerically by a spherical PML
+between the radii $R_{\min}$ and $R_{\max}$.
 \begin{figure}[H]
     \centering
     \begin{tikzpicture}[x=1cm,y=1cm,>=latex]
@@ -752,46 +759,76 @@ An axissymmetric model of a rigid cylindrical piston with radius $a$  in an infi
         \node[rotate=0] at (2.65,2.35) {PML};
         \node[above] at (-2.8,0.02) {infinite baffle};
     \end{tikzpicture}
-    \caption{Geometry of the piston in an infinite baffle model}
+    \caption{Axisymmetric baffled-piston configuration used for verification.
+    The piston drives the physical acoustic domain, and outgoing waves are
+    absorbed in the spherical PML surrounding the domain.}
     \label{fig:piston}
 \end{figure}
-The spherical symmetric acoustic pressure radiated by the piston can be calculate at any point of interest as an integration of the power radiated by a monopole over the surface of the piston 
+The reference pressure follows from the Rayleigh integral over the piston
+surface.  Each differential surface element is treated as a monopole source,
+and the pressure at an observation point is obtained by integrating these
+contributions over the piston face,
 \begin{equation}
     p(r,t)=i\omega \rho_0 u_0\int_{S}\frac{e^{i(\omega t-kr')}}{2\pi r'}dS.
 \end{equation}
-Here $\omega$ is the angular frequency,$k=\omega/c$ the wave number , S the surface of the piston and $r$ the distance between the point of interest and the running position on the piston. The open boundary is modeled with spherical type PML boundary condition that has a ring-shape with radius $R_{min}$ and $R_{max}$. The damping function $\sigma$ is decided by the polynomial order $po$ and the largest value at the outer PML boundary $\sigma_{\max}$
+Here $\omega$ is the angular frequency, $k=\omega/c$ is the wave number,
+$S$ is the piston surface, and $r'$ is the distance between the observation
+point and the running integration point on the piston.  The gas density and
+sound speed are denoted by $\rho_0$ and $c$, respectively.  In the numerical
+case, the open boundary is represented by the spherical PML sketched in
+\Cref{fig:piston}.  Its damping profile is controlled by the polynomial order
+$po$ and reaches the prescribed maximum value $\sigma_{\max}$ at the outer PML
+boundary.
 
-Typically the pressure field from the piston source can be divided into the near field and far field. 
-
-For near field, an analytical solution is only available along the symmetric axis. And we have the pressure magnitude on the axis
+The radiated pressure is examined in two complementary regimes.  In the near
+field, a simple analytical expression is available on the symmetry axis, where
+the pressure magnitude is
 \begin{equation}
-    p(r,0) = 2\rho_0cU_0 \left| \sin\left\{ \frac{1}{2}kr\left[\sqrt{1+\left(\frac{a}{r}\right)^2}\right] \right\} \right|
+    p(r,0) = 2\rho_0cU_0 \left| \sin\left\{ \frac{1}{2}kr\left[\sqrt{1+\left(\frac{a}{r}\right)^2}-1\right] \right\} \right|
     \label{fc:nearField}
 \end{equation}
-For far field with $r>>a$, our pressure is given in spherical coordinate
+and is therefore suitable for a pointwise comparison inside the computational
+domain.  In the far field, where $r\gg a$, the analytical solution is written
+in spherical coordinates as
 \begin{equation}
     p(r,\theta,t)= \frac{i\omega a ^2\rho_0U_0}{2r}e^{i(\omega t-kr)}\left[\frac{2J_1(ka\sin\theta)}{ka\sin\theta}\right].
     \label{fc:farField}
 \end{equation}
-Where $J_1$ is the first order Bessel function.
+Here $J_1$ is the first-order Bessel function.  The term in brackets gives the
+angular directivity of the piston and provides an independent check of the
+computed complex pressure field.
 
-In our simulation the value of the parameters is given in \Cref{tab:paramsPiston}.
+The parameters used in the numerical case are listed in \Cref{tab:paramsPiston}.
+They specify the acoustic medium, piston excitation, and spherical PML shown in
+\Cref{fig:piston}.
 
 \begin{table}[H]
     \centering
-    \begin{tabular}{ccccccccc}
-        $\rho_0$ & $U_0$  & $f$ & $c$ & $a$  & $R_{min}$  & $R_{max}$  & $po$  & $\sigma_{max}$ \\
-        $1.2kg/m^3$ & $1m/s$ & $10000$ &$343m/s$ & $0.1m$& $0.2m$& $0.28$ & $3$ & $100000$ 
-    \end{tabular}
-    \caption{Simulaton parameters}
+    \caption{Simulation parameters for the baffled-piston radiation case.}
     \label{tab:paramsPiston}
+    \begin{tabular}{llcl}
+        \toprule
+        Quantity & Symbol & Value & Unit \\
+        \midrule
+        Gas density & $\rho_0$ & 1.2 & $\mathrm{kg\,m^{-3}}$ \\
+        Sound speed & $c$ & 343 & $\mathrm{m\,s^{-1}}$ \\
+        Piston velocity amplitude & $U_0$ & 1.0 & $\mathrm{m\,s^{-1}}$ \\
+        Driving frequency & $f$ & 10.0 & $\mathrm{kHz}$ \\
+        Acoustic wavelength & $\lambda=c/f$ & $3.43\times10^{-2}$ & $\mathrm{m}$ \\
+        Piston radius & $a$ & 0.10 & $\mathrm{m}$ \\
+        PML inner radius & $R_{\min}$ & 0.20 & $\mathrm{m}$ \\
+        PML outer radius & $R_{\max}$ & 0.28 & $\mathrm{m}$ \\
+        Maximum PML damping & $\sigma_{\max}$ & $1.0\times10^5$ & $\mathrm{s^{-1}}$ \\
+        PML polynomial order & $po$ & 3 & -- \\
+        \bottomrule
+    \end{tabular}
 \end{table}
 
 \subsubsection{Mesh-convergence post-processing}
-For mesh resolutions of 20, 50, and 100 cells per wavelength, the simulated
-near-field on-axis pressure amplitude is compared with the analytical solution
-as shown in \Cref{fig:pistonNearAmp}. The numerical pressure amplitude is
-evaluated from the computed complex pressure,
+Mesh convergence is assessed using 20, 50, and 100 cells per wavelength.  For
+the near-field test, the computed pressure is sampled on the symmetry axis and
+compared directly with \Cref{fc:nearField}.  The numerical pressure amplitude is
+evaluated from the computed complex pressure as
 \begin{equation}
     p_h(\x_i)=\sqrt{P_{re}^2(\x_i)+P_{im}^2(\x_i)} ,
 \end{equation}
@@ -805,36 +842,56 @@ $p_0=\rho_0 c U_0$:
     y_{\mathrm{ex}}(\x_i)=\frac{p_{\mathrm{ex}}(\x_i)}{p_0}.
 \end{equation}
 The resulting errors and observed orders are listed in
-\Cref{tab:pistonConvergence}. As the mesh becomes finer, the simulation results
-approach the analytical solution.
+\Cref{tab:pistonConvergence}.  The corresponding pointwise comparison is shown
+in \Cref{fig:pistonNearAmp}: the numerical curves reproduce the oscillatory
+near-field structure and approach the analytical amplitude as the mesh is
+refined.
 
 \input{tables/nearField_convergence_table.tex}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{figures/piston_nearField_onAxis_meshConvergence.png}%
-    \caption{Piston radiation: Comparison of near field on axis pressure amplitude}
+    \caption{Piston radiation: comparison of the near-field on-axis pressure
+    amplitude with the analytical baffled-piston solution.}
     \label{fig:pistonNearAmp}
 \end{figure}
 
-One more thing to be mentioned is, if we further increase the PML damping $\sigma_{max}$. Then the numeric reflection is clear to see in the figure. In the practice, the PML damping factor must be tuned to ensure no numeric reflection while provide sufficient damping effect.
 
-For far field case, we choose the fixed radius $R=4m$ and compare the pressure field at different angle from $0$ to $90$ degree. Because of the enormous computational resource we will not simulate the pressure field in the hemispheric domain with $4m$ radius. Instead we use the simulated pressure at the outer boundary of the solution domain $r=0.2m$ to compute the far field pressure with the boundary integration 
+The far-field test evaluates the angular directivity at the fixed radius
+$R=4\,\mathrm{m}$ for polar angles between $0^\circ$ and $90^\circ$.  This
+radius is far outside the computational domain and would be expensive to mesh
+directly.  Instead, the far-field pressure is reconstructed from the simulated
+complex pressure on the spherical surface at $r=0.2\,\mathrm{m}$ using the
+boundary integral
 \begin{equation}                   
         p(R,\theta) = \int\limits_{\partial B_{r=0.2}(0)} \left( p\frac{\partial G}{\partial n }-G\frac{\partial p}{\partial n } \right)\, \mathrm{d}S   .
 \end{equation}
-Where $G(x,\tilde{x})=\frac{e^{ik|x-\tilde{x}|}}{4\pi|x-\tilde{x}| }$ is the Green function. 
+Here $G(x,\tilde{x})=\frac{e^{ik|x-\tilde{x}|}}{4\pi|x-\tilde{x}| }$ is the
+free-space Green function.  The resulting directivity is compared with the
+analytical far-field expression in \Cref{fig:pistonFarAmp}.  The polar plot
+uses a logarithmic pressure scale to make both the main lobe and the angular
+decay visible; the numerical pattern follows the analytical profile closely,
+with the largest differences occurring near the piston plane at
+$\theta=90^\circ$.
 
-The comparison is in \Cref{fig:pistonFarAmp}. For a clear illustration we have used the polar diagram with log value. As the mesh resolution increase, the simulation outcome is very close to the analytical profile with only slight difference when the polar angle is near zero.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.72\textwidth]{figures/piston_farFieldPatternPolar.png}%
-    \caption{Piston radiation: Comparison of far field radial pressure amplitude at radius 4}
+    \includegraphics[width=0.58\textwidth]{figures/piston_farFieldPatternPolar.png}%
+    \caption{Piston radiation: far-field directivity reconstructed at
+    $R=4\,\mathrm{m}$ and compared with the analytical baffled-piston pattern.}
     \label{fig:pistonFarAmp}
 \end{figure}
 
 \input{tables/farField_convergence_table.tex}
+
+The convergence trends from the near-field amplitude and far-field directivity
+studies are summarized in \Cref{fig:pistonMetricsConvergence}.  This figure
+collects the normalized error measures from \Cref{tab:pistonConvergence} and
+\Cref{tab:pistonFarFieldConvergence}, making clear that the on-axis near-field
+amplitude improves strongly with mesh refinement, while the far-field
+directivity error is smaller and varies more weakly over the tested mesh range.
 
 \begin{figure}[H]
     \centering
@@ -935,11 +992,6 @@ are listed in \Cref{tab:params1DTwoPhase}.
         \bottomrule
     \end{tabular}
 \end{table}
-For this one-dimensional wave, only $\sigma_x$ is non-zero.  Consequently,
-the propagation-direction coefficients $T_{0xx}$ and $T_{1xx}$ are retained
-by the directional tensor formulation, while transverse tensor components do
-not contribute because the pressure has no transverse gradient.  This provides
-a direct verification of the directional tensor operators.
 
 The numerical real and imaginary pressure components agree closely with the
 analytical solution throughout both the physical domain and the PML, as shown

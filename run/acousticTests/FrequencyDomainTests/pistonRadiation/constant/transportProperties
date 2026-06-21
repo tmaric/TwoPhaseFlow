@@ -40,9 +40,9 @@ wl              #eval{$cg/$f};             // wavelength
 cellSize        #eval{$wl/$cellsPerLambda};
 
 PMLType         spherical;
-L               0.08;                 // PML thickness
 origin          (0 0 0);                   // origin of sphere
 Rmin            0.2;              // inner radius of PML
-Rmax            #eval{$Rmin + $L};         // outer radius of PML
+Rmax            0.28;              // outer radius of PML
+L               #eval{$Rmax - $Rmin};      // PML thickness
 
 // ************************************************************************* //
