@@ -20,12 +20,12 @@ while (pimple.correctNonOrthogonal())
 
     fvScalarMatrix pEqn
     (
-        fvm::d2dt2( (1 + ((kl - kg)/kg) * alpha1)/sqr(cg), p)
-      + fvm::ddt( SC0, p )
-      + fvm::Sp( SC1, p )
-      + SC2*v 
-      + fvm::laplacian((rhol - rhog)/rhol*alphaf - 1, p) 
-      - fvc::div(u) 
+        fvm::d2dt2(invc2/rho, p)
+      + fvm::ddt(SC0/rho, p)
+      + fvm::Sp(SC1/rho, p)
+      + (SC2/rho)*v
+      + fvm::laplacian(-invRhof, p)
+      - fvc::div(u)/rho
       //+ sqr(c0)*(rhol - rho)/rhol*(fvc::grad(alpha1) & fvc::grad(p))
      );
      pEqn.relax();
@@ -37,5 +37,4 @@ while (pimple.correctNonOrthogonal())
         solve (fvm::ddt(rho, U) == - fvc::grad(p));
     }
 }
-
 

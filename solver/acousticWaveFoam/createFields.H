@@ -54,18 +54,58 @@ volVectorField U
     mesh,
     dimensionedVector("U", dimVelocity, vector::zero)
 );
-    volScalarField rho
+
+// volScalarField rho
+// (
+//     IOobject
+//     (
+//         "rho",
+//         runTime.timeName(),
+//         mesh,
+//         IOobject::NO_READ,
+//         IOobject::NO_WRITE
+//     ),
+//    rhol*alpha1 + rhog*(1-alpha1)
+// ); 
+
+volScalarField invc2
+(
+    IOobject
     (
-        IOobject
-        (
-            "rho",
-            runTime.timeName(),
-            mesh,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-       rhol*alpha1 + rhog*(1-alpha1)
-    ); 
+        "invc2",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    alpha1/sqr(cl) + (1 - alpha1)/sqr(cg)
+);
+
+volScalarField rho
+(
+    IOobject
+    (
+        "rho",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    1/(alpha1/rhol + (1 - alpha1)/rhog)
+);
+
+surfaceScalarField invRhof
+(
+    IOobject
+    (
+        "invRhof",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    alphaf/rhol + (1 - alphaf)/rhog
+);
 /*
 volScalarField AcousticForcePotential
     (

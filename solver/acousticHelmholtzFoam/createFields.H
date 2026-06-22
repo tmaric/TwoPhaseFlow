@@ -140,6 +140,19 @@
         alphaf/rhol + (1 - alphaf)/rhog
     );
 
+    volScalarField k2
+    (
+        IOobject
+        (
+            "k2",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        sqr(twoPi()*f)*(alpha1/sqr(cl) + (1 - alpha1)/sqr(cg))
+    );
+
     // radiation force pressure
     volScalarField pr
     (

@@ -80,6 +80,9 @@ int main(int argc, char *argv[])
     #include "computePMLCoefs.H"
     scalar sampleCount = 0;
     
+    rho = 1/(alpha1/rhol + (1 - alpha1)/rhog);
+    invRhof = alphaf/rhol + (1 - alphaf)/rhog;
+
     while (runTime.run())
     {
         ++runTime;

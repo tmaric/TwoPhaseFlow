@@ -53,18 +53,18 @@
      dimensionedScalar cg
      (
      //    thermodynamicProperties.lookup("psi")
-      "cg",
+     "cg",
+     dimVelocity,
+     transportProperties
+     );
+
+     dimensionedScalar cl
+     (
+     //    thermodynamicProperties.lookup("psi")
+      "cl",
       dimVelocity,
       transportProperties
      );
-
-dimensionedScalar R
-(
-      //    thermodynamicProperties.lookup("psi")
-        "R",
-       dimLength,
-       transportProperties
-);
 
 scalar MaxCo =
     max(mesh.surfaceInterpolation::deltaCoeffs()*cg).value()
