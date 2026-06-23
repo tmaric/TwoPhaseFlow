@@ -14,7 +14,7 @@ application     acousticWaveFoam;
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
-endTime         0.01;
+endTime         0.001;
 deltaT          1e-06;
 
 writeControl    runTime;

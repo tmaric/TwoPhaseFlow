@@ -345,6 +345,302 @@
     \end{enumerate}
 \end{frame}
 
+\section{090726}
+\begin{frame}{Numerische Dämpfung im 1D-Wellentest}
+    \scriptsize
+    \setlength{\abovedisplayskip}{0.04cm}
+    \setlength{\belowdisplayskip}{0.04cm}
+    \begin{columns}[T]
+    \column{.52\linewidth}
+    \begin{block}{Beobachtung}
+        Im Fall \code{layeredInterface1D} nimmt die Amplitude auch dann mit der
+        Ausbreitungsstrecke ab, wenn PML und Wasserphase entfernt sind.
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item Aktive Druckgleichung in \code{acousticWaveFoam}:
+        \[
+            \frac{1}{c_g^2}\frac{\partial^2 p}{\partial t^2}
+            - \nabla^2 p = 0 .
+        \]
+        \item \code{d2dt2Schemes} = \code{Euler}; der Laplace-Term wird
+        implizit am neuen Zeitschritt gelöst.
+    \end{itemize}
+
+    \column{.48\linewidth}
+    \begin{block}{Diskreter Verstärkungsfaktor}
+        Für eine Fourier-Mode ergibt sich näherungsweise
+        \[
+            \begin{aligned}
+                \delta_{tt}p/c_g^2+k_h^2p^{n+1}&=0,\\
+                |G|&=\frac{1}{\sqrt{1+(c_g\Delta t k_h)^2}}<1 .
+            \end{aligned}
+        \]
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item Für $f=20\,\mathrm{kHz}$ und $\Delta t=10^{-6}\,\mathrm{s}$:
+        $|G|\approx0.992$ pro Zeitschritt.
+        \item Über eine Periode: ca. $0.68$ der Anfangsamplitude.
+        \item Hauptursache: numerische, nicht physikalische Dämpfung.
+    \end{itemize}
+    \end{columns}
+
+    \vspace{-0.02cm}
+    \begin{block}{Konsequenz}
+        Kleinere Zeitschritte reduzieren die Dämpfung; für einen verlustfreien
+        Testfall ist eine zentrierte, energieerhaltende Zeitintegration nötig.
+        Das rechte \code{zeroGradient}-Ende kann zusätzlich Reflexionen erzeugen.
+    \end{block}
+\end{frame}
+
+\begin{frame}{Berechnung des Verstärkungsfaktors}
+    \scriptsize
+    \setlength{\abovedisplayskip}{0.05cm}
+    \setlength{\belowdisplayskip}{0.05cm}
+    \begin{columns}[T]
+    \column{.50\linewidth}
+    \begin{block}{Diskrete Mode}
+        Für eine räumliche Eigenmode gilt
+        \[
+            -\nabla_h^2\phi = \lambda_h\phi ,
+        \]
+        und die implizite Zeitschrittgleichung wird zu
+        \[
+            \frac{p^{n+1}-2p^n+p^{n-1}}{c_g^2\Delta t^2}
+            +\lambda_h p^{n+1}=0 .
+        \]
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.04cm}
+        \item Ansatz: $p^n=G^n p^0$.
+        \item $G$ beschreibt die Änderung der Amplitude pro Zeitschritt.
+    \end{itemize}
+
+    \column{.50\linewidth}
+    \begin{block}{Quadratische Gleichung}
+        Einsetzen und Kürzen liefert
+        \[
+            \frac{G^2-2G+1}{c_g^2\Delta t^2}
+            +\lambda_h G^2=0 .
+        \]
+        Mit $\mu^2=c_g^2\Delta t^2\lambda_h$:
+        \[
+            (1+\mu^2)G^2-2G+1=0 .
+        \]
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.04cm}
+        \item Lösung:
+        \[
+            G=\frac{1\pm i\mu}{1+\mu^2},
+            \qquad
+            |G|=\frac{1}{\sqrt{1+\mu^2}} .
+        \]
+        \item Weil $|G|<1$, wird jede Mode numerisch gedämpft.
+    \end{itemize}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Abschätzung für den 20-kHz-Testfall}
+    \scriptsize
+    \setlength{\abovedisplayskip}{0.05cm}
+    \setlength{\belowdisplayskip}{0.05cm}
+    Für eine schwach gedämpfte laufende Welle kann $\lambda_h\approx k^2$ mit
+    $k=\omega/c_g$ gesetzt werden. Damit folgt
+    \[
+        \mu=c_g\Delta t k=\omega\Delta t=2\pi f\Delta t .
+    \]
+
+    \begin{block}{Aktuelle Parameter}
+        \[
+            f=20\,\mathrm{kHz},
+            \qquad
+            \Delta t=10^{-6}\,\mathrm{s},
+            \qquad
+            \mu=2\pi\cdot 20000\cdot10^{-6}\approx0.1257 .
+        \]
+        \[
+            |G|=\frac{1}{\sqrt{1+0.1257^2}}\approx0.9922 .
+        \]
+    \end{block}
+
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item Ein Zeitschritt erhält ca. $99.22\,\%$ der Modenamplitude.
+        \item Eine Periode besitzt $1/(f\Delta t)=50$ Zeitschritte.
+        \item Daher:
+        \[
+            |G|^{50}\approx 0.9922^{50}\approx0.68 .
+        \]
+        \item Diese Dämpfung entsteht aus der Diskretisierung, nicht aus PML,
+        Wasserphase oder physikalischer Viskosität.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Lösung: zentrierte Laplace-Diskretisierung}
+    \scriptsize
+    \setlength{\abovedisplayskip}{0.04cm}
+    \setlength{\belowdisplayskip}{0.04cm}
+    \begin{columns}[T]
+    \column{.48\linewidth}
+    \begin{block}{Ursprüngliches Problem}
+        Die voll implizite Form
+        \[
+            \delta_{tt}p/c^2-\nabla_h^2p^{n+1}=0
+        \]
+        ist stabil, aber nicht amplitudenerhaltend:
+        \[
+            |G|=\frac{1}{\sqrt{1+\mu^2}}<1 .
+        \]
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.04cm}
+        \item Die Dämpfung entsteht nicht durch PML, sondern durch den
+        neuen Zeitlevel im Laplace-Term.
+        \item Nur $\Delta t$ zu verkleinern reduziert den Fehler, beseitigt ihn
+        aber nicht grundsätzlich.
+    \end{itemize}
+
+    \column{.52\linewidth}
+    \begin{block}{Eingesetzte Form}
+        \[
+            \delta_{tt}p/c^2
+            -\nabla_h^2\left(
+                \frac{p^{n+1}+2p^n+p^{n-1}}{4}
+            \right)=0 .
+        \]
+        Im Code:
+        \[
+            -\frac14 L(p^{n+1})
+            -\frac12 L(p^n)
+            -\frac14 L(p^{n-1}) .
+        \]
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.04cm}
+        \item Das ist eine trapez-/Newmark-artige Zentrierung.
+        \item Für verlustfreie Fourier-Moden gilt $|G|=1$:
+        Phasenfehler bleibt möglich, künstliche Amplitudendämpfung nicht.
+    \end{itemize}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Umsetzung in \code{acousticWaveFoam}}
+    \scriptsize
+    \setlength{\abovedisplayskip}{0.04cm}
+    \setlength{\belowdisplayskip}{0.04cm}
+    \begin{block}{Aktuelle Druckgleichung mit Medienfaktoren}
+        \[
+        \begin{aligned}
+            &\partial_{tt}\left(\frac{c^{-2}}{\rho}p\right)
+            -\frac14\nabla_h\cdot\left(\rho_f^{-1}\nabla_h p^{n+1}\right)\\
+            &\quad
+            -\frac12\nabla_h\cdot\left(\rho_f^{-1}\nabla_h p^n\right)
+            -\frac14\nabla_h\cdot\left(\rho_f^{-1}\nabla_h p^{n-1}\right)
+            +\text{PML-Terme}=0 .
+        \end{aligned}
+        \]
+    \end{block}
+
+    \begin{columns}[T]
+    \column{.52\linewidth}
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item \code{invc2/rho} bleibt im Trägheitsterm erhalten.
+        \item \code{invRhof} bleibt im Flussterm erhalten.
+        \item Die implizite Matrix enthält nur den Anteil bei $p^{n+1}$;
+        die Anteile bei $p^n$ und $p^{n-1}$ stehen explizit auf der rechten Seite.
+    \end{itemize}
+
+    \column{.48\linewidth}
+    \begin{block}{Warum genau so?}
+        Diese Form erhält die symmetrische Kopplung zwischen Druckträgheit und
+        akustischem Fluss, vermeidet aber die rein numerische Dämpfung der
+        voll impliziten Laplace-Auswertung.
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item PML-Dämpfung bleibt absichtlich erhalten.
+        \item In der physikalischen Domäne muss \code{SC0}, \code{SC1},
+        \code{SC2} verschwinden.
+    \end{itemize}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Korrektur des 1D-Testfalls}
+    \scriptsize
+    \setlength{\abovedisplayskip}{0.04cm}
+    \setlength{\belowdisplayskip}{0.04cm}
+    \begin{columns}[T]
+    \column{.50\linewidth}
+    \begin{block}{Warum der Rand geändert wurde}
+        Nach Entfernen der numerischen Dämpfung wurde die frühere
+        \code{uniformFixedGradient}-Anregung sehr empfindlich: sie erzwingt
+        eine Neumann-Bedingung an einem endlichen, reflektierenden 1D-Kanal.
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item Das ist für einen Piston physikalisch interpretierbar.
+        \item Für einen reinen Propagationstest vermischt es jedoch
+        Anregung, Reflexion und numerische Eigenschaften.
+    \end{itemize}
+
+    \column{.50\linewidth}
+    \begin{block}{Neuer Test-Rand}
+        Für den Diagnosefall wird der erwartete Druck direkt vorgegeben:
+        \[
+            p_\mathrm{amp}=\rho_g c_g U_\mathrm{piston}.
+        \]
+        Mit den aktuellen Werten:
+        \[
+            p_\mathrm{amp}=1.2\cdot343\cdot0.01
+            \approx4.116\,\mathrm{Pa}.
+        \]
+    \end{block}
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item \code{uniformFixedValue sine}
+        \item Amplitudenvergleich misst nun die Propagation, nicht die
+        Piston-Neumann-Kopplung.
+    \end{itemize}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Verifikation nach der Korrektur}
+    \scriptsize
+    \setlength{\abovedisplayskip}{0.04cm}
+    \setlength{\belowdisplayskip}{0.04cm}
+    \begin{block}{Test}
+        \code{layeredInterface1D}, ohne Wasserphase und ohne PML-Dicke:
+        $L=0$, $\alpha_\mathrm{water}=0$, $f=20\,\mathrm{kHz}$,
+        $\Delta t=10^{-6}\,\mathrm{s}$.
+    \end{block}
+
+    \begin{center}
+    \begin{tabular}{cc}
+        \toprule
+        Probe $x$ [m] & Max. Amplitude nach Ankunft [Pa]\\
+        \midrule
+        0.05 & 4.10\\
+        0.08 & 4.12\\
+        0.10 & 4.11\\
+        0.14 & 4.11\\
+        0.22 & 4.15\\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+
+    \begin{itemize}
+        \setlength{\itemsep}{0.05cm}
+        \item Erwartete Amplitude: $4.116\,\mathrm{Pa}$.
+        \item Relative Streuung über alle Proben: ca. $1.2\,\%$.
+        \item Ergebnis: die vorherige distanzabhängige Dämpfung ist entfernt;
+        verbleibende Unterschiede kommen aus Transienten, Randreflexionen und
+        Diskretisierungsfehlern.
+    \end{itemize}
+\end{frame}
+
 \bibliographystyle{plainnat} % Choose an appropriate style
 \bibliography{bibliography}
 \end{document}

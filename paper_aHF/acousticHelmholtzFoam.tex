@@ -206,7 +206,7 @@ Open-domain acoustic simulations also require a robust treatment of outgoing wav
 
 This paper presents \texttt{acousticHelmholtzFoam}, a parallel OpenFOAM solver for frequency-domain acoustic waves in heterogeneous two-phase media. The complex Helmholtz equation is split into coupled real and imaginary pressure equations, producing a real-valued block system. The finite-volume operators are assembled in OpenFOAM, while the global block-coupled linear system is solved using PETSc with MUMPS. A companion utility, \texttt{setPMLFields}, generates the directional PML damping tensor \texttt{sigma} for rectangular and spherical absorbing layers. The solver then derives the scalar and tensor coefficient fields required by the frequency-domain formulation. The solver also computes derived fields such as acoustic velocity components, pressure amplitude, radiation pressure, and momentum flux, which are useful for acoustic levitation and related multiphysics applications.
 
-The main contributions of the software are: (i) a finite-volume formulation of the heterogeneous Helmholtz equation for two-phase material fields, (ii) a PML implementation based on a precomputed OpenFOAM damping tensor and solver-local coefficient construction, (iii) a block-coupled PETSc/MUMPS solution procedure for the real and imaginary pressure components, and (iv) verification cases for piston radiation and one-dimensional two-phase wave propagation. The remainder of the paper is organized as follows. \Cref{sec:model} derives the acoustic model and PML formulation. \Cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \Cref{sec:verification} presents verification cases, while \Cref{sec:application} outlines the intended application to single-axis acoustic levitation.
+The paper is organized as follows. \Cref{sec:model} derives the acoustic model and PML formulation. \Cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \Cref{sec:verification} presents verification cases, while \Cref{sec:application} outlines the intended application to single-axis acoustic levitation.
 
 
 \section{Mathematical model}
@@ -475,7 +475,7 @@ where $C_0$, $C_1$ and the tensor coefficients $\mathbf{T}_0$, $\mathbf{T}_1$ ar
         \end{aligned}
     \end{equation*}
 \end{paracol}
-
+while it is meaningless to introduce medium inhomogeneity in PML, the $\rho_0$ in the laplacian term with PML coefficient can be canceled out.  
 \section{Numerical implementation}
 \label{sec:implementation}
 
@@ -561,7 +561,7 @@ equations are assembled as the block system
 =0,
 \label{eq:blockCoupled}
 \end{equation}
-with
+with the operators
 \begin{equation}
     \begin{aligned}
         \hat A & =
