@@ -25,7 +25,7 @@ kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 
 f               20000;
-sigmaMax        -200000;
+sigmaMax        200000;
 po              3;
 
 PMLType         rectangle;

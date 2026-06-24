@@ -422,8 +422,8 @@ def kirchhoff_exterior_pressure(
         R = np.linalg.norm(rv, axis=1)
         R = np.maximum(R, 1e-12)
         rhat = rv / R[:, None]
-        G = np.exp(-1j * k * R) / (4.0 * math.pi * R)
-        dGdn = (1j * k + 1.0 / R) * G * np.einsum("ij,ij->i", rhat, src_n)
+        G = np.exp(1j * k * R) / (4.0 * math.pi * R)
+        dGdn = (1.0 / R - 1j * k) * G * np.einsum("ij,ij->i", rhat, src_n)
         out[i] = np.sum((src_p * dGdn - G * src_dpdn) * src_area)
     return out
 

@@ -370,16 +370,17 @@ where $\tilde{\nabla}$ denotes the Laplacian operator in the stretched coordinat
    P = |P| \exp(i\k \cdot \tilde \x)=|P| \exp(-\k \cdot \h(\x)) \exp(i\k\cdot \x).  
  \end{equation*}
  Where the wave vector $\k$ has direction of the travelling wave and length of the wave number.  $\h(\x)$ is designed such that it introduces no artificial damping within the interior region while providing attenuation in the PML region, which means, 
-\begin{equation*}
+\begin{equation}
             \k\cdot \h(\x) = \left\{
             \begin{array}{ll}
                 > 0 & x \in \Omega^{PML} \\
                 = 0 & x \in \Omega / \Omega^{PML}
             \end{array}
             \right.
-        \end{equation*}
+            \label{eq:planeWaveDamp}
+\end{equation}
  
- Building upon the fundamental principles of the PML formulation described above, we derive here the specific implementation proposed by Kaltenbacher et al.\cite{Kaltenbacher2013modified}. Following \citep{Kaltenbacher2013modified}, the complex coordinate transformation is defined as $i\h(\x) = \frac{1}{i\omega}\int \boldsymbol{\sigma}(\x) \,dx$, where $\boldsymbol{\sigma}(\x)$ is the damping vector composed of $\sigma_x(x)$, $\sigma_y(y)$, and $\sigma_z(z)$. Accordingly, the following relations hold: 
+ Building upon the fundamental principles of the PML formulation described above, we derive here the specific implementation proposed by Kaltenbacher et al.\cite{Kaltenbacher2013modified}. Following \citep{Kaltenbacher2013modified}, the complex coordinate transformation is defined as $i\h(\x) = \frac{1}{i\omega}\int \boldsymbol{\sigma}(\x) \,dx$, where $\boldsymbol{\sigma}(\x)$ is the damping vector composed of $\sigma_x(x)$, $\sigma_y(y)$, and $\sigma_z(z)$, whose value are negative to satisfy \cref{eq:planeWaveDamp}. Accordingly, the following relations hold: 
  \begin{equation}
      \begin{aligned}
          \frac{\partial \tilde{x}}{\partial x} & = \eta_x=1+\frac{\sigma_x}{i\omega},\quad  \frac{\partial}{\partial \tilde{x}}=\frac{\rho_0}{\eta_x}\frac{\partial}{\partial x},\\
@@ -643,7 +644,7 @@ two geometries:
     \begin{equation}
         \sigma_i
         =
-        \sigma_{\max,i}
+        -\sigma_{\max,i}
         \left[
         \min\left(\max\left(\frac{L-d_i}{L},0\right),1\right)
         \right]^{p_o}.
@@ -659,7 +660,7 @@ two geometries:
     \begin{equation}
         \sigma
         =
-        \sigma_{\max}
+        -\sigma_{\max}
         \left[
         \min\left(\max\left(\frac{L-(R_{\max}-r)}{L},0\right),1\right)
         \right]^{p_o},
@@ -717,7 +718,7 @@ frequency-domain solver because it has a closed-form analytical reference for
 both the on-axis near field and the far-field directivity.  The axisymmetric
 configuration is shown in \Cref{fig:piston}.  A rigid circular piston of radius
 $a$ is mounted in an infinite rigid baffle and oscillates harmonically in the
-normal direction with velocity amplitude $U_0$.  The physical acoustic domain
+normal direction with velocity amplitude $u_0$.  The physical acoustic domain
 is the half-space above the baffle, truncated numerically by a spherical PML
 between the radii $R_{\min}$ and $R_{\max}$.
 \begin{figure}[H]
@@ -736,6 +737,10 @@ between the radii $R_{\min}$ and $R_{\max}$.
         \draw[thick] (-\rmax,0) -- (\rmax,0);
         \draw[thick] (0:\rmin) arc (0:180:\rmin);
         \draw[thick] (0:\rmax) arc (0:180:\rmax);
+        \draw[->,dashed] (0,0) -- (25:\rmin)
+            node[pos=0.63,below right] {$R_{\min}$};
+        \draw[->,dashed] (0,0) -- (120:\rmax)
+            node[pos=0.72,left] {$R_{\max}$};
 
         % Piston mounted in the infinite baffle.
         \draw[line width=1.3pt] (-\piston,\pistony) -- (\piston,\pistony);
@@ -745,15 +750,6 @@ between the radii $R_{\min}$ and $R_{\max}$.
             node[right] {$u_0 e^{-i\omega t}$};
         \node[below] at (0,-0.05) {piston};
 
-        % Radius markers.
-        % \draw[<->] (-\rmin,-0.95) -- (\rmin,-0.95)
-        %     node[midway,below] {$2R_{\min}$};
-        % \draw[<->] (-\rmax,-1.35) -- (\rmax,-1.35)
-        %     node[midway,below] {$2R_{\max}$};
-        % \draw[dashed] (-\rmin,0) -- (-\rmin,0.35);
-        % \draw[dashed] (\rmin,0) -- (\rmin,0.35);
-        % \draw[dashed] (-\rmax,0) -- (-\rmax,0.35);
-        % \draw[dashed] (\rmax,0) -- (\rmax,0.35);
 
         \node at (0,1.55) {simulation domain};
         \node[rotate=0] at (2.65,2.35) {PML};
@@ -769,7 +765,7 @@ surface.  Each differential surface element is treated as a monopole source,
 and the pressure at an observation point is obtained by integrating these
 contributions over the piston face,
 \begin{equation}
-    p(r,t)=i\omega \rho_0 u_0\int_{S}\frac{e^{i(\omega t-kr')}}{2\pi r'}dS.
+    p(\mathbf{r},t)=i\omega \rho_0 u_0\int_{S}\frac{e^{i(\omega t-kr')}}{2\pi r'}dS.
 \end{equation}
 Here $\omega$ is the angular frequency, $k=\omega/c$ is the wave number,
 $S$ is the piston surface, and $r'$ is the distance between the observation
@@ -782,16 +778,16 @@ boundary.
 
 The radiated pressure is examined in two complementary regimes.  In the near
 field, a simple analytical expression is available on the symmetry axis, where
-the pressure magnitude is
+the pressure magnitude can be expressed with spherical coordinate
 \begin{equation}
-    p(r,0) = 2\rho_0cU_0 \left| \sin\left\{ \frac{1}{2}kr\left[\sqrt{1+\left(\frac{a}{r}\right)^2}-1\right] \right\} \right|
+    |p|(r,\theta=0) = 2\rho_0cu_0 \left| \sin\left\{ \frac{1}{2}kr\left[\sqrt{1+\left(\frac{a}{r}\right)^2}-1\right] \right\} \right|
     \label{fc:nearField}
 \end{equation}
 and is therefore suitable for a pointwise comparison inside the computational
 domain.  In the far field, where $r\gg a$, the analytical solution is written
 in spherical coordinates as
 \begin{equation}
-    p(r,\theta,t)= \frac{i\omega a ^2\rho_0U_0}{2r}e^{i(\omega t-kr)}\left[\frac{2J_1(ka\sin\theta)}{ka\sin\theta}\right].
+    p(r,\theta,t)= \frac{i\omega a ^2\rho_0u_0}{2r}e^{i(\omega t-kr)}\left[\frac{2J_1(ka\sin\theta)}{ka\sin\theta}\right].
     \label{fc:farField}
 \end{equation}
 Here $J_1$ is the first-order Bessel function.  The term in brackets gives the
@@ -812,7 +808,7 @@ They specify the acoustic medium, piston excitation, and spherical PML shown in
         \midrule
         Gas density & $\rho_0$ & 1.2 & $\mathrm{kg\,m^{-3}}$ \\
         Sound speed & $c$ & 343 & $\mathrm{m\,s^{-1}}$ \\
-        Piston velocity amplitude & $U_0$ & 1.0 & $\mathrm{m\,s^{-1}}$ \\
+        Piston velocity amplitude & $u_0$ & 1.0 & $\mathrm{m\,s^{-1}}$ \\
         Driving frequency & $f$ & 10.0 & $\mathrm{kHz}$ \\
         Acoustic wavelength & $\lambda=c/f$ & $3.43\times10^{-2}$ & $\mathrm{m}$ \\
         Piston radius & $a$ & 0.10 & $\mathrm{m}$ \\
@@ -830,17 +826,12 @@ the near-field test, the computed pressure is sampled on the symmetry axis and
 compared directly with \Cref{fc:nearField}.  The numerical pressure amplitude is
 evaluated from the computed complex pressure as
 \begin{equation}
-    p_h(\x_i)=\sqrt{P_{re}^2(\x_i)+P_{im}^2(\x_i)} ,
+    |p|_n(\x_i)=\sqrt{P_{re}^2(\x_i)+P_{im}^2(\x_i)} ,
 \end{equation}
 and compared with the analytical amplitude $p_{\mathrm{ex}}(\x_i)$ at sampled
 points $\x_i$ on the symmetry axis. For this case, the quantities used in
 \Cref{eq:verificationErrorNorms} are normalized by the characteristic pressure
-$p_0=\rho_0 c U_0$:
-\begin{equation}
-    y_h(\x_i)=\frac{p_h(\x_i)}{p_0},
-    \qquad
-    y_{\mathrm{ex}}(\x_i)=\frac{p_{\mathrm{ex}}(\x_i)}{p_0}.
-\end{equation}
+$p_0=\rho_0 c u_0$.
 The resulting errors and observed orders are listed in
 \Cref{tab:pistonConvergence}.  The corresponding pointwise comparison is shown
 in \Cref{fig:pistonNearAmp}: the numerical curves reproduce the oscillatory
@@ -865,10 +856,10 @@ directly.  Instead, the far-field pressure is reconstructed from the simulated
 complex pressure on the spherical surface at $r=0.2\,\mathrm{m}$ using the
 boundary integral
 \begin{equation}                   
-        p(R,\theta) = \int\limits_{\partial B_{r=0.2}(0)} \left( p\frac{\partial G}{\partial n }-G\frac{\partial p}{\partial n } \right)\, \mathrm{d}S   .
+        |p|_n(R,\theta) = \left|\int\limits_{\partial B_{r=0.2}(0)} \left( P\frac{\partial G}{\partial n }-G\frac{\partial P}{\partial n } \right)\, \mathrm{d}S\right|.
 \end{equation}
 Here $G(x,\tilde{x})=\frac{e^{ik|x-\tilde{x}|}}{4\pi|x-\tilde{x}| }$ is the
-free-space Green function.  The resulting directivity is compared with the
+free-space Green function and the complex pressure $P(x) = P_{re}+iP_{im}$ .  The resulting directivity is compared with the
 analytical far-field expression in \Cref{fig:pistonFarAmp}.  The polar plot
 uses a logarithmic pressure scale to make both the main lobe and the angular
 decay visible; the numerical pattern follows the analytical profile closely,
@@ -961,7 +952,7 @@ The analytical solution reads
     \begin{cases}
         \rho_1c_1u_0\frac{e^{ik_1x}+Re^{ik_1(2L_1-x)}}{1-Re^{i2k_1L_1}} & 0<x<L_1, \\[1ex]
         \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L_1}}e^{i\left[k_2(x-L_1)+k_1L_1\right]} & L_1<x<L_2, \\[1ex]
-        e^{\frac{\sigma_{\max}(L-L_2)}{(p+1)c_2}\left(\frac{x-L_2}{L-L_2}\right)^{p+1}}
+        e^{\frac{-\sigma_{\max}(L-L_2)}{(p+1)c_2}\left(\frac{x-L_2}{L-L_2}\right)^{p+1}}
         \rho_1c_1u_0\frac{1+R}{1-Re^{i2k_1L_1}}e^{i\left[k_2(x-L_1)+k_1L_1\right]} & L_2<x<L .
     \end{cases}
 \end{equation}
@@ -986,7 +977,7 @@ are listed in \Cref{tab:params1DTwoPhase}.
         Interface position & $L_1$ & 0.09 & $\mathrm{m}$ \\
         PML start position & $L_2$ & 0.20 & $\mathrm{m}$ \\
         PML thickness & $L-L_2$ & 0.15 & $\mathrm{m}$ \\
-        Maximum PML damping & $\sigma_{\max}$ & $-2.0\times10^5$ & $\mathrm{s^{-1}}$ \\
+        Maximum PML damping & $\sigma_{\max}$ & $2.0\times10^5$ & $\mathrm{s^{-1}}$ \\
         PML polynomial order & $p$ & 3 & -- \\
         Number of cells in $x$ & $N_x$ & 8000 & -- \\
         \bottomrule
@@ -1022,14 +1013,14 @@ $\exp[-\mathbf{k}\cdot\mathbf{h}(x)]$.  For the polynomial damping profile used
 in this case, this factor is
 \begin{equation}
     \exp\left[
-        \frac{\sigma_{\max}(L-L_2)}{(p+1)c_2}
+        \frac{-\sigma_{\max}(L-L_2)}{(p+1)c_2}
         \left(\frac{x-L_2}{L-L_2}\right)^{p+1}
     \right],
     \qquad L_2<x<L,
 \end{equation}
-where $\sigma_{\max}<0$.  Consequently, the amplitude remains constant before
+Consequently, the amplitude remains constant before
 the PML and then decreases smoothly towards the truncated boundary, as
-confirmed by \Cref{fig:1DLayerdAmplitude}.  Over $0.20<x<0.34\,\mathrm{m}$,
+confirmed by \Cref{fig:1DLayerdAmplitude}.  Over $0.20<x<0.35\,\mathrm{m}$,
 the numerical and analytical complex pressures differ by only
 $1.39\times10^{-3}$ in relative $L_2$ norm, and their pressure amplitudes
 differ by $3.45\times10^{-4}$.
@@ -1043,7 +1034,7 @@ differ by $3.45\times10^{-4}$.
 
 \FloatBarrier
 \subsubsection{PML damping sensitivity}
-The one-dimensional layered-interface case is also used to examine the influence of the PML damping strength.  All physical parameters, the mesh, the PML thickness, and the polynomial order are kept fixed, while only the maximum damping coefficient $\sigma_{\max}$ is varied.  The comparison with the analytical solution is evaluated in the physical part of the domain, excluding the PML and a small offset from the boundaries.  This isolates the error induced by imperfect absorption from the strongly damped layer itself.
+The one-dimensional layered-interface case is also used to examine the influence of the PML damping strength.  All physical parameters, the mesh, the PML thickness, and the polynomial order are kept fixed, while only the maximum damping coefficient $\sigma_{\max}$ is varied. 
 
 \input{tables/pml_sigma_sensitivity_table.tex}
 
@@ -1052,16 +1043,11 @@ The resulting relative $L_2$ errors are shown in
 local sound speed of medium~2, small values of $|\sigma_{\max}|$ do not provide
 sufficient attenuation before the truncated boundary.  The amplitude error
 decreases from $3.51\times10^{-1}$ at
-$\sigma_{\max}=-10^4\,\mathrm{s}^{-1}$ to approximately
-$9.1\times10^{-4}$ at both $-2\times10^5\,\mathrm{s}^{-1}$ and
-$-5\times10^5\,\mathrm{s}^{-1}$.  The selected value
-$\sigma_{\max}=-2\times10^5\,\mathrm{s}^{-1}$ already provides sufficient
-attenuation and avoids unnecessarily large coefficients.  In general, an
-excessively large damping coefficient produces a very steep profile that is
-poorly resolved by the mesh and can introduce numerical reflection; therefore
-$\sigma_{\max}$ should be chosen together with the PML thickness, polynomial
-order, and mesh spacing.
-
+$\sigma_{\max}=10^4\,\mathrm{s}^{-1}$ to approximately
+$9.1\times10^{-4}$ at both $2\times10^5\,\mathrm{s}^{-1}$ and
+$5\times10^5\,\mathrm{s}^{-1}$.  The selected value
+$\sigma_{\max}=2\times10^5\,\mathrm{s}^{-1}$ already provides sufficient
+attenuation and avoids unnecessarily large coefficients.  
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_sigma_sensitivity.png}%
@@ -1071,7 +1057,7 @@ order, and mesh spacing.
 
 To assess mesh dependence at the selected damping strength, an additional
 sweep is performed with
-$\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of
+$\sigma_{\max}=2.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of
 cells in the propagation direction.  The results in
 \Cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} quantify convergence of
 the real pressure, imaginary pressure, and pressure amplitude for the
@@ -1087,7 +1073,7 @@ amplitude.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_mesh_sensitivity.png}%
-    \caption{Layered-interface case: directional tensor PML mesh sensitivity with fixed damping $\sigma_{\max}=-2.0\times10^5\,\mathrm{s^{-1}}$.}
+    \caption{Layered-interface case: directional tensor PML mesh sensitivity with fixed damping $\sigma_{\max}=2.0\times10^5\,\mathrm{s^{-1}}$.}
     \label{fig:pmlMeshSensitivity}
 \end{figure}
 

@@ -53,7 +53,7 @@ inline Config readConfig(const IOdictionary& transportProperties)
     );
 
     cfg.L = L.value();
-    cfg.sigmaMax = sigmaMax.value();
+    cfg.sigmaMax = -sigmaMax.value();
     cfg.sigmaMaxVector = transportProperties.lookupOrDefault<vector>
     (
         "sigmaMaxVector",

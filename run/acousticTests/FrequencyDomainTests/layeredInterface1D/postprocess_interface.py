@@ -122,7 +122,7 @@ def main():
     x_max = p["X_MAX"]
     pml_l = p["PML_L"]
     pml_start = x_max - pml_l
-    sigma_max = p["SIGMA_MAX"]
+    sigma_max = -p["SIGMA_MAX"]
     pml_order = p["PO"]
     y = 0.0
     z = 0.0

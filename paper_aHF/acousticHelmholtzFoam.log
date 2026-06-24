@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2024.10.13)  23 JUN 2026 13:16
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2024.10.13)  24 JUN 2026 20:24
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -794,74 +794,74 @@ Overfull \hbox (4.02281pt too wide) in paragraph at lines 223--224
  []
 
 [3{/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc}] [4] [5] [6] [7] [8] [9] [10] [11] [12]
-Overfull \hbox (5.06725pt too wide) in paragraph at lines 715--766
+Overfull \hbox (5.06725pt too wide) in paragraph at lines 716--762
 []\OT1/cmr/m/n/12 The baffled-piston ra-di-a-tion prob-lem is used as a ver-i-fi-ca-tion case for the frequency-
  []
 
 [13] [14] (./tables/nearField_convergence_table.tex)
-<figures/piston_nearField_onAxis_meshConvergence.png, id=274, 534.798pt x 346.896pt>
+<figures/piston_nearField_onAxis_meshConvergence.png, id=276, 534.798pt x 346.896pt>
 File: figures/piston_nearField_onAxis_meshConvergence.png Graphic file (type png)
 <use figures/piston_nearField_onAxis_meshConvergence.png>
-Package pdftex.def Info: figures/piston_nearField_onAxis_meshConvergence.png  used on input line 854.
+Package pdftex.def Info: figures/piston_nearField_onAxis_meshConvergence.png  used on input line 845.
 (pdftex.def)             Requested size: 365.50655pt x 237.0877pt.
  [15]
-<figures/piston_farFieldPatternPolar.png, id=285, 433.62pt x 433.62pt>
+<figures/piston_farFieldPatternPolar.png, id=286, 433.62pt x 433.62pt>
 File: figures/piston_farFieldPatternPolar.png Graphic file (type png)
 <use figures/piston_farFieldPatternPolar.png>
-Package pdftex.def Info: figures/piston_farFieldPatternPolar.png  used on input line 881.
+Package pdftex.def Info: figures/piston_farFieldPatternPolar.png  used on input line 872.
 (pdftex.def)             Requested size: 249.40346pt x 249.40234pt.
  [16 <./figures/piston_nearField_onAxis_meshConvergence.png>] (./tables/farField_convergence_table.tex)
-<figures/piston_metrics_meshConvergence.png, id=297, 505.89pt x 332.0405pt>
+<figures/piston_metrics_meshConvergence.png, id=298, 505.89pt x 332.0405pt>
 File: figures/piston_metrics_meshConvergence.png Graphic file (type png)
 <use figures/piston_metrics_meshConvergence.png>
-Package pdftex.def Info: figures/piston_metrics_meshConvergence.png  used on input line 898.
+Package pdftex.def Info: figures/piston_metrics_meshConvergence.png  used on input line 889.
 (pdftex.def)             Requested size: 365.50655pt x 239.90495pt.
  [17 <./figures/piston_farFieldPatternPolar.png>]
-Overfull \hbox (1.99922pt too wide) in paragraph at lines 905--908
+Overfull \hbox (1.99922pt too wide) in paragraph at lines 896--899
 []\OT1/cmr/m/n/12 The layered-interface case ver-i-fies both wave trans-mis-sion across a strong material-
  []
 
 [18 <./figures/piston_metrics_meshConvergence.png>]
-<figures/pressureField_Pre_Pim_compare.png, id=315, 578.16pt x 433.62pt>
+<figures/pressureField_Pre_Pim_compare.png, id=316, 578.16pt x 433.62pt>
 File: figures/pressureField_Pre_Pim_compare.png Graphic file (type png)
 <use figures/pressureField_Pre_Pim_compare.png>
-Package pdftex.def Info: figures/pressureField_Pre_Pim_compare.png  used on input line 1010.
+Package pdftex.def Info: figures/pressureField_Pre_Pim_compare.png  used on input line 1001.
 (pdftex.def)             Requested size: 387.00153pt x 290.246pt.
  [19]
-<figures/pressureField_abs_compare.png, id=327, 578.16pt x 325.215pt>
+<figures/pressureField_abs_compare.png, id=328, 578.16pt x 325.215pt>
 File: figures/pressureField_abs_compare.png Graphic file (type png)
 <use figures/pressureField_abs_compare.png>
-Package pdftex.def Info: figures/pressureField_abs_compare.png  used on input line 1039.
+Package pdftex.def Info: figures/pressureField_abs_compare.png  used on input line 1030.
 (pdftex.def)             Requested size: 387.00153pt x 217.6845pt.
- [20 <./figures/pressureField_Pre_Pim_compare.png>] (./tables/pml_sigma_sensitivity_table.tex) [21 <./figures/pressureField_abs_compare.png>]
-<figures/pml_sigma_sensitivity.png, id=343, 462.528pt x 289.08pt>
+ [20 <./figures/pressureField_Pre_Pim_compare.png>] (./tables/pml_sigma_sensitivity_table.tex)
+<figures/pml_sigma_sensitivity.png, id=337, 462.528pt x 289.08pt>
 File: figures/pml_sigma_sensitivity.png Graphic file (type png)
 <use figures/pml_sigma_sensitivity.png>
-Package pdftex.def Info: figures/pml_sigma_sensitivity.png  used on input line 1067.
+Package pdftex.def Info: figures/pml_sigma_sensitivity.png  used on input line 1053.
 (pdftex.def)             Requested size: 322.50346pt x 201.57387pt.
- (./tables/pml_mesh_sensitivity_table.tex) [22 <./figures/pml_sigma_sensitivity.png>]
-<figures/pml_mesh_sensitivity.png, id=353, 462.528pt x 289.08pt>
+ [21 <./figures/pressureField_abs_compare.png>] (./tables/pml_mesh_sensitivity_table.tex) [22 <./figures/pml_sigma_sensitivity.png>]
+<figures/pml_mesh_sensitivity.png, id=354, 462.528pt x 289.08pt>
 File: figures/pml_mesh_sensitivity.png Graphic file (type png)
 <use figures/pml_mesh_sensitivity.png>
-Package pdftex.def Info: figures/pml_mesh_sensitivity.png  used on input line 1089.
+Package pdftex.def Info: figures/pml_mesh_sensitivity.png  used on input line 1075.
 (pdftex.def)             Requested size: 322.50346pt x 201.57387pt.
  [23 <./figures/pml_mesh_sensitivity.png>]
-<figures/4sweep2.png, id=363, 433.62pt x 289.08pt>
+<figures/4sweep2.png, id=364, 433.62pt x 289.08pt>
 File: figures/4sweep2.png Graphic file (type png)
 <use figures/4sweep2.png>
-Package pdftex.def Info: figures/4sweep2.png  used on input line 1109.
+Package pdftex.def Info: figures/4sweep2.png  used on input line 1095.
 (pdftex.def)             Requested size: 344.005pt x 229.34993pt.
  [24 <./figures/4sweep2.png>]
-<figures/dropalpha_strong_scaling.png, id=376, 859.356pt x 257.2155pt>
+<figures/dropalpha_strong_scaling.png, id=377, 859.356pt x 257.2155pt>
 File: figures/dropalpha_strong_scaling.png Graphic file (type png)
 <use figures/dropalpha_strong_scaling.png>
-Package pdftex.def Info: figures/dropalpha_strong_scaling.png  used on input line 1141.
+Package pdftex.def Info: figures/dropalpha_strong_scaling.png  used on input line 1127.
 (pdftex.def)             Requested size: 430.00462pt x 128.70554pt.
  [25]
-<figures/dropalpha_problem_size_scaling.png, id=385, 583.7445pt x 254.916pt>
+<figures/dropalpha_problem_size_scaling.png, id=386, 583.7445pt x 254.916pt>
 File: figures/dropalpha_problem_size_scaling.png Graphic file (type png)
 <use figures/dropalpha_problem_size_scaling.png>
-Package pdftex.def Info: figures/dropalpha_problem_size_scaling.png  used on input line 1150.
+Package pdftex.def Info: figures/dropalpha_problem_size_scaling.png  used on input line 1136.
 (pdftex.def)             Requested size: 395.60345pt x 172.761pt.
  [26 <./figures/dropalpha_strong_scaling.png> <./figures/dropalpha_problem_size_scaling.png>] (./acousticHelmholtzFoam.bbl [27]) [28] (./acousticHelmholtzFoam.aux)
  ***********
@@ -872,18 +872,18 @@ Package rerunfilecheck Info: File `acousticHelmholtzFoam.out' has not changed.
 (rerunfilecheck)             Checksum: C1FFB5984C77615486B632CCE06D1B4D;3471.
  ) 
 Here is how much of TeX's memory you used:
- 28898 strings out of 474222
- 533867 string characters out of 5748732
- 1946975 words of memory out of 5000000
- 50566 multiletter control sequences out of 15000+600000
+ 28907 strings out of 474222
+ 534057 string characters out of 5748732
+ 1947975 words of memory out of 5000000
+ 50575 multiletter control sequences out of 15000+600000
  570593 words of font info for 83 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  99i,13n,117p,1049b,986s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmex8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1200.pfb>
-Output written on acousticHelmholtzFoam.pdf (28 pages, 1316054 bytes).
+Output written on acousticHelmholtzFoam.pdf (28 pages, 1315766 bytes).
 PDF statistics:
- 553 PDF objects out of 1000 (max. 8388607)
- 446 compressed objects within 5 object streams
+ 554 PDF objects out of 1000 (max. 8388607)
+ 447 compressed objects within 5 object streams
  131 named destinations out of 1000 (max. 500000)
  223 words of extra memory for PDF output out of 10000 (max. 10000000)
 
