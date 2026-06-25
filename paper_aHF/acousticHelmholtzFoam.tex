@@ -206,7 +206,7 @@ Open-domain acoustic simulations also require a robust treatment of outgoing wav
 
 This paper presents \texttt{acousticHelmholtzFoam}, a parallel OpenFOAM solver for frequency-domain acoustic waves in heterogeneous two-phase media. The complex Helmholtz equation is split into coupled real and imaginary pressure equations, producing a real-valued block system. The finite-volume operators are assembled in OpenFOAM, while the global block-coupled linear system is solved using PETSc with MUMPS. A companion utility, \texttt{setPMLFields}, generates the directional PML damping tensor \texttt{sigma} for rectangular and spherical absorbing layers. The solver then derives the scalar and tensor coefficient fields required by the frequency-domain formulation. The solver also computes derived fields such as acoustic velocity components, pressure amplitude, radiation pressure, and momentum flux, which are useful for acoustic levitation and related multiphysics applications.
 
-The paper is organized as follows. \Cref{sec:model} derives the acoustic model and PML formulation. \Cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \Cref{sec:verification} presents verification cases, while \Cref{sec:application} outlines the intended application to single-axis acoustic levitation.
+The paper is organized as follows. \cref{sec:model} derives the acoustic model and PML formulation. \cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \cref{sec:verification} presents verification cases, while \cref{sec:application} outlines the intended application to single-axis acoustic levitation.
 
 
 \section{Mathematical model}
@@ -716,7 +716,7 @@ $y_{\mathrm{ex}}$ are stated in the corresponding subsections below.
 The baffled-piston radiation problem is used as a verification case for the
 frequency-domain solver because it has a closed-form analytical reference for
 both the on-axis near field and the far-field directivity.  The axisymmetric
-configuration is shown in \Cref{fig:piston}.  A rigid circular piston of radius
+configuration is shown in \cref{fig:piston}.  A rigid circular piston of radius
 $a$ is mounted in an infinite rigid baffle and oscillates harmonically in the
 normal direction with velocity amplitude $u_0$.  The physical acoustic domain
 is the half-space above the baffle, truncated numerically by a spherical PML
@@ -772,7 +772,7 @@ $S$ is the piston surface, and $r'$ is the distance between the observation
 point and the running integration point on the piston.  The gas density and
 sound speed are denoted by $\rho_0$ and $c$, respectively.  In the numerical
 case, the open boundary is represented by the spherical PML sketched in
-\Cref{fig:piston}.  Its damping profile is controlled by the polynomial order
+\cref{fig:piston}.  Its damping profile is controlled by the polynomial order
 $po$ and reaches the prescribed maximum value $\sigma_{\max}$ at the outer PML
 boundary.
 
@@ -794,9 +794,9 @@ Here $J_1$ is the first-order Bessel function.  The term in brackets gives the
 angular directivity of the piston and provides an independent check of the
 computed complex pressure field.
 
-The parameters used in the numerical case are listed in \Cref{tab:paramsPiston}.
+The parameters used in the numerical case are listed in \cref{tab:paramsPiston}.
 They specify the acoustic medium, piston excitation, and spherical PML shown in
-\Cref{fig:piston}.
+\cref{fig:piston}.
 
 \begin{table}[H]
     \centering
@@ -823,18 +823,18 @@ They specify the acoustic medium, piston excitation, and spherical PML shown in
 \subsubsection{Mesh-convergence post-processing}
 Mesh convergence is assessed using 20, 50, and 100 cells per wavelength.  For
 the near-field test, the computed pressure is sampled on the symmetry axis and
-compared directly with \Cref{fc:nearField}.  The numerical pressure amplitude is
+compared directly with \cref{fc:nearField}.  The numerical pressure amplitude is
 evaluated from the computed complex pressure as
 \begin{equation}
     |p|_n(\x_i)=\sqrt{P_{re}^2(\x_i)+P_{im}^2(\x_i)} ,
 \end{equation}
 and compared with the analytical amplitude $p_{\mathrm{ex}}(\x_i)$ at sampled
 points $\x_i$ on the symmetry axis. For this case, the quantities used in
-\Cref{eq:verificationErrorNorms} are normalized by the characteristic pressure
+\cref{eq:verificationErrorNorms} are normalized by the characteristic pressure
 $p_0=\rho_0 c u_0$.
 The resulting errors and observed orders are listed in
-\Cref{tab:pistonConvergence}.  The corresponding pointwise comparison is shown
-in \Cref{fig:pistonNearAmp}: the numerical curves reproduce the oscillatory
+\cref{tab:pistonConvergence}.  The corresponding pointwise comparison is shown
+in \cref{fig:pistonNearAmp}: the numerical curves reproduce the oscillatory
 near-field structure and approach the analytical amplitude as the mesh is
 refined.
 
@@ -860,7 +860,7 @@ boundary integral
 \end{equation}
 Here $G(x,\tilde{x})=\frac{e^{ik|x-\tilde{x}|}}{4\pi|x-\tilde{x}| }$ is the
 free-space Green function and the complex pressure $P(x) = P_{re}+iP_{im}$ .  The resulting directivity is compared with the
-analytical far-field expression in \Cref{fig:pistonFarAmp}.  The polar plot
+analytical far-field expression in \cref{fig:pistonFarAmp}.  The polar plot
 uses a logarithmic pressure scale to make both the main lobe and the angular
 decay visible; the numerical pattern follows the analytical profile closely,
 with the largest differences occurring near the piston plane at
@@ -878,9 +878,9 @@ $\theta=90^\circ$.
 \input{tables/farField_convergence_table.tex}
 
 The convergence trends from the near-field amplitude and far-field directivity
-studies are summarized in \Cref{fig:pistonMetricsConvergence}.  This figure
-collects the normalized error measures from \Cref{tab:pistonConvergence} and
-\Cref{tab:pistonFarFieldConvergence}, making clear that the on-axis near-field
+studies are summarized in \cref{fig:pistonMetricsConvergence}.  This figure
+collects the normalized error measures from \cref{tab:pistonConvergence} and
+\cref{tab:pistonFarFieldConvergence}, making clear that the on-axis near-field
 amplitude improves strongly with mesh refinement, while the far-field
 directivity error is smaller and varies more weakly over the tested mesh range.
 
@@ -895,7 +895,7 @@ directivity error is smaller and varies more weakly over the tested mesh range.
 \subsection{One-dimensional layered interface}
 The layered-interface case verifies both wave transmission across a strong
 material-property jump and attenuation by the directional tensor PML.  Its
-configuration is shown in \Cref{fig:1DLayerd}.
+configuration is shown in \cref{fig:1DLayerd}.
 
 \begin{figure}[H]
     \centering
@@ -958,7 +958,7 @@ The analytical solution reads
 \end{equation}
 Here $k_j=\omega/c_j$ and
 $R=(\rho_2c_2-\rho_1c_1)/(\rho_2c_2+\rho_1c_1)$.  The simulation parameters
-are listed in \Cref{tab:params1DTwoPhase}.
+are listed in \cref{tab:params1DTwoPhase}.
 \begin{table}[H]
     \centering
     \caption{Simulation parameters for the one-dimensional layered-interface case.}
@@ -977,7 +977,7 @@ are listed in \Cref{tab:params1DTwoPhase}.
         Interface position & $L_1$ & 0.09 & $\mathrm{m}$ \\
         PML start position & $L_2$ & 0.20 & $\mathrm{m}$ \\
         PML thickness & $L-L_2$ & 0.15 & $\mathrm{m}$ \\
-        Maximum PML damping & $\sigma_{\max}$ & $2.0\times10^5$ & $\mathrm{s^{-1}}$ \\
+        Maximum PML damping & $\sigma_{\max}$ & $5.0\times10^5$ & $\mathrm{s^{-1}}$ \\
         PML polynomial order & $p$ & 3 & -- \\
         Number of cells in $x$ & $N_x$ & 8000 & -- \\
         \bottomrule
@@ -986,8 +986,8 @@ are listed in \Cref{tab:params1DTwoPhase}.
 
 The numerical real and imaginary pressure components agree closely with the
 analytical solution throughout both the physical domain and the PML, as shown
-in \Cref{fig:1DLayerdCompare}.  In the physical domain, the relative $L_2$
-errors are $1.24\times10^{-3}$ and $1.52\times10^{-3}$ for
+in \cref{fig:1DLayerdCompare}.  In the physical domain, the relative $L_2$
+errors are $1.24\times10^{-3}$ and $1.54\times10^{-3}$ for
 $P_{\mathrm{re}}$ and $P_{\mathrm{im}}$, respectively.  Because the acoustic
 impedance $\rho c$ of water is much larger than that of air, $R\approx1$ and
 the field in medium~1 is approximately a standing wave.  In this limit, the
@@ -999,7 +999,7 @@ which has only an imaginary component.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_Pre_Pim_compare.png}%
-    \caption{Directional tensor PML validation: comparison of the numerical real and imaginary pressure components with the analytical layered-interface solution.}
+    \caption{Directional tensor PML validation: comparison of the numerical real and imaginary pressure components with the analytical layered-interface solution.  Markers identify the numerical samples, while the solid black curves show the analytical reference.}
     \label{fig:1DLayerdCompare}
 \end{figure}
 
@@ -1020,10 +1020,10 @@ in this case, this factor is
 \end{equation}
 Consequently, the amplitude remains constant before
 the PML and then decreases smoothly towards the truncated boundary, as
-confirmed by \Cref{fig:1DLayerdAmplitude}.  Over $0.20<x<0.35\,\mathrm{m}$,
+confirmed by \cref{fig:1DLayerdAmplitude}.  Over $0.20<x<0.35\,\mathrm{m}$,
 the numerical and analytical complex pressures differ by only
-$1.39\times10^{-3}$ in relative $L_2$ norm, and their pressure amplitudes
-differ by $3.45\times10^{-4}$.
+$1.30\times10^{-3}$ in relative $L_2$ norm, and their pressure amplitudes
+differ by $1.01\times10^{-5}$.
 
 \begin{figure}[H]
     \centering
@@ -1039,15 +1039,16 @@ The one-dimensional layered-interface case is also used to examine the influence
 \input{tables/pml_sigma_sensitivity_table.tex}
 
 The resulting relative $L_2$ errors are shown in
-\Cref{fig:pmlSigmaSensitivity}.  With the PML coefficients scaled using the
+\cref{fig:pmlSigmaSensitivity}.  With the PML coefficients scaled using the
 local sound speed of medium~2, small values of $|\sigma_{\max}|$ do not provide
 sufficient attenuation before the truncated boundary.  The amplitude error
 decreases from $3.51\times10^{-1}$ at
 $\sigma_{\max}=10^4\,\mathrm{s}^{-1}$ to approximately
 $9.1\times10^{-4}$ at both $2\times10^5\,\mathrm{s}^{-1}$ and
 $5\times10^5\,\mathrm{s}^{-1}$.  The selected value
-$\sigma_{\max}=2\times10^5\,\mathrm{s}^{-1}$ already provides sufficient
-attenuation and avoids unnecessarily large coefficients.  
+$\sigma_{\max}=5\times10^5\,\mathrm{s}^{-1}$ is used for the default
+layered-interface validation because it gives stronger attenuation in the PML
+without degrading the physical-domain error.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_sigma_sensitivity.png}%
@@ -1057,15 +1058,15 @@ attenuation and avoids unnecessarily large coefficients.
 
 To assess mesh dependence at the selected damping strength, an additional
 sweep is performed with
-$\sigma_{\max}=2.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of
+$\sigma_{\max}=5.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of
 cells in the propagation direction.  The results in
-\Cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} quantify convergence of
+\cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} quantify convergence of
 the real pressure, imaginary pressure, and pressure amplitude for the
 directional, medium-dependent PML formulation.  The individual component
 errors show small non-monotonic variations because phase error redistributes
 between the real and imaginary components.  Nevertheless, the amplitude error
 decreases from $1.72\times10^{-2}$ at $N_x=500$ to
-$9.15\times10^{-4}$ at $N_x=8000$, demonstrating convergence of the pressure
+$9.13\times10^{-4}$ at $N_x=8000$, demonstrating convergence of the pressure
 amplitude.
 
 \input{tables/pml_mesh_sensitivity_table.tex}
@@ -1073,7 +1074,7 @@ amplitude.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/pml_mesh_sensitivity.png}%
-    \caption{Layered-interface case: directional tensor PML mesh sensitivity with fixed damping $\sigma_{\max}=2.0\times10^5\,\mathrm{s^{-1}}$.}
+    \caption{Layered-interface case: directional tensor PML mesh sensitivity with fixed damping $\sigma_{\max}=5.0\times10^5\,\mathrm{s^{-1}}$.}
     \label{fig:pmlMeshSensitivity}
 \end{figure}
 
@@ -1097,7 +1098,7 @@ where $\Gamma_r$ is the reflector surface and $\normal_r$ is the mean reflector 
     \label{fig:heightSweepAspectRatio}
 \end{figure}
 
-\Cref{fig:heightSweepAspectRatio} shows the resulting force curves.  They reproduce the main trends reported in the COMSOL study of Andrade and Marzo \cite{andrade2019numerical}: the force is strongly amplified near the acoustic resonance, the drop shifts the resonance response, and the force level near the peak increases systematically with the drop aspect ratio.  Because the levitator operates close to resonance, the radiation force is highly sensitive to small changes in geometry, material parameters, acoustic drive, and numerical representation of the drop.  The agreement in resonance scale, curve ordering, and force magnitude is therefore a meaningful application-level comparison.  This example demonstrates that the solver can use the same interface-resolved material description required for two-phase flow simulations while producing acoustic-force trends consistent with the established finite-element reference.
+\cref{fig:heightSweepAspectRatio} shows the resulting force curves.  They reproduce the main trends reported in the COMSOL study of Andrade and Marzo \cite{andrade2019numerical}: the force is strongly amplified near the acoustic resonance, the drop shifts the resonance response, and the force level near the peak increases systematically with the drop aspect ratio.  Because the levitator operates close to resonance, the radiation force is highly sensitive to small changes in geometry, material parameters, acoustic drive, and numerical representation of the drop.  The agreement in resonance scale, curve ordering, and force magnitude is therefore a meaningful application-level comparison.  This example demonstrates that the solver can use the same interface-resolved material description required for two-phase flow simulations while producing acoustic-force trends consistent with the established finite-element reference.
 
 \FloatBarrier
 \section{Performance}
@@ -1120,7 +1121,7 @@ Performance was assessed with the \texttt{WedgeLevitatorDropAlpha} application c
     \end{tabular}
 \end{table}
 
-\Cref{tab:dropAlphaStrongScaling,fig:dropAlphaStrongScaling} show the strong-scaling behaviour for the finest benchmark mesh.  Increasing the rank count from one to eight reduces the elapsed solve time from $23.81\,\mathrm{s}$ to $10.02\,\mathrm{s}$, giving a speedup of $2.38$.  Most of the improvement is obtained between one and four ranks.  The additional reduction from four to eight ranks is modest, and the parallel efficiency decreases to $29.7\%$, indicating that this problem size is already too small to keep eight MUMPS factorisation processes efficiently occupied on the workstation.
+\cref{tab:dropAlphaStrongScaling,fig:dropAlphaStrongScaling} show the strong-scaling behaviour for the finest benchmark mesh.  Increasing the rank count from one to eight reduces the elapsed solve time from $23.81\,\mathrm{s}$ to $10.02\,\mathrm{s}$, giving a speedup of $2.38$.  Most of the improvement is obtained between one and four ranks.  The additional reduction from four to eight ranks is modest, and the parallel efficiency decreases to $29.7\%$, indicating that this problem size is already too small to keep eight MUMPS factorisation processes efficiently occupied on the workstation.
 
 \begin{figure}[H]
     \centering
@@ -1129,7 +1130,7 @@ Performance was assessed with the \texttt{WedgeLevitatorDropAlpha} application c
     \label{fig:dropAlphaStrongScaling}
 \end{figure}
 
-\Cref{fig:dropAlphaProblemSizeScaling} reports the fixed-rank problem-size study.  With four MPI ranks, decreasing the cfMesh maximum cell size from $8.0\times10^{-5}\,\mathrm{m}$ to $3.0\times10^{-5}\,\mathrm{m}$ increases the mesh from $80\,569$ to $570\,818$ cells and the block system from $161\,138$ to $1\,141\,636$ unknowns.  Over this range the measured elapsed time increases from $1.75\,\mathrm{s}$ to $11.24\,\mathrm{s}$.  Thus the unknown count increases by a factor of $7.08$ while the solve time increases by a factor of $6.42$; a log-log fit gives an empirical exponent of approximately $0.95$.  The corresponding cost per unknown remains nearly constant, between $8.84\times10^{-6}$ and $1.09\times10^{-5}\,\mathrm{s}$ per unknown.  For these moderately sized axisymmetric wedge meshes, the assembled PETSc/MUMPS workflow therefore shows close to linear growth in wall-clock time with problem size when the rank count is fixed.
+\cref{fig:dropAlphaProblemSizeScaling} reports the fixed-rank problem-size study.  With four MPI ranks, decreasing the cfMesh maximum cell size from $8.0\times10^{-5}\,\mathrm{m}$ to $3.0\times10^{-5}\,\mathrm{m}$ increases the mesh from $80\,569$ to $570\,818$ cells and the block system from $161\,138$ to $1\,141\,636$ unknowns.  Over this range the measured elapsed time increases from $1.75\,\mathrm{s}$ to $11.24\,\mathrm{s}$.  Thus the unknown count increases by a factor of $7.08$ while the solve time increases by a factor of $6.42$; a log-log fit gives an empirical exponent of approximately $0.95$.  The corresponding cost per unknown remains nearly constant, between $8.84\times10^{-6}$ and $1.09\times10^{-5}\,\mathrm{s}$ per unknown.  For these moderately sized axisymmetric wedge meshes, the assembled PETSc/MUMPS workflow therefore shows close to linear growth in wall-clock time with problem size when the rank count is fixed.
 
 \begin{figure}[H]
     \centering

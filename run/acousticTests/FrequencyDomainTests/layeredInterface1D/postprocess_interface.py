@@ -212,35 +212,68 @@ def main():
         fobj.write(f"Pim_relL2 = {pim_rel_l2:.8e}\n")
         fobj.write(f"|p|_relL2 = {pabs_rel_l2:.8e}\n")
 
-    fig_p, axes = plt.subplots(2, 1, figsize=(8, 6), dpi=140, sharex=True)
-    axes[0].plot(x, pc_th.real, "k-", lw=1.8, label="Analytical Pre")
-    axes[0].plot(x, pc.real, "r--", lw=1.3, label="Simulation Pre")
-    axes[1].plot(x, pc_th.imag, "k-", lw=1.8, label="Analytical Pim")
-    axes[1].plot(x, pc.imag, "b--", lw=1.3, label="Simulation Pim")
-    for axi in axes:
-        axi.axvline(x_int, color="0.35", lw=1.0, ls=":", label="interface")
-        axi.axvline(x_max - pml_l, color="0.55", lw=1.0, ls="--", label="PML start")
-        axi.set_xlim(0.0, x_max)
-        axi.set_ylabel("pressure [Pa]")
-        axi.grid(True, alpha=0.3)
-        handles, labels = axi.get_legend_handles_labels()
+    fig_p, axes = plt.subplots(2, 1, figsize=(8, 6), dpi=180, sharex=True)
+    components = [
+        (pc_th.real, pc.real, r"$P_{\mathrm{re}}$", "#d55e00"),
+        (pc_th.imag, pc.imag, r"$P_{\mathrm{im}}$", "#0072b2"),
+    ]
+    for row, (analytical, simulation, label, color) in enumerate(components):
+        ax = axes[row]
+        ax.plot(x, analytical, color="0.1", lw=2.0, label="Analytical")
+        ax.plot(
+            x,
+            simulation,
+            color=color,
+            lw=1.2,
+            ls="--",
+            marker="o",
+            markevery=45,
+            ms=2.2,
+            mfc="white",
+            mec=color,
+            mew=0.7,
+            label="Numerical",
+        )
+        ax.axvspan(pml_start, x_max, color="0.92", zorder=0)
+        ax.axvline(x_int, color="0.35", lw=0.9, ls=":", label="interface")
+        ax.axvline(pml_start, color="0.55", lw=0.9, ls="--", label="PML start")
+        ax.set_xlim(0.0, x_max)
+        ax.set_ylabel(f"{label} [Pa]")
+        ax.grid(True, alpha=0.25)
+        handles, labels = ax.get_legend_handles_labels()
         unique = dict(zip(labels, handles))
-        axi.legend(unique.values(), unique.keys(), loc="best")
+        ax.legend(unique.values(), unique.keys(), loc="upper right", frameon=False, ncol=2)
+
+    axes[0].set_title("Layered interface pressure field comparison")
     axes[1].set_xlabel("x [m]")
-    fig_p.suptitle("Layered interface pressure field comparison")
     fig_p.tight_layout()
     fig_p.savefig(out_dir / "pressureField_Pre_Pim_compare.png")
 
-    fig_abs, ax_abs = plt.subplots(figsize=(8, 4.5), dpi=140)
-    ax_abs.plot(x, np.abs(pc_th), "k-", lw=1.8, label="Analytical |p|")
-    ax_abs.plot(x, np.abs(pc), "g--", lw=1.3, label="Simulation |p|")
+    fig_abs, ax_abs = plt.subplots(figsize=(8, 4.5), dpi=180)
+    ax_abs.plot(x, np.abs(pc_th), color="0.1", lw=2.0, label="Analytical |p|")
+    ax_abs.plot(
+        x,
+        np.abs(pc),
+        color="#009e73",
+        lw=1.2,
+        ls="--",
+        marker="o",
+        markevery=45,
+        ms=2.2,
+        mfc="white",
+        mec="#009e73",
+        mew=0.7,
+        label="Numerical |p|",
+    )
+    ax_abs.axvspan(pml_start, x_max, color="0.92", zorder=0)
     ax_abs.axvline(x_int, color="0.35", lw=1.0, ls=":", label="interface")
     ax_abs.axvline(x_max - pml_l, color="0.55", lw=1.0, ls="--", label="PML start")
     ax_abs.set_xlim(0.0, x_max)
+    ax_abs.set_title("Pressure amplitude comparison")
     ax_abs.set_xlabel("x [m]")
     ax_abs.set_ylabel("|p| [Pa]")
-    ax_abs.grid(True, alpha=0.3)
-    ax_abs.legend(loc="best")
+    ax_abs.grid(True, alpha=0.25)
+    ax_abs.legend(loc="upper right", frameon=False, ncol=2)
     fig_abs.tight_layout()
     fig_abs.savefig(out_dir / "pressureField_abs_compare.png")
 

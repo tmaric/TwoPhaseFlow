@@ -76,10 +76,17 @@ def main() -> None:
     fig.tight_layout()
     fig.savefig(out_dir / "pml_mesh_sensitivity.png")
 
+    sigma = rows[0]["sigmaMax"] if rows else 0.0
+    sigma_text = f"{abs(sigma)/1.0e5:.1f}\\times10^5"
+
     with (out_dir / "pml_mesh_sensitivity_table.tex").open("w", encoding="utf-8") as fobj:
-        fobj.write("\\begin{table}[htbp]\n")
+        fobj.write("\\begin{table}[H]\n")
         fobj.write("    \\centering\n")
-        fobj.write("    \\caption{Directional tensor PML mesh sensitivity for the one-dimensional layered-interface case with fixed damping $\\sigma_{\\max}=-2.0\\times10^5\\,\\mathrm{s^{-1}}$.}\n")
+        fobj.write(
+            "    \\caption{Directional tensor PML mesh sensitivity for the "
+            "one-dimensional layered-interface case with fixed damping "
+            f"$\\sigma_{{\\max}}={sigma_text}\\,\\mathrm{{s^{{-1}}}}$.}}\n"
+        )
         fobj.write("    \\label{tab:pmlMeshSensitivity}\n")
         fobj.write("    \\begin{tabular}{rrrrr}\n")
         fobj.write("        \\toprule\n")
