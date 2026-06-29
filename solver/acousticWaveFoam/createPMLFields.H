@@ -41,39 +41,39 @@ volScalarField v
     dimensionedScalar("v", dimPressure*dimTime, Zero)
 );
 
-volScalarField SC0
+volScalarField C0
 (
     IOobject
     (
-        "SC0",
+        "C0",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
     mesh,
-    dimensionedScalar("SC0", dimTime/(dimLength*dimLength), Zero)
+    dimensionedScalar("C0", dimTime/(dimLength*dimLength), Zero)
 );
 
-volScalarField SC1
+volScalarField C1
 (
     IOobject
     (
-        "SC1",
+        "C1",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
     mesh,
-    dimensionedScalar("SC1", dimless/(dimLength*dimLength), Zero)
+    dimensionedScalar("C1", dimless/(dimLength*dimLength), Zero)
 );
 
-volScalarField SC2
+volScalarField C2
 (
     IOobject
     (
-        "SC2",
+        "C2",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
@@ -82,7 +82,7 @@ volScalarField SC2
     mesh,
     dimensionedScalar
     (
-        "SC2",
+        "C2",
         dimless/(dimLength*dimLength*dimTime),
         Zero
     )
@@ -102,32 +102,32 @@ volTensorField TC0
     dimensionedTensor("TC0", dimless/dimTime, tensor::zero)
 );
 
-volTensorField TC1
+volTensorField T1
 (
     IOobject
     (
-        "TC1",
+        "T1",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
     mesh,
-    dimensionedTensor("TC1", dimless/dimTime, tensor::zero)
+    dimensionedTensor("T1", dimless/dimTime, tensor::zero)
 );
 
-volTensorField TC2
+volTensorField T2
 (
     IOobject
     (
-        "TC2",
+        "T2",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
     mesh,
-    dimensionedTensor("TC2", dimless/(dimTime*dimTime), tensor::zero)
+    dimensionedTensor("T2", dimless/(dimTime*dimTime), tensor::zero)
 );
 
 Info<< "Creating time-domain PML coefficients from sigma\n" << endl;

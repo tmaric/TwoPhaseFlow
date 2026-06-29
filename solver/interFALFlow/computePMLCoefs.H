@@ -6,8 +6,8 @@
     (
         const tensor& sigmaValue,
         const scalar alpha,
-        scalar& sc0,
-        scalar& sc1,
+        scalar& c0,
+        scalar& c1,
         tensor& t0,
         tensor& t1
     )
@@ -40,8 +40,8 @@
            /(sqr(omega) + sqr(dz) + VSMALL)
         );
 
-        sc0 = (dx*dy + dx*dz + dy*dz)*invSoundSpeedSqr;
-        sc1 =
+        c0 = (dx*dy + dx*dz + dy*dz)*invSoundSpeedSqr;
+        c1 =
             (omega*(dx + dy + dz) - dxyzOverOmega)*invSoundSpeedSqr;
     };
 
@@ -51,8 +51,8 @@
         (
             sigma[celli],
             min(max(alpha1[celli], scalar(0)), scalar(1)),
-            SC0[celli],
-            SC1[celli],
+            C0[celli],
+            C1[celli],
             T0[celli],
             T1[celli]
         );
@@ -70,8 +70,8 @@
                     max(alpha1.boundaryField()[patchi][facei], scalar(0)),
                     scalar(1)
                 ),
-                SC0.boundaryFieldRef()[patchi][facei],
-                SC1.boundaryFieldRef()[patchi][facei],
+                C0.boundaryFieldRef()[patchi][facei],
+                C1.boundaryFieldRef()[patchi][facei],
                 T0.boundaryFieldRef()[patchi][facei],
                 T1.boundaryFieldRef()[patchi][facei]
             );

@@ -109,23 +109,23 @@ int main(int argc, char *argv[])
             (
               rho*fvm::laplacian(invRhof, Pre)
               + fvm::laplacian(T0, Pre)
-              + fvm::Sp(k2 - SC0, Pre)
+              + fvm::Sp(k2 - C0, Pre)
             );
 
             fvScalarMatrix AopPim
             (
               rho*fvm::laplacian(invRhof, Pim)
               + fvm::laplacian(T0, Pim)
-              + fvm::Sp(k2 - SC0, Pim)
+              + fvm::Sp(k2 - C0, Pim)
             );
 
             // Keep B1 (laplacian) and B2 (Sp) as separate operators.
             // Their off-block diagonal handling differs in assembly.
             fvScalarMatrix couplingLaplPre(fvm::laplacian(T1, Pre));  // B1
-            fvScalarMatrix couplingMassPre(fvm::Sp(SC1, Pre));         // B2
+            fvScalarMatrix couplingMassPre(fvm::Sp(C1, Pre));          // B2
 
             fvScalarMatrix couplingLaplPim(fvm::laplacian(T1, Pim));  // B1
-            fvScalarMatrix couplingMassPim(fvm::Sp(SC1, Pim));         // B2
+            fvScalarMatrix couplingMassPim(fvm::Sp(C1, Pim));          // B2
 
             assembleBlockSystem
             (

@@ -152,32 +152,32 @@ volScalarField pMomFlux
     dimensionedScalar("pMomFlux", dimPressure, 0)
 );
 
-volScalarField SC0
+volScalarField C0
 (
     IOobject
     (
-        "SC0",
+        "C0",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
     mesh,
-    dimensionedScalar("SC0", dimless/sqr(dimLength), Zero)
+    dimensionedScalar("C0", dimless/sqr(dimLength), Zero)
 );
 
-volScalarField SC1
+volScalarField C1
 (
     IOobject
     (
-        "SC1",
+        "C1",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
     mesh,
-    dimensionedScalar("SC1", dimless/sqr(dimLength), Zero)
+    dimensionedScalar("C1", dimless/sqr(dimLength), Zero)
 );
 
 volTensorField T0

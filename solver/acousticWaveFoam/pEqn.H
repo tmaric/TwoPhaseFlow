@@ -12,8 +12,8 @@ while (pimple.correctNonOrthogonal())
     (
         fvm::ddt(u) 
       + (TC0 & u) 
-      + (TC1 & fvc::grad(p)) 
-      - (TC2 & fvc::grad(v))
+      + (T1 & fvc::grad(p)) 
+      - (T2 & fvc::grad(v))
     );
     uEqn.solve();
 
@@ -25,9 +25,9 @@ while (pimple.correctNonOrthogonal())
       - 0.25*fvm::laplacian(invRhof,p)
       - 0.5*fvc::laplacian(invRhof,p.oldTime())
       - 0.25*fvc::laplacian(invRhof,p.oldTime().oldTime())
-      + fvm::ddt(SC0/rho, p)
-      + fvm::Sp(SC1/rho, p)
-      + (SC2/rho)*v
+      + fvm::ddt(C0/rho, p)
+      + fvm::Sp(C1/rho, p)
+      + (C2/rho)*v
 
       - fvc::div(u)/rho
       //+ sqr(c0)*(rhol - rho)/rhol*(fvc::grad(alpha1) & fvc::grad(p)));

@@ -110,7 +110,7 @@
 %%             country={}}
 %% \fntext[label3]{}
 
-\title{\texttt{acousticHelmholtzFoam}: A parallel finite-volume solver for frequency-domain acoustic waves in heterogeneous two-phase media}
+\title{\texttt{acousticHelmholtzFoam}: A parallel finite-volume solver for frequency-domain acoustic waves in heterogeneous two-phase media with PML boundary condition}
 
 %% use optional labels to link authors explicitly to addresses:
 %% \author[label1,label2]{}
@@ -212,8 +212,8 @@ The paper is organized as follows. \cref{sec:model} derives the acoustic model a
 \section{Mathematical model}
 \label{sec:model}
 
-\subsection{Wave equation for heterogeneous medium}
-The governing equations of fluid motion for density $\rho$, pressure $p$, velocity $\v$  are expressed as follows:
+\subsection{Wave equation for heterogeneous media}
+The governing equations of fluid motion for density $\rho$, pressure $p$, and velocity $\v$ are expressed as follows:
 \begin{itemize}
 \item The mass conservation equation:
         \begin{equation}
@@ -232,7 +232,7 @@ The governing equations of fluid motion for density $\rho$, pressure $p$, veloci
         with the specific entropy $s$.
 \end{itemize}  
    
-Consider a quiescent flow ($\v_0=\mathbf{0}$) characterized by a spatial dependent density $\rho_0(\x)$  prior to the introduction of any acoustic disturbance. The classical perturbation theory is employed to describe the propagation of acoustic waves, wherein the acoustic field is represented as small perturbations (denoted by the subscript $1$, with $|\rho_1|\ll \rho_0$ and $|p_1|\ll p_0$) in the density, pressure, and velocity fields:
+Consider a quiescent flow ($\v_0=\mathbf{0}$) characterized by a spatially dependent density $\rho_0(\x)$ prior to the introduction of any acoustic disturbance. Classical perturbation theory is employed to describe the propagation of acoustic waves, wherein the acoustic field is represented as small perturbations (denoted by the subscript $1$, with $|\rho_1|\ll \rho_0$ and $|p_1|\ll p_0$) in the density, pressure, and velocity fields:
     \begin{equation}
         \begin{aligned}
             \rho &= \rho_0 + \rho_1, \\
@@ -242,46 +242,46 @@ Consider a quiescent flow ($\v_0=\mathbf{0}$) characterized by a spatial depende
         \end{aligned}
     \end{equation}
 
-For unperturbed fluid is $\v=0$, it follows from \cref{eq:momConserv} $\nabla p_0=0$.
+For the unperturbed fluid, $\v=0$, and it follows from \cref{eq:momConserv} that $\nabla p_0=0$.
     
-Substituting \cref{eq:1stPert} into \cref{eq:momConserv}, by neglecting the high order terms (e.g., $\rho_1\v_1$, $\v_1\v_1$) yield
+Substituting \cref{eq:1stPert} into \cref{eq:momConserv} and neglecting higher-order terms (e.g., $\rho_1\v_1$, $\v_1\v_1$) yields
         \begin{equation}
             \rho_0 \frac{\partial \v_1}{\partial t}=-\nabla p_1.
             \label{eq:1stMomConserv}            
         \end{equation}
 
-After introducing the total derivative $\frac{d}{dt}:=\frac{\partial}{\partial t} + \v \cdot \nabla$ The \cref{eq:massConserv} can be written as
+After introducing the total derivative $\frac{d}{dt}:=\frac{\partial}{\partial t} + \v \cdot \nabla$, \cref{eq:massConserv} can be written as
 \begin{equation}
     \frac{d \rho}{dt} + \rho \nabla\cdot\v =0 
 \end{equation}
 
-While the propagation of ist sound a adiabatic process, means  $\frac{d s}{d t}=0$, and we have 
+Since sound propagation is an adiabatic process, $\frac{d s}{d t}=0$, and we have
 \begin{equation}
      \frac{d \rho}{dt} =\left( \frac{\partial \rho}{\partial p}\right)_s\frac{d p}{\partial t} + \left(\frac{\partial \rho}{\partial s}\right)_p\frac{d s}{d t} = \frac{\partial \rho}{\partial p}\frac{d p}{\partial t} = \frac{1}{c^2}\left(\frac{\partial p}{\partial t} + (\v\cdot\nabla)p\right)
 \end{equation}
-Where we have use the definition of the sound speed $c:=\sqrt{\frac{\partial p}{\partial \rho}}$. The mass conservation now becomes
+where we have used the definition of the sound speed $c:=\sqrt{\frac{\partial p}{\partial \rho}}$. The mass conservation equation now becomes
 \begin{equation}
     \frac{\partial p}{\partial t} + (\v\cdot\nabla)p + \rho c^2 \, \nabla\cdot\v = 0
     \label{eq:pMassConti}
 \end{equation}
 
-Following the same procedure, we use our first order pertubation ansatz \cref{eq:1stPert}, by neglecting the high order terms it follows
+Following the same procedure, we use the first-order perturbation ansatz \cref{eq:1stPert}. Neglecting higher-order terms gives
 \begin{equation}
     \frac{\partial p_1}{\partial t} = -\rho_0 c^2\, \nabla \cdot \v_1.
     \label{eq:1stMassConserv}
 \end{equation}
-Taking time derivative then use \cref{eq:1stMomConserv} to eliminate $\v$, we have
+Taking the time derivative and then using \cref{eq:1stMomConserv} to eliminate $\v_1$ gives
 \begin{equation}
     \frac{\partial^2 p_1}{\partial t^2}  = -\rho_0 c^2\, \nabla \cdot \frac{\partial \v_1}{ \partial t} =\rho_0 c^2\, \nabla \cdot\left(\frac{\nabla p_1}{\rho_0}\right),
     \label{eq:heteWaveP}
 \end{equation}
-which is the pressure wave equation for heterogeneous medium. Taken $\rho_0$ as constant, than we get the familiar form of the wave equation for homogeneous medium
+which is the pressure wave equation for a heterogeneous medium. Taking $\rho_0$ as constant gives the familiar form of the wave equation for a homogeneous medium:
 \begin{equation}
     \frac{\partial^2 p_1}{\partial t^2} = c^2 \Delta p_1
 \end{equation}
 
 \subsection{Helmholtz equation}
-If the acoustic system is driven by single frequency and the timescale is much larger then the period of the sound wave. The acoustic pressure and velocity field can be written in the following time harmonic form
+If the acoustic system is driven at a single frequency and the timescale is much larger than the period of the sound wave, the acoustic pressure and velocity fields can be written in the following time-harmonic form:
 \begin{equation}
     \begin{aligned}
         p_1(x,t) &= \mathrm{Re}(e^{-i\omega t}P(x)),\\
@@ -289,12 +289,12 @@ If the acoustic system is driven by single frequency and the timescale is much l
     \end{aligned}
     \label{as:timeHarmonic}
 \end{equation}
-Where the complex pressure $P(x)=P_{re}+ iP_{im}(x)$ is spatial function.
-Insert the \cref{as:timeHarmonic} into the first order momentum equation \cref{eq:1stMomConserv} we have 
+where the complex pressure $P(x)=P_{re}+ iP_{im}(x)$ is a spatial function.
+Inserting \cref{as:timeHarmonic} into the first-order momentum equation \cref{eq:1stMomConserv} gives
 \begin{equation}
     i\omega\rho_0 \V = -\nabla P
 \end{equation}
-We substitute then \cref{as:timeHarmonic} into the general wave equation \cref{eq:heteWaveP} , than it follows
+Substituting \cref{as:timeHarmonic} into the general wave equation \cref{eq:heteWaveP} then gives
 \begin{equation}
     \rho_0\nabla\cdot\left(\frac{\nabla P}{\rho_0}\right) + k^2P=0,
     \label{eq:heteHelmholtz}
@@ -302,7 +302,7 @@ We substitute then \cref{as:timeHarmonic} into the general wave equation \cref{e
 where $k=\frac{\omega}{c}$ is the wave number. 
 
 
-\subsection{Acoustic Radiation Pressure}
+\subsection{Acoustic radiation pressure}
 One major motivation for developing the frequency-domain solver is the
 simulation of droplets in single-axis acoustic levitators. The time-averaged
 force that supports the droplet results from the acoustic radiation pressure,
@@ -343,33 +343,34 @@ Denoting the time average by $\langle\cdot\rangle:= \frac{1}{T}\int_0^T \cdot \,
     \frac{\langle p_1^2\rangle}{2\rho_0c^2}
     -\frac{\rho_0}{2}\langle|\v_1|^2\rangle.
 \end{equation}
-Finally, after employing the time harmonic ansatz \cref{as:timeHarmonic} we have
+Finally, applying the time-harmonic ansatz \cref{as:timeHarmonic} gives
 \begin{equation}
     \langle p_2\rangle =
     \frac{\langle |e^{-\omega t}P(x)|^2\rangle}{2\rho_0c^2}
     -\frac{\rho_0}{2}\langle|e^{-\omega t}\V(x)|^2\rangle =  \frac{ |P(x)|^2}{4\omega\rho_0c^2}
     -\frac{\rho_0}{4\omega}|\V(x)|^2.
+    \label{eq:acousticRadiationPressure}
 \end{equation}
 Thus, the acoustic radiation pressure $p_{\mathrm{rad}}:=\langle p_2\rangle$
 can be evaluated from the first-order pressure and velocity fields computed by
 the frequency-domain solver.
 
 
-\subsection{Perfect Matched Layer}
-As the simulation domain must be closed, it could be tricky if the acoustic system to be simulated is not closed, such as the sound wave from a speaker that travels far away. For this reason, we must modify the "open boundary" with some sort of boundary condition so we can enclose the simulation domain. For the case where the outgoing wave has a specific form or fixed direction a absorbing or radiation boundary condition could be a simple  way to model the open boundary. While for more general cases, the Perfect Matched Layer(PML) is by far the most effective boundary condition for the open boundary.
+\subsection{Perfectly matched layer}
+As the simulation domain must be closed, open acoustic systems, such as sound waves emitted by a speaker and propagating into the far field, require special treatment. For this reason, the open boundary must be replaced by a boundary condition that allows the simulation domain to be enclosed. If the outgoing wave has a specific form or fixed direction, an absorbing or radiation boundary condition can be a simple way to model the open boundary. For more general cases, the perfectly matched layer (PML) is one of the most effective approaches.
 
-By PML, the simulation domain is extended with a additional layer at the open boundary, through the modification of the helmholtz equation the outgoing wave will goes into this layer without reflection (where the name PML comes from) and be fully absorbed inside it. This make it behaves like a infinity extended area. 
+With a PML, the simulation domain is extended by an additional layer at the open boundary. Through the modification of the Helmholtz equation, outgoing waves enter this layer without reflection and are fully absorbed inside it. This makes the truncated domain behave like an infinitely extended region.
 
- The Helmholtz  equation is modified by extending the real spatial coordinate $\x$ into a complex space, defined as $\tilde{\x} = \x + i\h(\x)$. Under this transformation, \cref{eq:heteHelmholtz} becomes
+ The Helmholtz equation is modified by extending the real spatial coordinate $\x$ into a complex space, defined as $\tilde{\x} = \x + i\h(\x)$. Under this transformation, \cref{eq:heteHelmholtz} becomes
 \begin{equation}
                \rho_0 \tilde\nabla\cdot\left(\frac{\tilde\nabla P}{\rho_0}\right) + k^2P=0, 
               \label{eq:stretchedHelmholtz}
 \end{equation}
-where $\tilde{\nabla}$ denotes the Laplacian operator in the stretched coordinate system. To illustrate how the auxiliary function $h(x)$ looks like, we consider the domain with constant $\rho_0$, than the corresponding plane traveling wave solution to \cref{eq:stretchedHelmholtz} is 
+where $\tilde{\nabla}$ denotes the Laplacian operator in the stretched coordinate system. To illustrate the auxiliary function $h(x)$, we consider a domain with constant $\rho_0$. The corresponding plane traveling wave solution to \cref{eq:stretchedHelmholtz} is
  \begin{equation*}
    P = |P| \exp(i\k \cdot \tilde \x)=|P| \exp(-\k \cdot \h(\x)) \exp(i\k\cdot \x).  
  \end{equation*}
- Where the wave vector $\k$ has direction of the travelling wave and length of the wave number.  $\h(\x)$ is designed such that it introduces no artificial damping within the interior region while providing attenuation in the PML region, which means, 
+ Here, the wave vector $\k$ has the direction of the travelling wave and a magnitude equal to the wave number. $\h(\x)$ is designed such that it introduces no artificial damping within the interior region while providing attenuation in the PML region, which means
 \begin{equation}
             \k\cdot \h(\x) = \left\{
             \begin{array}{ll}
@@ -380,7 +381,7 @@ where $\tilde{\nabla}$ denotes the Laplacian operator in the stretched coordinat
             \label{eq:planeWaveDamp}
 \end{equation}
  
- Building upon the fundamental principles of the PML formulation described above, we derive here the specific implementation proposed by Kaltenbacher et al.\cite{Kaltenbacher2013modified}. Following \citep{Kaltenbacher2013modified}, the complex coordinate transformation is defined as $i\h(\x) = \frac{1}{i\omega}\int \boldsymbol{\sigma}(\x) \,dx$, where $\boldsymbol{\sigma}(\x)$ is the damping vector composed of $\sigma_x(x)$, $\sigma_y(y)$, and $\sigma_z(z)$, whose value are negative to satisfy \cref{eq:planeWaveDamp}. Accordingly, the following relations hold: 
+ Building upon the fundamental principles of the PML formulation described above, we derive here the specific implementation proposed by Kaltenbacher et al.\cite{Kaltenbacher2013modified}. Following \citep{Kaltenbacher2013modified}, the complex coordinate transformation is defined as $i\h(\x) = \frac{1}{i\omega}\int \boldsymbol{\sigma}(\x) \,dx$, where $\boldsymbol{\sigma}(\x)$ is the damping vector composed of $\sigma_x(x)$, $\sigma_y(y)$, and $\sigma_z(z)$, whose values are negative to satisfy \cref{eq:planeWaveDamp}. Accordingly, the following relations hold:
  \begin{equation}
      \begin{aligned}
          \frac{\partial \tilde{x}}{\partial x} & = \eta_x=1+\frac{\sigma_x}{i\omega},\quad  \frac{\partial}{\partial \tilde{x}}=\frac{\rho_0}{\eta_x}\frac{\partial}{\partial x},\\
@@ -389,7 +390,7 @@ where $\tilde{\nabla}$ denotes the Laplacian operator in the stretched coordinat
      \end{aligned}
      \label{eq:dampEtaDef}
  \end{equation}
- Substituting these expressions into \cref{eq:stretchedHelmholtz} states 
+ Substituting these expressions into \cref{eq:stretchedHelmholtz} gives
  \begin{equation}
      -\frac{(i\omega)^2}{c^2}P + \frac{\rho_0}{\eta_x}\frac{\partial}{\partial x}\left(\frac{1}{\rho_0 \eta_x}\frac{\partial P}{\partial x}\right) + \frac{\rho_0}{\eta_y}\frac{\partial}{\partial y}\left(\frac{1}{\rho_0 \eta_y}\frac{\partial P}{\partial y}\right) +\frac{\rho_0}{\eta_z}\frac{\partial}{\partial z}\left(\frac{1}{\rho_0 \eta_z}\frac{\partial P}{\partial z}\right)=0.
      \label{eq:extendedStretchHelmholz}
@@ -410,7 +411,7 @@ Expanding the first term using \cref{eq:dampEtaDef} gives
  
  We therefore proceed to separate \cref{eq:reformedStretchHelmholz} into its real and imaginary components. 
 
- Expanding first term in \cref{eq:dampEtaDef} yields 
+ Expanding the first term in \cref{eq:dampEtaDef} yields
  \begin{equation}
    \begin{aligned}
       \eta_x\eta_y\eta_z\frac{(i\omega)^2}{c^2}P &= \frac{(i\omega)^2}{c^2}\left(1+\frac{\sigma_x}{i\omega}\right)\left(1+\frac{\sigma_y}{i\omega}\right)\left(1+\frac{\sigma_z}{i\omega}\right)(P_{re} + iP_{im}) \\
@@ -434,7 +435,7 @@ A&=1 + \frac{\sigma_x(\sigma_y+\sigma_z -\sigma_x) - \sigma_y\sigma_z }{(\omega^
 B&= -\frac{(\sigma_x\sigma_y\sigma_z)/\omega + \omega(\sigma_y+\sigma_z-\sigma_x)}{(\omega^2 + \sigma^2_x)}.
     \end{aligned}
  \end{equation}
- The same procedure is applied to the third and fourth terms in \cref{eq:dampEtaDef}. Collecting all contributions yields the PML formulation of wave propagation in the frequency domain:
+ The same procedure is applied to the third and fourth terms in \cref{eq:dampEtaDef}. Collecting all contributions yields the PML formulation for wave propagation in the frequency domain:
         \begin{equation*}
             \begin{aligned}
                 \frac{\omega^2}{c^2} P_{re}  +  \rho_0 \nabla \cdot\left(\frac{1}{\rho_0} \nabla P_{re}\right) - C_0 P_{re} + C_1 P_{im}   
@@ -476,7 +477,7 @@ where $C_0$, $C_1$ and the tensor coefficients $\mathbf{T}_0$, $\mathbf{T}_1$ ar
         \end{aligned}
     \end{equation*}
 \end{paracol}
-while it is meaningless to introduce medium inhomogeneity in PML, the $\rho_0$ in the laplacian term with PML coefficient can be canceled out.  
+Since medium inhomogeneity is not introduced in the PML, $\rho_0$ in the Laplacian term with the PML coefficient can be canceled out.  
 \section{Numerical implementation}
 \label{sec:implementation}
 
@@ -499,7 +500,7 @@ utility \texttt{setPMLFields}.  This utility reads the same
 \texttt{transportProperties} dictionary and writes only the directional tensor
 field \texttt{sigma}, which represents the polynomial damping profile.  The
 solver subsequently reads \texttt{sigma} and computes the formulation-specific
-fields \texttt{SC0}, \texttt{SC1}, \texttt{T0}, and \texttt{T1} internally from
+fields \texttt{C0}, \texttt{C1}, \texttt{T0}, and \texttt{T1} internally from
 the relations given above.  
 After the PML damping field has been prepared and the solver-local coefficient
 fields have been constructed, \texttt{acousticHelmholtzFoam} forms the
@@ -515,7 +516,7 @@ The primary outputs are the converged real and imaginary pressure fields.  The
 solver also writes derived quantities that are useful for acoustic-force
 analysis: the pressure amplitude \texttt{pa}, the real and imaginary velocity
 components \texttt{Ure} and \texttt{Uim}, the acoustic radiation-pressure-like
-field \texttt{pr}, and the momentum-flux tensor \texttt{momFlux}.  
+field \texttt{pr}.
 
 \subsection{Finite-volume discretisation}
 \label{sec:fvmDiscretisation}
@@ -538,16 +539,20 @@ one-field coefficient representation is used,
 \label{eq:twoPhaseCoefficients}
 \end{equation}
 where $\alpha=1$ denotes liquid, $\alpha=0$ denotes gas, and intermediate values
-occur only in interface cells.  At material interfaces, the density coefficient
-is evaluated on faces from the geometrically reconstructed face fraction
-$\alpha_f$,
+occur only in interface cells.  The inverse density is averaged directly because
+$1/\rho$ is the coefficient that appears in the variable-density acoustic flux.
+At material interfaces, this coefficient is evaluated on faces from the
+geometrically reconstructed face fraction $\alpha_f$,
 \begin{equation}
     \left(\frac{1}{\rho}\right)_f
     = \frac{\alpha_f}{\rho_l}+\frac{1-\alpha_f}{\rho_g}.
 \label{eq:faceInverseDensity}
 \end{equation}
 Thus the variable-density flux uses an interface-aware face coefficient, while
-the wave-number and PML reaction coefficients remain cell-centred.
+the wave-number and PML reaction coefficients remain cell-centred.  This gives a
+less smeared impedance transition in the flux evaluation and reduces spurious
+interface oscillations in derived quantities such as the radiation-pressure
+field.
 
 After splitting the complex pressure into real and imaginary components, the
 equations are assembled as the block system
@@ -627,7 +632,7 @@ utility reads \texttt{constant/transportProperties}, evaluates the damping at
 cell centres and boundary-face centres, and writes the diagonal tensor field
 \texttt{sigma}.  Empty, wedge, and processor patches are not assigned a physical
 boundary damping value.  The Helmholtz solver then reads \texttt{sigma} and
-constructs the formulation-specific fields \texttt{SC0}, \texttt{SC1},
+constructs the formulation-specific fields \texttt{C0}, \texttt{C1},
 \texttt{T0}, and \texttt{T1}; these fields are therefore not inputs to
 \texttt{setPMLFields}.
 
@@ -674,9 +679,8 @@ two geometries:
 
 The utility does not infer the absorbing layer from boundary names.  The PML
 extent and damping strength must therefore be chosen consistently with the mesh,
-wavelength, and expected outgoing-wave directions.  Excessive damping over too
-few cells can still introduce numerical reflection, so the layer thickness and
-polynomial order are selected together with the mesh resolution.
+wavelength.  Excessive damping over too
+few cells can still introduce numerical reflection.
 
 \section{Verification}
 \label{sec:verification}
@@ -1085,7 +1089,7 @@ amplitude.
 \subsection{Height sweep in a single-axis acoustic levitator}
 The motivation for developing the frequency-domain solver is to simulate the acoustic field around liquid drops in a single-axis acoustic levitator.  As an application example, we consider the height-sweep configuration of Andrade and Marzo \cite{andrade2019numerical}.  Their COMSOL study evaluates the radiation force on the reflector while varying the transducer-reflector distance $H$ for an empty levitator and for constant-volume drops represented by spheroids with different aspect ratios.
 
-The OpenFOAM case \texttt{WedgeLevitatorDropAlpha} follows the same workflow.  A one-degree wedge sector is used and the resulting force is scaled by the axisymmetric factor $360^\circ/1^\circ$.  The acoustic frequency is $25.25\,\mathrm{kHz}$, the transducer velocity amplitude is $1\,\mathrm{m\,s^{-1}}$, and the equivalent spherical drop radius is $1\,\mathrm{mm}$.  The drop is placed at the mid-height of the cavity and is represented by the volume-fraction field \texttt{alpha.water}; for the non-spherical cases the spheroid volume is kept constant while the aspect ratio $a/b$ is varied.  After solving the Helmholtz problem, the reflector force is obtained by integrating the acoustic radiation-pressure field over the reflector patch,
+The OpenFOAM case \texttt{WedgeLevitatorDropAlpha} follows the same workflow, with the height sweep executed by the script \texttt{runHeightSweep.sh} in that case directory.  A one-degree wedge sector is used and the resulting force is scaled by the axisymmetric factor $360^\circ/1^\circ$.  The acoustic frequency is $25.25\,\mathrm{kHz}$, the transducer velocity amplitude is $1\,\mathrm{m\,s^{-1}}$, and the equivalent spherical drop radius is $1\,\mathrm{mm}$.  The drop is placed at the mid-height of the cavity and is represented by the volume-fraction field \texttt{alpha.water}; for the non-spherical cases the spheroid volume is kept constant while the aspect ratio $a/b$ is varied.  After solving the Helmholtz problem, the reflector force is obtained by integrating the acoustic radiation-pressure field, computed from \cref{eq:acousticRadiationPressure}, over the reflector patch,
 \begin{equation}
     F_n = \int_{\Gamma_r} p_{\mathrm{rad}} \, \normal \cdot \normal_r \, \mathrm{d}S ,
 \end{equation}
@@ -1141,7 +1145,61 @@ Performance was assessed with the \texttt{WedgeLevitatorDropAlpha} application c
 
 \section{Conclusions}
 
-\label{sec:results}
+\label{sec:conclusions}
+
+This paper presented \texttt{acousticHelmholtzFoam}, a parallel finite-volume
+solver for time-harmonic acoustic wave propagation in heterogeneous two-phase
+media.  The solver is implemented in OpenFOAM and solves the complex Helmholtz
+equation by separating the pressure into coupled real and imaginary fields.
+This formulation allows the variable-density acoustic operator, PML terms, and
+two-phase material coefficients to be assembled with standard finite-volume
+operators, while the resulting block-coupled system is solved through PETSc
+with the MUMPS sparse direct solver.  The accompanying \texttt{setPMLFields}
+utility separates the geometric construction of the PML damping tensor from the
+solver-local construction of the PML coefficient fields, which keeps the case
+setup explicit and supports both rectangular and spherical absorbing layers.
+
+The verification cases demonstrate the main numerical capabilities required by
+the intended applications.  For baffled-piston radiation, the computed
+near-field pressure amplitude converges toward the analytical on-axis solution,
+and the far-field directivity reconstructed from the numerical solution follows
+the analytical piston pattern.  The layered-interface case verifies propagation
+through a strong acoustic-impedance jump and the directional tensor PML in a
+setting with an analytical reference.  In this case, the solver reproduces the
+real and imaginary pressure components in the physical domain with relative
+$L_2$ errors of $1.24\times10^{-3}$ and $1.54\times10^{-3}$, respectively, and
+the pressure amplitude in the PML with a relative error of
+$1.01\times10^{-5}$.  The damping and mesh-sensitivity studies further show
+that the PML performance depends on a consistent choice of damping strength,
+layer thickness, and resolution.
+
+The single-axis levitator example illustrates how the solver can be used with
+interface-resolved material fields for acoustofluidic applications.  Using the
+volume-fraction field to represent constant-volume spheroidal drops, the
+computed height-sweep force curves reproduce the principal trends reported in a
+finite-element reference study: resonance amplification, resonance shifts due
+to the drop, and increasing peak force with increasing drop aspect ratio.  This
+demonstrates that the frequency-domain acoustic solve can be coupled naturally
+to two-phase finite-volume workflows and can provide derived quantities such as
+acoustic velocity, radiation pressure, and momentum flux for subsequent force
+analysis.
+
+The performance measurements confirm that the current PETSc/MUMPS
+implementation is practical for moderately sized three-dimensional wedge cases.
+For the $570\,818$-cell levitator mesh, the solve time decreased from
+$23.81\,\mathrm{s}$ on one MPI rank to $10.02\,\mathrm{s}$ on eight ranks.  At
+fixed rank count, the wall-clock time grew nearly linearly with the number of
+block unknowns over the tested mesh range.  The limited strong-scaling
+efficiency at the highest rank count is consistent with the cost structure of a
+parallel sparse direct factorisation on a workstation-scale problem.
+
+Future work will focus on extending the validation to fully three-dimensional
+two-phase configurations, improving scalability for larger meshes through
+iterative or hybrid linear solvers, and coupling the computed acoustic fields
+more tightly to time-dependent interface-resolved flow simulations.  These
+extensions would enable predictive simulations in which droplet deformation,
+material-property jumps, acoustic resonance, and radiation forces are evolved
+within a single finite-volume framework.
 
 
 \bibliographystyle{elsarticle-num} 

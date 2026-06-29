@@ -44,20 +44,20 @@
         (
             rhoAcoustic*fvm::laplacian(invRhof, Pre)
           + fvm::laplacian(T0, Pre)
-          + fvm::Sp(k2 - SC0, Pre)
+          + fvm::Sp(k2 - C0, Pre)
         );
 
         fvScalarMatrix AopPim
         (
             rhoAcoustic*fvm::laplacian(invRhof, Pim)
           + fvm::laplacian(T0, Pim)
-          + fvm::Sp(k2 - SC0, Pim)
+          + fvm::Sp(k2 - C0, Pim)
         );
 
         fvScalarMatrix B1Pre(fvm::laplacian(T1, Pre));
-        fvScalarMatrix B2Pre(fvm::Sp(SC1, Pre));
+        fvScalarMatrix B2Pre(fvm::Sp(C1, Pre));
         fvScalarMatrix B1Pim(fvm::laplacian(T1, Pim));
-        fvScalarMatrix B2Pim(fvm::Sp(SC1, Pim));
+        fvScalarMatrix B2Pim(fvm::Sp(C1, Pim));
 
         const PetscInt rowNnzUpper = estimateBlockPreallocationUpper(AopPim);
 
