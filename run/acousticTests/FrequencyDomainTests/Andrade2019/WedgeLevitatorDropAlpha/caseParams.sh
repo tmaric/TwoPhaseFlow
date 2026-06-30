@@ -20,7 +20,7 @@ SOLVER=acousticHelmholtzFoam
 # Run mode
 # ---------------------------------------------------------------------------
 # Controls what ./Allrun does:
-# - singlePoint: run one case using D and the setAlphaField ellipsoid
+# - singlePoint: run one case using H and the setAlphaField ellipsoid
 # - fullFig4Sweep: launch ./runHeightSweep.sh
 : "${RUN_MODE:=singlePoint}"
 
@@ -66,7 +66,7 @@ DRIVE_F=25250
 # Rectangle bounds for PML logic in transportProperties.
 # Derived automatically in prepareCase:
 #   PML_MAX_X = BU + RR
-#   PML_MAX_Y = HS + D
+#   PML_MAX_Y = HS + H
 #   PML_MIN_Y = -HS
 # Keep only fixed limits here.
 : "${PML_MAX_Z:=100}"
@@ -77,11 +77,11 @@ DRIVE_F=25250
 # Geometry / mesh parameters
 # ---------------------------------------------------------------------------
 # Levitator geometry dimensions [m].
-# D: gap between transducer plane and reflector plane.
-: "${D:=0.00764}"
-# Optional normalized height D/lambda. When set, prepareCase computes:
-#   D = HEIGHT_FAC * (SOUND_SPEED/DRIVE_F)
-# and centers the sweep drop at D/2.
+# H: gap between transducer plane and reflector plane.
+: "${H:=0.00764}"
+# Optional normalized height H/lambda. When set, prepareCase computes:
+#   H = HEIGHT_FAC * (SOUND_SPEED/DRIVE_F)
+# and centers the sweep drop at H/2.
 : "${HEIGHT_FAC:=}"
 # RT: transducer radius.
 : "${RT:=0.01}"
@@ -110,7 +110,7 @@ DRIVE_F=25250
 # ---------------------------------------------------------------------------
 # Height sweep controls
 # ---------------------------------------------------------------------------
-# Sweep range in normalized height D/lambda.
+# Sweep range in normalized height H/lambda.
 : "${SWEEP_FAC_MIN:=0.5}"
 : "${SWEEP_FAC_MAX:=0.6}"
 : "${SWEEP_POINTS:=100}"
@@ -122,11 +122,11 @@ DRIVE_F=25250
 : "${DROP_RADIUS:=0.001}"
 : "${DROP_EQUIV_RADIUS:=${DROP_RADIUS}}"
 # Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
-: "${DROP_HORIZONTAL_LONG_AXIS:=0.001}"
+: "${DROP_HORIZONTAL_LONG_AXIS:=0.0012}"
 # Small x/z offsets keep the center away from the wedge singular line.
 : "${DROP_CENTER_X:=1e-8}"
 # Initial drop center vertical position [m] (y-coordinate).
-: "${DROP_CENTER_Y:=0.0040003}"
+: "${DROP_CENTER_Y:=0.00382}"
 : "${DROP_CENTER_Z:=1e-8}"
 
 # Aspect-ratio set used by runHeightSweep.sh to reproduce Fig. 4.

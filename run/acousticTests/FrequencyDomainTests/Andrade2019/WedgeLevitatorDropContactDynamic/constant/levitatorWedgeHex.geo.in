@@ -9,7 +9,7 @@ c = __SOUND_SPEED__;
 l = c/f;
 
 // distance
-D = __D__;
+H = __H__;
 // mesh size controls
 lc = __MESH_LC__;
 N = __MESH_N__;
@@ -28,13 +28,13 @@ Point(3) = {rR, 0, 0, lc};
 Point(4) = {rR, -hS,0, lc};
 Point(5) = {rR+bu,  -hS, 0,lc};
 Point(6) = {rR+bu,  0, 0,lc};
-Point(7) = {rR+bu, D, 0,lc};
-Point(8) = {rR+bu, D+hS,0, lc};
-Point(9) = {rR, D+hS,0,lc};
-Point(10) = {rT, D+hS,0, lc};
-Point(11) = {rT, D,0,lc};
-Point(12) = {0, D,0, lc};
-Point(13) = {rR, D,0, lc};
+Point(7) = {rR+bu, H, 0,lc};
+Point(8) = {rR+bu, H+hS,0, lc};
+Point(9) = {rR, H+hS,0,lc};
+Point(10) = {rT, H+hS,0, lc};
+Point(11) = {rT, H,0,lc};
+Point(12) = {0, H,0, lc};
+Point(13) = {rR, H,0, lc};
 
 // lines
 Line(1) = {1,2};
@@ -78,7 +78,7 @@ Rotate{ {0,1,0}, {0,0,0}, - Pi*__ROTATE_HALF_DEG__/180} {Surface{20, 22, 24, 26 
 
 Transfinite Line {19, 21} = Round(rT/gs);
 Transfinite Line {23, 25, 35} = Round((rR-rT)/gs);
-Transfinite Line {22,20,24,30}=Round(D/gs);
+Transfinite Line {22,20,24,30}=Round(H/gs);
 Transfinite Line {27,29,31,33}=Round(bu/gs);
 Transfinite Line {32,34,36,26,28}=Round(hS/gs);
 

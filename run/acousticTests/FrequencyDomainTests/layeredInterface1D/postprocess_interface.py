@@ -242,7 +242,22 @@ def main():
         ax.grid(True, alpha=0.25)
         handles, labels = ax.get_legend_handles_labels()
         unique = dict(zip(labels, handles))
-        ax.legend(unique.values(), unique.keys(), loc="upper right", frameon=False, ncol=2)
+        ax.legend(
+            unique.values(),
+            unique.keys(),
+            loc="upper right",
+            bbox_to_anchor=(0.985, 0.98),
+            frameon=True,
+            framealpha=0.9,
+            facecolor="white",
+            edgecolor="0.85",
+            fancybox=False,
+            ncol=1,
+            fontsize="small",
+            labelspacing=0.25,
+            handlelength=1.8,
+            borderaxespad=0.2,
+        )
 
     axes[0].set_title("Layered interface pressure field comparison")
     axes[1].set_xlabel("x [m]")
@@ -273,7 +288,20 @@ def main():
     ax_abs.set_xlabel("x [m]")
     ax_abs.set_ylabel("|p| [Pa]")
     ax_abs.grid(True, alpha=0.25)
-    ax_abs.legend(loc="upper right", frameon=False, ncol=2)
+    ax_abs.legend(
+        loc="upper right",
+        bbox_to_anchor=(0.985, 0.98),
+        frameon=True,
+        framealpha=0.9,
+        facecolor="white",
+        edgecolor="0.85",
+        fancybox=False,
+        ncol=1,
+        fontsize="small",
+        labelspacing=0.25,
+        handlelength=1.8,
+        borderaxespad=0.2,
+    )
     fig_abs.tight_layout()
     fig_abs.savefig(out_dir / "pressureField_abs_compare.png")
 

@@ -10,6 +10,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, FuncFormatter, NullFormatter
 
 
 def read_csv(path: Path, required_columns: set[str]) -> list[dict[str, float]]:
@@ -53,6 +54,11 @@ def save_figure(fig: plt.Figure, output_base: Path) -> None:
     plt.close(fig)
     print(f"Wrote {png_path}")
     print(f"Wrote {pdf_path}")
+
+
+def format_unknowns_millions(value: float, _position: int) -> str:
+    label = f"{value / 1.0e6:.2f}".rstrip("0").rstrip(".")
+    return label
 
 
 def plot_strong_scaling(rows: list[dict[str, float]], output_dir: Path) -> None:
@@ -104,18 +110,22 @@ def plot_problem_size(rows: list[dict[str, float]], output_dir: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.6))
 
     axes[0].loglog(unknowns, elapsed, "o-", color="#2f6df6", linewidth=1.8)
-    axes[0].set_xlabel("Block-system unknowns")
+    axes[0].set_xlabel("Block-system unknowns [$10^6$]")
     axes[0].set_ylabel("Elapsed time [s]")
     axes[0].set_title("Problem-size scaling")
 
     time_per_unknown = [time / count for time, count in zip(elapsed, unknowns)]
     axes[1].loglog(unknowns, time_per_unknown, "o-", color="#d95f02", linewidth=1.8)
-    axes[1].set_xlabel("Block-system unknowns")
+    axes[1].set_xlabel("Block-system unknowns [$10^6$]")
     axes[1].set_ylabel("Elapsed time / unknown [s]")
     axes[1].set_title("Normalized cost")
 
     for axis in axes:
         axis.grid(True, which="both", alpha=0.25, linewidth=0.6)
+        axis.xaxis.set_major_locator(FixedLocator(unknowns))
+        axis.xaxis.set_major_formatter(FuncFormatter(format_unknowns_millions))
+        axis.xaxis.set_minor_formatter(NullFormatter())
+        axis.tick_params(axis="x", labelsize=9)
 
     rank_text = ", ".join(str(rank) for rank in ranks)
     fig.suptitle(f"DropAlpha problem-size scaling: MPI ranks = {rank_text}")

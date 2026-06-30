@@ -27,7 +27,6 @@
 %% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
 %% for the whole article with \linenumbers.
 \usepackage{lineno}
-\usepackage{natbib}
 \usepackage{hyperref}
 \usepackage{cleveref}
 \usepackage{geometry}
@@ -36,6 +35,7 @@
 \usepackage{caption}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage{tikz}
 \usepackage{float}
 \usepackage[section]{placeins}
 \usepackage{color}
@@ -198,13 +198,13 @@
 
 \label{sec:intro}
 
-Time-harmonic acoustic fields are commonly described by the Helmholtz equation when the acoustic source operates at a prescribed frequency and the transient wave propagation is not the primary quantity of interest. This frequency-domain formulation is useful in resonators, transducer-driven systems, acoustic radiation problems, and acoustic manipulation devices, because it gives direct access to the pressure amplitude, phase, velocity amplitude, and radiation-pressure-related quantities without resolving many periods of the underlying wave motion \cite{morse1986theoretical,bruus2012acoustofluidicsPT}. In two-phase systems, however, the acoustic problem becomes more demanding: the density and speed of sound may change by orders of magnitude across gas-liquid interfaces, and the pressure field can be strongly affected by reflection, transmission, and resonance at these material jumps.
+Time-harmonic acoustic fields are commonly described by the Helmholtz equation when the acoustic source operates at a prescribed frequency and the transient wave propagation is not the primary quantity of interest. This frequency-domain formulation is useful in resonators, transducer-driven systems, acoustic radiation problems, and acoustic manipulation devices, because it gives direct access to the pressure amplitude, phase, velocity amplitude, and radiation-pressure-related quantities without resolving many periods of the underlying wave motion. In two-phase systems, however, the acoustic problem becomes more demanding: the density and speed of sound may change by orders of magnitude across gas-liquid interfaces, and the pressure field can be strongly affected by reflection and  transmission at these material jumps.
 
-One motivating application is acoustic levitation of liquid droplets. In single-axis levitators, the standing or partially standing acoustic field determines the radiation pressure and momentum flux acting on the droplet, and therefore influences the droplet position, deformation, and stability \cite{shi1996deformation,yarin1998acoustic,xie2001parametric,andrade2010finite}. Predictive simulations of such systems require an acoustic solver that can represent heterogeneous media and interface-resolved material fields while remaining compatible with two-phase flow solvers. In a finite-volume environment this is particularly attractive, because the same mesh and volume-fraction field used for interface-capturing or interface-tracking methods can also be used to define the acoustic material properties \cite{Brackbill1992,Popinet2018,Liu2023incons}.
+One motivating application is acoustic levitation of liquid droplets. In single-axis levitators, the standing or partially standing acoustic field determines the radiation pressure and momentum flux acting on the droplet, and therefore influences the droplet position, deformation, and stability \cite{andrade2019numerical}. Predictive simulations of such systems require an acoustic solver that can represent heterogeneous media and interface-resolved material fields while remaining compatible with two-phase flow solvers. In a finite-volume environment this is particularly attractive, because the same mesh and volume-fraction field used for interface-capturing or interface-tracking methods can also be used to define the acoustic material properties.
 
-Open-domain acoustic simulations also require a robust treatment of outgoing waves. Radiation boundary conditions can be effective in special geometries or for waves with known propagation directions, but they are less convenient for general three-dimensional fields and near-field radiation problems. Perfectly matched layers (PMLs) provide a more flexible domain-truncation strategy by attenuating outgoing waves in an artificial absorbing layer while minimizing reflections at the interface between the physical domain and the layer \cite{Kaltenbacher2013modified}. For a finite-volume implementation in OpenFOAM, the PML formulation must be expressed in terms of operators and coefficient fields that can be assembled efficiently on arbitrary meshes.
+Open-domain acoustic simulations also require a robust treatment of outgoing waves. Absorbing boundary conditions(ABC) can be effective in special geometries or for waves with known propagation directions, but they are less convenient for general three-dimensional fields and near-field radiation problems. Perfectly matched layers (PMLs) provide a more flexible domain-truncation strategy by attenuating outgoing waves in an artificial absorbing layer while minimizing reflections at the interface between the physical domain and the layer \cite{johnson2021notes}. For a unstructured finite-volume implementation in OpenFOAM, the PML formulation must be expressed in terms of operators and coefficient fields that can be assembled efficiently on arbitrary meshes.
 
-This paper presents \texttt{acousticHelmholtzFoam}, a parallel OpenFOAM solver for frequency-domain acoustic waves in heterogeneous two-phase media. The complex Helmholtz equation is split into coupled real and imaginary pressure equations, producing a real-valued block system. The finite-volume operators are assembled in OpenFOAM, while the global block-coupled linear system is solved using PETSc with MUMPS. A companion utility, \texttt{setPMLFields}, generates the directional PML damping tensor \texttt{sigma} for rectangular and spherical absorbing layers. The solver then derives the scalar and tensor coefficient fields required by the frequency-domain formulation. The solver also computes derived fields such as acoustic velocity components, pressure amplitude, radiation pressure, and momentum flux, which are useful for acoustic levitation and related multiphysics applications.
+This paper presents \texttt{acousticHelmholtzFoam}, a parallel OpenFOAM solver for frequency-domain acoustic waves in heterogeneous two-phase media. The complex Helmholtz equation is split into coupled real and imaginary pressure equations, producing a real-valued block system. The finite-volume operators are assembled in OpenFOAM, while the global block-coupled linear system is solved using PETSc with MUMPS. A companion utility, \texttt{setPMLFields}, generates the directional PML damping tensor \texttt{sigma} for rectangular and spherical absorbing layers. The solver then derives the scalar and tensor coefficient fields required by the frequency-domain formulation. The solver also computes derived fields such as acoustic velocity components, pressure amplitude, radiation pressure, and momentum flux, which are useful for acoustic levitation and related multiphysics applications \cite{Andrade2018review}.
 
 The paper is organized as follows. \cref{sec:model} derives the acoustic model and PML formulation. \cref{sec:implementation} describes the finite-volume implementation and block-coupled solution strategy. \cref{sec:verification} presents verification cases, while \cref{sec:application} outlines the intended application to single-axis acoustic levitation.
 
@@ -281,7 +281,7 @@ which is the pressure wave equation for a heterogeneous medium. Taking $\rho_0$ 
 \end{equation}
 
 \subsection{Helmholtz equation}
-If the acoustic system is driven at a single frequency and the timescale is much larger than the period of the sound wave, the acoustic pressure and velocity fields can be written in the following time-harmonic form:
+If the acoustic system is driven at a single frequency and the timescale is much larger than the period of the sound wave, the acoustic pressure and velocity fields can be written in the following time-harmonic form\cite{morse1986theoretical}:
 \begin{equation}
     \begin{aligned}
         p_1(x,t) &= \mathrm{Re}(e^{-i\omega t}P(x)),\\
@@ -346,12 +346,12 @@ Denoting the time average by $\langle\cdot\rangle:= \frac{1}{T}\int_0^T \cdot \,
 Finally, applying the time-harmonic ansatz \cref{as:timeHarmonic} gives
 \begin{equation}
     \langle p_2\rangle =
-    \frac{\langle |e^{-\omega t}P(x)|^2\rangle}{2\rho_0c^2}
-    -\frac{\rho_0}{2}\langle|e^{-\omega t}\V(x)|^2\rangle =  \frac{ |P(x)|^2}{4\omega\rho_0c^2}
-    -\frac{\rho_0}{4\omega}|\V(x)|^2.
+    \frac{\langle \mathrm{Re}(e^{-i\omega t}P(x))^2\rangle}{2\rho_0c^2}
+    -\frac{\rho_0}{2}\langle|\mathrm{Re}(e^{-i\omega t}\V(x))|^2\rangle =  \frac{ |P(x)|^2}{4\rho_0c^2}
+    -\frac{\rho_0}{4}|\V(x)|^2,
     \label{eq:acousticRadiationPressure}
 \end{equation}
-Thus, the acoustic radiation pressure $p_{\mathrm{rad}}:=\langle p_2\rangle$
+where the time dependent terms vanish after time average. Thus, the acoustic radiation pressure $p_{\mathrm{rad}}:=\langle p_2\rangle$
 can be evaluated from the first-order pressure and velocity fields computed by
 the frequency-domain solver.
 
@@ -381,7 +381,7 @@ where $\tilde{\nabla}$ denotes the Laplacian operator in the stretched coordinat
             \label{eq:planeWaveDamp}
 \end{equation}
  
- Building upon the fundamental principles of the PML formulation described above, we derive here the specific implementation proposed by Kaltenbacher et al.\cite{Kaltenbacher2013modified}. Following \citep{Kaltenbacher2013modified}, the complex coordinate transformation is defined as $i\h(\x) = \frac{1}{i\omega}\int \boldsymbol{\sigma}(\x) \,dx$, where $\boldsymbol{\sigma}(\x)$ is the damping vector composed of $\sigma_x(x)$, $\sigma_y(y)$, and $\sigma_z(z)$, whose values are negative to satisfy \cref{eq:planeWaveDamp}. Accordingly, the following relations hold:
+ Building upon the fundamental principles of the PML formulation described above, we derive here the modified PML implementation used in the solver proposed by Kaltenbacher et al. \cite{Kaltenbacher2013modified}.  The complex coordinate transformation is defined as $i\h(\x) = \frac{1}{i\omega}\int \boldsymbol{\sigma}(\x) \,dx$, where $\boldsymbol{\sigma}(\x)$ is the damping vector composed of $\sigma_x(x)$, $\sigma_y(y)$, and $\sigma_z(z)$, whose values are negative to satisfy \cref{eq:planeWaveDamp}. Accordingly, the following relations hold:
  \begin{equation}
      \begin{aligned}
          \frac{\partial \tilde{x}}{\partial x} & = \eta_x=1+\frac{\sigma_x}{i\omega},\quad  \frac{\partial}{\partial \tilde{x}}=\frac{\rho_0}{\eta_x}\frac{\partial}{\partial x},\\
@@ -477,7 +477,6 @@ where $C_0$, $C_1$ and the tensor coefficients $\mathbf{T}_0$, $\mathbf{T}_1$ ar
         \end{aligned}
     \end{equation*}
 \end{paracol}
-Since medium inhomogeneity is not introduced in the PML, $\rho_0$ in the Laplacian term with the PML coefficient can be canceled out.  
 \section{Numerical implementation}
 \label{sec:implementation}
 
@@ -490,7 +489,7 @@ complex pressure is stored as two real-valued volume fields, \texttt{Pre} and
 fields, the material indicator \texttt{alpha.water}, and the acoustic parameters
 from \texttt{constant/transportProperties}.  The dictionary provides the gas and
 liquid densities \texttt{rhog}, \texttt{rhol}, sound speeds \texttt{cg},
-\texttt{cl}, compressibility-related coefficients \texttt{kg}, \texttt{kl}, the
+\texttt{cl},the
 driving frequency \texttt{f}, and the PML parameters.  The PML configuration is
 selected through \texttt{PMLType}; the current implementation supports
 \texttt{rectangle} and \texttt{spherical} configurations.
@@ -624,7 +623,13 @@ diagonal operators and the two PML coupling operators are then inserted into
 the corresponding blocks of the global PETSc matrix.  In parallel, couplings
 across processor patches are inserted explicitly using global cell indices, so
 the distributed PETSc system represents the same finite-volume stencil as the
-undecomposed mesh.  The resulting block system is solved with PETSc/MUMPS.
+undecomposed mesh.  
+
+The resulting block system is solved with the PETSc/MUMPS direct solver for
+robustness, which is a common choice for numerical Helmholtz problems
+\cite{lesnik2023cavitat}.  The discretised Helmholtz operator is indefinite;
+without specialised preconditioning, iterative solvers can become unstable for
+large wavenumbers, PML damping terms, and strong material-property jumps.
 
 \subsection{PML configuration}
 The PML damping profile is generated by the utility \texttt{setPMLFields}.  The
@@ -918,12 +923,12 @@ configuration is shown in \cref{fig:1DLayerd}.
         \draw[thick,dashed] (\xone,0) -- (\xone,\h);
         \draw[thick,dashed] (\xtwo,0) -- (\xtwo,\h);
 
-        \foreach \yy in {0.15,0.35,0.55,0.75,0.95}
-        {
-            \draw[thick] (-0.28,\yy) -- (\xzero,\yy);
-        }
+        % \foreach \yy in {0.15,0.35,0.55,0.75,0.95}
+        % {
+        %     \draw[thick] (-0.28,\yy) -- (\xzero,\yy);
+        % }
         \draw[very thick] (\xzero,-0.08) -- (\xzero,\h+0.08);
-        \draw[->,thick] (-0.7,0.58) -- (-0.15,0.58)
+        \draw[->,thick] (-0.8,0.58) -- (-0.3,0.58)
             node[midway,above] {$u_0 e^{i\omega t}$};
 
         \node at (1.5,0.58) {medium 1};
@@ -946,9 +951,9 @@ configuration is shown in \cref{fig:1DLayerd}.
 \end{figure}
 
 The transducer at the left boundary vibrates harmonically with frequency $f$
-and velocity amplitude $u_0$.  The emitted wave travels through medium~1 in
-$0<x<L_1$, crosses the material interface into medium~2 in $L_1<x<L_2$,
-and finally enters the PML in $L_2<x<L$.
+and velocity amplitude $u_0$.   The emitted wave
+travels through medium~1 in $0<x<L_1$, crosses the material interface into
+medium~2 in $L_1<x<L_2$, and finally enters the PML in $L_2<x<L$.
 
 The analytical solution reads
 \begin{equation}
@@ -961,7 +966,7 @@ The analytical solution reads
     \end{cases}
 \end{equation}
 Here $k_j=\omega/c_j$ and
-$R=(\rho_2c_2-\rho_1c_1)/(\rho_2c_2+\rho_1c_1)$.  The simulation parameters
+$R=(\rho_2c_2-\rho_1c_1)/(\rho_2c_2+\rho_1c_1)$.  In the simulaton, the two media are chosen as air and water.  The simulation parameters
 are listed in \cref{tab:params1DTwoPhase}.
 \begin{table}[H]
     \centering
@@ -1003,7 +1008,7 @@ which has only an imaginary component.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_Pre_Pim_compare.png}%
-    \caption{Directional tensor PML validation: comparison of the numerical real and imaginary pressure components with the analytical layered-interface solution.  Markers identify the numerical samples, while the solid black curves show the analytical reference.}
+    \caption{Comparison of the numerical real and imaginary pressure components with the analytical layered-interface solution.}
     \label{fig:1DLayerdCompare}
 \end{figure}
 
@@ -1032,7 +1037,7 @@ differ by $1.01\times10^{-5}$.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/pressureField_abs_compare.png}%
-    \caption{Directional tensor PML validation: numerical and analytical pressure amplitude.  The transmitted plane wave has constant amplitude in medium~2 before the PML and is smoothly attenuated inside the PML.}
+    \caption{Numerical and analytical pressure amplitude.  The transmitted plane wave has constant amplitude in medium~2 before the PML and is smoothly attenuated inside the PML.}
     \label{fig:1DLayerdAmplitude}
 \end{figure}
 
@@ -1063,7 +1068,7 @@ without degrading the physical-domain error.
 To assess mesh dependence at the selected damping strength, an additional
 sweep is performed with
 $\sigma_{\max}=5.0\times10^5\,\mathrm{s^{-1}}$ while varying the number of
-cells in the propagation direction.  The results in
+cells.  The results in
 \cref{tab:pmlMeshSensitivity,fig:pmlMeshSensitivity} quantify convergence of
 the real pressure, imaginary pressure, and pressure amplitude for the
 directional, medium-dependent PML formulation.  The individual component
@@ -1086,28 +1091,104 @@ amplitude.
 \section{Application example}
 \label{sec:application}
 
-\subsection{Height sweep in a single-axis acoustic levitator}
-The motivation for developing the frequency-domain solver is to simulate the acoustic field around liquid drops in a single-axis acoustic levitator.  As an application example, we consider the height-sweep configuration of Andrade and Marzo \cite{andrade2019numerical}.  Their COMSOL study evaluates the radiation force on the reflector while varying the transducer-reflector distance $H$ for an empty levitator and for constant-volume drops represented by spheroids with different aspect ratios.
+The motivation for developing the frequency-domain solver is to simulate the acoustic field around liquid drops in a single-axis acoustic levitator.  As an application example, we consider a height-sweep configuration matching a COMSOL benchmark setup.  The benchmark evaluates the radiation force on the reflector while varying the transducer-reflector distance $H$ for an empty levitator and for constant-volume drops represented by spheroids with different aspect ratios.  The corresponding geometry is sketched in \cref{fig:levitatorSketch}.
 
-The OpenFOAM case \texttt{WedgeLevitatorDropAlpha} follows the same workflow, with the height sweep executed by the script \texttt{runHeightSweep.sh} in that case directory.  A one-degree wedge sector is used and the resulting force is scaled by the axisymmetric factor $360^\circ/1^\circ$.  The acoustic frequency is $25.25\,\mathrm{kHz}$, the transducer velocity amplitude is $1\,\mathrm{m\,s^{-1}}$, and the equivalent spherical drop radius is $1\,\mathrm{mm}$.  The drop is placed at the mid-height of the cavity and is represented by the volume-fraction field \texttt{alpha.water}; for the non-spherical cases the spheroid volume is kept constant while the aspect ratio $a/b$ is varied.  After solving the Helmholtz problem, the reflector force is obtained by integrating the acoustic radiation-pressure field, computed from \cref{eq:acousticRadiationPressure}, over the reflector patch,
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[x=1cm,y=1cm,>=latex,font=\small]
+        \def\xouter{4.55}
+        \def\xref{2.65}
+        \def\xtr{1.35}
+        \def\pmlt{0.58}
+        \def\ybot{-0.95}
+        \def\yref{0.00}
+        \def\ydrop{1.10}
+        \def\yface{2.25}
+        \def\ytop{3.25}
+        \def\dropR{0.34}
+
+        % Stepped solution domain and thin PML bands along the open boundary.
+        \fill[blue!5]
+            (-\xouter,\ybot) -- (-\xouter,\ytop) -- (-\xtr,\ytop)
+            -- (-\xtr,\yface) -- (\xtr,\yface) -- (\xtr,\ytop)
+            -- (\xouter,\ytop) -- (\xouter,\ybot) -- (\xref,\ybot)
+            -- (\xref,\yref) -- (-\xref,\yref) -- (-\xref,\ybot) -- cycle;
+
+        \fill[gray!18] (-\xouter,\ybot) rectangle ({-\xouter+\pmlt},\ytop);
+        \fill[gray!18] ({\xouter-\pmlt},\ybot) rectangle (\xouter,\ytop);
+        \fill[gray!18] (-\xouter,{\ytop-\pmlt}) rectangle (-\xtr,\ytop);
+        \fill[gray!18] (\xtr,{\ytop-\pmlt}) rectangle (\xouter,\ytop);
+        \fill[gray!18] (-\xouter,\ybot) rectangle (-\xref,{\ybot+\pmlt});
+        \fill[gray!18] (\xref,\ybot) rectangle (\xouter,{\ybot+\pmlt});
+
+        % Levitator boundary, acoustic source, reflector, and drop.
+        \draw[thick]
+            (-\xouter,\ybot) -- (-\xouter,\ytop) -- (-\xtr,\ytop)
+            -- (-\xtr,\yface) -- (\xtr,\yface) -- (\xtr,\ytop)
+            -- (\xouter,\ytop) -- (\xouter,\ybot) -- (\xref,\ybot)
+            -- (\xref,\yref) -- (-\xref,\yref) -- (-\xref,\ybot) -- cycle;
+        \draw[dashed] (0,{\ybot-0.55}) -- (0,{\ytop+0.28})
+            node[above] {symmetry axis};
+        \draw[line width=1.45pt] (-\xtr,\yface) -- (\xtr,\yface);
+        \draw[<->,thick] (0,{\yface-0.08}) -- (0,{\yface-0.55})
+            node[midway,right] {$u_0 e^{-i\omega t}$};
+        \node[below left] at (-0.06,{\yface-0.02}) {transducer};
+        \draw[line width=1.45pt] (-\xref,\yref) -- (\xref,\yref);
+        \node[above] at (0,{\yref+0.03}) {reflector};
+        \fill[cyan!25] (0,\ydrop) circle (\dropR);
+        \draw[thick] (0,\ydrop) circle (\dropR);
+        \draw[->] (0,\ydrop) -- (0.27,1.34)
+            node[pos=0.68,right] {$R_d=1\,\mathrm{mm}$};
+        \node[right] at (0.40,0.87) {water drop};
+        \node at (-2.25,1.18) {air};
+        \node at (3.95,2.72) {PML};
+
+        % Dimension annotations.
+        \draw[<->] ({\xouter+0.42},\yref) -- ({\xouter+0.42},\yface)
+            node[midway,right,fill=white,inner sep=1pt] {$H$};
+        \draw (\xtr,\yface) -- ({\xouter+0.18},\yface);
+        \draw (\xref,\yref) -- ({\xouter+0.18},\yref);
+        \draw[<->] (-\xtr,{\yface+0.44}) -- (\xtr,{\yface+0.44})
+            node[midway,above,fill=white,inner sep=1pt] {$2R_T=20\,\mathrm{mm}$};
+        \draw[<->] (-\xref,{\yref-0.56}) -- (\xref,{\yref-0.56})
+            node[midway,below,fill=white,inner sep=1pt] {$2R_R=38\,\mathrm{mm}$};
+        \draw[<->] (\xref,0.36) -- (\xouter,0.36)
+            node[midway,above,fill=white,inner sep=1pt] {$B_u=10\,\mathrm{mm}$};
+        \draw[<->] (-\xouter,{\ytop+0.30}) -- ({-\xouter+\pmlt},{\ytop+0.30})
+            node[midway,above,fill=white,inner sep=1pt] {$L_{\mathrm{PML}}=8\,\mathrm{mm}$};
+        \draw[<->] ({-\xouter-0.36},\yface) -- ({-\xouter-0.36},\ytop)
+            node[midway,left,fill=white,inner sep=1pt] {$H_s=10\,\mathrm{mm}$};
+        \draw[<->] ({-\xouter-0.36},\ybot) -- ({-\xouter-0.36},\yref)
+            node[midway,left,fill=white,inner sep=1pt] {$H_s$};
+    \end{tikzpicture}
+    \caption{Schematic meridional view of the single-axis levitator used in the
+    application example.  The transducer-reflector spacing $H$ is swept, the
+    spherical reference drop is placed at mid-height, and the rectangular PML
+    region is indicated by the shaded bands.}
+    \label{fig:levitatorSketch}
+\end{figure}
+
+The OpenFOAM case \texttt{WedgeLevitatorDropAlpha} follows the same workflow, with the height sweep executed by the script \texttt{runHeightSweep.sh} in that case directory.  Each force curve is sampled at 100 uniformly spaced transducer-reflector heights.  A one-degree wedge sector is used and the resulting force is scaled by the axisymmetric factor $360^\circ/1^\circ$.  The acoustic frequency is $25.25\,\mathrm{kHz}$, the transducer velocity amplitude is $1\,\mathrm{m\,s^{-1}}$, and the equivalent spherical drop radius is $1\,\mathrm{mm}$.  The drop is placed at the mid-height of the cavity and is represented by the volume-fraction field \texttt{alpha.water}; for the non-spherical cases the spheroid volume is kept constant while the aspect ratio $a/b$ is varied.  After solving the Helmholtz problem, the reflector force is obtained by integrating the acoustic radiation-pressure field, computed from \cref{eq:acousticRadiationPressure}, over the reflector patch,
 \begin{equation}
-    F_n = \int_{\Gamma_r} p_{\mathrm{rad}} \, \normal \cdot \normal_r \, \mathrm{d}S ,
+    F_n = \int_{\Gamma_r} p_{\mathrm{rad}}  \, \mathrm{d}S ,
 \end{equation}
 where $\Gamma_r$ is the reflector surface and $\normal_r$ is the mean reflector normal.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/4sweep2.png}
-    \caption{Application example: reflector radiation force during a height sweep of the wedge levitator for an empty cavity and constant-volume drops with different aspect ratios, computed with \texttt{acousticHelmholtzFoam}.}
+    \caption{Application example: reflector radiation force during a height sweep of the wedge levitator for an empty cavity and constant-volume drops with different aspect ratios, computed with \texttt{acousticHelmholtzFoam}.  Each curve uses 100 height-sample points.}
     \label{fig:heightSweepAspectRatio}
 \end{figure}
 
-\cref{fig:heightSweepAspectRatio} shows the resulting force curves.  They reproduce the main trends reported in the COMSOL study of Andrade and Marzo \cite{andrade2019numerical}: the force is strongly amplified near the acoustic resonance, the drop shifts the resonance response, and the force level near the peak increases systematically with the drop aspect ratio.  Because the levitator operates close to resonance, the radiation force is highly sensitive to small changes in geometry, material parameters, acoustic drive, and numerical representation of the drop.  The agreement in resonance scale, curve ordering, and force magnitude is therefore a meaningful application-level comparison.  This example demonstrates that the solver can use the same interface-resolved material description required for two-phase flow simulations while producing acoustic-force trends consistent with the established finite-element reference.
+\cref{fig:heightSweepAspectRatio} shows the resulting force curves.  They reproduce the main trends of the COMSOL benchmark: the force is strongly amplified near the acoustic resonance, the drop shifts the resonance response, and the force level near the peak increases systematically with the drop aspect ratio.  Because the levitator operates close to resonance, the radiation force is highly sensitive to small changes in geometry, material parameters, acoustic drive, and numerical representation of the drop.  The agreement in resonance scale, curve ordering, and force magnitude is therefore a meaningful application-level comparison.  This example demonstrates that the solver can use the same interface-resolved material description required for two-phase flow simulations while producing acoustic-force trends consistent with the finite-element benchmark.
+
+In this levitator setup, comparison with the COMSOL Pressure Acoustics, Frequency Domain interface (\texttt{acpr}) also showed a practical difference in PML robustness.  In the COMSOL model, obtaining correct damping required careful tuning of the PML thickness.  In the present solver, the rectangular PML was less sensitive to the layer thickness once the maximum damping coefficient was chosen in an appropriate range: $\sigma_{\max}$ must be large enough to attenuate outgoing waves before the truncated boundary, but not so large that discretisation errors introduce numerical reflection.  Within this range, the PML gave stable attenuation without case-specific thickness tuning.
 
 \FloatBarrier
 \section{Performance}
 \label{sec:performance}
-Performance was assessed with the \texttt{WedgeLevitatorDropAlpha} application case, which exercises the same heterogeneous two-phase coefficients, PML treatment, and radiation-pressure post-processing used in the height-sweep example.  The timings were collected on the workstation \texttt{legion5}, equipped with an AMD Ryzen 7 4800H processor with 8 physical cores and 16 hardware threads, using OpenFOAM v2312.  Each reported value is the elapsed wall-clock time for one \texttt{acousticHelmholtzFoam} solve after mesh generation and, for MPI runs, after domain decomposition.  The solver assembles the real-imaginary block system with two unknowns per finite-volume cell and solves it with PETSc using \texttt{-ksp\_type preonly}, \texttt{-pc\_type lu}, and the MUMPS sparse direct factorisation backend.  The MPI cases used Scotch decomposition.  A single unreported warm-up solve was performed before recording the benchmark data.
+Performance was assessed with the \texttt{WedgeLevitatorDropAlpha} application case, which exercises the same heterogeneous two-phase coefficients, PML treatment, and radiation-pressure post-processing used in the height-sweep example.  The timings were collected on the workstation equipped with an AMD Ryzen 7 4800H processor with 8 physical cores and 16 hardware threads, using OpenFOAM v2506.  Each reported value is the elapsed wall-clock time for one \texttt{acousticHelmholtzFoam} solve after mesh generation and, for MPI runs, after domain decomposition.  The solver assembles the real-imaginary block system with two unknowns per finite-volume cell and solves it with PETSc using \texttt{-ksp\_type preonly}, \texttt{-pc\_type lu}, and the MUMPS sparse direct factorisation backend.  The MPI cases used Scotch decomposition. 
 
 \begin{table}[H]
     \centering
@@ -1149,7 +1230,7 @@ Performance was assessed with the \texttt{WedgeLevitatorDropAlpha} application c
 
 This paper presented \texttt{acousticHelmholtzFoam}, a parallel finite-volume
 solver for time-harmonic acoustic wave propagation in heterogeneous two-phase
-media.  The solver is implemented in OpenFOAM and solves the complex Helmholtz
+media with PML boundary condition.  The solver is implemented in OpenFOAM and solves the complex Helmholtz
 equation by separating the pressure into coupled real and imaginary fields.
 This formulation allows the variable-density acoustic operator, PML terms, and
 two-phase material coefficients to be assembled with standard finite-volume
@@ -1176,8 +1257,8 @@ layer thickness, and resolution.
 The single-axis levitator example illustrates how the solver can be used with
 interface-resolved material fields for acoustofluidic applications.  Using the
 volume-fraction field to represent constant-volume spheroidal drops, the
-computed height-sweep force curves reproduce the principal trends reported in a
-finite-element reference study: resonance amplification, resonance shifts due
+computed height-sweep force curves reproduce the principal trends of the
+finite-element benchmark: resonance amplification, resonance shifts due
 to the drop, and increasing peak force with increasing drop aspect ratio.  This
 demonstrates that the frequency-domain acoustic solve can be coupled naturally
 to two-phase finite-volume workflows and can provide derived quantities such as
@@ -1202,7 +1283,7 @@ material-property jumps, acoustic resonance, and radiation forces are evolved
 within a single finite-volume framework.
 
 
-\bibliographystyle{elsarticle-num} 
+\bibliographystyle{elsarticle-num}
 \bibliography{bibliography}
 
 \end{document}

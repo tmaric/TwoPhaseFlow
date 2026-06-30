@@ -6,7 +6,7 @@ cd "${0%/*}" || exit 1
 
 # Derived rectangular PML bounds from geometry parameters.
 PML_MAX_X="$(awk -v bu="$BU" -v rr="$RR" 'BEGIN{printf "%.12g", bu + rr}')"
-PML_MAX_Y="$(awk -v hs="$HS" -v d="$D" 'BEGIN{printf "%.12g", hs + d}')"
+PML_MAX_Y="$(awk -v hs="$HS" -v d="$H" 'BEGIN{printf "%.12g", hs + d}')"
 PML_MIN_Y="$(awk -v hs="$HS" 'BEGIN{printf "%.12g", -hs}')"
 
 render()
@@ -35,7 +35,7 @@ render()
         -e "s|__PML_MIN_Y__|$PML_MIN_Y|g" \
         -e "s|__PML_MIN_Z__|$PML_MIN_Z|g" \
         -e "s|__AXIS_RADIUS__|$AXIS_RADIUS|g" \
-        -e "s|__D__|$D|g" \
+        -e "s|__H__|$H|g" \
         -e "s|__RT__|$RT|g" \
         -e "s|__RR__|$RR|g" \
         -e "s|__BU__|$BU|g" \

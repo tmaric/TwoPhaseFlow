@@ -6,7 +6,7 @@ cd "${0%/*}" || exit 1
 
 # Derived rectangular PML bounds from geometry parameters.
 PML_MAX_X="$(awk -v bu="$BU" -v rr="$RR" 'BEGIN{printf "%.12g", bu + rr}')"
-PML_MAX_Y="$(awk -v hs="$HS" -v d="$D" 'BEGIN{printf "%.12g", hs + d}')"
+PML_MAX_Y="$(awk -v hs="$HS" -v d="$H" 'BEGIN{printf "%.12g", hs + d}')"
 PML_MIN_Y="$(awk -v hs="$HS" 'BEGIN{printf "%.12g", -hs}')"
 
 render()
@@ -36,7 +36,7 @@ render()
         -e "s|__PML_MIN_X__|$PML_MIN_X|g" \
         -e "s|__PML_MIN_Y__|$PML_MIN_Y|g" \
         -e "s|__PML_MIN_Z__|$PML_MIN_Z|g" \
-        -e "s|__D__|$D|g" \
+        -e "s|__H__|$H|g" \
         -e "s|__RT__|$RT|g" \
         -e "s|__RR__|$RR|g" \
         -e "s|__BU__|$BU|g" \
@@ -61,7 +61,7 @@ case "${MESHER:-gmsh}" in
         ;;
     cfmesh)
         rm -f constant/levitatorWedgeHex.msh constant/*unrolled*
-        export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
+        export H RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
         export CFMESH_MAX_CELL_SIZE CFMESH_INTERFACE_REFINEMENT
         export CFMESH_INTERFACE_CELL_SIZE CFMESH_INTERFACE_BOX_SCALE
         export DROP_RADIUS DROP_CENTER_Y
@@ -83,7 +83,7 @@ case = Path(".")
 constant = case / "constant"
 system = case / "system"
 
-D = f("D")
+H = f("H")
 RT = f("RT")
 RR = f("RR")
 BU = f("BU")
@@ -115,12 +115,12 @@ points2d = [
     (RR, -HS),
     (RR + BU, -HS),
     (RR + BU, 0.0),
-    (RR + BU, D),
-    (RR + BU, D + HS),
-    (RR, D + HS),
-    (RT, D + HS),
-    (RT, D),
-    (AXIS_RADIUS, D),
+    (RR + BU, H),
+    (RR + BU, H + HS),
+    (RR, H + HS),
+    (RT, H + HS),
+    (RT, H),
+    (AXIS_RADIUS, H),
 ]
 
 # Match the Gmsh physical surfaces for the same wedge geometry.

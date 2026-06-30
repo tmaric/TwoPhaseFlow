@@ -48,7 +48,7 @@ PO=3
 # Rectangle bounds for PML logic in transportProperties.
 # Derived automatically in prepareCase:
 #   PML_MAX_X = BU + RR
-#   PML_MAX_Y = HS + D
+#   PML_MAX_Y = HS + H
 #   PML_MIN_Y = -HS
 # Keep only fixed limits here.
 PML_MAX_Z=100
@@ -59,8 +59,8 @@ PML_MIN_Z=-100
 # Geometry / mesh parameters
 # ---------------------------------------------------------------------------
 # Levitator geometry dimensions [m], matching DropAlpha.
-# D: gap between transducer plane and reflector plane.
-D=0.00764
+# H: gap between transducer plane and reflector plane.
+H=0.00764
 # RT: transducer radius.
 RT=0.01
 # RR: reflector radius.

@@ -6,13 +6,13 @@ cd "${0%/*}" || exit 1
 
 if [ -n "${HEIGHT_FAC}" ]; then
     WAVELENGTH="$(awk -v c="$SOUND_SPEED" -v f="$DRIVE_F" 'BEGIN{printf "%.12g", c/f}')"
-    D="$(awk -v fac="$HEIGHT_FAC" -v lam="$WAVELENGTH" 'BEGIN{printf "%.12g", fac*lam}')"
-    DROP_CENTER_Y="$(awk -v d="$D" 'BEGIN{printf "%.12g", 0.5*d}')"
+    H="$(awk -v fac="$HEIGHT_FAC" -v lam="$WAVELENGTH" 'BEGIN{printf "%.12g", fac*lam}')"
+    DROP_CENTER_Y="$(awk -v d="$H" 'BEGIN{printf "%.12g", 0.5*d}')"
 fi
 
 # Derived rectangular PML bounds from geometry parameters.
 PML_MAX_X="$(awk -v bu="$BU" -v rr="$RR" 'BEGIN{printf "%.12g", bu + rr}')"
-PML_MAX_Y="$(awk -v hs="$HS" -v d="$D" 'BEGIN{printf "%.12g", hs + d}')"
+PML_MAX_Y="$(awk -v hs="$HS" -v d="$H" 'BEGIN{printf "%.12g", hs + d}')"
 PML_MIN_Y="$(awk -v hs="$HS" 'BEGIN{printf "%.12g", -hs}')"
 
 render()
@@ -40,7 +40,7 @@ render()
         -e "s|__PML_MIN_X__|$PML_MIN_X|g" \
         -e "s|__PML_MIN_Y__|$PML_MIN_Y|g" \
         -e "s|__PML_MIN_Z__|$PML_MIN_Z|g" \
-        -e "s|__D__|$D|g" \
+        -e "s|__H__|$H|g" \
         -e "s|__RT__|$RT|g" \
         -e "s|__RR__|$RR|g" \
         -e "s|__BU__|$BU|g" \
@@ -59,7 +59,7 @@ render constant/transportProperties.in constant/transportProperties
 render 0.orig/Pim.in 0.orig/Pim
 render system/setAlphaFieldDict.in system/setAlphaFieldDict
 
-export D RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
+export H RT RR BU HS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
 export CFMESH_MAX_CELL_SIZE
 
 python3 ./generateCfMeshInputs.py

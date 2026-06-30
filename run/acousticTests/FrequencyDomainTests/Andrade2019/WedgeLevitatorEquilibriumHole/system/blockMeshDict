@@ -20,10 +20,10 @@ f   25250.0;
 c0  343.0;
 fac 0.76;
 wL #eval{$c0*1000.0/$f};
-D #eval{$fac*$wL};
-h1 #eval{ceil((20+$D)*10)/10};
-h2 #eval{ceil((10+$D)*10)/10};
-//h3 #eval{floor((20+$D)*10)/10};
+H #eval{$fac*$wL};
+h1 #eval{ceil((20+$H)*10)/10};
+h2 #eval{ceil((10+$H)*10)/10};
+//h3 #eval{floor((20+$H)*10)/10};
 
 
 vertices
@@ -64,11 +64,11 @@ vertices
 
 blocks
 (
-    hex (0 1 2 3 4 5 6 7) (100 #eval{ceil((20+$D)*10)} 1) simpleGrading (1 1 1)
-    hex (8 10 11 2 9 12 13 6) (90 #eval{ceil((10+$D)*10)} 1) simpleGrading (1 1 1)
-    hex (10 14 16 18 12 15 17 19) (200 #eval{ceil(($D)*10)} 1) simpleGrading (1 1 1)
-    hex (14 20 22 24 15 21 23 25) (90 #eval{ceil((10+$D)*10)} 1) simpleGrading (1 1 1)
-    hex (26 28 30 22 27 29 31 23) (100 #eval{ceil((20+$D)*10)} 1) simpleGrading (1 1 1)
+    hex (0 1 2 3 4 5 6 7) (100 #eval{ceil((20+$H)*10)} 1) simpleGrading (1 1 1)
+    hex (8 10 11 2 9 12 13 6) (90 #eval{ceil((10+$H)*10)} 1) simpleGrading (1 1 1)
+    hex (10 14 16 18 12 15 17 19) (200 #eval{ceil(($H)*10)} 1) simpleGrading (1 1 1)
+    hex (14 20 22 24 15 21 23 25) (90 #eval{ceil((10+$H)*10)} 1) simpleGrading (1 1 1)
+    hex (26 28 30 22 27 29 31 23) (100 #eval{ceil((20+$H)*10)} 1) simpleGrading (1 1 1)
 );
 
 boundary

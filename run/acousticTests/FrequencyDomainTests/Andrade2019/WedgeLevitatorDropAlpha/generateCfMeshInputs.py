@@ -16,7 +16,7 @@ case = Path(".")
 constant = case / "constant"
 system = case / "system"
 
-D = value("D")
+H = value("H")
 RT = value("RT")
 RR = value("RR")
 BU = value("BU")
@@ -43,12 +43,12 @@ points2d = [
     (RR, -HS),
     (RR + BU, -HS),
     (RR + BU, 0.0),
-    (RR + BU, D),
-    (RR + BU, D + HS),
-    (RR, D + HS),
-    (RT, D + HS),
-    (RT, D),
-    (AXIS_RADIUS, D),
+    (RR + BU, H),
+    (RR + BU, H + HS),
+    (RR, H + HS),
+    (RT, H + HS),
+    (RT, H),
+    (AXIS_RADIUS, H),
 ]
 # Match the Gmsh physical surfaces for the same wedge geometry.
 segment_patches = [

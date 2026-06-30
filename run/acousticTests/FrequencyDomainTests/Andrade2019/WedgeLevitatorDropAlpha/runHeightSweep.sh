@@ -9,7 +9,7 @@ mkdir -p "${resultsDir}"
 
 csvFile="${resultsDir}/heightSweepResults.csv"
 fig4Base="${resultsDir}/${FIG4_OUTPUT_BASENAME}"
-printf "series_key,series_label,initialization,aspect_ratio,index,height_mm,D_m,height_fac,Fn_reflector1_wedge_N,Fn_reflector1_axisym_N,axisym_factor\n" > "${csvFile}"
+printf "series_key,series_label,initialization,aspect_ratio,index,height_mm,H_m,height_fac,Fn_reflector1_wedge_N,Fn_reflector1_axisym_N,axisym_factor\n" > "${csvFile}"
 
 lambda="$(awk -v c="$SOUND_SPEED" -v f="$DRIVE_F" 'BEGIN{printf "%.16g", c/f}')"
 axisymFactor="$(awk -v deg="$WEDGE_DEG" 'BEGIN{if (deg <= 0) {exit 1} printf "%.16g", 360.0/deg}')"
@@ -39,7 +39,7 @@ run_series()
         dVal="$(awk -v ff="$fac" -v lam="$lambda" 'BEGIN{printf "%.16g", ff*lam}')"
         dMm="$(awk -v d="$dVal" 'BEGIN{printf "%.16g", 1000.0*d}')"
 
-        echo "[$((i+1))/${SWEEP_POINTS}] ${seriesKey} HEIGHT_FAC=${fac} D=${dVal} m (${dMm} mm)"
+        echo "[$((i+1))/${SWEEP_POINTS}] ${seriesKey} HEIGHT_FAC=${fac} H=${dVal} m (${dMm} mm)"
 
         # Force a fresh run for each sweep point; RunFunctions otherwise skips
         # applications when log.<app> exists from previous point.
