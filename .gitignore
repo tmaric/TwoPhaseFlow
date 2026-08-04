@@ -168,10 +168,6 @@ slurm-*
 oldData_toBeDeleted/
 *.parameter.database
 *.png
-!paper_aHF/figures/
-!paper_aHF/figures/*.png
-!SLIDE/figures/
-!SLIDE/figures/*.png
 
 #jupyter notebook checkpoints
 .ipynb_checkpoints/
@@ -190,7 +186,5 @@ run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/syste
 preprint_acousticHelmholtzFoam/
 
 # Local manuscript and presentation sources
-/paper_aHF/acousticHelmholtzFoam.tex
-/paper_aHF/helmHoltzPML.tex
-/paper_aHF/260713/acousticHelmholtzFoam.tex
-/SLIDE/main.tex
+/paper_aHF/
+/SLIDE/
