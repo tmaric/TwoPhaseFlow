@@ -93,8 +93,10 @@ int main(int argc, char *argv[])
 
     Info<< "\nStarting time loop\n" << endl;
 
-    rho = 1/(alpha1/rhol + (1 - alpha1)/rhog);
-    invRhof = alphaf/rhol + (1 - alphaf)/rhog;
+    rho = alpha1*rhol + (1 - alpha1)*rhog;
+    compressibility = alpha1*kl + (1 - alpha1)*kg;
+    invRhof = 1/(alphaf*rhol + (1 - alphaf)*rhog);
+    k2 = sqr(twoPi()*f)*rho*compressibility;
 
     while (simple.loop())
     {
@@ -166,7 +168,7 @@ int main(int argc, char *argv[])
         Ure == 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
         Uim == -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
         pa == Foam::sqrt(Pim*Pim + Pre*Pre);
-        pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*(Pre*Pre + Pim*Pim)
+        pr == 0.25*compressibility*(Pre*Pre + Pim*Pim)
             - 0.25*rho*((Ure&Ure) + (Uim&Uim));
         momFlux == 0.5*rho*(Ure*Ure + Uim*Uim);
 

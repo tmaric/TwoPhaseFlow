@@ -2,6 +2,7 @@
 const auto& faceOwner = mesh.owner();
 const cellList& cellFaces = mesh.cells();
 
+const surfaceScalarField alphafLinear(fvc::interpolate(alpha1));
 alphaf == upwind<scalar>(phi.mesh(), phi).interpolate(alpha1);
 
  reconstructionSchemes& surf = mesh.lookupObjectRef<reconstructionSchemes>("reconstructionScheme");
@@ -113,6 +114,54 @@ forAll(bsFaces, i)
     }
 }
 syncProcPatches(mesh, procPatchLabels, surfaceCellFacesOnProcPatches, alphaf, phi);
+
+// If an interface lies exactly on a mesh face, both adjacent cells are pure
+// and no cell-local reconstruction exists. Use the ordinary distance-weighted
+// interpolation on that face instead of retaining the arbitrary donor value.
+// Faces cut within an interface cell keep the geometric area fraction above.
+const scalar pureTol = 1e-12;
+forAll(mesh.neighbour(), facei)
+{
+    const scalar alphaOwn = alpha1[mesh.owner()[facei]];
+    const scalar alphaNei = alpha1[mesh.neighbour()[facei]];
+    if
+    (
+        (alphaOwn < pureTol && alphaNei > 1 - pureTol)
+     || (alphaNei < pureTol && alphaOwn > 1 - pureTol)
+    )
+    {
+        alphaf[facei] = alphafLinear[facei];
+    }
+}
+
+forAll(boundaryMesh, patchi)
+{
+    if (!alpha1.boundaryField()[patchi].coupled())
+    {
+        continue;
+    }
+
+    const scalarField alphaOwn
+    (
+        alpha1.boundaryField()[patchi].patchInternalField()
+    );
+    const scalarField alphaNei
+    (
+        alpha1.boundaryField()[patchi].patchNeighbourField()
+    );
+    forAll(alphaOwn, facei)
+    {
+        if
+        (
+            (alphaOwn[facei] < pureTol && alphaNei[facei] > 1 - pureTol)
+         || (alphaNei[facei] < pureTol && alphaOwn[facei] > 1 - pureTol)
+        )
+        {
+            alphafb[patchi][facei] = alphafLinear.boundaryField()[patchi][facei];
+        }
+    }
+}
+
 bsFaces.clear();
 bsx0.clear();
 bsn0.clear();

@@ -1,0 +1,35 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object blockMeshDict;
+}
+convertToMeters 1;
+vertices
+(
+    (0 0 -__Z_HALF__)
+    (__LX__ 0 -__Z_HALF__)
+    (__LX__ __LY__ -__Z_HALF__)
+    (0 __LY__ -__Z_HALF__)
+    (0 0 __Z_HALF__)
+    (__LX__ 0 __Z_HALF__)
+    (__LX__ __LY__ __Z_HALF__)
+    (0 __LY__ __Z_HALF__)
+);
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (__NX__ __NY__ 1) simpleGrading (1 1 1)
+);
+edges ();
+boundary
+(
+    left { type patch; faces ((0 4 7 3)); }
+    right { type patch; faces ((1 2 6 5)); }
+    bottom { type patch; faces ((0 1 5 4)); }
+    top { type patch; faces ((3 7 6 2)); }
+    front { type empty; faces ((0 3 2 1)); }
+    back { type empty; faces ((4 5 6 7)); }
+);
+mergePatchPairs ();
+

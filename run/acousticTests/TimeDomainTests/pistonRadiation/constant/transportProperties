@@ -26,6 +26,7 @@ cg              343;
 cl              1480;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
+laplacianCorrection 1.0;
 
 pistonRadius    0.1;
 domainRadius    0.2;

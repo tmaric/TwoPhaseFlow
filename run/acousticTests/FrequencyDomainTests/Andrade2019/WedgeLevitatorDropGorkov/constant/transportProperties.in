@@ -1,0 +1,43 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      transportProperties;
+}
+
+transportModel  Newtonian;
+soundSpeed      __CG__;
+
+mu              [1 -1 -1 0 0 0 0] 0;
+psi             [0 -2 2 0 0 0 0] 8.5e-6;
+rho0            [1 -3 0 0 0 0 0] __RHOG__;
+R               1.51e-3;
+p0              0;
+c0              $soundSpeed;
+
+f               __DRIVE_F__;
+rhol            __RHOL__;
+rhog            __RHOG__;
+cg              __CG__;
+cl              __CL__;
+kg              #eval{1.0/($rhog*$cg*$cg)};
+kl              #eval{1.0/($rhol*$cl*$cl)};
+k               #eval{2.0*pi()*$f/$soundSpeed};
+
+L               __PML_L__;
+PMLType         rectangle;
+PMLMax          (__CAVITY_RADIUS__ __H__ 100);
+PMLMin          (0 0 -100);
+sigmaMax        __SIGMA_MAX__;
+sigmaMaxVector  (0 0 0);
+po              __PO__;
+
+// ************************************************************************* //

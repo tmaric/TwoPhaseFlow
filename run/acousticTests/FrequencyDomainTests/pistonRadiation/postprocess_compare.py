@@ -462,7 +462,7 @@ def main() -> int:
         "--r-src",
         type=float,
         default=None,
-        help="Source contour radius [m] for boundary integral (default: PML_RMIN)",
+        help="Source contour radius [m] for boundary integral (default: 0.65*PML_RMIN)",
     )
     parser.add_argument("--a", type=float, default=None, help="Piston radius [m] override")
     args = parser.parse_args()
@@ -478,7 +478,9 @@ def main() -> int:
     a = args.a if args.a is not None else parse_piston_radius(case_dir / "system" / "topoSetDict")
     z_max = args.z_max if args.z_max is not None else 0.9 * params["PML_RMIN"]
     r_far = args.r_far if args.r_far is not None else 20.0 * params["PML_RMIN"]
-    r_src = args.r_src if args.r_src is not None else params["PML_RMIN"]
+    # Keep the reconstruction contour away from the PML coefficient transition,
+    # where cell-to-point interpolation and numerical gradients are less robust.
+    r_src = args.r_src if args.r_src is not None else 0.65*params["PML_RMIN"]
 
     t_name = latest_time(case_dir)
     run_foam_to_vtk(case_dir)
@@ -624,8 +626,8 @@ def main() -> int:
     ax_pol.set_rlim(-40.0, 0.0)
     ax_pol.set_rlabel_position(105)
     ax_pol.grid(True, alpha=0.35)
-    ax_pol.set_title("Far-field radiation pattern (relative SPL, dB)", pad=18)
-    ax_pol.legend(loc="lower left", bbox_to_anchor=(0.02, 0.02))
+    ax_pol.set_title("Far-field radiation pattern (relative SPL, dB)", pad=4)
+    ax_pol.legend(loc="upper right", bbox_to_anchor=(1.03, 0.92))
     pol_png = out_dir / "farFieldPatternPolar.png"
     fig_pol.tight_layout()
     fig_pol.savefig(pol_png, dpi=160)

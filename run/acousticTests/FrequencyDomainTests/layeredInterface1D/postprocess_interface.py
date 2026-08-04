@@ -114,7 +114,7 @@ def analytical_pressure(
 
 def main():
     case_dir = pathlib.Path(__file__).resolve().parent
-    p = parse_keyvals(case_dir / "caseParams.sh")
+    p = parse_keyvals(case_dir / "studyProperties")
 
     f = p["DRIVE_F"]
     piston_u = p["PISTON_U"]
@@ -158,7 +158,11 @@ def main():
         pml_order,
         R,
     )
-    compare_mask = (x > 0.005) & (x < x_max - pml_l - 0.005)
+    # Use the complete gas--liquid--PML domain for the verification norm.
+    compare_mask = np.isfinite(pc) & np.isfinite(pc_th)
+    p_rel_l2 = np.linalg.norm((pc - pc_th)[compare_mask]) / max(
+        np.linalg.norm(pc_th[compare_mask]), 1e-30
+    )
     pre_rel_l2 = np.linalg.norm((pc.real - pc_th.real)[compare_mask]) / max(
         np.linalg.norm(pc_th.real[compare_mask]), 1e-30
     )
@@ -208,6 +212,8 @@ def main():
         fobj.write(f"PML_length = {pml_l:.8e}\n")
         fobj.write(f"sigmaMax = {sigma_max:.8e}\n")
         fobj.write(f"PML_order = {pml_order:.8e}\n")
+        fobj.write("errorDomain = whole domain including PML\n")
+        fobj.write(f"P_relL2 = {p_rel_l2:.8e}\n")
         fobj.write(f"Pre_relL2 = {pre_rel_l2:.8e}\n")
         fobj.write(f"Pim_relL2 = {pim_rel_l2:.8e}\n")
         fobj.write(f"|p|_relL2 = {pabs_rel_l2:.8e}\n")

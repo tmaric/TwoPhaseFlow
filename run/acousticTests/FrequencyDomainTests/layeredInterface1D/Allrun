@@ -6,7 +6,6 @@ cd "${0%/*}" || exit 1
 
 ./Allclean
 ./prepareCase
-restore0Dir
 rm -f 0/*.in
 
 runApplication blockMesh
@@ -16,4 +15,10 @@ runApplication decomposePar -force
 runParallel "${SOLVER}"
 runApplication reconstructPar -latestTime
 
-python3 postprocess_interface.py
+if [ "$CASE_MODE" = "interface" ]; then
+    python3 postprocess_interface_convergence.py
+elif [ "$CASE_MODE" = "pmlReflection" ]; then
+    python3 postprocess_pml_reflection.py
+else
+    python3 postprocess_interface.py
+fi

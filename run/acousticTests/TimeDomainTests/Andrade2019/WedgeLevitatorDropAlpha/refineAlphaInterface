@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+case "${ALPHA_INTERFACE_REFINEMENT:-1}" in
+    1|true|yes|on) ;;
+    *)
+        echo "Alpha-interface refinement disabled"
+        exit 0
+        ;;
+esac
+
+levels="${ALPHA_INTERFACE_REFINEMENT_LEVELS:-1}"
+if ! awk -v levels="$levels" 'BEGIN{exit !(levels ~ /^[0-9]+$/ && levels >= 0)}'; then
+    echo "Invalid ALPHA_INTERFACE_REFINEMENT_LEVELS='${levels}'" >&2
+    exit 1
+fi
+
+adjacentLayers="${ALPHA_INTERFACE_ADJACENT_LAYERS:-1}"
+if ! awk -v layers="$adjacentLayers" 'BEGIN{exit !(layers ~ /^[0-9]+$/ && layers >= 0)}'; then
+    echo "Invalid ALPHA_INTERFACE_ADJACENT_LAYERS='${adjacentLayers}'" >&2
+    exit 1
+fi
+
+level=1
+while [ "$level" -le "$levels" ]; do
+    echo "Selecting mixed alpha cells plus ${adjacentLayers} adjacent layer(s) for refinement level ${level}"
+    topoSet -dict system/topoSetDict.alphaInterface \
+        > "log.topoSet.alphaInterface.${level}" 2>&1
+
+    echo "Refining mixed alpha cells at level ${level}"
+    refineMesh -overwrite -dict system/refineMeshDict.alphaInterface \
+        > "log.refineMesh.alphaInterface.${level}" 2>&1
+
+    # Reconstruct the geometric volume fraction on the refined mesh. This
+    # ensures a subsequent level again selects only cells with 0 < alpha < 1.
+    cp -f 0.orig/alpha.water 0/alpha.water
+    setAlphaField > "log.setAlphaField.alphaInterface.${level}" 2>&1
+
+    level=$((level + 1))
+done

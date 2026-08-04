@@ -1,0 +1,203 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+TRANSDUCER_PRE="$(awk \
+    -v pa="$PRESSURE_AMPLITUDE" -v f="$DRIVE_F" -v c="$CG" \
+    -v h="$H" \
+    'BEGIN{pi=atan2(0,-1); printf "%.16g", pa*cos(2*pi*f*h/c)}')"
+TRANSDUCER_PIM=0
+
+echo "Preparing rigid-sphere Gorkov verification:"
+echo "  f=${DRIVE_F} Hz, Pa=${PRESSURE_AMPLITUDE} Pa"
+echo "  radius=${DROP_RADIUS} m, centre y=${DROP_CENTER_Y} m"
+echo "  transducer pressure=(${TRANSDUCER_PRE}, ${TRANSDUCER_PIM}) Pa"
+
+render()
+{
+    inFile="$1"
+    outFile="$2"
+
+    sed \
+        -e "s|__DRIVE_F__|$DRIVE_F|g" \
+        -e "s|__TRANSDUCER_PRE__|$TRANSDUCER_PRE|g" \
+        -e "s|__TRANSDUCER_PIM__|$TRANSDUCER_PIM|g" \
+        -e "s|__RHOG__|$RHOG|g" \
+        -e "s|__CG__|$CG|g" \
+        -e "s|__RHOL__|$RHOL|g" \
+        -e "s|__CL__|$CL|g" \
+        -e "s|__H__|$H|g" \
+        -e "s|__CAVITY_RADIUS__|$CAVITY_RADIUS|g" \
+        -e "s|__PML_L__|$PML_L|g" \
+        -e "s|__SIGMA_MAX__|$SIGMA_MAX|g" \
+        -e "s|__PO__|$PO|g" \
+        -e "s|__WEDGE_DEG__|$WEDGE_DEG|g" \
+        -e "s|__DROP_RADIUS__|$DROP_RADIUS|g" \
+        "$inFile" > "$outFile"
+}
+
+render 0.orig/Pre.in 0.orig/Pre
+render 0.orig/Pim.in 0.orig/Pim
+render constant/transportProperties.in constant/transportProperties
+render system/controlDict.in system/controlDict
+
+export H CAVITY_RADIUS WEDGE_DEG AXIS_RADIUS SURFACE_THICKNESS
+export DROP_RADIUS DROP_CENTER_Y CFMESH_MAX_CELL_SIZE
+export CFMESH_DROP_CELL_SIZE CFMESH_DROP_SEGMENTS
+
+python3 - <<'PY'
+from math import pi, sin, cos
+from os import environ
+from pathlib import Path
+
+
+def number(name):
+    return float(environ[name])
+
+
+def fmt(value):
+    return f"{value:.12g}"
+
+
+H = number("H")
+radius = number("CAVITY_RADIUS")
+wedge_angle = number("WEDGE_DEG")
+axis_radius = number("AXIS_RADIUS")
+ribbon_thickness = number("SURFACE_THICKNESS")
+drop_radius = number("DROP_RADIUS")
+drop_y = number("DROP_CENTER_Y")
+max_cell = number("CFMESH_MAX_CELL_SIZE")
+drop_cell = number("CFMESH_DROP_CELL_SIZE")
+drop_segments = int(environ["CFMESH_DROP_SEGMENTS"])
+
+if not (0 < drop_y - drop_radius and drop_y + drop_radius < H):
+    raise SystemExit("The sphere must lie strictly inside the cavity.")
+if drop_radius >= radius:
+    raise SystemExit("The sphere radius must be smaller than the cavity radius.")
+if drop_segments < 12:
+    raise SystemExit("CFMESH_DROP_SEGMENTS must be at least 12.")
+
+patches = [
+    ("reflector", "wall"),
+    ("outerWall", "wall"),
+    ("transducer", "wall"),
+    ("axis", "symmetryPlane"),
+    ("dropWall", "wall"),
+]
+patch_id = {name: i for i, (name, _) in enumerate(patches)}
+
+# Clockwise meridional boundary. The semicircle is a hole which becomes a
+# complete sphere after wedge extrusion and axisymmetric scaling.
+points2d = [
+    (axis_radius, 0.0),
+    (radius, 0.0),
+    (radius, H),
+    (axis_radius, H),
+    (axis_radius, drop_y + drop_radius),
+]
+segment_patches = ["reflector", "outerWall", "transducer", "axis"]
+
+for i in range(1, drop_segments):
+    theta = pi*i/drop_segments
+    points2d.append(
+        (
+            axis_radius + drop_radius*sin(theta),
+            drop_y + drop_radius*cos(theta),
+        )
+    )
+
+points2d.append((axis_radius, drop_y - drop_radius))
+segment_patches.extend(["dropWall"]*drop_segments)
+segment_patches.append("axis")
+
+n2 = len(points2d)
+points = [(x, y, 0.0) for x, y in points2d]
+points.extend((x, y, ribbon_thickness) for x, y in points2d)
+
+faces = []
+for i, patch_name in enumerate(segment_patches):
+    a = i
+    b = (i + 1) % n2
+    patch = patch_id[patch_name]
+    faces.append((a, b, b + n2, patch))
+    faces.append((a, b + n2, a + n2, patch))
+
+constant = Path("constant")
+system = Path("system")
+with (constant / "levitator2D.fms").open("w") as out:
+    out.write(f"{len(patches)}\n(\n")
+    for name, patch_type in patches:
+        out.write(f"{name}\n{patch_type}\n\n")
+    out.write(")\n\n")
+    out.write(f"{len(points)}\n(\n")
+    for x, y, z in points:
+        out.write(f"({fmt(x)} {fmt(y)} {fmt(z)})\n")
+    out.write(")\n\n")
+    out.write(f"{len(faces)}\n(\n")
+    for a, b, c, patch in faces:
+        out.write(f"(({a} {b} {c}) {patch})\n")
+    out.write(")\n\n0()\n\n0\n(\n)\n\n0\n(\n)\n\n0\n(\n)\n")
+
+arc_start = 4
+refinements = []
+for i in range(drop_segments):
+    p0 = points2d[arc_start + i]
+    p1 = points2d[arc_start + i + 1]
+    refinements.append(
+        f"""    dropWallSeg{i + 1:03d}
+    {{
+        type        line;
+        cellSize    {fmt(drop_cell)};
+        p0          ({fmt(p0[0])} {fmt(p0[1])} {fmt(0.5*ribbon_thickness)});
+        p1          ({fmt(p1[0])} {fmt(p1[1])} {fmt(0.5*ribbon_thickness)});
+    }}
+"""
+    )
+
+(system / "meshDict").write_text(
+    f"""FoamFile
+{{
+    version   2.0;
+    format    ascii;
+    class     dictionary;
+    object    meshDict;
+}}
+
+surfaceFile "constant/levitator2D.fms";
+maxCellSize {fmt(max_cell)};
+
+objectRefinements
+{{
+{''.join(refinements)}}}
+"""
+)
+
+(system / "extrudeMeshDict").write_text(
+    f"""FoamFile
+{{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      extrudeMeshDict;
+}}
+
+constructFrom patch;
+sourceCase ".";
+sourcePatches (bottomEmptyFaces);
+exposedPatchName topEmptyFaces;
+extrudeModel wedge;
+
+sectorCoeffs
+{{
+    point (0 0 0);
+    axis  (0 -1 0);
+    angle {fmt(wedge_angle)};
+}}
+
+flipNormals true;
+mergeFaces false;
+"""
+)
+PY

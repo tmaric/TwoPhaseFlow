@@ -1,0 +1,12 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object Pim; }
+dimensions [1 -1 -2 0 0 0 0];
+internalField uniform 0;
+boundaryField
+{
+    left { type fixedValue; value uniform __LEFT_VALUE__; }
+    right { type fixedGradient; gradient uniform __RIGHT_GRADIENT__; }
+    bottom { type zeroGradient; }
+    top { type zeroGradient; }
+    front { type empty; }
+    back { type empty; }
+}

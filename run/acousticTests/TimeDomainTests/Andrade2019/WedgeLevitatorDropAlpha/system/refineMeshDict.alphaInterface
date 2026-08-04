@@ -1,0 +1,26 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      refineMeshDict;
+}
+
+set alphaInterfaceCells;
+
+coordinateSystem global;
+
+globalCoeffs
+{
+    tan1 (1 0 0);
+    tan2 (0 1 0);
+}
+
+// Keep the wedge one cell thick: refine radial and vertical directions only.
+directions (tan1 tan2);
+
+useHexTopology true;
+geometricCut false;
+writeMesh false;
+
+// ************************************************************************* //

@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+cd "${0%/*}" || exit 1
+boundaryFile="constant/polyMesh/boundary"
+
+perl -0pi -e '
+    s/\bbottomEmptyFaces\b/front/g;
+    s/\btopEmptyFaces\b/back/g;
+' "$boundaryFile"
+
+perl -0pi -e '
+    for $patch (qw(transducer reflector outerWall dropWall)) {
+        s/($patch\s*\{[^}]*?\btype\s*)wall;/${1}patch;/s;
+        s/($patch\s*\{[^}]*?\binGroups\s*)1\(wall\);/${1}1(patch);/s;
+    }
+' "$boundaryFile"

@@ -1,0 +1,5 @@
+#!/bin/sh
+cd "${0%/*}" || exit 1
+rm -rf 0 constant/polyMesh processor* [1-9]* [0-9]*.[0-9]*
+rm -rf postProcessing/homogeneousBaseline VTK
+rm -f log.* studyProperties

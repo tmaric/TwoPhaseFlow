@@ -109,8 +109,8 @@ Outputs are written to:
 
 ## Mesh convergence batch
 
-Run near-field/on-axis and far-field analytical comparisons for 20, 50, and
-100 cells per wavelength:
+Run near-field/on-axis and far-field analytical comparisons for 20, 30, 40,
+60, and 80 cells per wavelength:
 
 ```bash
 ./meshConv.sh

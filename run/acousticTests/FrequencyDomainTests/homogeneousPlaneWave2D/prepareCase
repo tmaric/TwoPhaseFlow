@@ -1,0 +1,108 @@
+#!/bin/sh
+set -eu
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+mkdir -p 0
+cp 0.orig/alpha.water 0/alpha.water
+
+nx=$(awk -v n="$CELLS_PER_WAVELENGTH" -v l="$LX" 'BEGIN { printf "%d", int(n*l + 0.5) }')
+ny=$(awk -v n="$CELLS_PER_WAVELENGTH" -v l="$LY" 'BEGIN { printf "%d", int(n*l + 0.5) }')
+k=$(awk -v f="$DRIVE_F" -v c="$C0" 'BEGIN { printf "%.16g", 2*atan2(0,-1)*f/c }')
+
+sed \
+    -e "s|__LX__|$LX|g" \
+    -e "s|__LY__|$LY|g" \
+    -e "s|__Z_HALF__|$Z_HALF|g" \
+    -e "s|__NX__|$nx|g" \
+    -e "s|__NY__|$ny|g" \
+    system/blockMeshDict.in > system/blockMeshDict
+
+sed \
+    -e "s|__RHO0__|$RHO0|g" \
+    -e "s|__C0__|$C0|g" \
+    -e "s|__DRIVE_F__|$DRIVE_F|g" \
+    -e "s|__LX__|$LX|g" \
+    -e "s|__LY__|$LY|g" \
+    constant/transportProperties.in > constant/transportProperties
+
+sed -e "s|__N_NONORTH__|$N_NONORTH_CORRECTORS|g" \
+    system/fvSolution.in > system/fvSolution
+
+if [ "$MESH_FAMILY" = "orthogonal" ]; then
+    sed 's|__LAPLACIAN_SCHEME__|Gauss linear orthogonal|g; s|__SNGRAD_SCHEME__|orthogonal|g' \
+        system/fvSchemes.in > system/fvSchemes
+elif [ "$MESH_FAMILY" = "warped" ]; then
+    sed 's|__LAPLACIAN_SCHEME__|Gauss linear corrected|g; s|__SNGRAD_SCHEME__|corrected|g' \
+        system/fvSchemes.in > system/fvSchemes
+else
+    echo "Unsupported MESH_FAMILY=$MESH_FAMILY" >&2
+    exit 2
+fi
+
+sed -e "s|__NPROCS__|$NPROCS|g" system/decomposeParDict.in > system/decomposeParDict
+
+theta_left=$PHASE
+theta_right=$(awk -v phi="$PHASE" -v kval="$k" -v lx="$LX" 'BEGIN { printf "%.16g", phi-kval*lx }')
+pre_left=$(awk -v p="$P0" -v t="$theta_left" 'BEGIN { printf "%.16g", p*cos(t) }')
+pim_left=$(awk -v p="$P0" -v t="$theta_left" 'BEGIN { printf "%.16g", p*sin(t) }')
+pre_right=$(awk -v p="$P0" -v t="$theta_right" 'BEGIN { printf "%.16g", p*cos(t) }')
+pim_right=$(awk -v p="$P0" -v t="$theta_right" 'BEGIN { printf "%.16g", p*sin(t) }')
+pre_grad_right=$(awk -v p="$P0" -v kval="$k" -v t="$theta_right" 'BEGIN { printf "%.16g", kval*p*sin(t) }')
+pim_grad_right=$(awk -v p="$P0" -v kval="$k" -v t="$theta_right" 'BEGIN { printf "%.16g", -kval*p*cos(t) }')
+
+if [ "$BOUNDARY_MODE" = "dirichlet" ]; then
+    sed \
+        -e "s|__P0__|$P0|g" \
+        -e "s|__PHASE__|$PHASE|g" \
+        -e "s|__KX__|$(awk -v kval="$k" 'BEGIN { printf "%.16g", kval*cos(atan2(1,sqrt(3))) }')|g" \
+        -e "s|__KY__|$(awk -v kval="$k" 'BEGIN { printf "%.16g", kval*sin(atan2(1,sqrt(3))) }')|g" \
+        0.templates/Pre.dirichlet.in > 0/Pre
+    sed \
+        -e "s|__P0__|$P0|g" \
+        -e "s|__PHASE__|$PHASE|g" \
+        -e "s|__KX__|$(awk -v kval="$k" 'BEGIN { printf "%.16g", kval*cos(atan2(1,sqrt(3))) }')|g" \
+        -e "s|__KY__|$(awk -v kval="$k" 'BEGIN { printf "%.16g", kval*sin(atan2(1,sqrt(3))) }')|g" \
+        0.templates/Pim.dirichlet.in > 0/Pim
+elif [ "$BOUNDARY_MODE" = "alignedDirichlet" ]; then
+    sed \
+        -e "s|__LEFT_VALUE__|$pre_left|g" \
+        -e "s|__RIGHT_VALUE__|$pre_right|g" \
+        0.templates/Pre.alignedDirichlet.in > 0/Pre
+    sed \
+        -e "s|__LEFT_VALUE__|$pim_left|g" \
+        -e "s|__RIGHT_VALUE__|$pim_right|g" \
+        0.templates/Pim.alignedDirichlet.in > 0/Pim
+elif [ "$BOUNDARY_MODE" = "mixed" ]; then
+    sed \
+        -e "s|__LEFT_VALUE__|$pre_left|g" \
+        -e "s|__RIGHT_GRADIENT__|$pre_grad_right|g" \
+        0.templates/Pre.mixed.in > 0/Pre
+    sed \
+        -e "s|__LEFT_VALUE__|$pim_left|g" \
+        -e "s|__RIGHT_GRADIENT__|$pim_grad_right|g" \
+        0.templates/Pim.mixed.in > 0/Pim
+else
+    echo "Unsupported BOUNDARY_MODE=$BOUNDARY_MODE" >&2
+    exit 2
+fi
+
+cat > studyProperties <<EOF
+DRIVE_F=$DRIVE_F
+RHO0=$RHO0
+C0=$C0
+P0=$P0
+PHASE=$PHASE
+LX=$LX
+LY=$LY
+CELLS_PER_WAVELENGTH=$CELLS_PER_WAVELENGTH
+NX=$nx
+NY=$ny
+MESH_FAMILY=$MESH_FAMILY
+BOUNDARY_MODE=$BOUNDARY_MODE
+WARP_AMPLITUDE=$WARP_AMPLITUDE
+N_NONORTH_CORRECTORS=$N_NONORTH_CORRECTORS
+K=$k
+PRE_RIGHT=$pre_right
+PIM_RIGHT=$pim_right
+EOF

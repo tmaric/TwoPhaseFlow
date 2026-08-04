@@ -17,14 +17,18 @@ while (pimple.correctNonOrthogonal())
     );
     uEqn.solve();
 
-    // Trapezoidal/Newmark averaging of the Laplacian avoids the artificial
-    // modal damping caused by using the Laplacian fully at t^{n+1}.
+    // Keep the robust fully implicit Laplacian in the matrix and add a
+    // deferred correction toward the non-damping centered/Newmark operator.
     fvScalarMatrix pEqn
     (
         fvm::d2dt2(invc2/rho, p)
-      - 0.25*fvm::laplacian(invRhof,p)
-      - 0.5*fvc::laplacian(invRhof,p.oldTime())
-      - 0.25*fvc::laplacian(invRhof,p.oldTime().oldTime())
+      - fvm::laplacian(invRhof,p)
+      + laplacianCorrection
+       * (
+            0.75*fvc::laplacian(invRhof,p)
+          - 0.5*fvc::laplacian(invRhof,p.oldTime())
+          - 0.25*fvc::laplacian(invRhof,p.oldTime().oldTime())
+        )
       + fvm::ddt(C0/rho, p)
       + fvm::Sp(C1/rho, p)
       + (C2/rho)*v
@@ -32,10 +36,9 @@ while (pimple.correctNonOrthogonal())
       - fvc::div(u)/rho
       //+ sqr(c0)*(rhol - rho)/rhol*(fvc::grad(alpha1) & fvc::grad(p)));
     );
-    pEqn.relax();
-     pEqn.solve();
+    pEqn.solve();
 
-     if (pimple.finalNonOrthogonalIter())
+    if (pimple.finalNonOrthogonalIter())
     {
         p.relax();
         solve (fvm::ddt(rho, U) == - fvc::grad(p));

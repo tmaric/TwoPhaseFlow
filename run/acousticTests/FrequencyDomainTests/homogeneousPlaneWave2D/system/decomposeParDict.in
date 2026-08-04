@@ -1,0 +1,6 @@
+FoamFile { version 2.0; format ascii; class dictionary; object decomposeParDict; }
+numberOfSubdomains __NPROCS__;
+method scotch;
+distributed no;
+roots ();
+

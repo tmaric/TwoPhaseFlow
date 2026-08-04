@@ -7,7 +7,8 @@ Heterogeneous/interface validation case for `acousticHelmholtzFoam`.
 - Material jump is represented with `alpha.water`:
   - `alpha.water = 0`: medium 1 (`rhog`, `cg`)
   - `alpha.water = 1`: medium 2 (`rhol`, `cl`)
-- Right-end PML damps transmitted wave to approximate semi-infinite medium 2.
+- The analytical pressure covers the gas, liquid, and right-end PML.
+- The reported complex-pressure error is evaluated over the complete domain.
 
 ## Run (MPI default)
 ```bash
@@ -17,14 +18,33 @@ Heterogeneous/interface validation case for `acousticHelmholtzFoam`.
 ## Outputs
 - Solver log: `log.acousticHelmholtzFoam`
 - Verification report: `postProcessing/interfaceValidation/1/metrics.txt`
-- Plot: `postProcessing/interfaceValidation/1/interface_RT_compare.png`
+- Component comparison: `postProcessing/interfaceValidation/1/pressureField_Pre_Pim_compare.png`
+- Amplitude comparison: `postProcessing/interfaceValidation/1/pressureField_abs_compare.png`
+- Comparison data: `postProcessing/interfaceValidation/1/pressureFieldComparison.csv`
+
+## PML damping sensitivity
+
+The damping sweep holds the mesh, PML thickness, and polynomial order fixed:
+
+```bash
+./run_pml_sensitivity.sh
+```
+
+Outputs are written to `postProcessing/pmlSensitivity`.
+
+## Mesh sensitivity
+
+The mesh sweep keeps the material interface and PML start aligned with mesh
+faces and uses the same whole-domain complex-pressure error:
+
+```bash
+./run_pml_mesh_sensitivity.sh
+```
+
+Outputs are written to `postProcessing/pmlMeshSensitivity`.
 
 ## Interpretation
-`metrics.txt` reports numerical vs analytical complex reflection/transmission coefficients:
-- `R = B/A`
-- `T = C/A`
-
-Analytical references (normal incidence):
-- `R_th = (Z2 - Z1)/(Z2 + Z1)`
-- `T_th = 2*Z2/(Z2 + Z1)`
-with impedances `Zi = rhoi*ci`.
+`metrics.txt` reports `P_relL2`, the relative complex-pressure error over all
+uniformly sampled points from the driven boundary through the outer PML
+boundary. Component and pressure-amplitude errors are retained as secondary
+diagnostics; the paper uses `P_relL2` as the quantitative measure.

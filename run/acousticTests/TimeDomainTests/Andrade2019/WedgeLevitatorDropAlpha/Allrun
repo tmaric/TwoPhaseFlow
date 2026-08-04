@@ -1,18 +1,41 @@
 #!/bin/sh
+set -e
 cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+. ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
-./Allclean
+rm -f \
+    log.cartesian2DMesh \
+    log.extrudeMesh \
+    log.topoSet.alphaInterface.* \
+    log.refineMesh.alphaInterface.* \
+    log.setAlphaField.alphaInterface.* \
+    log.setAlphaField \
+    log.setPMLFields \
+    log.decomposePar \
+    log.reconstructPar \
+    "log.${SOLVER}"
 
-gmsh -0 constant/levitatorWedgeHex.geo
-runApplication gmshToFoam  constant/levitatorWedgeHex.msh
-rm constant/levitatorWedgeHex.msh
-runApplication changeDictionary
+./Allclean
+./prepareCase
+
+runApplication cartesian2DMesh
+runApplication extrudeMesh
+./postMesh
+
 restore0Dir
 runApplication setAlphaField
-runApplication setPMLFields
-runApplication decomposePar
 
-runParallel acousticWaveFoam
+./refineAlphaInterface
+
+rm -f 0/p.in
+
+runApplication setPMLFields
+
+rm -f "log.${SOLVER}"
+runApplication decomposePar -force
+runParallel "${SOLVER}"
+runApplication reconstructPar -latestTime
+
 #------------------------------------------------------------------------------

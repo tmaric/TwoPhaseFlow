@@ -16,11 +16,31 @@ sed \
   -e "s|__PML_XMAX__|${PML_XMAX}|g" \
   constant/transportProperties.in > constant/transportProperties
 
-sed \
-  -e "s|__DRIVE_F__|${DRIVE_F}|g" \
-  -e "s|__PISTON_U__|${PISTON_U}|g" \
-  -e "s|__RHOG__|${RHOG}|g" \
-  0.orig/Pim.in > 0.orig/Pim
+if [ "$CASE_MODE" = "interface" ]; then
+  omega=$(awk -v f="$DRIVE_F" 'BEGIN { printf "%.16g", 2*atan2(0,-1)*f }')
+  awk -v omega="$omega" -v x0="$X_MIN" -v x1="$X_MAX" -v xi="$X_INTERFACE" \
+      -v rho1="$RHOG" -v c1="$CG" -v rho2="$RHOL" -v c2="$CL" '
+    BEGIN {
+      k1=omega/c1; k2=omega/c2; R=(rho2*c2-rho1*c1)/(rho2*c2+rho1*c1); T=1+R;
+      th1=k1*(x0-xi); th2=k2*(x1-xi);
+      preL=cos(th1)+R*cos(-th1); pimL=sin(th1)+R*sin(-th1);
+      preR=T*cos(th2); pimR=T*sin(th2);
+      printf "%.16g %.16g %.16g %.16g\n", preL, pimL, preR, pimR;
+    }' > .exactBoundaryValues
+  read pre_left pim_left pre_right pim_right < .exactBoundaryValues
+  rm .exactBoundaryValues
+  sed -e "s|__LEFT_VALUE__|$pre_left|g" -e "s|__RIGHT_VALUE__|$pre_right|g" \
+      0.templates/Pre.interface.in > 0/Pre
+  sed -e "s|__LEFT_VALUE__|$pim_left|g" -e "s|__RIGHT_VALUE__|$pim_right|g" \
+      0.templates/Pim.interface.in > 0/Pim
+else
+  cp 0.templates/Pre.pml 0/Pre
+  sed \
+    -e "s|__DRIVE_F__|${DRIVE_F}|g" \
+    -e "s|__PISTON_U__|${PISTON_U}|g" \
+    -e "s|__RHOG__|${RHOG}|g" \
+    0.orig/Pim.in > 0/Pim
+fi
 
 sed \
   -e "s|__X_MIN__|${X_MIN}|g" \
@@ -35,3 +55,21 @@ sed \
 sed \
   -e "s|__X_INTERFACE__|${X_INTERFACE}|g" \
   system/setAlphaFieldDict.in > system/setAlphaFieldDict
+
+cat > studyProperties <<EOF
+DRIVE_F=$DRIVE_F
+RHOG=$RHOG
+CG=$CG
+RHOL=$RHOL
+CL=$CL
+X_MIN=$X_MIN
+X_MAX=$X_MAX
+X_INTERFACE=$X_INTERFACE
+NX=$NX
+CASE_MODE=$CASE_MODE
+PISTON_U=$PISTON_U
+PML_L=$PML_L
+PML_XMAX=$PML_XMAX
+SIGMA_MAX=$SIGMA_MAX
+PO=$PO
+EOF

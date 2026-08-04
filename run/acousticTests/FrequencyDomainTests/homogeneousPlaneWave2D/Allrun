@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit 1
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+. ./caseParams.sh
+
+./Allclean
+./prepareCase
+
+runApplication blockMesh
+if [ "$MESH_FAMILY" = "warped" ]; then
+    python3 warp_mesh.py --amplitude "$WARP_AMPLITUDE" --lx "$LX" --ly "$LY"
+fi
+runApplication checkMesh -allGeometry -allTopology
+
+# Initialize the exact field. For fixed-value patches, -value-patches also
+# supplies the analytical boundary values at face centres.
+k=$(awk -v f="$DRIVE_F" -v c="$C0" 'BEGIN { printf "%.16g", 2*atan2(0,-1)*f/c }')
+if [ "$BOUNDARY_MODE" = "dirichlet" ]; then
+    kx=$(awk -v kval="$k" 'BEGIN { printf "%.16g", kval*cos(atan2(1,sqrt(3))) }')
+    ky=$(awk -v kval="$k" 'BEGIN { printf "%.16g", kval*sin(atan2(1,sqrt(3))) }')
+else
+    kx=$k
+    ky=0
+fi
+runApplication -s Pre setExprFields -field Pre \
+    -expression "$P0*cos($PHASE-$kx*pos().x()-$ky*pos().y())" -keepPatches
+runApplication -s Pim setExprFields -field Pim \
+    -expression "$P0*sin($PHASE-$kx*pos().x()-$ky*pos().y())" -keepPatches
+
+runApplication setPMLFields
+runApplication decomposePar -force
+runParallel "$SOLVER"
+runApplication reconstructPar -latestTime
+python3 postprocess.py

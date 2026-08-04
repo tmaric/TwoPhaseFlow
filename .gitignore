@@ -188,3 +188,9 @@ run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/syste
 
 .ccls-cache/
 preprint_acousticHelmholtzFoam/
+
+# Local manuscript and presentation sources
+/paper_aHF/acousticHelmholtzFoam.tex
+/paper_aHF/helmHoltzPML.tex
+/paper_aHF/260713/acousticHelmholtzFoam.tex
+/SLIDE/main.tex

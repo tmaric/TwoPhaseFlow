@@ -1,0 +1,127 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+
+application     acousticHelmholtzFoam;
+startFrom       startTime;
+startTime       0;
+stopAt          endTime;
+endTime         1;
+deltaT          1;
+writeControl    runTime;
+writeInterval   1;
+writeFormat     binary;
+writePrecision  12;
+writeCompression off;
+runTimeModifiable yes;
+
+libs
+(
+    "libpetscFoam.so"
+);
+
+functions
+{
+    dropRadiationForce
+    {
+        type            coded;
+        libs            ("libutilityFunctionObjects.so");
+        name            dropRadiationForce;
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    timeStep;
+        writeInterval   1;
+
+        codeInclude
+        #{
+            #include "volFields.H"
+        #};
+
+        codeWrite
+        #{
+            const fvMesh& mesh = refCast<const fvMesh>(obr_);
+            const volScalarField& pr =
+                mesh.lookupObject<volScalarField>("pr");
+            const volTensorField& momFlux =
+                mesh.lookupObject<volTensorField>("momFlux");
+
+            const label patchID = mesh.boundaryMesh().findPatchID("dropWall");
+            if (patchID < 0)
+            {
+                FatalErrorInFunction
+                    << "Patch 'dropWall' not found." << exit(FatalError);
+            }
+
+            vector pressureForceSlice = Zero;
+            vector momentumForceSlice = Zero;
+            scalar areaSlice = 0;
+            const auto& Sf = mesh.Sf().boundaryField()[patchID];
+            const auto& magSf = mesh.magSf().boundaryField()[patchID];
+            const auto& pB = pr.boundaryField()[patchID];
+            const auto& momentumB = momFlux.boundaryField()[patchID];
+
+            forAll(pB, facei)
+            {
+                // Sf points from the gas into the hole and therefore equals
+                // minus the sphere normal. pr is already time averaged.
+                pressureForceSlice += pB[facei]*Sf[facei];
+                momentumForceSlice += momentumB[facei]&Sf[facei];
+                areaSlice += magSf[facei];
+            }
+
+            label surfaceFaces = pB.size();
+            reduce(pressureForceSlice, sumOp<vector>());
+            reduce(momentumForceSlice, sumOp<vector>());
+            reduce(areaSlice, sumOp<scalar>());
+            reduce(surfaceFaces, sumOp<label>());
+
+            const vector forceSlice = pressureForceSlice + momentumForceSlice;
+            const scalar scale = 360.0/(__WEDGE_DEG__ + VSMALL);
+            const vector forceAxisym = scale*forceSlice;
+            const vector pressureForceAxisym = scale*pressureForceSlice;
+            const vector momentumForceAxisym = scale*momentumForceSlice;
+            const scalar areaAxisym = scale*areaSlice;
+
+            if (Pstream::master())
+            {
+                const fileName outDir
+                (
+                    mesh.time().globalPath()/"postProcessing"/
+                    "dropRadiationForce"
+                );
+                mkDir(outDir);
+                const fileName outFile(outDir/"force.dat");
+                const bool writeHeader = !exists(outFile);
+                OFstream os(outFile, IOstreamOption(), IOstreamOption::APPEND);
+
+                if (writeHeader)
+                {
+                    os << "# time" << tab << "FxSlice" << tab << "FySlice"
+                       << tab << "FzSlice" << tab << "FyAxisym" << tab
+                       << "surfaceAreaAxisym" << tab << "scaleFactor" << tab
+                       << "nSurfaceFaces" << tab << "FyPressureAxisym" << tab
+                       << "FyMomentumAxisym" << nl;
+                }
+
+                os << mesh.time().timeName() << tab << forceSlice.x() << tab
+                   << forceSlice.y() << tab << forceSlice.z() << tab
+                   << forceAxisym.y() << tab << areaAxisym << tab << scale
+                   << tab << surfaceFaces << tab << pressureForceAxisym.y()
+                   << tab << momentumForceAxisym.y() << nl;
+            }
+        #};
+    }
+}
+
+// ************************************************************************* //

@@ -22,6 +22,7 @@ cg              343;
 cl              1500;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
+laplacianCorrection 0;
 
 f               20000;
 sigmaMax        200000;

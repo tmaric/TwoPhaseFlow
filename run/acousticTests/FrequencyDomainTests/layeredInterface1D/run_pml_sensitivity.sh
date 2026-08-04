@@ -10,7 +10,7 @@ sigmas="${PML_SIGMAS:-10000 50000 100000 200000 500000}"
 
 mkdir -p "$out_dir"
 rm -f "$out_dir/metrics_summary.csv"
-printf 'sigmaMax,Pre_relL2,Pim_relL2,pAbs_relL2\n' > "$out_dir/metrics_summary.csv"
+printf 'sigmaMax,P_relL2,Pre_relL2,Pim_relL2\n' > "$out_dir/metrics_summary.csv"
 
 for sigma in $sigmas; do
     tag="$(printf '%s' "$sigma" | sed 's/^-//; s/[^0-9A-Za-z_]/_/g')"
@@ -18,7 +18,8 @@ for sigma in $sigmas; do
 
     rm -rf "$work_dir"
     mkdir -p "$work_dir"
-    cp -a "$case_dir/0.orig" "$case_dir/constant" "$case_dir/system" "$work_dir/"
+    cp -a "$case_dir/0.orig" "$case_dir/0.templates" \
+        "$case_dir/constant" "$case_dir/system" "$work_dir/"
     cp -a "$case_dir/Allrun" "$case_dir/Allclean" "$case_dir/prepareCase" \
         "$case_dir/caseParams.sh" "$case_dir/postprocess_interface.py" "$work_dir/"
 
@@ -38,10 +39,11 @@ PY
     (cd "$work_dir" && ./Allrun)
 
     metrics="$work_dir/postProcessing/interfaceValidation/1/metrics.txt"
+    pressure="$(awk -F ' = ' '$1=="P_relL2"{print $2}' "$metrics")"
     pre="$(awk -F ' = ' '$1=="Pre_relL2"{print $2}' "$metrics")"
     pim="$(awk -F ' = ' '$1=="Pim_relL2"{print $2}' "$metrics")"
-    pabs="$(awk -F ' = ' '$1=="|p|_relL2"{print $2}' "$metrics")"
-    printf '%s,%s,%s,%s\n' "$sigma" "$pre" "$pim" "$pabs" >> "$out_dir/metrics_summary.csv"
+    printf '%s,%s,%s,%s\n' "$sigma" "$pressure" "$pre" "$pim" \
+        >> "$out_dir/metrics_summary.csv"
 
     mkdir -p "$out_dir/sigma_${tag}"
     cp -a "$work_dir/postProcessing/interfaceValidation/1/." "$out_dir/sigma_${tag}/"

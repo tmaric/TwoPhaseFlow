@@ -260,6 +260,31 @@ static void insertScalarOpIntoBlock
     List<DynamicList<PetscScalar>> rowVals(op.psi().mesh().nCells());
     const List<labelList>& neighbGlobals =
         cachedProcessorPatchNeighbourGlobals(op, globalCells);
+
+    // Physical boundary conditions contribute both a source coefficient and
+    // an internal coefficient. OpenFOAM normally adds the latter to the
+    // diagonal in fvMatrix::solve(); PETSc assembly must do this explicitly.
+    if (includeDiag)
+    {
+        const auto& bpsi = op.psi().boundaryField();
+        const auto& icoeffs = op.internalCoeffs();
+        const lduAddressing& baddr = op.lduAddr();
+        forAll(bpsi, patchi)
+        {
+            if (bpsi[patchi].coupled())
+            {
+                continue;
+            }
+
+            const labelUList& paddr = baddr.patchAddr(patchi);
+            const Field<scalar>& pic = icoeffs[patchi];
+            forAll(paddr, facei)
+            {
+                diagWithProc[paddr[facei]] += pic[facei];
+            }
+        }
+    }
+
     // Processor coupling is explicit here so PETSc sees the same operator that
     // OpenFOAM would otherwise apply implicitly through ldu interfaces.
     if (Pstream::parRun())

@@ -66,6 +66,11 @@
       transportProperties
      );
 
+const scalar laplacianCorrection =
+    transportProperties.getOrDefault<scalar>("laplacianCorrection", 1.0);
+
+Info<< "Laplacian damping correction = " << laplacianCorrection << endl;
+
 scalar MaxCo =
     max(mesh.surfaceInterpolation::deltaCoeffs()*cg).value()
    *runTime.deltaT().value();

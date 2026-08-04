@@ -17,7 +17,6 @@ internalField   uniform 0;
 
 pistonFrequency 10000;
 pistonVelocity  1;
-gasDensity      1.2;
 
 boundaryField
 {
@@ -28,7 +27,7 @@ boundaryField
         uniformGradientCoeffs
         {
             frequency       constant $pistonFrequency;
-            scale           constant #eval{-$gasDensity*$pistonVelocity*2*pi()*$pistonFrequency};
+            scale           constant #eval{-$pistonVelocity*2*pi()*$pistonFrequency};
             level           constant 0;
         }
         value               $internalField;
