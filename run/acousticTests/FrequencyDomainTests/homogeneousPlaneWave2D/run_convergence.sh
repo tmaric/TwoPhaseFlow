@@ -3,7 +3,7 @@ set -eu
 cd "${0%/*}" || exit 1
 
 resolutions="${BASELINE_RESOLUTIONS:-16 24 32 48 64 96}"
-families="${BASELINE_MESH_FAMILIES:-orthogonal warped}"
+families="${BASELINE_MESH_FAMILIES:-orthogonal warpedInterior}"
 boundaries="${BASELINE_BOUNDARY_MODES:-dirichlet mixed}"
 out_dir=postProcessing/convergence
 mkdir -p "$out_dir"
@@ -21,4 +21,3 @@ for boundary in $boundaries; do
 done
 
 python3 summarize_convergence.py "$out_dir/metrics_summary.csv" "$out_dir"
-

@@ -13,17 +13,19 @@ internalField   uniform 0;
 
 pistonFrequency __DRIVE_F__;
 pistonVelocity  __PISTON_U__;
+gasDensity      __RHOG__;
+soundSpeed      __CG__;
 
 boundaryField
 {
     left
     {
-        type                uniformFixedGradient;
-        uniformGradient     cosine;
-        uniformGradientCoeffs
+        type                uniformFixedValue;
+        uniformValue        sine;
+        uniformValueCoeffs
         {
             frequency       constant $pistonFrequency;
-            scale           constant #eval{-$pistonVelocity*2*pi()*$pistonFrequency};
+            scale           constant #eval{$gasDensity*$soundSpeed*$pistonVelocity};
             level           constant 0;
         }
         value               $internalField;

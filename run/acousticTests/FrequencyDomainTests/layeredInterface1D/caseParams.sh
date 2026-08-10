@@ -9,12 +9,12 @@ DRIVE_F=${DRIVE_F:-20000}
 PISTON_U=${PISTON_U:-0.01}
 
 # Medium 1 (x < X_INTERFACE)
-RHOG=${RHOG:-1.2}
-CG=${CG:-343}
+RHOG=${RHOG:-1000}
+CG=${CG:-1500}
 
 # Medium 2 (x >= X_INTERFACE)
-RHOL=${RHOL:-1000}
-CL=${CL:-1500}
+RHOL=${RHOL:-1.2}
+CL=${CL:-343}
 
 # Geometry [m]
 X_MIN=${X_MIN:-0.0}

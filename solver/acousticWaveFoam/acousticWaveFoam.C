@@ -94,6 +94,32 @@ int main(int argc, char *argv[])
             #include "pEqn.H"
         }
 
+        if (laplacianCorrection > 0.5)
+        {
+            pDot ==
+                (p - p.oldTime())
+               /(timeIntegrationTheta*runTime.deltaT())
+              - ((1.0 - timeIntegrationTheta)/timeIntegrationTheta)
+               *pDot.oldTime();
+
+            solve
+            (
+                fvm::ddt(rho, U)
+             == -fvc::grad
+                 (
+                     timeIntegrationTheta*p
+                   + (1.0 - timeIntegrationTheta)*p.oldTime()
+                 )
+            );
+        }
+        else
+        {
+            solve
+            (
+                fvm::ddt(rho, U) == -fvc::grad(p)
+            );
+        }
+
         sampleCount += 1;
         prT == 0.5*(kl*alpha1 + kg*(1-alpha1))*p*p - 0.5*rho*(U&U);
         momFluxT == rho*(U*U);

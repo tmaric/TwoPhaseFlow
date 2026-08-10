@@ -16,8 +16,15 @@ Z_HALF=0.005
 
 # Study controls, overridable from the environment.
 CELLS_PER_WAVELENGTH=${CELLS_PER_WAVELENGTH:-32}
-MESH_FAMILY=${MESH_FAMILY:-orthogonal}
+# Supported mesh families:
+#   orthogonal     - Cartesian mesh
+#   warpedInterior - orthogonal boundary-cell layer with a warped interior
+#   warped         - deformation also reaches the boundary-adjacent cells
+MESH_FAMILY=${MESH_FAMILY:-warpedInterior}
+# Supported boundary modes: dirichlet, alignedDirichlet, mixed.
 BOUNDARY_MODE=${BOUNDARY_MODE:-dirichlet}
 WARP_AMPLITUDE=${WARP_AMPLITUDE:-0.08}
+ORTHOGONAL_BOUNDARY_LAYERS=${ORTHOGONAL_BOUNDARY_LAYERS:-1}
+BOUNDARY_TRANSITION_FRACTION=${BOUNDARY_TRANSITION_FRACTION:-0.15}
 N_NONORTH_CORRECTORS=${N_NONORTH_CORRECTORS:-2}
 NPROCS=${NPROCS:-4}

@@ -41,12 +41,22 @@ def main() -> None:
         for key in sorted(groups):
             writer.writerows(groups[key])
 
-    colors = {"orthogonal": "#0072B2", "warped": "#D55E00"}
+    colors = {
+        "orthogonal": "#0072B2",
+        "warped": "#D55E00",
+        "warpedInterior": "#009E73",
+    }
+    family_labels = {
+        "orthogonal": "Orthogonal",
+        "warped": "Warped boundary",
+        "warpedInterior": "Warped interior",
+    }
+    boundary_labels = {"dirichlet": "Dirichlet", "mixed": "Mixed"}
     markers = {"dirichlet": "o", "mixed": "s"}
     fig, axes = plt.subplots(1, 2, figsize=(9.2, 4.0))
     for (family, boundary), group in sorted(groups.items()):
         x = [1/float(row["cellsPerWavelength"]) for row in group]
-        label = f"{family}, {boundary}"
+        label = f"{family_labels[family]}, {boundary_labels[boundary]}"
         axes[0].loglog(x, [float(row["pressureRelL2"]) for row in group], marker=markers[boundary], color=colors[family], ls="-" if boundary == "dirichlet" else "--", label=label)
         axes[1].loglog(x, [float(row["velocityRelL2"]) for row in group], marker=markers[boundary], color=colors[family], ls="-" if boundary == "dirichlet" else "--", label=label)
     for ax, ylabel in zip(axes, [r"$E_2(P)$", r"$E_2(\mathbf{u})$"]):
@@ -71,7 +81,14 @@ def main() -> None:
         stream.write("\\begin{tabular}{llrrrr}\n\\toprule\n")
         stream.write("Mesh & BC & $N_\\lambda$ & $E_2(P)$ & $q_P$ & $E_2(\\mathbf{u})$ \\\\\n\\midrule\n")
         for row in selected:
-            stream.write(f"{row['meshFamily'].capitalize()} & {row['boundaryMode'].capitalize()} & {float(row['cellsPerWavelength']):.0f} & {float(row['pressureRelL2']):.3e} & {float(row['pressureOrder']):.2f} & {float(row['velocityRelL2']):.3e} \\\\\n")
+            stream.write(
+                f"{family_labels[row['meshFamily']]} & "
+                f"{boundary_labels[row['boundaryMode']]} & "
+                f"{float(row['cellsPerWavelength']):.0f} & "
+                f"{float(row['pressureRelL2']):.3e} & "
+                f"{float(row['pressureOrder']):.2f} & "
+                f"{float(row['velocityRelL2']):.3e} \\\\\n"
+            )
         stream.write("\\bottomrule\n\\end{tabular}\n")
         stream.write("\\caption{Homogeneous plane-wave convergence. $N_\\lambda$ denotes cells per wavelength and $q_P$ is the observed pressure order.}\n")
         stream.write("\\label{tab:homogeneousConvergence}\n\\end{table}\n")

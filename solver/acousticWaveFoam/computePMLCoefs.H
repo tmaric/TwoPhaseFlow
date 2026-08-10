@@ -11,9 +11,11 @@
         tensor& t2
     )
     {
-        const scalar dx = sigmaValue.xx();
-        const scalar dy = sigmaValue.yy();
-        const scalar dz = sigmaValue.zz();
+        // The shared frequency-domain field setup may store sigma with a
+        // convention-dependent sign. Time-domain damping must be nonnegative.
+        const scalar dx = mag(sigmaValue.xx());
+        const scalar dy = mag(sigmaValue.yy());
+        const scalar dz = mag(sigmaValue.zz());
 
         tc0 = tensor(dx, 0, 0, 0, dy, 0, 0, 0, dz);
         t1 = tensor

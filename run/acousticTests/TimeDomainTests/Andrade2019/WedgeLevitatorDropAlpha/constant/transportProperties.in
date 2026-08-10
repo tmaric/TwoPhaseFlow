@@ -38,6 +38,7 @@ kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 k               #eval{2.0*pi()*$f/$soundSpeed};
 laplacianCorrection 1.0;
+timeIntegrationTheta 0.5;
 L               __PML_L__;
 
 PMLType         rectangle;

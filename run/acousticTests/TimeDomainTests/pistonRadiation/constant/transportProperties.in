@@ -27,6 +27,7 @@ cl              __CL__;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 laplacianCorrection 1.0;
+timeIntegrationTheta 0.5;
 
 pistonRadius    __PISTON_RADIUS__;
 domainRadius    __PML_RMIN__;

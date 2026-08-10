@@ -22,7 +22,8 @@ cg              __CG__;
 cl              __CL__;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
-laplacianCorrection 0;
+laplacianCorrection 1;
+timeIntegrationTheta 0.5;
 
 f               __DRIVE_F__;
 sigmaMax        __SIGMA_MAX__;

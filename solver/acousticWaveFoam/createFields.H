@@ -14,6 +14,20 @@
         mesh
     );
 
+    volScalarField pDot
+    (
+        IOobject
+        (
+            "pDot",
+            runTime.timeName(),
+            mesh,
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        mesh,
+        dimensionedScalar("pDot", dimPressure/dimTime, Zero)
+    );
+
 	Info<< "Reading alpha field pr\n" << endl;
 	volScalarField alpha1
 	(

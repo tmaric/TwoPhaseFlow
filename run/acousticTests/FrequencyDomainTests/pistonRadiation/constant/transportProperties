@@ -35,7 +35,7 @@ f               10000;               // Driven frequency
 sigmaMax        100000;             // [1/s] PML peak damping
 po              3;                    // polynomial order
 shiftedLaplacianBeta 0.2; // preconditioner shift (freITBCFoam)
-cellsPerLambda  60;
+cellsPerLambda  10;
 wl              #eval{$cg/$f};             // wavelength
 cellSize        #eval{$wl/$cellsPerLambda};
 
