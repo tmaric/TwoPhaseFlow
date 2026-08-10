@@ -12,6 +12,15 @@ calc()
 END_TIME=$(calc "$N_PERIODS / $DRIVE_F")
 WRITE_INTERVAL=$(calc "1 / $DRIVE_F")
 PROBE_INTERVAL=$(calc "1 / ($DRIVE_F * $PROBE_SAMPLES_PER_PERIOD)")
+PML_RMAX=$(calc "$PML_RMIN + $PML_L")
+CELL_SIZE=$(calc "$CG / $DRIVE_F / $MESH_CELLS_PER_LAMBDA")
+HALF_ANGLE=$(calc "$WEDGE_ANGLE_DEG * atan2(0, -1) / 360")
+OUTER_X=$(calc "$PML_RMAX * cos($HALF_ANGLE)")
+OUTER_Z=$(calc "$PML_RMAX * sin($HALF_ANGLE)")
+N_RADIAL=$(awk -v extent="$PML_RMAX" -v h="$CELL_SIZE" '
+    BEGIN { n = int(extent/h + 0.5) - 1; print (n > 0 ? n : 1) }
+')
+N_AXIAL=$N_RADIAL
 
 render()
 {
@@ -29,9 +38,14 @@ render()
         -e "s|__PISTON_RADIUS__|$PISTON_RADIUS|g" \
         -e "s|__PML_RMIN__|$PML_RMIN|g" \
         -e "s|__PML_L__|$PML_L|g" \
+        -e "s|__PML_RMAX__|$PML_RMAX|g" \
         -e "s|__MESH_CELLS_PER_LAMBDA__|$MESH_CELLS_PER_LAMBDA|g" \
         -e "s|__MESH_GR__|$MESH_GR|g" \
         -e "s|__WEDGE_ANGLE_DEG__|$WEDGE_ANGLE_DEG|g" \
+        -e "s|__OUTER_X__|$OUTER_X|g" \
+        -e "s|__OUTER_Z__|$OUTER_Z|g" \
+        -e "s|__N_RADIAL__|$N_RADIAL|g" \
+        -e "s|__N_AXIAL__|$N_AXIAL|g" \
         -e "s|__END_TIME__|$END_TIME|g" \
         -e "s|__WRITE_INTERVAL__|$WRITE_INTERVAL|g" \
         -e "s|__PROBE_INTERVAL__|$PROBE_INTERVAL|g" \
@@ -39,6 +53,6 @@ render()
 }
 
 render constant/transportProperties.in constant/transportProperties
-render constant/pistonRadiation.geo.in constant/pistonRadiation.geo
+render system/blockMeshDict.in system/blockMeshDict
 render system/topoSetDict.in system/topoSetDict
 render templates/p.in 0.orig/p

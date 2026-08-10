@@ -8,7 +8,7 @@ Edit one file and regenerate all dependent inputs automatically.
 - `caseParams.sh`: single source of truth for frequency, PML, and mesh controls.
 - `prepareCase`: renders templates using values from `caseParams.sh`.
 - `constant/transportProperties.in`: template for `constant/transportProperties`.
-- `constant/pistonRadiation.geo.in`: template for `constant/pistonRadiation.geo`.
+- `system/blockMeshDict.in`: template for the rectangular wedge mesh.
 - `templates/Pim.in`: template for `0.orig/Pim`.
 - `Allrun`: workflow for decomposed MPI solver.
 
@@ -23,7 +23,14 @@ Edit one file and regenerate all dependent inputs automatically.
    - `./Allrun`
 
 `Allrun` already calls `./prepareCase`, so manual rendering is not required.
-`Allrun` also checks `gmsh` and auto-builds the solver if the executable is missing.
+The mesh is generated directly with `blockMesh`.
+The piston edge is an exact radial block boundary at `PISTON_RADIUS`; it does
+not move when the cells-per-wavelength setting changes.
+
+The meridional domain is rectangular.  The physical region extends to
+`PML_RMIN` in the radial and axial directions, and the PML continues to
+`PML_RMAX`.  Damping is active only towards the outer radial and upper
+boundaries; the symmetry axis and rigid baffle are not damped.
 
 ## Contributor quick check (recommended)
 
@@ -66,7 +73,7 @@ Use this when you want to inspect generated files without running the solver:
 
 This updates:
 - `constant/transportProperties`
-- `constant/pistonRadiation.geo`
+- `system/blockMeshDict`
 - `0.orig/Pim`
 
 ## Environment
@@ -93,10 +100,19 @@ After a solve, run:
 python3 postprocess_compare.py
 ```
 
-Optional far-field fit radii (inside non-PML region):
+The default exterior-field reconstruction follows the COMSOL baffled-piston
+setup: a spherical source surface at PML_RMIN is completed across the rigid
+baffle using sound-hard symmetry and evaluated with the full finite-distance
+Kirchhoff--Helmholtz integral.
+
+Optional reconstruction settings include changing the source radius, disabling
+the symmetry completion for diagnostics, and running the analytical quadrature
+validation:
 
 ```bash
-python3 postprocess_compare.py --r-src 0.2 --r-far 4.0
+python3 postprocess_compare.py --r-src 0.18 --r-far 4.0
+python3 postprocess_compare.py --source-symmetry none --output-name hemisphereDiagnostic
+python3 validate_kirchhoff.py
 ```
 
 Outputs are written to:
@@ -109,8 +125,8 @@ Outputs are written to:
 
 ## Mesh convergence batch
 
-Run near-field/on-axis and far-field analytical comparisons for 20, 30, 40,
-60, and 80 cells per wavelength:
+Run the near- and far-field analytical comparisons for 20, 30, 40, 60, and
+80 cells per wavelength:
 
 ```bash
 ./meshConv.sh
@@ -124,8 +140,7 @@ tables:
 - `meshConvergence/farField_convergence_table.tex`
 
 The summary CSV reports `h_over_lambda`, near-field relative `L2` and `Linf`
-errors, far-field relative `L2` and `Linf` errors, and the observed convergence
-orders between successive mesh resolutions.
+errors, and the far-field pressure-magnitude relative `L2` error.
 
 Optional overrides:
 

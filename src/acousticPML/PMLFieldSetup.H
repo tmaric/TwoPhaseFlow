@@ -10,24 +10,14 @@ namespace Foam
 namespace acousticPML
 {
 
-enum PMLType
-{
-    RECTANGLE,
-    SPHERICAL,
-    UNDEFINED
-};
-
 struct Config
 {
     scalar L;
     scalar sigmaMax;
     vector sigmaMaxVector;
     scalar po;
-    PMLType type;
     vector PMLMax;
     vector PMLMin;
-    scalar Rmax;
-    vector origin;
 };
 
 inline Config readConfig(const IOdictionary& transportProperties)
@@ -60,40 +50,25 @@ inline Config readConfig(const IOdictionary& transportProperties)
         vector(cfg.sigmaMax, cfg.sigmaMax, cfg.sigmaMax)
     );
     cfg.po = po.value();
-    cfg.type = UNDEFINED;
     cfg.PMLMax = Zero;
     cfg.PMLMin = Zero;
-    cfg.Rmax = 0.0;
-    cfg.origin = Zero;
 
     const word PMLTypeWord = transportProperties.get<word>("PMLType");
 
-    if (PMLTypeWord == "rectangle")
-    {
-        cfg.type = RECTANGLE;
-        dimensionedVector PMLMax;
-        dimensionedVector PMLMin;
-        transportProperties.lookup("PMLMax") >> PMLMax;
-        transportProperties.lookup("PMLMin") >> PMLMin;
-        cfg.PMLMax = PMLMax.value();
-        cfg.PMLMin = PMLMin.value();
-    }
-    else if (PMLTypeWord == "spherical")
-    {
-        cfg.type = SPHERICAL;
-        dimensionedScalar Rmax("Rmax", dimLength, transportProperties);
-        dimensionedVector origin;
-        transportProperties.lookup("origin") >> origin;
-        cfg.Rmax = Rmax.value();
-        cfg.origin = origin.value();
-    }
-    else
+    if (PMLTypeWord != "rectangle")
     {
         FatalErrorInFunction
             << "Unknown PMLType '" << PMLTypeWord << "' in transportProperties."
-            << nl << "Valid types are: rectangle, spherical."
+            << nl << "The supported type is: rectangle."
             << exit(FatalError);
     }
+
+    dimensionedVector PMLMax;
+    dimensionedVector PMLMin;
+    transportProperties.lookup("PMLMax") >> PMLMax;
+    transportProperties.lookup("PMLMin") >> PMLMin;
+    cfg.PMLMax = PMLMax.value();
+    cfg.PMLMin = PMLMin.value();
 
     return cfg;
 }
@@ -102,54 +77,24 @@ inline tensor evaluateSigma(const point& x, const Config& cfg)
 {
     vector damping(Zero);
 
-    switch (cfg.type)
+    for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
     {
-        case RECTANGLE:
-        {
-            for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
-            {
-                const scalar distToMax =
-                    cfg.PMLMax.component(cmpt) - x.component(cmpt);
-                const scalar distToMin =
-                    x.component(cmpt) - cfg.PMLMin.component(cmpt);
+        const scalar distToMax =
+            cfg.PMLMax.component(cmpt) - x.component(cmpt);
+        const scalar distToMin =
+            x.component(cmpt) - cfg.PMLMin.component(cmpt);
 
-                if (distToMax < cfg.L || distToMin < cfg.L)
-                {
-                    const scalar dist =
-                        (distToMax < cfg.L) ? distToMax : distToMin;
-                    const scalar s = min
-                    (
-                        max((cfg.L - dist)/cfg.L, scalar(0)),
-                        scalar(1)
-                    );
-                    damping.component(cmpt) =
-                        cfg.sigmaMaxVector.component(cmpt)*Foam::pow(s, cfg.po);
-                }
-            }
-            break;
-        }
-
-        case SPHERICAL:
+        if (distToMax < cfg.L || distToMin < cfg.L)
         {
-            const scalar dist = mag(x - cfg.origin);
-            if ((cfg.Rmax - dist) < cfg.L)
-            {
-                const scalar s = min
-                (
-                    max((cfg.L - (cfg.Rmax - dist))/cfg.L, scalar(0)),
-                    scalar(1)
-                );
-                damping = vector::one*cfg.sigmaMax*Foam::pow(s, cfg.po);
-            }
-            break;
-        }
-
-        case UNDEFINED:
-        {
-            FatalErrorInFunction
-                << "Internal error: PML type is undefined."
-                << exit(FatalError);
-            break;
+            const scalar dist =
+                (distToMax < cfg.L) ? distToMax : distToMin;
+            const scalar s = min
+            (
+                max((cfg.L - dist)/cfg.L, scalar(0)),
+                scalar(1)
+            );
+            damping.component(cmpt) =
+                cfg.sigmaMaxVector.component(cmpt)*Foam::pow(s, cfg.po);
         }
     }
 

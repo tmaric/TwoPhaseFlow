@@ -39,10 +39,10 @@ cellsPerLambda  __MESH_CELLS_PER_LAMBDA__;
 wl              #eval{$cg/$f};             // wavelength
 cellSize        #eval{$wl/$cellsPerLambda};
 
-PMLType         spherical;
-origin          (0 0 0);                   // origin of sphere
-Rmin            __PML_RMIN__;              // inner radius of PML
-Rmax            __PML_RMAX__;              // outer radius of PML
-L               #eval{$Rmax - $Rmin};      // PML thickness
+PMLType         rectangle;
+PMLMax          (__PML_RMAX__ __PML_RMAX__ 100);
+PMLMin          (-100 -100 -100);          // disable damping at axis/baffle
+sigmaMaxVector  (-__SIGMA_MAX__ -__SIGMA_MAX__ 0); // radial, axial, wedge
+L               #eval{__PML_RMAX__ - __PML_RMIN__}; // PML thickness
 
 // ************************************************************************* //

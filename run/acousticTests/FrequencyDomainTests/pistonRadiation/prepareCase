@@ -4,6 +4,28 @@ set -eu
 cd "${0%/*}" || exit 1
 . ./caseParams.sh
 
+calc()
+{
+    awk "BEGIN { printf \"%.12g\", $* }"
+}
+
+cellSize=$(calc "$CG / $DRIVE_F / $MESH_CELLS_PER_LAMBDA")
+halfAngle=$(calc "$WEDGE_ANGLE_DEG * atan2(0, -1) / 360")
+outerX=$(calc "$PML_RMAX * cos($halfAngle)")
+outerZ=$(calc "$PML_RMAX * sin($halfAngle)")
+pistonX=$(calc "$PISTON_RADIUS * cos($halfAngle)")
+pistonZ=$(calc "$PISTON_RADIUS * sin($halfAngle)")
+nRadial=$(awk -v extent="$PML_RMAX" -v h="$cellSize" '
+    BEGIN { n = int(extent/h + 0.5) - 1; print (n > 0 ? n : 1) }
+')
+nAxial=$nRadial
+nPiston=$(awk -v extent="$PISTON_RADIUS" -v h="$cellSize" '
+    BEGIN { n = int(extent/h + 0.5); print (n > 0 ? n : 1) }
+')
+nOuterRadial=$(awk -v extent="$PML_RMAX" -v inner="$PISTON_RADIUS" -v h="$cellSize" '
+    BEGIN { n = int((extent-inner)/h + 0.5); print (n > 0 ? n : 1) }
+')
+
 render()
 {
     inFile="$1"
@@ -12,6 +34,7 @@ render()
     sed \
         -e "s|__DRIVE_F__|$DRIVE_F|g" \
         -e "s|__PISTON_U__|$PISTON_U|g" \
+        -e "s|__PISTON_RADIUS__|$PISTON_RADIUS|g" \
         -e "s|__RHOL__|$RHOL|g" \
         -e "s|__RHOG__|$RHOG|g" \
         -e "s|__CG__|$CG|g" \
@@ -24,9 +47,17 @@ render()
         -e "s|__MESH_CELLS_PER_LAMBDA__|$MESH_CELLS_PER_LAMBDA|g" \
         -e "s|__MESH_GR__|$MESH_GR|g" \
         -e "s|__WEDGE_ANGLE_DEG__|$WEDGE_ANGLE_DEG|g" \
+        -e "s|__OUTER_X__|$outerX|g" \
+        -e "s|__OUTER_Z__|$outerZ|g" \
+        -e "s|__PISTON_X__|$pistonX|g" \
+        -e "s|__PISTON_Z__|$pistonZ|g" \
+        -e "s|__N_RADIAL__|$nRadial|g" \
+        -e "s|__N_AXIAL__|$nAxial|g" \
+        -e "s|__N_PISTON__|$nPiston|g" \
+        -e "s|__N_OUTER_RADIAL__|$nOuterRadial|g" \
         "$inFile" > "$outFile"
 }
 
 render constant/transportProperties.in constant/transportProperties
-render constant/pistonRadiation.geo.in constant/pistonRadiation.geo
+render system/blockMeshDict.in system/blockMeshDict
 render templates/Pim.in 0.orig/Pim

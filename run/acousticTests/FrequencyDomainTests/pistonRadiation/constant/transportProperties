@@ -35,14 +35,14 @@ f               10000;               // Driven frequency
 sigmaMax        100000;             // [1/s] PML peak damping
 po              3;                    // polynomial order
 shiftedLaplacianBeta 0.2; // preconditioner shift (freITBCFoam)
-cellsPerLambda  10;
+cellsPerLambda  80;
 wl              #eval{$cg/$f};             // wavelength
 cellSize        #eval{$wl/$cellsPerLambda};
 
-PMLType         spherical;
-origin          (0 0 0);                   // origin of sphere
-Rmin            0.2;              // inner radius of PML
-Rmax            0.28;              // outer radius of PML
-L               #eval{$Rmax - $Rmin};      // PML thickness
+PMLType         rectangle;
+PMLMax          (0.28 0.28 100);
+PMLMin          (-100 -100 -100);          // disable damping at axis/baffle
+sigmaMaxVector  (-100000 -100000 0); // radial, axial, wedge
+L               #eval{0.28 - 0.2}; // PML thickness
 
 // ************************************************************************* //

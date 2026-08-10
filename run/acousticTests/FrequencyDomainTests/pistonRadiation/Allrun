@@ -10,13 +10,7 @@ SOLVER=acousticHelmholtzFoam
 ./prepareCase
 restore0Dir
 
-gmsh -0 constant/pistonRadiation.geo
-runApplication gmshToFoam  constant/pistonRadiation.msh
-rm constant/pistonRadiation.msh
-
-runApplication topoSet
-runApplication createPatch -overwrite
-runApplication changeDictionary -dict system/changeDictionaryDict
+runApplication blockMesh
 
 runApplication setPMLFields
 

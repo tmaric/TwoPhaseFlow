@@ -38,12 +38,12 @@ cellsPerLambda  60;
 wl              #eval{$cg/$f};
 cellSize        #eval{$wl/$cellsPerLambda};
 
-PMLType         spherical;
+PMLType         rectangle;
 L               $pmlThickness;
-origin          (0 0 0);
-Rmin            $domainRadius;
-Rmax            #eval{$domainRadius + $pmlThickness};
+PMLMax          (0.28 0.28 100);
+PMLMin          (-100 -100 -100);
 sigmaMax        100000;
+sigmaMaxVector  (-100000 -100000 0);
 po              3;
 
 // ************************************************************************* //

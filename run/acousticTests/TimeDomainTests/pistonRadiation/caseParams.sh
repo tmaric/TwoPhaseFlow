@@ -13,7 +13,7 @@ RHOG=1.2
 CG=343
 CL=1480
 
-# Geometry and radial PML
+# Geometry and rectangular PML
 PISTON_RADIUS=0.1
 PML_RMIN=0.2
 PML_L=0.08

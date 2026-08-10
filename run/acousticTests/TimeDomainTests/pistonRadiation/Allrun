@@ -10,13 +10,10 @@ cd "${0%/*}" || exit                                # Run from this directory
 restore0Dir
 python3 generate_verification_probes.py >/dev/null
 
-gmsh -0 constant/pistonRadiation.geo
-runApplication gmshToFoam constant/pistonRadiation.msh
-rm constant/pistonRadiation.msh
+runApplication blockMesh
 
 runApplication topoSet
 runApplication createPatch -overwrite
-runApplication changeDictionary -dict system/changeDictionaryDict
 runApplication setPMLFields
 
 runApplication decomposePar -force

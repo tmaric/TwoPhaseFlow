@@ -16,7 +16,8 @@ cd run/acousticTests/TimeDomainTests/pistonRadiation
 ```
 
 Edit `caseParams.sh` to change the setup. `Allrun` calls `prepareCase`, which
-renders all dependent OpenFOAM and Gmsh inputs before creating the mesh.
+renders the dependent OpenFOAM inputs before creating the rectangular wedge
+mesh with `blockMesh`.
 It then calls `setPMLFields`; `acousticWaveFoam` reads the generated `sigma`
 field and derives its time-domain PML coefficients.
 

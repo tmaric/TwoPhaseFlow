@@ -22,7 +22,6 @@ from vtkmodules.util.numpy_support import vtk_to_numpy
 from vtkmodules.vtkFiltersCore import vtkProbeFilter
 from vtkmodules.vtkFiltersSources import vtkLineSource
 from vtkmodules.vtkFiltersCore import vtkCellDataToPointData
-from vtkmodules.vtkFiltersGeneral import vtkGradientFilter
 from vtkmodules.vtkIOXML import vtkXMLUnstructuredGridReader
 from vtkmodules.vtkCommonDataModel import vtkCellArray, vtkPolyData, vtkVertex
 from vtkmodules.vtkCommonCore import vtkPoints
@@ -35,7 +34,14 @@ except Exception as exc:  # pragma: no cover
 
 
 def parse_case_params(path: pathlib.Path) -> dict[str, float]:
-    wanted = {"DRIVE_F", "PISTON_U", "CG", "RHOG", "PML_RMIN"}
+    wanted = {
+        "DRIVE_F",
+        "PISTON_U",
+        "PISTON_RADIUS",
+        "CG",
+        "RHOG",
+        "PML_RMIN",
+    }
     out: dict[str, float] = {}
     with path.open("r", encoding="utf-8") as f:
         for line in f:
@@ -49,17 +55,6 @@ def parse_case_params(path: pathlib.Path) -> dict[str, float]:
     if missing:
         raise RuntimeError(f"Missing in {path}: {sorted(missing)}")
     return out
-
-
-def parse_piston_radius(path: pathlib.Path) -> float:
-    txt = path.read_text(encoding="utf-8")
-    m = re.search(r"radius\s+([0-9eE+.\-]+)\s*;\s*\}\s*\}\s*\)", txt)
-    if m:
-        return float(m.group(1))
-    m = re.search(r"\bradius\s+([0-9eE+.\-]+)\s*;", txt)
-    if not m:
-        raise RuntimeError(f"Could not parse piston radius from {path}")
-    return float(m.group(1))
 
 
 def latest_time(case_dir: pathlib.Path) -> str:
@@ -95,7 +90,7 @@ def run_foam_to_vtk(case_dir: pathlib.Path) -> None:
         "-latestTime",
         "-noZero",
         "-fields",
-        "(Pre Pim)",
+        "(Pre Pim Ure Uim)",
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -191,7 +186,10 @@ def probe_points_pre_pim(vtu_path: pathlib.Path, pts_xyz: np.ndarray) -> tuple[n
 
 
 def probe_points_pre_pim_and_grad(
-    vtu_path: pathlib.Path, pts_xyz: np.ndarray
+    vtu_path: pathlib.Path,
+    pts_xyz: np.ndarray,
+    omega: float,
+    rho: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     reader = vtkXMLUnstructuredGridReader()
     reader.SetFileName(str(vtu_path))
@@ -203,18 +201,6 @@ def probe_points_pre_pim_and_grad(
     c2p.PassCellDataOn()
     c2p.Update()
     src = c2p.GetOutput()
-
-    g_pre = vtkGradientFilter()
-    g_pre.SetInputData(src)
-    g_pre.SetInputScalars(0, "Pre")
-    g_pre.SetResultArrayName("gradPre")
-    g_pre.Update()
-
-    g_pim = vtkGradientFilter()
-    g_pim.SetInputData(g_pre.GetOutput())
-    g_pim.SetInputScalars(0, "Pim")
-    g_pim.SetResultArrayName("gradPim")
-    g_pim.Update()
 
     vtk_pts = vtkPoints()
     verts = vtkCellArray()
@@ -230,21 +216,25 @@ def probe_points_pre_pim_and_grad(
 
     probe = vtkProbeFilter()
     probe.SetInputData(pdata)
-    probe.SetSourceData(g_pim.GetOutput())
+    probe.SetSourceData(src)
     probe.Update()
     out = probe.GetOutput()
 
     pre_arr = out.GetPointData().GetArray("Pre")
     pim_arr = out.GetPointData().GetArray("Pim")
-    grad_pre_arr = out.GetPointData().GetArray("gradPre")
-    grad_pim_arr = out.GetPointData().GetArray("gradPim")
-    if pre_arr is None or pim_arr is None or grad_pre_arr is None or grad_pim_arr is None:
-        raise RuntimeError(f"Probed Pre/Pim or gradients not found in {vtu_path}")
+    ure_arr = out.GetPointData().GetArray("Ure")
+    uim_arr = out.GetPointData().GetArray("Uim")
+    if pre_arr is None or pim_arr is None or ure_arr is None or uim_arr is None:
+        raise RuntimeError(f"Probed Pre/Pim/Ure/Uim not found in {vtu_path}")
 
     pre = vtk_to_numpy(pre_arr)
     pim = vtk_to_numpy(pim_arr)
-    grad_pre = vtk_to_numpy(grad_pre_arr)
-    grad_pim = vtk_to_numpy(grad_pim_arr)
+    ure = vtk_to_numpy(ure_arr)
+    uim = vtk_to_numpy(uim_arr)
+    # Solver definitions for the e^{-i omega t} convention:
+    # Ure = grad(Pim)/(omega*rho), Uim = -grad(Pre)/(omega*rho).
+    grad_pre = -omega * rho * uim
+    grad_pim = omega * rho * ure
     return pre, pim, grad_pre, grad_pim
 
 
@@ -322,7 +312,11 @@ def load_openair_boundary(vtp_path: pathlib.Path) -> tuple[np.ndarray, np.ndarra
 
 
 def build_inner_pml_source_from_vtu(
-    vtu_path: pathlib.Path, r_src: float, n_theta: int
+    vtu_path: pathlib.Path,
+    r_src: float,
+    n_theta: int,
+    omega: float,
+    rho: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # Build a virtual spherical source contour in axisymmetric plane:
     # x = r_src*sin(theta), y = r_src*cos(theta), theta in [0, pi/2]
@@ -331,7 +325,9 @@ def build_inner_pml_source_from_vtu(
     y = r_src * np.cos(theta)
     pts = np.column_stack([x, y, np.zeros_like(theta)])
 
-    pre, pim, grad_pre, grad_pim = probe_points_pre_pim_and_grad(vtu_path, pts)
+    pre, pim, grad_pre, grad_pim = probe_points_pre_pim_and_grad(
+        vtu_path, pts, omega, rho
+    )
     p = pre + 1j * pim
 
     # Outward normal for spherical contour
@@ -350,6 +346,31 @@ def build_inner_pml_source_from_vtu(
         & (dS > 0.0)
     )
     return pts[valid], n[valid], dS[valid], p[valid], dpdn[valid]
+
+
+def complete_sound_hard_meridian(
+    src_xyz_meridian: np.ndarray,
+    src_area_meridian: np.ndarray,
+    src_p_meridian: np.ndarray,
+    src_dpdn_meridian: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Complete the upper source surface using sound-hard baffle symmetry."""
+    radius = np.linalg.norm(src_xyz_meridian, axis=1)
+    scale = max(float(np.max(radius)), 1.0)
+    mirror = src_xyz_meridian[:, 1] > 1e-12 * scale
+
+    mirrored_xyz = src_xyz_meridian[mirror].copy()
+    mirrored_xyz[:, 1] *= -1.0
+
+    # Pressure is even across a sound-hard plane. The mirrored gradient and
+    # mirrored surface normal both reverse their axial component, so dp/dn is
+    # unchanged.
+    return (
+        np.concatenate([src_xyz_meridian, mirrored_xyz], axis=0),
+        np.concatenate([src_area_meridian, src_area_meridian[mirror]], axis=0),
+        np.concatenate([src_p_meridian, src_p_meridian[mirror]], axis=0),
+        np.concatenate([src_dpdn_meridian, src_dpdn_meridian[mirror]], axis=0),
+    )
 
 
 def revolve_axisymmetric_source(
@@ -462,7 +483,18 @@ def main() -> int:
         "--r-src",
         type=float,
         default=None,
-        help="Source contour radius [m] for boundary integral (default: 0.65*PML_RMIN)",
+        help="Source contour radius [m] for boundary integral (default: PML_RMIN)",
+    )
+    parser.add_argument(
+        "--source-symmetry",
+        choices=("sound-hard", "none"),
+        default="sound-hard",
+        help="Complete the source surface across the rigid baffle (default: sound-hard)",
+    )
+    parser.add_argument(
+        "--output-name",
+        default="analyticalCompare",
+        help="Postprocessing output directory name",
     )
     parser.add_argument("--a", type=float, default=None, help="Piston radius [m] override")
     args = parser.parse_args()
@@ -475,12 +507,11 @@ def main() -> int:
     u0 = params["PISTON_U"]
     c = params["CG"]
     rho = params["RHOG"]
-    a = args.a if args.a is not None else parse_piston_radius(case_dir / "system" / "topoSetDict")
+    a = args.a if args.a is not None else params["PISTON_RADIUS"]
     z_max = args.z_max if args.z_max is not None else 0.9 * params["PML_RMIN"]
     r_far = args.r_far if args.r_far is not None else 20.0 * params["PML_RMIN"]
-    # Keep the reconstruction contour away from the PML coefficient transition,
-    # where cell-to-point interpolation and numerical gradients are less robust.
-    r_src = args.r_src if args.r_src is not None else 0.65*params["PML_RMIN"]
+    # Match the COMSOL reference radius while retaining PML truncation.
+    r_src = args.r_src if args.r_src is not None else params["PML_RMIN"]
 
     t_name = latest_time(case_dir)
     run_foam_to_vtk(case_dir)
@@ -488,6 +519,7 @@ def main() -> int:
     z, pre, pim = extract_axis_profile_from_vtu(vtu, z_max, args.n_points, a)
 
     k = 2.0 * math.pi * f / c
+    omega = 2.0 * math.pi * f
     p0 = rho * c * u0
     r = np.sqrt(z * z + a * a)
     p_analytic = p0 * np.abs(np.exp(-1j * k * z) - np.exp(-1j * k * r))
@@ -503,7 +535,7 @@ def main() -> int:
     err_linf = float(np.max(abs_err) / max(float(np.max(np.abs(y_ana))), 1e-30))
     err_linf_abs_norm = float(np.max(abs_err))
 
-    out_dir = case_dir / "postProcessing" / "analyticalCompare" / t_name
+    out_dir = case_dir / "postProcessing" / args.output_name / t_name
     out_dir.mkdir(parents=True, exist_ok=True)
 
     csv_path = out_dir / "onAxisComparison.csv"
@@ -541,8 +573,12 @@ def main() -> int:
     pts_far = np.column_stack([x_far, y_far, np.zeros_like(theta)])
 
     src_xyz_m, _src_n_m, src_area_m, src_p_m, src_dpdn_m = build_inner_pml_source_from_vtu(
-        vtu, r_src, max(32, args.n_theta)
+        vtu, r_src, max(32, args.n_theta), omega, rho
     )
+    if args.source_symmetry == "sound-hard":
+        src_xyz_m, src_area_m, src_p_m, src_dpdn_m = complete_sound_hard_meridian(
+            src_xyz_m, src_area_m, src_p_m, src_dpdn_m
+        )
     src_xyz, src_n, src_area, src_p, src_dpdn = revolve_axisymmetric_source(
         src_xyz_m, src_area_m, src_p_m, src_dpdn_m, args.n_phi
     )
@@ -561,10 +597,14 @@ def main() -> int:
     spl_sim = safe_spl_db(p_far_abs)
     spl_ana = safe_spl_db(p_ana_far_abs)
 
-    ff_abs_err = np.abs(d_sim - d_ana)
-    err_ff_l2 = float(np.linalg.norm(ff_abs_err) / max(np.linalg.norm(d_ana), 1e-30))
-    err_ff_linf = float(np.max(ff_abs_err) / max(float(np.max(np.abs(d_ana))), 1e-30))
-    err_ff_linf_abs_norm = float(np.max(ff_abs_err))
+    ff_pressure_abs_err = np.abs(p_far_abs - p_ana_far_abs)
+    err_ff_pressure_l2 = float(
+        np.linalg.norm(ff_pressure_abs_err)
+        / max(np.linalg.norm(p_ana_far_abs), 1e-30)
+    )
+    err_ff_on_axis_amplitude = float(
+        p_far_abs[0] / max(float(p_ana_far_abs[0]), 1e-30) - 1.0
+    )
 
     ff_csv = out_dir / "farFieldPatternComparison.csv"
     ff_hdr = (
@@ -642,12 +682,12 @@ def main() -> int:
                 f"rayleigh_m = {rayleigh}",
                 f"r_src_m = {r_src}",
                 f"r_far_m = {r_far}",
+                f"source_symmetry = {args.source_symmetry}",
                 f"relL2 = {err_l2:.6e}",
                 f"relLinf = {err_linf:.6e}",
                 f"absLinf = {err_linf_abs_norm:.6e}",
-                f"farField_relL2 = {err_ff_l2:.6e}",
-                f"farField_relLinf = {err_ff_linf:.6e}",
-                f"farField_absLinf = {err_ff_linf_abs_norm:.6e}",
+                f"farField_pressureMagnitude_relL2 = {err_ff_pressure_l2:.6e}",
+                f"farField_onAxisAmplitude_relError = {err_ff_on_axis_amplitude:.6e}",
             ]
         )
         + "\n",
@@ -663,7 +703,7 @@ def main() -> int:
     print(
         "Metrics: "
         f"onAxis(relL2={err_l2:.6e}, relLinf={err_linf:.6e}) "
-        f"farFieldDir(relL2={err_ff_l2:.6e}, relLinf={err_ff_linf:.6e})"
+        f"farFieldMagnitude(relL2={err_ff_pressure_l2:.6e})"
     )
     return 0
 
