@@ -78,8 +78,9 @@ def main() -> None:
         selected.extend(group[-4:])
     with (out_dir / "homogeneous_convergence_table.tex").open("w", encoding="utf-8") as stream:
         stream.write("\\begin{table}[htbp]\n\\centering\n")
-        stream.write("\\begin{tabular}{llrrrr}\n\\toprule\n")
-        stream.write("Mesh & BC & $N_\\lambda$ & $E_2(P)$ & $q_P$ & $E_2(\\mathbf{u})$ \\\\\n\\midrule\n")
+        stream.write("\\small\n\\setlength{\\tabcolsep}{4pt}\n")
+        stream.write("\\begin{tabular}{llrrrrr}\n\\toprule\n")
+        stream.write("Mesh & BC & $N_\\lambda$ & $E_2(P)$ & $q_P$ & $E_2(\\mathbf{u})$ & $q_{\\mathbf{u}}$ \\\\\n\\midrule\n")
         for row in selected:
             stream.write(
                 f"{family_labels[row['meshFamily']]} & "
@@ -87,10 +88,11 @@ def main() -> None:
                 f"{float(row['cellsPerWavelength']):.0f} & "
                 f"{float(row['pressureRelL2']):.3e} & "
                 f"{float(row['pressureOrder']):.2f} & "
-                f"{float(row['velocityRelL2']):.3e} \\\\\n"
+                f"{float(row['velocityRelL2']):.3e} & "
+                f"{float(row['velocityOrder']):.2f} \\\\\n"
             )
         stream.write("\\bottomrule\n\\end{tabular}\n")
-        stream.write("\\caption{Homogeneous plane-wave convergence. $N_\\lambda$ denotes cells per wavelength and $q_P$ is the observed pressure order.}\n")
+        stream.write("\\caption{Homogeneous plane-wave convergence. $N_\\lambda$ denotes cells per wavelength; $q_P$ and $q_{\\mathbf{u}}$ are the observed pressure and velocity orders.}\n")
         stream.write("\\label{tab:homogeneousConvergence}\n\\end{table}\n")
 
 

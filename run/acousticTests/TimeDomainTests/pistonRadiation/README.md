@@ -17,7 +17,9 @@ cd run/acousticTests/TimeDomainTests/pistonRadiation
 
 Edit `caseParams.sh` to change the setup. `Allrun` calls `prepareCase`, which
 renders the dependent OpenFOAM inputs before creating the rectangular wedge
-mesh with `blockMesh`.
+mesh with `blockMesh`. The two-block mesh places an exact patch boundary at the
+piston radius, so no subsequent face selection or patch reconstruction is
+required.
 It then calls `setPMLFields`; `acousticWaveFoam` reads the generated `sigma`
 field and derives its time-domain PML coefficients.
 
@@ -27,5 +29,7 @@ For a short smoke test:
 MESH_CELLS_PER_LAMBDA=10 N_PERIODS=12 ./Allrun
 ```
 
-The run reconstructs the latest pressure field and writes analytical
-comparison data to `verification_axis.csv` and `verification_ring.csv`.
+The run writes analytical comparison data directly from the parallel probe
+histories to `verification_axis.csv` and `verification_ring.csv`. Automatic
+field reconstruction is omitted because OpenFOAM's `reconstructPar` cannot
+clone the time-dependent piston boundary condition reliably.

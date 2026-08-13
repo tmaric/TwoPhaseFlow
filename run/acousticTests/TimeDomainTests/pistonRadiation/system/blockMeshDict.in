@@ -18,9 +18,13 @@ scale 1;
 vertices
 (
     (0 0 0)
+    (__PISTON_X__ 0 __PISTON_Z__)
+    (__PISTON_X__ 0 -__PISTON_Z__)
+    (0 __PML_RMAX__ 0)
+    (__PISTON_X__ __PML_RMAX__ __PISTON_Z__)
+    (__PISTON_X__ __PML_RMAX__ -__PISTON_Z__)
     (__OUTER_X__ 0 __OUTER_Z__)
     (__OUTER_X__ 0 -__OUTER_Z__)
-    (0 __PML_RMAX__ 0)
     (__OUTER_X__ __PML_RMAX__ __OUTER_Z__)
     (__OUTER_X__ __PML_RMAX__ -__OUTER_Z__)
 );
@@ -28,7 +32,11 @@ vertices
 blocks
 (
     hex (0 3 4 1 0 3 5 2)
-        (__N_AXIAL__ __N_RADIAL__ 1)
+        (__N_AXIAL__ __N_PISTON__ 1)
+        simpleGrading (__MESH_GR__ __MESH_GR__ 1)
+
+    hex (1 4 8 6 2 5 9 7)
+        (__N_AXIAL__ __N_OUTER_RADIAL__ 1)
         simpleGrading (__MESH_GR__ __MESH_GR__ 1)
 );
 
@@ -47,7 +55,7 @@ boundary
         );
     }
 
-    bottom
+    piston
     {
         type patch;
         faces
@@ -56,13 +64,23 @@ boundary
         );
     }
 
+    bottom
+    {
+        type patch;
+        faces
+        (
+            (1 6 7 2)
+        );
+    }
+
     openAir
     {
         type patch;
         faces
         (
-            (1 4 5 2)
+            (6 8 9 7)
             (3 5 4 3)
+            (4 5 9 8)
         );
     }
 
@@ -72,6 +90,7 @@ boundary
         faces
         (
             (0 1 4 3)
+            (1 6 8 4)
         );
     }
 
@@ -81,6 +100,7 @@ boundary
         faces
         (
             (0 3 5 2)
+            (2 5 9 7)
         );
     }
 );

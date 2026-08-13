@@ -13,16 +13,16 @@ FoamFile
     object      controlDict;
 }
 
-application     acousticWaveFoam;
+application     __SOLVER__;
 
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
-endTime         0.0025;
+endTime         __END_TIME__;
 deltaT          1e-6;
 
 writeControl    runTime;
-writeInterval   1e-05;
+writeInterval   __WRITE_INTERVAL__;
 purgeWrite      0;
 writeFormat     binary;
 writePrecision  12;
@@ -39,7 +39,7 @@ functions
         type            probes;
         libs            (sampling);
         writeControl    runTime;
-        writeInterval   2e-06;
+        writeInterval   __PROBE_INTERVAL__;
         fields          (p);
         probeLocations
         (

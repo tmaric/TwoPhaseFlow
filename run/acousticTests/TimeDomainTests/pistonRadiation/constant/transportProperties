@@ -31,15 +31,15 @@ timeIntegrationTheta 0.5;
 
 pistonRadius    0.1;
 domainRadius    0.2;
-pmlThickness    0.08;
+pmlOuterExtent  0.28;
 
 f               10000;
-cellsPerLambda  60;
+cellsPerLambda  20;
 wl              #eval{$cg/$f};
 cellSize        #eval{$wl/$cellsPerLambda};
 
 PMLType         rectangle;
-L               $pmlThickness;
+L               #eval{$pmlOuterExtent - $domainRadius};
 PMLMax          (0.28 0.28 100);
 PMLMin          (-100 -100 -100);
 sigmaMax        100000;

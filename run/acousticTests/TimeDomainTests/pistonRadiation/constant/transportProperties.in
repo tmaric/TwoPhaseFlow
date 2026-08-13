@@ -31,7 +31,7 @@ timeIntegrationTheta 0.5;
 
 pistonRadius    __PISTON_RADIUS__;
 domainRadius    __PML_RMIN__;
-pmlThickness    __PML_L__;
+pmlOuterExtent  __PML_RMAX__;
 
 f               __DRIVE_F__;
 cellsPerLambda  __MESH_CELLS_PER_LAMBDA__;
@@ -39,7 +39,7 @@ wl              #eval{$cg/$f};
 cellSize        #eval{$wl/$cellsPerLambda};
 
 PMLType         rectangle;
-L               $pmlThickness;
+L               #eval{$pmlOuterExtent - $domainRadius};
 PMLMax          (__PML_RMAX__ __PML_RMAX__ 100);
 PMLMin          (-100 -100 -100);
 sigmaMax        100000;

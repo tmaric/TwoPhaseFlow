@@ -11,14 +11,10 @@ restore0Dir
 python3 generate_verification_probes.py >/dev/null
 
 runApplication blockMesh
-
-runApplication topoSet
-runApplication createPatch -overwrite
 runApplication setPMLFields
 
 runApplication decomposePar -force
 runParallel "${SOLVER}"
-runApplication reconstructPar -latestTime
 
 python3 verify_piston_radiation.py
 #------------------------------------------------------------------------------
