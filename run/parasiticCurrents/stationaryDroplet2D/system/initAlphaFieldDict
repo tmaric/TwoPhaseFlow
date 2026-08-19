@@ -1,0 +1,26 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2512                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      initAlphaFieldDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+field       "alpha.water";
+// A 2D droplet is a CYLINDER, not a sphere: its exact Laplace jump is sigma/R.
+// Using type sphere on a one-cell-thick mesh would integrate a sphere SLAB and
+// give the wrong initial volume.
+type        cylinder;
+radius      1e-3;
+direction   (0 0 1);
+origin      (0.005 0.005 0);
+
+// ************************************************************************* //

@@ -1,0 +1,26 @@
+#!/bin/sh
+cd "${0%/*}" || exit 1
+. "$WM_PROJECT_DIR/bin/tools/RunFunctions"
+
+runApplication blockMesh
+restore0Dir
+runApplication initAlphaField
+
+# interFlow is run DIRECTLY, not through runApplication, because the exit code is
+# the whole point of this case: runApplication swallows it.
+echo "Running interFlow"
+interFlow > log.interFlow 2>&1
+rc=$?
+
+echo
+echo "interFlow exit code: $rc"
+echo "steps completed:     $(grep -cE '^Time = ' log.interFlow)"
+echo "reached 'End':       $(grep -cE '^End$' log.interFlow)"
+echo "glibc heap message:  $(grep -oE 'malloc_consolidate\(\).*|corrupted size vs. prev_size|free\(\): .*|corrupted.*' log.interFlow | head -1)"
+echo
+if [ "$rc" -ne 0 ]; then
+    echo "REPRODUCED: the time loop finished and 'End' was printed, then the process"
+    echo "aborted during static destruction. See ../README.md."
+else
+    echo "NOT reproduced on this build -- please record the OpenFOAM version and commit."
+fi

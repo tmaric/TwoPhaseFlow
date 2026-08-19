@@ -1,0 +1,51 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2512                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      transportProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Water/air at sigma = 0.07274 N/m, so the exact Laplace jump is
+//   2D (cylinder):  sigma/R     =  72.74 Pa
+//   3D (sphere):    2 sigma/R   = 145.48 Pa
+// with R = 1 mm.
+phases (water air);
+
+water
+{
+    transportModel  Newtonian;
+    nu              1e-06;
+    rho             998.2;
+}
+
+air
+{
+    transportModel  Newtonian;
+    nu              1.53e-05;
+    rho             1.19;
+}
+
+sigma           0.07274;
+
+surfaceForces
+{
+    sigma                     0.07274;
+    // The heap corruption reproduces with EVERY one of these:
+    //   RDF  fitParaboloid  gradAlpha  heightFunction  constantCurvature
+    // so it is not in the curvature models. RDF is the default here only because
+    // it is the model of interest for the parasitic-current comparison.
+    surfaceTensionForceModel  RDF;
+    accelerationForceModel    gravity;
+    deltaFunctionModel        alphaCSF;
+}
+
+// ************************************************************************* //

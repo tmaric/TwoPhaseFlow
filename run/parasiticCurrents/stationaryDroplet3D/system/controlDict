@@ -1,0 +1,83 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2512                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     interFlow;
+
+startFrom       startTime;
+startTime       0;
+stopAt          endTime;
+
+// 20 steps. That is already enough to reproduce the abort -- it happens at EXIT,
+// after "End" is printed, not during the time loop. Raise endTime for a physics
+// run; the corruption appears either way.
+endTime         0.00021722;
+
+// FIXED step at the capillary limit dt = 0.010861/nRef^1.5 with nRef = 0.01/h,
+// i.e. dt_sigma/3.05 for water/air. Adaptivity is off so the step cannot mask
+// anything.
+deltaT          1.0861e-05;
+adjustTimeStep  no;
+maxCo           1e6;
+maxAlphaCo      0.5;
+
+// MANDATORY: interFlow's alphaCourantNo.H reads maxAlphaCo and maxCapillaryNum
+// with get<scalar>() -- no default -- so the solver aborts with
+// "Entry 'maxCapillaryNum' not found in dictionary" if either is absent. Both are
+// inert with adjustTimeStep no.
+maxCapillaryNum 1;
+maxDeltaT       1.0861e-05;
+
+writeControl    runTime;
+writeInterval   0.00021722;
+purgeWrite      0;
+writeFormat     ascii;
+writePrecision  12;
+writeCompression off;
+timeFormat      general;
+timePrecision   12;
+runTimeModifiable no;
+
+functions
+{
+    // max|U| every step: the parasitic current, the quantity of interest.
+    parasiticU
+    {
+        type            fieldMinMax;
+        libs            (fieldFunctionObjects);
+        writeControl    timeStep;
+        writeInterval   1;
+        mode            magnitude;
+        fields          (U p_rgh);
+        log             false;
+    }
+
+    // Liquid volume every step; the error relative to its t=0 value is a
+    // conservation error.
+    phaseVolume
+    {
+        type            volFieldValue;
+        libs            (fieldFunctionObjects);
+        writeControl    timeStep;
+        writeInterval   1;
+        operation       volIntegrate;
+        fields          (alpha.water);
+        regionType      all;
+        writeFields     false;
+        log             false;
+    }
+}
+
+// ************************************************************************* //
