@@ -634,14 +634,13 @@ def main() -> int:
 
     fig_ff = plt.figure(figsize=(7.2, 4.6))
     ax_ff = fig_ff.add_subplot(1, 1, 1)
-    ax_ff.plot(np.degrees(theta), spl_ana, "-", lw=2.0, label="Analytical far-field SPL")
-    ax_ff.plot(np.degrees(theta), spl_sim, "--", lw=1.8, label="Simulation SPL")
-    ax_ff.set_xlabel("theta [deg] (from axis)")
-    ax_ff.set_ylabel("SPL [dB re 20uPa]")
+    ax_ff.plot(np.degrees(theta), spl_ana, "-", lw=2.0, label="Analytical")
+    ax_ff.plot(np.degrees(theta), spl_sim, "--", lw=1.8, label="Numerical")
+    ax_ff.set_xlabel(r"$\theta$ [$^\circ$] from the symmetry axis")
+    ax_ff.set_ylabel(r"$L_p$ [dB re $20\,\mu$Pa]")
     ax_ff.set_xlim(0, 90)
     ax_ff.grid(True, alpha=0.35)
     ax_ff.legend(loc="best")
-    ax_ff.set_title(f"pistonRadiation far-field SPL, f={f:.0f} Hz")
     fig_ff.tight_layout()
     ff_png = out_dir / "farFieldPatternComparison.png"
     fig_ff.savefig(ff_png, dpi=160)

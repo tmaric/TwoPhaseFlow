@@ -148,11 +148,10 @@ for n, _on, ff in summary_rows:
         label=f"N={n}",
     )
 ax.set_xlim(0, 90)
-ax.set_xlabel("theta [deg] (from axis)")
-ax.set_ylabel("SPL [dB re 20uPa]")
+ax.set_xlabel(r"$\theta$ [$^\circ$] from the symmetry axis")
+ax.set_ylabel(r"$L_p$ [dB re $20\,\mu$Pa]")
 ax.grid(True, alpha=0.35)
 ax.legend(loc="best")
-ax.set_title("pistonRadiation far-field SPL mesh convergence")
 fig.tight_layout()
 fig.savefig(out_root / "farField_SPL_meshConvergence.png", dpi=180)
 
