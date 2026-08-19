@@ -29,8 +29,11 @@ License
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
     defineTypeNameAndDebug(phaseModel, 0);
     defineRunTimeSelectionTable(phaseModel, dictionary);
+} // End inline namespace twoPhaseFlow
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //

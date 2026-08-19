@@ -1,9 +1,11 @@
 # interFlow aborts at exit: duplicate statics in libVoF and libgeometricVoF (OpenFOAM-v2512)
 
-**Status: SOLVED.** Root cause identified with AddressSanitizer and confirmed by
-controlled experiment. It is a **double `free()` of one static `Foam::word` during
-library teardown**, caused by TwoPhaseFlow's `libVoF` and OpenFOAM-v2512's
-`libgeometricVoF` both defining the same static objects.
+**Status: FIXED.** Root cause was a **double `free()` of one static `Foam::word`
+during library teardown**, caused by TwoPhaseFlow's `libVoF` and OpenFOAM-v2512's
+`libgeometricVoF` both defining the same static objects. The forked classes now live
+in an inline namespace `Foam::twoPhaseFlow`, so no symbol collides; see
+[Fixing it](#fixing-it). `interFlow` exits 0 and is AddressSanitizer-clean, and the
+solution is bit-identical to before the fix.
 
 **The results are valid.** ASAN reports exactly one memory error in a full run, and
 it happens *after* `End`, during static destruction. There are **zero** buffer
@@ -122,34 +124,126 @@ cause of the current abort, but it should not be left standing.
 
 ## Fixing it
 
-The fork is real, not stale — 17 classes are duplicated and **all** have diverged
-(`reconstructedDistanceFunction.C` by 428 lines, `isoAdvection.C` by 303,
-`plicRDF.C` by 183), and the `RDF_` reference is a deliberate design difference.
-So neither of the two cheap options works:
+The fork is real, not stale — 17 classes in `src/VoF` are duplicated and **all** have
+diverged (`reconstructedDistanceFunction.C` by 428 lines, `isoAdvection.C` by 303,
+`plicRDF.C` by 183), and the `RDF_` reference is a deliberate design difference. So
+the two cheap options were both closed off:
 
 - **Dropping the fork** and using OpenFOAM's `geometricVoF` is not a drop-in; the
   implementations and the `plicRDF` API have diverged.
 - **Hiding the symbols** (`-fvisibility=hidden`, version script) breaks the build:
   `libsurfaceForces`, `libphaseChange` and `libpostProcess` all reference
   `Foam::reconstructionSchemes::typeName` as an undefined symbol.
-- **`-Bsymbolic` / `-Bsymbolic-functions`** is proven ineffective (table above): it
-  changes symbol *binding*, but both libraries still register a destructor for the
-  same object.
+- **`-Bsymbolic` / `-Bsymbolic-functions`** was tested and is ineffective (table
+  above): it changes symbol *binding*, but both libraries still register a
+  destructor for the same object.
 
-**Recommended fix: give this repository's forked classes their own namespace**, e.g.
-wrap `src/VoF`'s `reconstructionSchemes`, `plicRDF`, `isoAlpha`, `gradAlpha`,
-`reconstructedDistanceFunction`, `isoAdvection`, the `cutCell`/`cutFace` family and
-the `surfaceIterator`s in `Foam::twoPhaseFlow`, and update the users inside this
-repository. Every symbol then becomes distinct: no collapsing, no double
-construction or destruction, no shared runtime-selection table, and the layout
-hazard above disappears too. Mechanical, but it touches all 17 classes and should go
-upstream rather than living as a local patch.
+### What was done
 
-**Interim, for running studies now:** the results are valid, so a run may be accepted
-when it printed `End`, treating exit 134 as non-fatal. To avoid the abort entirely,
-keep `libgeometricVoF` out of the process — avoid function objects from
-`libfieldFunctionObjects` (`libsampling`-based ones such as `probes` are fine) and
-compute `max|U|` and the volume error in post-processing from the written fields.
+The forked classes are wrapped in an **inline namespace** `Foam::twoPhaseFlow`:
+
+```cpp
+namespace Foam
+{
+inline namespace twoPhaseFlow
+{
+namespace reconstruction
+{
+class plicRDF : public reconstructionSchemes { ... };
+}
+} // End inline namespace twoPhaseFlow
+} // End namespace Foam
+```
+
+An inline namespace changes the **mangled** names — `plicRDF::typeName` becomes
+`Foam::twoPhaseFlow::reconstruction::plicRDF::typeName`, which no longer collides —
+while leaving every *spelling* of the name valid in the enclosing namespace. So
+`Foam::reconstructionSchemes`, `reconstruction::plicRDF` and
+`mesh.lookupObjectRef<reconstructionSchemes>(...)` keep compiling untouched
+everywhere they already appear, in this repository and in downstream code. Nothing
+outside the wrapped files had to change, and no `typeName` *string* changed, so case
+dictionaries still say `reconstructionScheme plicRDF`.
+
+Three families were wrapped, chosen by measuring which symbols actually collide
+(strong `T`/`D`/`B` definitions shared with any OpenFOAM library) rather than by
+guessing:
+
+| Library | Forked classes wrapped | Collisions before → after |
+|---|---|---|
+| `libVoF` | `reconstructionSchemes`, `plicRDF`, `isoAlpha`, `gradAlpha`, `isoSurface`, `reconstructedDistanceFunction`, the `cutCell`/`cutFace` families, `surfaceIterator{Iso,PLIC}` | 97 → **0** |
+| `libpostProcess` | `sampledInterface` | 20 → **0** |
+| `libtwoPhaseModelThermo` | `phaseModel`, `twoPhaseMixtureThermo` | 55 → **0** |
+
+`isoAdvection` needed nothing: it already sits in `Foam::advection` while OpenFOAM's
+is `Foam::isoAdvection`, which is the same solution applied earlier by hand.
+
+### Case-syntax change: `interface` → `reconstructedInterface`
+
+Namespacing `sampledInterface` exposed a **second, independent conflict** that the
+merged symbols had been masking. Both this repository and OpenFOAM's `geometricVoF`
+register a `sampledSurface` under the *runtime name* `interface`, into OpenFOAM's
+single `sampledSurface` table. That table keeps whichever library registered first
+and rejects the second with
+
+```
+Duplicate entry interface in runtime table sampledSurface
+```
+
+Once the two classes were genuinely distinct, OpenFOAM won that key (it is loaded
+first, indirectly via `libsampling`/`libfieldFunctionObjects`), so `type interface`
+built *OpenFOAM's* sampler, which then looked for *OpenFOAM's* `reconstructionSchemes`
+in the registry and found this repository's instead:
+
+```
+--> FOAM FATAL ERROR
+    bad lookup of reconstructionScheme (objectRegistry fluid)
+    expected a reconstructionSchemes, found a isoAlpha
+```
+
+This repository's sampler therefore registers under the unambiguous name
+**`reconstructedInterface`**, and the 12 cases in `run/` and `testsuite/` that used
+`type interface` were updated. **Existing external cases must make the same change:**
+
+```
+// before                    // after
+type    interface;           type    reconstructedInterface;
+```
+
+Keeping `interface` as an alias was tried and dropped: OpenFOAM wins that key
+whenever `libgeometricVoF` is loaded, so the alias never made the key usable and only
+added a ten-line "Duplicate entry" stack trace to stderr on every run.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `Allwmake` from clean | exit 0, no errors; nothing outside the wrapped files changed |
+| Strong-symbol collisions, every TwoPhaseFlow library vs **all** OpenFOAM libraries | **0** (except the turbulence library below) |
+| `stationaryDroplet{2D,3D}`, `velocityStaticCircle`, `sinWave`, `stefanProblem`, `suckingInterface`, `cht/fixedFlux` | all exit **0**, all reach `End`, no `FOAM FATAL`, no `Duplicate entry`, no glibc message |
+| ASAN (preloaded allocator) on all six cases | **0** errors — the double free is gone |
+| Solver output, 2D case, before vs after the fix | **identical** (same md5 over all solver lines) |
+| `max(p_rgh)` in the 2D case | 73.68 Pa against the exact Laplace jump 72.74 Pa |
+
+### One known collision left
+
+`libVoFphaseModelCompressibleTurbulenceModels` still shares 60 strong symbols with
+OpenFOAM's `libVoFphaseCompressibleTurbulenceModels`. A namespace **cannot** fix
+these: they are not forked classes but duplicate *explicit instantiations* of
+OpenFOAM's own templates — `Foam::LESModel<...>`, `Foam::RASModels::kOmegaSST<...>`,
+`Foam::laminarModels::Stokes<...>` and friends, instantiated for
+`fluidThermoPhaseCompressibleTurbulenceModel` exactly as OpenFOAM's library does.
+Moving them into `Foam::twoPhaseFlow` is not possible, because the templates belong
+to OpenFOAM.
+
+It is left alone because it is **not reachable**: walking the `DT_NEEDED` graph over
+every OpenFOAM library, nothing depends on `libVoFphaseCompressibleTurbulenceModels`,
+and in particular no function-object library pulls it in. Contrast
+`libgeometricVoF`, which 19 libraries reach, three of them function-object libraries
+(`libfieldFunctionObjects`, `liblagrangianFunctionObjects`, `libphaseFunctionObjects`)
+— that reachability is exactly why this bug fired on ordinary cases. The turbulence
+library can only be co-loaded by naming it explicitly in a `libs (...)` entry. The
+real fix, if it ever matters, is to link OpenFOAM's library instead of
+re-instantiating those templates.
 
 ## Reproducing
 
@@ -219,8 +313,9 @@ three solvers start from a **bit-identical** volume fraction. The cases in this
 directory deliberately avoid that dependency: they use this repository's own
 `initAlphaField` so they can be run with nothing but OpenFOAM and this repo.
 
-Note for those studies: any step that checks `interFlow`'s exit code will see 134
-until the namespace fix lands, even though the written results are correct.
+Note for those studies: `interFlow` now exits 0, so exit-code checks are meaningful
+again. If those case templates sample the interface, they need
+`type reconstructedInterface` rather than `type interface`.
 
 One initialisation trap worth recording: a 2D droplet must be initialised as
 `type cylinder`, not `type sphere`. On a one-cell-thick mesh `sphere` integrates a

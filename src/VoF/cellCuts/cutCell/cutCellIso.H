@@ -69,6 +69,8 @@ SourceFiles
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
 
 /*---------------------------------------------------------------------------*\
                          Class cutCellIso Declaration
@@ -177,6 +179,7 @@ class cutCellIso
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End inline namespace twoPhaseFlow
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

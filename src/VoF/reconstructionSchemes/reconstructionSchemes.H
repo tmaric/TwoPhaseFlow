@@ -48,6 +48,8 @@ SourceFiles
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
 
 /*---------------------------------------------------------------------------*\
                     Class reconstructionSchemes Declaration
@@ -221,6 +223,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End inline namespace twoPhaseFlow
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

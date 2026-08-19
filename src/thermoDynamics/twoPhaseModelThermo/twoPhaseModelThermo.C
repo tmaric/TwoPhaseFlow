@@ -32,7 +32,10 @@ License
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
     defineTypeNameAndDebug(twoPhaseModelThermo, 0);
+} // End inline namespace twoPhaseFlow
 }
 
 

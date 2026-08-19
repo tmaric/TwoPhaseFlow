@@ -41,6 +41,8 @@ SourceFiles
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
 
 /*---------------------------------------------------------------------------*\
                            Class phaseModel Declaration
@@ -109,6 +111,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End inline namespace twoPhaseFlow
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

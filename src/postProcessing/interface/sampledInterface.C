@@ -30,14 +30,29 @@ License
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
     defineTypeNameAndDebug(sampledInterface, 0);
+
+    // Lookup name. Deliberately NOT 'interface': OpenFOAM's own
+    // geometricVoF ships a sampledInterface that registers 'interface' into this
+    // same sampledSurface table, and the table keeps whichever library registered
+    // first -- which depends on load order, since libgeometricVoF arrives
+    // indirectly through libfieldFunctionObjects/libsampling. Selecting
+    // 'reconstructedInterface' always gets this one, which samples the
+    // reconstruction from this repository's reconstructionSchemes. Registering
+    // 'interface' as well was tried and dropped: OpenFOAM wins that key whenever
+    // libgeometricVoF is loaded, so the alias only ever added a ten-line
+    // "Duplicate entry" stack trace to stderr without making the key usable.
     addNamedToRunTimeSelectionTable
     (
         sampledSurface,
         sampledInterface,
         word,
-        interface
+        reconstructedInterface
     );
+
+} // End inline namespace twoPhaseFlow
 }
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //

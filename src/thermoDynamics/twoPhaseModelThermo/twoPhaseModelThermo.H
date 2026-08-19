@@ -45,6 +45,8 @@ SourceFiles
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
 
 /*---------------------------------------------------------------------------*\
                          Class twoPhaseModelThermo Declaration
@@ -392,6 +394,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End inline namespace twoPhaseFlow
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

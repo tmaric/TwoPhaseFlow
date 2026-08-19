@@ -32,7 +32,10 @@ License
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
     defineTypeNameAndDebug(reconstructedDistanceFunction, 0);
+} // End inline namespace twoPhaseFlow
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //

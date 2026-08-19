@@ -82,7 +82,7 @@ functions
         (
             constantIso
             {
-                type        interface;
+                type        reconstructedInterface;
                 interpolate false;
             }
         );

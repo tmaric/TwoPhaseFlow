@@ -37,11 +37,14 @@ License
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
 namespace reconstruction
 {
     defineTypeNameAndDebug(plicRDF, 0);
     addToRunTimeSelectionTable(reconstructionSchemes,plicRDF, components);
 }
+} // End inline namespace twoPhaseFlow
 }
 
 

@@ -27,11 +27,14 @@ License
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
 namespace reconstruction
 {
     defineTypeNameAndDebug(isoSurface, 0);
     addToRunTimeSelectionTable(reconstructionSchemes,isoSurface, components);
 }
+} // End inline namespace twoPhaseFlow
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
