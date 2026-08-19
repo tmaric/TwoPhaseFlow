@@ -1,106 +1,183 @@
-# interFlow aborts at exit with a corrupted heap (OpenFOAM-v2512)
+# interFlow aborts at exit: duplicate statics in libVoF and libgeometricVoF (OpenFOAM-v2512)
 
-**Status:** reproducible, cause unknown, blocks using `interFlow` results as
-publication-grade numbers. Two minimal cases in this directory reproduce it in
-seconds.
+**Status: SOLVED.** Root cause identified with AddressSanitizer and confirmed by
+controlled experiment. It is a **double `free()` of one static `Foam::word` during
+library teardown**, caused by TwoPhaseFlow's `libVoF` and OpenFOAM-v2512's
+`libgeometricVoF` both defining the same static objects.
+
+**The results are valid.** ASAN reports exactly one memory error in a full run, and
+it happens *after* `End`, during static destruction. There are **zero** buffer
+overflows or use-after-free events during the time loop, and the solution is
+bit-identical to a run that does not abort. The earlier suspicion that "the heap was
+already corrupted while the solver ran" was wrong.
 
 ---
 
 ## The symptom
 
-Every `interFlow` run completes its time loop normally, prints `End`, and *then*
-aborts during static destruction. Exit code **134** (SIGABRT). glibc reports one of
+Every `interFlow` run completes its time loop, prints `End`, and *then* aborts during
+static destruction with exit code **134** (SIGABRT), glibc reporting one of
 
 ```
+corrupted size vs. prev_size
 malloc_consolidate(): invalid chunk size
 malloc_consolidate(): unaligned fastbin chunk detected
-corrupted size vs. prev_size
 ```
 
-The stack at the abort is in library teardown, not in the solver:
+The gdb stack is in library teardown, not in the solver:
 
 ```
-__libc_free
-Foam::dictionary::~dictionary          (libOpenFOAM.so)
-__cxa_finalize
-Foam::debug::deleteControlDictPtr::~deleteControlDictPtr
+__libc_free  <-  primitiveEntry::~primitiveEntry  <-  dictionary::~dictionary
+             <-  debug::deleteControlDictPtr::~deleteControlDictPtr  <-  __cxa_finalize
 ```
 
-So the heap was already corrupted while the solver ran; glibc only detects it when
-it consolidates the heap at exit. **The results are written, but nothing certifies
-them** — an out-of-bounds write happened somewhere, and where it landed is unknown.
+## Root cause
 
-## Which case to run
+`libVoF.so` (this repository) and `libgeometricVoF.so` (OpenFOAM-v2512) both define
+**the same 19 static data symbols**, because this repository carries a fork of
+OpenFOAM's `geometricVoF`:
+
+```
+Foam::reconstructionSchemes::typeName          Foam::reconstructionSchemes::debug
+Foam::reconstruction::plicRDF::typeName        Foam::reconstruction::plicRDF::debug
+Foam::reconstruction::isoAlpha::typeName       Foam::reconstruction::isoAlpha::debug
+Foam::reconstruction::gradAlpha::typeName      Foam::reconstruction::gradAlpha::debug
+Foam::cutCell::debug                           Foam::cutFace::debug
+Foam::reconstructionSchemes::componentsConstructorTablePtr_        ... and 8 more
+```
+
+The dynamic linker collapses each pair to **one address**, but **each library keeps
+its own static constructor and its own `__cxa_finalize` destructor registration** for
+it. So the object is constructed twice and, at exit, **destroyed twice** — `~word()`
+frees the same heap pointer twice. That corrupts glibc's free lists, and glibc
+notices later while consolidating the debug-switch dictionary.
+
+ASAN names it exactly:
+
+```
+ERROR: AddressSanitizer: attempting double-free on 0x5030001a2c90
+  #1 __cxa_finalize
+  #2 libVoF.so+0x6f1f6                          <-- second free, from libVoF
+0x5030001a2c90 is located 0 bytes inside of 22-byte region
+freed by thread T0 here:      __run_exit_handlers                <-- first free
+previously allocated by thread T0 here:
+  #1 Foam::word::word(char const*, bool)  in libgeometricVoF.so  <-- allocation
+```
+
+The 22-byte region is `"reconstructionSchemes"` — 21 characters plus NUL — i.e.
+`Foam::reconstructionSchemes::typeName`.
+
+### Why `libgeometricVoF` is in the process at all
+
+`interFlow` does not link it. It arrives through the function objects:
+
+```
+controlDict: libs (fieldFunctionObjects)
+  -> libfieldFunctionObjects.so  ->  libreactingMultiphaseSystem.so
+  -> ... -> libincompressibleMultiphaseSystems.so  ->  libgeometricVoF.so
+```
+
+### Why the abort looked erratic
+
+The double-free happens **whenever both libraries are loaded**, but glibc only
+*aborts* when the freed chunk happens to sit next to one it later validates. Function
+objects change the heap layout, so they change whether glibc notices — they do not
+cause the bug. Confirmed: a run with `-noFunctionObjects` plus `libs (geometricVoF)`
+exits 0 **and still contains the double-free** under ASAN.
+
+## Evidence
+
+| Experiment | Result |
+|---|---|
+| Baseline, function objects on | exit 134, `corrupted size vs. prev_size` |
+| `-noFunctionObjects` (`libgeometricVoF` never loads) | **exit 0**, ASAN clean |
+| `-noFunctionObjects` + `libs (geometricVoF)` | exit 0 but **ASAN still reports the double-free** |
+| `LD_PRELOAD=libgeometricVoF.so` (reverses symbol binding) | exit **139**, segfault — same bug, different manifestation |
+| Only `fieldMinMax`; only `volFieldValue` | each aborts alone |
+| `probes` from `libsampling` (already linked, no `geometricVoF`) | exit 0 |
+| Merely `dlopen`ing `fieldFunctionObjects` with no FO running | exit 0 |
+| `libVoF` relinked `-Wl,-Bsymbolic` (DF_SYMBOLIC verified set) | **still exit 134** — cannot help, each library's destructor list runs regardless |
+| ASAN, full run | **1** error, at teardown; **0** overflows/UAF during the time loop |
+| Solver output, aborting run vs clean run | **identical** (same md5 over all solver lines) |
+
+Previously ruled out and still ruled out: MPI (serial aborts too), any specific
+`surfaceTensionForceModel` (all five abort), our cases (`run/velocityStaticCircle`
+aborts too), version mismatch, and a broken build.
+
+## A second, latent hazard in the same fork
+
+Independent of the abort, `plicRDF` has a **different layout** in the two libraries:
+
+```
+OpenFOAM-v2512   reconstructedDistanceFunction  RDF_;   sizeof(plicRDF) = 2784
+this repository  reconstructedDistanceFunction& RDF_;   sizeof(plicRDF) = 1936
+```
+
+848 bytes apart (856-byte object vs 8-byte reference), and `sIterPLIC_` sits after
+it, so its offset differs too. Both libraries register `plicRDF` into the *same*
+interposed `componentsConstructorTablePtr_`; whichever registers first wins, and that
+depends on load order. Today `libVoF` loads first and stays self-consistent, but if
+that order ever flips, a real in-run heap overflow becomes possible. This is not the
+cause of the current abort, but it should not be left standing.
+
+## Fixing it
+
+The fork is real, not stale — 17 classes are duplicated and **all** have diverged
+(`reconstructedDistanceFunction.C` by 428 lines, `isoAdvection.C` by 303,
+`plicRDF.C` by 183), and the `RDF_` reference is a deliberate design difference.
+So neither of the two cheap options works:
+
+- **Dropping the fork** and using OpenFOAM's `geometricVoF` is not a drop-in; the
+  implementations and the `plicRDF` API have diverged.
+- **Hiding the symbols** (`-fvisibility=hidden`, version script) breaks the build:
+  `libsurfaceForces`, `libphaseChange` and `libpostProcess` all reference
+  `Foam::reconstructionSchemes::typeName` as an undefined symbol.
+- **`-Bsymbolic` / `-Bsymbolic-functions`** is proven ineffective (table above): it
+  changes symbol *binding*, but both libraries still register a destructor for the
+  same object.
+
+**Recommended fix: give this repository's forked classes their own namespace**, e.g.
+wrap `src/VoF`'s `reconstructionSchemes`, `plicRDF`, `isoAlpha`, `gradAlpha`,
+`reconstructedDistanceFunction`, `isoAdvection`, the `cutCell`/`cutFace` family and
+the `surfaceIterator`s in `Foam::twoPhaseFlow`, and update the users inside this
+repository. Every symbol then becomes distinct: no collapsing, no double
+construction or destruction, no shared runtime-selection table, and the layout
+hazard above disappears too. Mechanical, but it touches all 17 classes and should go
+upstream rather than living as a local patch.
+
+**Interim, for running studies now:** the results are valid, so a run may be accepted
+when it printed `End`, treating exit 134 as non-fatal. To avoid the abort entirely,
+keep `libgeometricVoF` out of the process — avoid function objects from
+`libfieldFunctionObjects` (`libsampling`-based ones such as `probes` are fine) and
+compute `max|U|` and the volume error in post-processing from the written fields.
+
+## Reproducing
 
 ```bash
 source $HOME/OpenFOAM/OpenFOAM-v2512/etc/bashrc
-# plus whatever exports put this repository's build on PATH/LD_LIBRARY_PATH
-
 cd run/parasiticCurrents/stationaryDroplet2D
 ./Allrun
 ```
 
-Takes a few seconds (64x64x1 cells, 20 steps). `Allrun` runs `interFlow` directly
-rather than through `runApplication`, because the exit code is the whole point and
-`runApplication` swallows it. Expected output:
+A few seconds (64x64x1 cells, 20 steps). `Allrun` runs `interFlow` directly rather
+than through `runApplication`, because `runApplication` swallows the exit code.
+To see the double-free itself:
 
+```bash
+ASAN_OPTIONS=detect_leaks=0:halt_on_error=0 \
+  LD_PRELOAD=$(gcc -print-file-name=libasan.so) interFlow
 ```
-interFlow exit code: 134
-steps completed:     20
-reached 'End':       1
-glibc heap message:  corrupted size vs. prev_size
-```
+
+No instrumented rebuild is needed — preloading ASAN's allocator is enough, because
+both the allocation and the double free happen in library code.
 
 `stationaryDroplet3D` is the same physics in 3D (60^3, 20 steps, ~1 min) and behaves
 identically. Start with 2D.
 
-## What has been ruled out
-
-| Hypothesis | Test | Result |
-|---|---|---|
-| MPI teardown artefact | ran serial and at np=4 | **both** abort |
-| A specific curvature model | swept all five `surfaceTensionForceModel`s: `RDF`, `fitParaboloid`, `gradAlpha`, `heightFunction`, `constantCurvature` | **all five** abort identically |
-| Something in our case setup | ran the repo's own `run/velocityStaticCircle` with its own `blockMesh` + `initAlphaField` + `interFlow`, nothing changed but a shortened `endTime` | **also aborts**: 20 steps, `End`, `corrupted size vs. prev_size`, exit 134 |
-| Wrong OpenFOAM version | `.github/workflows/openfoam.yml` pins `OF_VERSION: "2512"`; README states master compiles v2406–v2512 | v2512 is a **targeted** version |
-| A build problem | `Allwmake` exit 0, no errors, `ldd` on `interFlow` has no missing entries, `interFlow -help` runs | build is clean |
-
-So it is **not** in the curvature models, **not** MPI, **not** our cases, and **not**
-a version mismatch. It is in the common path — the solver, `isoAdvection`/`plicRDF`,
-or the `surfaceForces`/`deltaFunction` infrastructure — and it is pre-existing.
-
-Environment where this was observed: OpenFOAM-v2512 (`Build: _87ed40d256-20251219`),
-gcc 11.5.0, twophaseflow at `de9826f9ffb24f4b635ac97fd388ebd560cfc174`
-("Merge branch 'pr-61'"). Reproduced on both a WSL/Ubuntu laptop and the
-Lichtenberg cluster (Red Hat, gcc 11.5.0, OpenMPI 4.1.8), i.e. it is not
-machine-specific.
-
-## Suggested next step
-
-Rebuild with AddressSanitizer and run the 2D case — that should name the offending
-write directly:
-
-```bash
-export WM_COMPILE_OPTION=Debug     # or add the flags to your wmake rules
-# add to c++FLAGS / linker flags:  -fsanitize=address -fno-omit-frame-pointer
-./Allwmake
-cd run/parasiticCurrents/stationaryDroplet2D && ./Allrun
-```
-
-ASAN aborts at the *first* invalid access with a full stack, rather than at exit
-like glibc does. Note the solver is heavily templated OpenFOAM code, so an ASAN
-build of the whole repo plus `libOpenFOAM` may be needed if the report points into
-OpenFOAM itself. `valgrind --tool=memcheck` on the 2D case is a slower alternative
-that needs no rebuild.
-
-Two smaller things worth checking first, both cheap:
-
-- `heightFunction.C:103` has an unused variable `avgColVal`; the file does raw
-  stencil indexing and is a plausible place for an off-by-one — though note the
-  corruption also occurs with `constantCurvature`, which never enters it.
-- The repo builds its own `libVoF` alongside OpenFOAM's `geometricVoF`. If any
-  class is defined in both with different layouts, a cross-library allocation and
-  free would corrupt the heap exactly like this. Worth checking for duplicate
-  symbol names between `libVoF.so` and OpenFOAM's `libgeometricVoF.so`.
+Environment: OpenFOAM-v2512 (`Build: _87ed40d256-20251219`), gcc 11.5.0 (ASAN via
+system gcc 13), twophaseflow at `de9826f` ("Merge branch 'pr-61'"). Originally
+observed on both a WSL/Ubuntu laptop and the Lichtenberg cluster (Red Hat, gcc
+11.5.0, OpenMPI 4.1.8), i.e. not machine-specific.
 
 ## Why we care
 
@@ -126,8 +203,7 @@ isolates the curvature source. `interFlow` matters most because it takes curvatu
 from a reconstructed geometric object — the same premise as the level-set method —
 while conserving volume by construction. In the 20-step 2D case above it already
 looks good: volume conserved to 12 digits, and `max|U|` about half of `interFoam`'s
-at the same point. That is exactly why the heap corruption needs resolving rather
-than working around.
+at the same point.
 
 ## The full studies
 
@@ -142,6 +218,9 @@ Those are initialised with `leiaSetFields` instead of `initAlphaField`, so that 
 three solvers start from a **bit-identical** volume fraction. The cases in this
 directory deliberately avoid that dependency: they use this repository's own
 `initAlphaField` so they can be run with nothing but OpenFOAM and this repo.
+
+Note for those studies: any step that checks `interFlow`'s exit code will see 134
+until the namespace fix lands, even though the written results are correct.
 
 One initialisation trap worth recording: a 2D droplet must be initialised as
 `type cylinder`, not `type sphere`. On a one-cell-thick mesh `sphere` integrates a
