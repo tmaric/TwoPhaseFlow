@@ -18,8 +18,8 @@ def main() -> None:
     parser.add_argument("--boundary-transition-fraction", type=float, default=0.0)
     args = parser.parse_args()
 
-    if args.orthogonal_boundary_layers < 0:
-        parser.error("--orthogonal-boundary-layers must be nonnegative")
+    if args.orthogonal_boundary_layers < 1:
+        parser.error("--orthogonal-boundary-layers must be at least one")
     if args.boundary_transition_fraction < 0:
         parser.error("--boundary-transition-fraction must be nonnegative")
 
@@ -95,7 +95,7 @@ def main() -> None:
         raise RuntimeError(f"No mesh points found in {path}")
     path.write_text(new_text, encoding="utf-8")
     print(
-        f"Warped {count} mesh points with amplitude factor {args.amplitude}; "
+        f"Deformed {count} mesh points with amplitude factor {args.amplitude}; "
         f"orthogonal boundary layers: {args.orthogonal_boundary_layers}; "
         f"transition fraction: {args.boundary_transition_fraction}"
     )

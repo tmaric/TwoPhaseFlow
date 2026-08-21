@@ -18,8 +18,7 @@ Z_HALF=0.005
 CELLS_PER_WAVELENGTH=${CELLS_PER_WAVELENGTH:-32}
 # Supported mesh families:
 #   orthogonal     - Cartesian mesh
-#   warpedInterior - orthogonal boundary-cell layer with a warped interior
-#   warped         - deformation also reaches the boundary-adjacent cells
+#   warpedInterior - orthogonal boundary-cell layer with a non-orthogonal interior
 MESH_FAMILY=${MESH_FAMILY:-warpedInterior}
 # Supported boundary modes: dirichlet, alignedDirichlet, mixed.
 BOUNDARY_MODE=${BOUNDARY_MODE:-dirichlet}

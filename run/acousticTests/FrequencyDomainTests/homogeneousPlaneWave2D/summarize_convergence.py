@@ -43,20 +43,22 @@ def main() -> None:
 
     colors = {
         "orthogonal": "#0072B2",
-        "warped": "#D55E00",
         "warpedInterior": "#009E73",
     }
-    family_labels = {
+    plot_family_labels = {
         "orthogonal": "Orthogonal",
-        "warped": "Warped boundary",
-        "warpedInterior": "Warped interior",
+        "warpedInterior": "Non-orthogonal",
+    }
+    table_family_labels = {
+        "orthogonal": "Orthogonal",
+        "warpedInterior": "Non-orthogonal interior",
     }
     boundary_labels = {"dirichlet": "Dirichlet", "mixed": "Mixed"}
     markers = {"dirichlet": "o", "mixed": "s"}
     fig, axes = plt.subplots(1, 2, figsize=(9.2, 4.0))
     for (family, boundary), group in sorted(groups.items()):
         x = [1/float(row["cellsPerWavelength"]) for row in group]
-        label = f"{family_labels[family]}, {boundary_labels[boundary]}"
+        label = f"{plot_family_labels[family]}, {boundary_labels[boundary]}"
         axes[0].loglog(x, [float(row["pressureRelL2"]) for row in group], marker=markers[boundary], color=colors[family], ls="-" if boundary == "dirichlet" else "--", label=label)
         axes[1].loglog(x, [float(row["velocityRelL2"]) for row in group], marker=markers[boundary], color=colors[family], ls="-" if boundary == "dirichlet" else "--", label=label)
     for ax, ylabel in zip(axes, [r"$E_2(P)$", r"$E_2(\mathbf{u})$"]):
@@ -68,7 +70,17 @@ def main() -> None:
         ax.set_xticks([1/value for value in tick_cells])
         ax.set_xticklabels([rf"$1/{value}$" for value in tick_cells])
         ax.xaxis.set_minor_formatter(mticker.NullFormatter())
-    axes[0].legend(fontsize=8, frameon=False)
+    axes[0].legend(
+        loc="upper right",
+        fontsize=7,
+        frameon=True,
+        framealpha=1.0,
+        edgecolor="0.75",
+        borderpad=0.25,
+        labelspacing=0.25,
+        handlelength=1.6,
+        handletextpad=0.4,
+    )
     fig.tight_layout()
     fig.savefig(out_dir / "homogeneous_convergence.png", dpi=220)
 
@@ -83,7 +95,7 @@ def main() -> None:
         stream.write("Mesh & BC & $N_\\lambda$ & $E_2(P)$ & $q_P$ & $E_2(\\mathbf{u})$ & $q_{\\mathbf{u}}$ \\\\\n\\midrule\n")
         for row in selected:
             stream.write(
-                f"{family_labels[row['meshFamily']]} & "
+                f"{table_family_labels[row['meshFamily']]} & "
                 f"{boundary_labels[row['boundaryMode']]} & "
                 f"{float(row['cellsPerWavelength']):.0f} & "
                 f"{float(row['pressureRelL2']):.3e} & "

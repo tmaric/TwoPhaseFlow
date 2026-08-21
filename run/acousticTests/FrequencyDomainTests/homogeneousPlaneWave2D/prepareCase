@@ -32,7 +32,7 @@ sed -e "s|__N_NONORTH__|$N_NONORTH_CORRECTORS|g" \
 if [ "$MESH_FAMILY" = "orthogonal" ]; then
     sed 's|__LAPLACIAN_SCHEME__|Gauss linear orthogonal|g; s|__SNGRAD_SCHEME__|orthogonal|g' \
         system/fvSchemes.in > system/fvSchemes
-elif [ "$MESH_FAMILY" = "warped" ] || [ "$MESH_FAMILY" = "warpedInterior" ]; then
+elif [ "$MESH_FAMILY" = "warpedInterior" ]; then
     sed 's|__LAPLACIAN_SCHEME__|Gauss linear corrected|g; s|__SNGRAD_SCHEME__|corrected|g' \
         system/fvSchemes.in > system/fvSchemes
 else

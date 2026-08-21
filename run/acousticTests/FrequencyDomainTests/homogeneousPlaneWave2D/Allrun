@@ -8,9 +8,7 @@ cd "${0%/*}" || exit 1
 ./prepareCase
 
 runApplication blockMesh
-if [ "$MESH_FAMILY" = "warped" ]; then
-    python3 warp_mesh.py --amplitude "$WARP_AMPLITUDE" --lx "$LX" --ly "$LY"
-elif [ "$MESH_FAMILY" = "warpedInterior" ]; then
+if [ "$MESH_FAMILY" = "warpedInterior" ]; then
     python3 warp_mesh.py --amplitude "$WARP_AMPLITUDE" --lx "$LX" --ly "$LY" \
         --orthogonal-boundary-layers "$ORTHOGONAL_BOUNDARY_LAYERS" \
         --boundary-transition-fraction "$BOUNDARY_TRANSITION_FRACTION"

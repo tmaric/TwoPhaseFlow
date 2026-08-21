@@ -5,7 +5,7 @@ cd "${0%/*}" || exit 1
 resolutions="${BASELINE_RESOLUTIONS:-16 24 32 48 64 96}"
 families="${BASELINE_MESH_FAMILIES:-orthogonal warpedInterior}"
 boundaries="${BASELINE_BOUNDARY_MODES:-dirichlet mixed}"
-out_dir=postProcessing/convergence
+out_dir=studyResults/convergence
 mkdir -p "$out_dir"
 printf '%s\n' 'meshFamily,boundaryMode,cellsPerWavelength,cells,hOverLambda,maxNonOrthogonality,avgNonOrthogonality,pressureRelL2,pressureRelLinf,velocityRelL2,velocityInteriorRelL2,velocityBoundaryRelL2' > "$out_dir/metrics_summary.csv"
 
