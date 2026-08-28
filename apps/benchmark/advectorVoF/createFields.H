@@ -84,6 +84,25 @@ if (isoAdvectorDict.found("movingFrame"))
     frameFlow->update(runTime.value());
 }
 
+// Three-dimensional counterpart, for the spiralling deformation benchmarks.
+autoPtr<movingFrameFlow3D> frameFlow3D;
+
+if (isoAdvectorDict.found("movingFrame3D"))
+{
+    frameFlow3D.reset
+    (
+        new movingFrameFlow3D
+        (
+            mesh,
+            U,
+            phi,
+            isoAdvectorDict.subDict("movingFrame3D")
+        )
+    );
+
+    frameFlow3D->update(runTime.value());
+}
+
 //Copies of initial U and phi for use when flow is periodic
 surfaceScalarField phi0 = phi;
 volVectorField U0 = U;
