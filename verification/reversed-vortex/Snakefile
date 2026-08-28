@@ -196,7 +196,7 @@ rule visualize:
             --plain-case  {params.plain_case} \
             --n {params.N} --scheme {params.scheme} \
             --end-time {params.end_time} \
-            --centre {params.centre} \
+            --centre "{params.centre}" \
             --revolutions {params.revolutions} \
             --out-moving {output.moving} \
             --out-static {output.static}
