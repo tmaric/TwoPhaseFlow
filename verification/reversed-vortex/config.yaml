@@ -12,7 +12,7 @@ frames: [none, frameA]          # "none" = original retracing test
 # makes the integral of alpha vanish, so the exact flow map at T is the identity.
 end_time: 8
 period: 16
-write_interval: 2               # writes t = 0, T/4, T/2, 3T/4, T
+write_interval: 4               # reference protocol: writes t = 0, T/2, T
 
 # Superposed periodic Euclidean frame (used when frame == frameA).
 # The rotation centre is the domain centre: the material support is confined to
@@ -30,6 +30,7 @@ np: 1
 viz:
   N: 128
   scheme: plicRDF
+  write_interval: 2             # writes t = 0, T/4, T/2, 3T/4, T
 
 runs_dir: runs
 results_dir: results

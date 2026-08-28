@@ -9,6 +9,15 @@
 #
 # One sbatch per case; all cases run concurrently. Backends are selected with
 # --workflow-profile only, exactly as in the leia workflow.
+#
+# WHY THE SNAPSHOTS HAVE THEIR OWN CASES. OpenFOAM's adjustableRunTime write
+# control snaps the time step onto the write times, so the write interval is not
+# a passive observer of the run: at N=128 with plicRDF, writing every T/4 rather
+# than every T/2 moves the reported final error from 2.334e-3 to 2.151e-3, an 8%
+# shift from output frequency alone. The convergence cases therefore keep the
+# reference interval (T/2, reproducing the published testsuite errors) and the
+# snapshots come from separate cases written every T/4. Snapshot cases never
+# feed the table.
 # =============================================================================
 import os
 import sys
@@ -30,28 +39,31 @@ RESULTS = os.path.abspath(config.get("results_dir", os.path.join(WF, "results"))
 PREAMBLE = (config.get("env_preamble") or "").strip()
 LAUNCHER = config.get("mpi_launcher", "mpirun -np {np}").replace("{np}", str(NP))
 TEMPLATE = os.path.join(REPO, "testsuite", "advection", "test-vortexShearedDisc")
+RUN_CASE = os.path.join(WF, "scripts", "run_case.sh")
 
+WRITE_INTERVAL = config["write_interval"]
 VIZ_N = int(config["viz"]["N"])
 VIZ_SCHEME = config["viz"]["scheme"]
+VIZ_WI = config["viz"]["write_interval"]
 
-# Prefix every shell body with the toolchain, so a rule is reproducible on its
-# own from a bare login shell.
-#
 # Snakemake runs shell bodies under `bash -euo pipefail`. OpenFOAM's etc/bashrc
 # reads unset variables (WM_PROJECT_DIR) and uses shell functions whose cleanup
 # trips `-e`, so both flags are lifted across the preamble and `-e` is restored
 # for the rule body itself.
 PRE = "set +ue\n" + ((PREAMBLE + "\n") if PREAMBLE else "") + "set -e\n"
 
-ALL_CASES = [
-    f"{s}_{f}_N{n}" for s in SCHEMES for f in FRAMES for n in NS
-]
+ALL_CASES = [f"{s}_{f}_N{n}" for s in SCHEMES for f in FRAMES for n in NS]
+VIZ_CASE = "viz_" + VIZ_SCHEME + "_{frame}_N" + str(VIZ_N)
 
 
 wildcard_constraints:
     scheme="[A-Za-z]+",
     frame="[A-Za-z]+",
     N="[0-9]+",
+
+
+ruleorder: materialize_viz > materialize
+ruleorder: solve_viz > solve
 
 
 rule all:
@@ -74,7 +86,26 @@ rule tools:
         """
 
 
-# -- materialise one case ----------------------------------------------------
+def _materialize(params, wildcards, output, write_interval):
+    import materialize
+
+    materialize.build_case(
+        template=params.template,
+        case=params.case,
+        scheme=params.scheme,
+        frame=wildcards.frame,
+        N=params.N,
+        end_time=params.end_time,
+        period=params.period,
+        write_interval=write_interval,
+        rotation_centre=params.centre,
+        revolutions=params.revolutions,
+        translation_amplitude=params.translation,
+    )
+    open(output[0], "w").close()
+
+
+# -- materialise one convergence case ----------------------------------------
 rule materialize:
     input:
         rules.tools.output,
@@ -83,73 +114,79 @@ rule materialize:
     params:
         template=TEMPLATE,
         case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
+        scheme=lambda w: w.scheme,
+        N=lambda w: int(w.N),
         end_time=config["end_time"],
         period=config["period"],
-        write_interval=config["write_interval"],
         centre=config["frame"]["rotation_centre"],
         revolutions=config["frame"]["revolutions"],
         translation=config["frame"]["translation_amplitude"],
     run:
-        import materialize
-
-        materialize.build_case(
-            template=params.template,
-            case=params.case,
-            scheme=wildcards.scheme,
-            frame=wildcards.frame,
-            N=int(wildcards.N),
-            end_time=params.end_time,
-            period=params.period,
-            write_interval=params.write_interval,
-            rotation_centre=params.centre,
-            revolutions=params.revolutions,
-            translation_amplitude=params.translation,
-        )
-        open(output[0], "w").close()
+        _materialize(params, wildcards, output, WRITE_INTERVAL)
 
 
-# -- run one case ------------------------------------------------------------
+# -- materialise one snapshot case (finer write interval) --------------------
+rule materialize_viz:
+    input:
+        rules.tools.output,
+    output:
+        os.path.join(RUNS, VIZ_CASE, ".materialized"),
+    params:
+        template=TEMPLATE,
+        case=lambda w: os.path.join(
+            RUNS, f"viz_{VIZ_SCHEME}_{w.frame}_N{VIZ_N}"
+        ),
+        scheme=VIZ_SCHEME,
+        N=VIZ_N,
+        end_time=config["end_time"],
+        period=config["period"],
+        centre=config["frame"]["rotation_centre"],
+        revolutions=config["frame"]["revolutions"],
+        translation=config["frame"]["translation_amplitude"],
+    run:
+        _materialize(params, wildcards, output, VIZ_WI)
+
+
+# -- run one convergence case ------------------------------------------------
 rule solve:
     input:
         os.path.join(RUNS, "{scheme}_{frame}_N{N}", ".materialized"),
     output:
-        err=os.path.join(RUNS, "{scheme}_{frame}_N{N}", "volumeFractionError.dat"),
-    log:
-        os.path.join(RUNS, "{scheme}_{frame}_N{N}", "log.snakemake"),
+        os.path.join(RUNS, "{scheme}_{frame}_N{N}", "volumeFractionError.dat"),
     params:
         case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
         np=NP,
         launcher=LAUNCHER,
+        runner=RUN_CASE,
     threads: 1
     resources:
         tasks=NP,
     shell:
-        PRE + """
-        set -o pipefail
-        cd {params.case}
-        blockMesh                        > log.blockMesh      2>&1
-        # restore0Dir is a RunFunctions *shell function*, not an executable
-        rm -rf 0 && cp -r 0.orig 0
-        setAlphaField                    > log.setAlphaField  2>&1
-        generateUVortex2D                > log.generateU      2>&1
-        if [ {params.np} -gt 1 ]; then
-            decomposePar -force          > log.decomposePar   2>&1
-            {params.launcher} advectorVoF -parallel > log.advectorVoF 2>&1
-            reconstructPar -latestTime    > log.reconstructPar 2>&1 || true
-        else
-            advectorVoF                  > log.advectorVoF    2>&1
-        fi
-        cp postProcessing/volumeFractionError/0/volumeFractionError.dat {output.err}
-        echo done > {log}
-        """
+        PRE + 'bash {params.runner} {params.case} {params.np} "{params.launcher}"'
+
+
+# -- run one snapshot case ---------------------------------------------------
+rule solve_viz:
+    input:
+        os.path.join(RUNS, VIZ_CASE, ".materialized"),
+    output:
+        os.path.join(RUNS, VIZ_CASE, "volumeFractionError.dat"),
+    params:
+        case=lambda w: os.path.join(RUNS, f"viz_{VIZ_SCHEME}_{w.frame}_N{VIZ_N}"),
+        np=NP,
+        launcher=LAUNCHER,
+        runner=RUN_CASE,
+    threads: 1
+    resources:
+        tasks=NP,
+    shell:
+        PRE + 'bash {params.runner} {params.case} {params.np} "{params.launcher}"'
 
 
 # -- convergence table -------------------------------------------------------
 rule aggregate:
     input:
-        expand(
-            os.path.join(RUNS, "{case}", "volumeFractionError.dat"), case=ALL_CASES
-        ),
+        expand(os.path.join(RUNS, "{case}", "volumeFractionError.dat"), case=ALL_CASES),
     output:
         csv=os.path.join(RESULTS, "convergence.csv"),
         tex=os.path.join(RESULTS, "convergence_table.tex"),
@@ -177,17 +214,17 @@ rule aggregate:
 rule visualize:
     input:
         framed=os.path.join(
-            RUNS, f"{VIZ_SCHEME}_frameA_N{VIZ_N}", "volumeFractionError.dat"
+            RUNS, f"viz_{VIZ_SCHEME}_frameA_N{VIZ_N}", "volumeFractionError.dat"
         ),
         plain=os.path.join(
-            RUNS, f"{VIZ_SCHEME}_none_N{VIZ_N}", "volumeFractionError.dat"
+            RUNS, f"viz_{VIZ_SCHEME}_none_N{VIZ_N}", "volumeFractionError.dat"
         ),
     output:
         moving=os.path.join(RESULTS, "interface_moving_frame.png"),
         static=os.path.join(RESULTS, "interface_non_moving_frame.png"),
     params:
-        framed_case=os.path.join(RUNS, f"{VIZ_SCHEME}_frameA_N{VIZ_N}"),
-        plain_case=os.path.join(RUNS, f"{VIZ_SCHEME}_none_N{VIZ_N}"),
+        framed_case=os.path.join(RUNS, f"viz_{VIZ_SCHEME}_frameA_N{VIZ_N}"),
+        plain_case=os.path.join(RUNS, f"viz_{VIZ_SCHEME}_none_N{VIZ_N}"),
         N=VIZ_N,
         scheme=VIZ_SCHEME,
         end_time=config["end_time"],

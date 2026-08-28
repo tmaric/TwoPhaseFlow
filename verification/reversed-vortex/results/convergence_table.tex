@@ -1,0 +1,37 @@
+\begin{table}[htbp]
+\centering
+\caption{plicRDF reconstruction on the reversed-vortex test. The convergence order is reported for the L1 geometrical shape error only. Produced by the Snakemake workflow in \texttt{verification/reversed-vortex}.}}
+\label{tab:conv-plicRDF}
+\begin{tabular}{r cc c cc c}
+\toprule
+& \multicolumn{3}{c}{no frame (retracing)} & \multicolumn{3}{c}{Frame A (non-retracing)} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+$N$ & $E_{\text{shape}}$ & order & $E_{\text{bound}}$ & $E_{\text{shape}}$ & order & $E_{\text{bound}}$ \\
+\midrule
+32 & $3.993\times10^{-2}$ & --- & $0$ & $4.144\times10^{-2}$ & --- & $2.168\times10^{-19}$ \\
+64 & $8.314\times10^{-3}$ & 2.26 & $0$ & $1.035\times10^{-2}$ & 2.00 & $0$ \\
+128 & $2.151\times10^{-3}$ & 1.95 & $3.734\times10^{-7}$ & $2.215\times10^{-3}$ & 2.22 & $4.337\times10^{-19}$ \\
+256 & $5.504\times10^{-4}$ & 1.97 & $9.351\times10^{-7}$ & $4.050\times10^{-4}$ & 2.45 & $1.049\times10^{-7}$ \\
+512 & $1.200\times10^{-4}$ & 2.20 & $2.126\times10^{-6}$ & $3.244\times10^{-4}$ & 0.32 & $8.034\times10^{-8}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{isoAlpha reconstruction on the reversed-vortex test. The convergence order is reported for the L1 geometrical shape error only. Produced by the Snakemake workflow in \texttt{verification/reversed-vortex}.}}
+\label{tab:conv-isoAlpha}
+\begin{tabular}{r cc c cc c}
+\toprule
+& \multicolumn{3}{c}{no frame (retracing)} & \multicolumn{3}{c}{Frame A (non-retracing)} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+$N$ & $E_{\text{shape}}$ & order & $E_{\text{bound}}$ & $E_{\text{shape}}$ & order & $E_{\text{bound}}$ \\
+\midrule
+32 & $5.986\times10^{-2}$ & --- & $0$ & $6.675\times10^{-2}$ & --- & $4.337\times10^{-19}$ \\
+64 & $9.396\times10^{-3}$ & 2.67 & $5.421\times10^{-20}$ & $1.126\times10^{-2}$ & 2.57 & $4.136\times10^{-25}$ \\
+128 & $1.626\times10^{-3}$ & 2.53 & $2.305\times10^{-8}$ & $2.138\times10^{-3}$ & 2.40 & $1.810\times10^{-9}$ \\
+256 & $4.572\times10^{-4}$ & 1.83 & $1.082\times10^{-8}$ & $7.095\times10^{-4}$ & 1.59 & $9.129\times10^{-9}$ \\
+512 & $1.050\times10^{-4}$ & 2.12 & $3.047\times10^{-7}$ & $2.062\times10^{-4}$ & 1.78 & $1.774\times10^{-6}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
