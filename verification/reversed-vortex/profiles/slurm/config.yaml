@@ -43,3 +43,4 @@ set-resources:
 config:
   - "mpi_launcher=srun --ntasks={np} --overlap --cpu-bind=none"
   - "env_script=env-lichtenberg.sh"
+  - "viz_env_script=env-python.sh"

@@ -66,6 +66,20 @@ PRE = (
     + "set -e\n"
 )
 
+# The plotting job needs numpy/matplotlib/foamlib, NOT OpenFOAM. On a module
+# system the OpenFOAM environment starts with `module purge`, which removes the
+# python that carries those packages, so the snapshot rule gets its own
+# environment. Empty by default: on a workstation the ambient python is fine.
+VIZ_ENV_SCRIPT = (config.get("viz_env_script") or "").strip()
+if VIZ_ENV_SCRIPT and not os.path.isabs(VIZ_ENV_SCRIPT):
+    VIZ_ENV_SCRIPT = os.path.join(WF, VIZ_ENV_SCRIPT)
+
+VIZ_PRE = (
+    "set +ue\n"
+    + (f"source {VIZ_ENV_SCRIPT}\n" if VIZ_ENV_SCRIPT else "")
+    + "set -e\n"
+)
+
 ALL_CASES = [f"{s}_{f}_N{n}" for s in SCHEMES for f in FRAMES for n in NS]
 VIZ_CASE = "viz_" + VIZ_SCHEME + "_{frame}_N" + str(VIZ_N)
 
@@ -247,7 +261,7 @@ rule visualize:
         script=os.path.join(WF, "scripts", "visualize.py"),
     threads: 1
     shell:
-        PRE + """
+        VIZ_PRE + """
         python3 {params.script} \
             --framed-case {params.framed_case} \
             --plain-case  {params.plain_case} \
