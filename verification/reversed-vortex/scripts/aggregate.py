@@ -108,7 +108,7 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path):
             rf"\caption{{{scheme} reconstruction on the reversed-vortex test. "
             r"The convergence order is reported for the L1 geometrical shape "
             r"error only. Produced by the Snakemake workflow in "
-            r"\texttt{verification/reversed-vortex}.}}"
+            r"\texttt{verification/reversed-vortex}.}"
         )
         L.append(rf"\label{{tab:conv-{scheme}}}")
         L.append(r"\begin{tabular}{r cc c cc c}")
