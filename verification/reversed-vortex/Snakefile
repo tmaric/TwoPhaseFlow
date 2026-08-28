@@ -46,11 +46,25 @@ VIZ_N = int(config["viz"]["N"])
 VIZ_SCHEME = config["viz"]["scheme"]
 VIZ_WI = config["viz"]["write_interval"]
 
+# An environment *script* is preferred over `env_preamble` for anything that
+# defines a variable and then uses it: snakemake expands $VARIABLES in config
+# values against the submitting environment, so the later reference would be
+# expanded to empty before the job ever runs. Sourcing a file defers expansion
+# to the job's own shell.
+ENV_SCRIPT = (config.get("env_script") or "").strip()
+if ENV_SCRIPT and not os.path.isabs(ENV_SCRIPT):
+    ENV_SCRIPT = os.path.join(WF, ENV_SCRIPT)
+
 # Snakemake runs shell bodies under `bash -euo pipefail`. OpenFOAM's etc/bashrc
 # reads unset variables (WM_PROJECT_DIR) and uses shell functions whose cleanup
-# trips `-e`, so both flags are lifted across the preamble and `-e` is restored
-# for the rule body itself.
-PRE = "set +ue\n" + ((PREAMBLE + "\n") if PREAMBLE else "") + "set -e\n"
+# trips `-e`, so both flags are lifted across the environment setup and `-e` is
+# restored for the rule body itself.
+PRE = (
+    "set +ue\n"
+    + (f"source {ENV_SCRIPT}\n" if ENV_SCRIPT else "")
+    + ((PREAMBLE + "\n") if PREAMBLE else "")
+    + "set -e\n"
+)
 
 ALL_CASES = [f"{s}_{f}_N{n}" for s in SCHEMES for f in FRAMES for n in NS]
 VIZ_CASE = "viz_" + VIZ_SCHEME + "_{frame}_N" + str(VIZ_N)
