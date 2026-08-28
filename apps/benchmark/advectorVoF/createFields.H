@@ -63,6 +63,27 @@ const scalar period = isoAdvectorDict.lookupOrDefault<scalar>("period", 0.0);
 scalar reverseTime = isoAdvectorDict.lookupOrDefault<scalar>("reverseTime", 0.0);
 scalar spirallingFlow = isoAdvectorDict.lookupOrDefault<scalar>("spirallingFlow", 0.0);
 
+// Recipe-style periodic moving frame (Bothe & Maric).  When present it fully
+// replaces the phi/U prescription: alpha(t) moves inside the frame's stream
+// function, so the "period" rescaling below is bypassed.
+autoPtr<movingFrameFlow> frameFlow;
+
+if (isoAdvectorDict.found("movingFrame"))
+{
+    frameFlow.reset
+    (
+        new movingFrameFlow
+        (
+            mesh,
+            U,
+            phi,
+            isoAdvectorDict.subDict("movingFrame")
+        )
+    );
+
+    frameFlow->update(runTime.value());
+}
+
 //Copies of initial U and phi for use when flow is periodic
 surfaceScalarField phi0 = phi;
 volVectorField U0 = U;

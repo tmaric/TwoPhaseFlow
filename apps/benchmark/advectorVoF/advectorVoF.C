@@ -42,6 +42,7 @@ Author
 #include "immiscibleIncompressibleTwoPhaseMixture.H"
 #include "markInterfaceRegion.H"
 #include "setFlow.H"
+#include "movingFrameFlow.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -92,7 +93,15 @@ int main(int argc, char *argv[])
         {
             scalar t = runTime.time().value();
             scalar dt = runTime.deltaT().value();
-            if ( reverseTime > 0.0 && t >= reverseTime )
+            if (frameFlow)
+            {
+                // Mid-point evaluation, as for the "period" branch below
+                frameFlow->update(t + 0.5*dt);
+
+                Info<< "movingFrameFlow: max|div(u)| = "
+                    << frameFlow->maxMagDivPhi() << endl;
+            }
+            if ( !frameFlow && reverseTime > 0.0 && t >= reverseTime )
             {
                 Info<< "Reversing flow" << endl;
                 phi = -phi;
@@ -101,12 +110,12 @@ int main(int argc, char *argv[])
                 U0 = -U0;
                 reverseTime = -1.0;
             }
-            if ( period > 0.0 )
+            if ( !frameFlow && period > 0.0 )
             {
                 phi = phi0*Foam::cos(2.0*M_PI*(t + 0.5*dt)/period);
                 U = U0*Foam::cos(2.0*M_PI*(t + 0.5*dt)/period);
             }
-            if(spirallingFlow > 0)
+            if(!frameFlow && spirallingFlow > 0)
             {
                 U = U0*Foam::cos(constant::mathematical::pi*(t+ 0.5*dt)/spirallingFlow);
                 phi = phi0*Foam::cos(constant::mathematical::pi*(t+ 0.5*dt)/spirallingFlow);

@@ -15,6 +15,7 @@ multiDimPolyFitter/leastSquareFitParabolid.C
 
 reconstructedDistanceFunction/reconstructedDistanceFunction.C
 markInterfaceRegion/markInterfaceRegion.C
+movingFrameFlow/movingFrameFlow.C
 
 /* Run-time selectable implicitFunctions */
 reconstructionSchemes/reconstructionSchemesNew.C
