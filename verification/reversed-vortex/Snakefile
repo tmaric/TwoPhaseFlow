@@ -36,7 +36,12 @@ VIZ_SCHEME = config["viz"]["scheme"]
 
 # Prefix every shell body with the toolchain, so a rule is reproducible on its
 # own from a bare login shell.
-PRE = (PREAMBLE + "\n") if PREAMBLE else ""
+#
+# Snakemake runs shell bodies under `bash -euo pipefail`. OpenFOAM's etc/bashrc
+# reads unset variables (WM_PROJECT_DIR) and uses shell functions whose cleanup
+# trips `-e`, so both flags are lifted across the preamble and `-e` is restored
+# for the rule body itself.
+PRE = "set +ue\n" + ((PREAMBLE + "\n") if PREAMBLE else "") + "set -e\n"
 
 ALL_CASES = [
     f"{s}_{f}_N{n}" for s in SCHEMES for f in FRAMES for n in NS
@@ -123,7 +128,8 @@ rule solve:
         set -o pipefail
         cd {params.case}
         blockMesh                        > log.blockMesh      2>&1
-        restore0Dir                      > log.restore0Dir    2>&1
+        # restore0Dir is a RunFunctions *shell function*, not an executable
+        rm -rf 0 && cp -r 0.orig 0
         setAlphaField                    > log.setAlphaField  2>&1
         generateUVortex2D                > log.generateU      2>&1
         if [ {params.np} -gt 1 ]; then
