@@ -1,0 +1,39 @@
+# Reversed-vortex verification study.
+#
+# Defaults reproduce the serial protocol of the TwoPhaseFlow testsuite case
+# test-vortexShearedDisc, so the "none" column reproduces its published errors.
+# Override any of this on the command line with --config key=value.
+
+resolutions: [32, 64, 128, 256, 512]
+schemes: [plicRDF, isoAlpha]
+frames: [none, frameA]          # "none" = original retracing test
+
+# Base-field time control. alpha(t) = cos(2 pi t / period); end_time = period/2
+# makes the integral of alpha vanish, so the exact flow map at T is the identity.
+end_time: 8
+period: 16
+write_interval: 2               # writes t = 0, T/4, T/2, 3T/4, T
+
+# Superposed periodic Euclidean frame (used when frame == frameA).
+# The rotation centre is the domain centre: the material support is confined to
+# a streamline band of radius 0.4417 about it, so the unit square suffices.
+frame:
+  rotation_centre: "(0.5 0 0.5)"
+  revolutions: 1
+  translation_amplitude: 0.0
+
+# MPI ranks per solve. np=1 (serial) reproduces the reference numbers exactly;
+# the cases themselves run concurrently, one sbatch each.
+np: 1
+
+# Which case the interface snapshots are made from.
+viz:
+  N: 128
+  scheme: plicRDF
+
+runs_dir: runs
+results_dir: results
+
+# Overridden by the profiles; this default suits a plain workstation.
+mpi_launcher: "mpirun -np {np}"
+env_preamble: ""

@@ -1,0 +1,203 @@
+# =============================================================================
+# Reversed-vortex advection verification, with and without a superposed
+# periodic Euclidean frame (Bothe & Maric).
+#
+#   materialize (local)  -> one OpenFOAM case per (scheme, frame, N)
+#   solve       (sbatch) -> blockMesh | setAlphaField | generateUVortex2D | advectorVoF
+#   aggregate   (local)  -> convergence.csv + convergence_table.tex
+#   visualize   (sbatch) -> interface PNGs at t = 0, T/4, T/2, 3T/4, T via foamlib
+#
+# One sbatch per case; all cases run concurrently. Backends are selected with
+# --workflow-profile only, exactly as in the leia workflow.
+# =============================================================================
+import os
+import sys
+
+WF = workflow.basedir
+REPO = os.path.abspath(os.path.join(WF, "..", ".."))
+sys.path.insert(0, os.path.join(WF, "scripts"))
+
+
+configfile: os.path.join(WF, "config.yaml")
+
+
+NS = [int(n) for n in config["resolutions"]]
+SCHEMES = list(config["schemes"])
+FRAMES = list(config["frames"])
+NP = int(config.get("np", 1))
+RUNS = os.path.abspath(config.get("runs_dir", os.path.join(WF, "runs")))
+RESULTS = os.path.abspath(config.get("results_dir", os.path.join(WF, "results")))
+PREAMBLE = (config.get("env_preamble") or "").strip()
+LAUNCHER = config.get("mpi_launcher", "mpirun -np {np}").replace("{np}", str(NP))
+TEMPLATE = os.path.join(REPO, "testsuite", "advection", "test-vortexShearedDisc")
+
+VIZ_N = int(config["viz"]["N"])
+VIZ_SCHEME = config["viz"]["scheme"]
+
+# Prefix every shell body with the toolchain, so a rule is reproducible on its
+# own from a bare login shell.
+PRE = (PREAMBLE + "\n") if PREAMBLE else ""
+
+ALL_CASES = [
+    f"{s}_{f}_N{n}" for s in SCHEMES for f in FRAMES for n in NS
+]
+
+
+wildcard_constraints:
+    scheme="[A-Za-z]+",
+    frame="[A-Za-z]+",
+    N="[0-9]+",
+
+
+rule all:
+    input:
+        os.path.join(RESULTS, "convergence.csv"),
+        os.path.join(RESULTS, "convergence_table.tex"),
+        os.path.join(RESULTS, "interface_moving_frame.png"),
+        os.path.join(RESULTS, "interface_non_moving_frame.png"),
+
+
+# -- the case-local flux generator, built once into FOAM_USER_APPBIN ----------
+rule tools:
+    output:
+        touch(os.path.join(RUNS, ".tools.done")),
+    shell:
+        PRE + """
+        cd {TEMPLATE}
+        wmake generateUVortex2D
+        command -v generateUVortex2D
+        """
+
+
+# -- materialise one case ----------------------------------------------------
+rule materialize:
+    input:
+        rules.tools.output,
+    output:
+        os.path.join(RUNS, "{scheme}_{frame}_N{N}", ".materialized"),
+    params:
+        template=TEMPLATE,
+        case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
+        end_time=config["end_time"],
+        period=config["period"],
+        write_interval=config["write_interval"],
+        centre=config["frame"]["rotation_centre"],
+        revolutions=config["frame"]["revolutions"],
+        translation=config["frame"]["translation_amplitude"],
+    run:
+        import materialize
+
+        materialize.build_case(
+            template=params.template,
+            case=params.case,
+            scheme=wildcards.scheme,
+            frame=wildcards.frame,
+            N=int(wildcards.N),
+            end_time=params.end_time,
+            period=params.period,
+            write_interval=params.write_interval,
+            rotation_centre=params.centre,
+            revolutions=params.revolutions,
+            translation_amplitude=params.translation,
+        )
+        open(output[0], "w").close()
+
+
+# -- run one case ------------------------------------------------------------
+rule solve:
+    input:
+        os.path.join(RUNS, "{scheme}_{frame}_N{N}", ".materialized"),
+    output:
+        err=os.path.join(RUNS, "{scheme}_{frame}_N{N}", "volumeFractionError.dat"),
+    log:
+        os.path.join(RUNS, "{scheme}_{frame}_N{N}", "log.snakemake"),
+    params:
+        case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
+        np=NP,
+        launcher=LAUNCHER,
+    threads: 1
+    resources:
+        tasks=NP,
+    shell:
+        PRE + """
+        set -o pipefail
+        cd {params.case}
+        blockMesh                        > log.blockMesh      2>&1
+        restore0Dir                      > log.restore0Dir    2>&1
+        setAlphaField                    > log.setAlphaField  2>&1
+        generateUVortex2D                > log.generateU      2>&1
+        if [ {params.np} -gt 1 ]; then
+            decomposePar -force          > log.decomposePar   2>&1
+            {params.launcher} advectorVoF -parallel > log.advectorVoF 2>&1
+            reconstructPar -latestTime    > log.reconstructPar 2>&1 || true
+        else
+            advectorVoF                  > log.advectorVoF    2>&1
+        fi
+        cp postProcessing/volumeFractionError/0/volumeFractionError.dat {output.err}
+        echo done > {log}
+        """
+
+
+# -- convergence table -------------------------------------------------------
+rule aggregate:
+    input:
+        expand(
+            os.path.join(RUNS, "{case}", "volumeFractionError.dat"), case=ALL_CASES
+        ),
+    output:
+        csv=os.path.join(RESULTS, "convergence.csv"),
+        tex=os.path.join(RESULTS, "convergence_table.tex"),
+    params:
+        runs=RUNS,
+        schemes=SCHEMES,
+        frames=FRAMES,
+        ns=NS,
+        end_time=config["end_time"],
+    run:
+        import aggregate
+
+        aggregate.write(
+            runs=params.runs,
+            schemes=params.schemes,
+            frames=params.frames,
+            resolutions=params.ns,
+            end_time=params.end_time,
+            csv_path=output.csv,
+            tex_path=output.tex,
+        )
+
+
+# -- interface snapshots via foamlib -----------------------------------------
+rule visualize:
+    input:
+        framed=os.path.join(
+            RUNS, f"{VIZ_SCHEME}_frameA_N{VIZ_N}", "volumeFractionError.dat"
+        ),
+        plain=os.path.join(
+            RUNS, f"{VIZ_SCHEME}_none_N{VIZ_N}", "volumeFractionError.dat"
+        ),
+    output:
+        moving=os.path.join(RESULTS, "interface_moving_frame.png"),
+        static=os.path.join(RESULTS, "interface_non_moving_frame.png"),
+    params:
+        framed_case=os.path.join(RUNS, f"{VIZ_SCHEME}_frameA_N{VIZ_N}"),
+        plain_case=os.path.join(RUNS, f"{VIZ_SCHEME}_none_N{VIZ_N}"),
+        N=VIZ_N,
+        scheme=VIZ_SCHEME,
+        end_time=config["end_time"],
+        centre=config["frame"]["rotation_centre"],
+        revolutions=config["frame"]["revolutions"],
+        script=os.path.join(WF, "scripts", "visualize.py"),
+    threads: 1
+    shell:
+        PRE + """
+        python3 {params.script} \
+            --framed-case {params.framed_case} \
+            --plain-case  {params.plain_case} \
+            --n {params.N} --scheme {params.scheme} \
+            --end-time {params.end_time} \
+            --centre {params.centre} \
+            --revolutions {params.revolutions} \
+            --out-moving {output.moving} \
+            --out-static {output.static}
+        """

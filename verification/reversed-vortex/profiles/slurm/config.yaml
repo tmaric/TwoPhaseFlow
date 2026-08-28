@@ -1,0 +1,41 @@
+# SLURM profile for the Lichtenberg cluster (TU Darmstadt).
+#
+#   snakemake --workflow-profile profiles/slurm
+#
+# Conventions taken from the leia workflow profile (see leia/CLUSTER.md):
+#   * account special00004
+#   * Lichtenberg's job_submit plugin REJECTS any job without --mem-per-cpu,
+#     supplied here via mem_mb_per_cpu; the partition is auto-routed from the
+#     runtime (deflt 24 h, deflt_short 30 min, long 7 d).
+#   * the MPI launcher must be `srun --ntasks={np} --overlap --cpu-bind=none`.
+#     Plain mpirun fails inside snakemake's slurm-jobstep wrapper ("not enough
+#     slots"), and --overlap without --cpu-bind=none confines every rank to one
+#     CPU, which is silent and costs orders of magnitude.
+executor: slurm
+jobs: 60
+printshellcmds: true
+rerun-incomplete: true
+
+default-resources:
+  slurm_account: "special00004"
+  mem_mb_per_cpu: 4000
+  runtime: 1440
+
+# The solve is serial by default (np=1), so mem_mb_per_cpu is the whole job's
+# memory. 512^2 = 262144 cells with plicRDF plus the reconstructed distance
+# function fits comfortably in 16 GB; a fat single-core request pins one core,
+# not a node.
+set-resources:
+  tools:
+    runtime: 60
+    mem_mb_per_cpu: 8000
+  solve:
+    runtime: 1440
+    mem_mb_per_cpu: 16000
+  visualize:
+    runtime: 60
+    mem_mb_per_cpu: 8000
+
+config:
+  - "mpi_launcher=srun --ntasks={np} --overlap --cpu-bind=none"
+  - "env_preamble=module purge; module load gcc/11.5.0-z7mc openmpi/4.1.8-6xzv; export OMPI_MCA_pml=ob1 OMPI_MCA_btl=self,vader,tcp OMPI_MCA_mtl=^ofi,psm2; source $HOME/OpenFOAM/OpenFOAM-v2512/etc/bashrc; export WM_PROJECT_USER_DIR=$HOME/OpenFOAM/tpf-rfv-v2512; export FOAM_USER_LIBBIN=$WM_PROJECT_USER_DIR/platforms/$WM_OPTIONS/lib; export FOAM_USER_APPBIN=$WM_PROJECT_USER_DIR/platforms/$WM_OPTIONS/bin; export PATH=$FOAM_USER_APPBIN:$PATH; export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$LD_LIBRARY_PATH"
