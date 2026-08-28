@@ -1,0 +1,8 @@
+# Local profile: run every case on this machine.
+#   snakemake --workflow-profile profiles/local
+# Assumes OpenFOAM and the TwoPhaseFlow binaries are already on PATH.
+executor: local
+cores: 24
+jobs: 8
+printshellcmds: true
+rerun-incomplete: true

@@ -1,0 +1,230 @@
+# =============================================================================
+# Three-dimensional spiralling-deformation verification, with and without a
+# superposed periodic Euclidean frame (Bothe & Maric).
+#
+#   materialize (local)  -> one OpenFOAM case per (scheme, frame, N)
+#   solve       (sbatch) -> blockMesh | setAlphaField | advectorVoF
+#   aggregate   (local)  -> convergence.csv + convergence_table.tex
+#   visualize   (sbatch) -> interface isosurfaces at t = 0, T/4, T/2, 3T/4, T
+#
+# No flux generator is needed: movingFrameFlow3D builds phi from the analytic
+# vector potential at construction and at every step, which is what replaces
+# the reference case's generateUDeform + CorrectPhi (a Poisson projection).
+# =============================================================================
+import os
+import sys
+
+WF = workflow.basedir
+REPO = os.path.abspath(os.path.join(WF, "..", ".."))
+sys.path.insert(0, os.path.join(WF, "scripts"))
+
+
+configfile: os.path.join(WF, "config.yaml")
+
+
+NS = [int(n) for n in config["resolutions"]]
+SCHEMES = list(config["schemes"])
+FRAMES = list(config["frames"])
+NP = int(config.get("np", 1))
+RUNS = os.path.abspath(config.get("runs_dir", os.path.join(WF, "runs")))
+RESULTS = os.path.abspath(config.get("results_dir", os.path.join(WF, "results")))
+PREAMBLE = (config.get("env_preamble") or "").strip()
+LAUNCHER = config.get("mpi_launcher", "mpirun -np {np}").replace("{np}", str(NP))
+TEMPLATE = os.path.join(REPO, "testsuite", "advection", "test-deformationSphere")
+RUN_CASE = os.path.join(WF, "scripts", "run_case3d.sh")
+
+WRITE_INTERVAL = config["write_interval"]
+VIZ_N = int(config["viz"]["N"])
+VIZ_SCHEME = config["viz"]["scheme"]
+VIZ_WI = config["viz"]["write_interval"]
+
+ENV_SCRIPT = (config.get("env_script") or "").strip()
+if ENV_SCRIPT and not os.path.isabs(ENV_SCRIPT):
+    ENV_SCRIPT = os.path.join(WF, ENV_SCRIPT)
+VIZ_ENV_SCRIPT = (config.get("viz_env_script") or "").strip()
+if VIZ_ENV_SCRIPT and not os.path.isabs(VIZ_ENV_SCRIPT):
+    VIZ_ENV_SCRIPT = os.path.join(WF, VIZ_ENV_SCRIPT)
+
+# snakemake runs shell bodies under `bash -euo pipefail`; OpenFOAM's etc/bashrc
+# reads unset variables and trips -e, so both are lifted across the setup
+PRE = (
+    "set +ue\n"
+    + (f"source {ENV_SCRIPT}\n" if ENV_SCRIPT else "")
+    + ((PREAMBLE + "\n") if PREAMBLE else "")
+    + "set -e\n"
+)
+VIZ_PRE = (
+    "set +ue\n" + (f"source {VIZ_ENV_SCRIPT}\n" if VIZ_ENV_SCRIPT else "") + "set -e\n"
+)
+
+ALL_CASES = [f"{s}_{f}_N{n}" for s in SCHEMES for f in FRAMES for n in NS]
+VIZ_CASE = "viz_" + VIZ_SCHEME + "_{frame}_N" + str(VIZ_N)
+
+
+wildcard_constraints:
+    scheme="[A-Za-z]+",
+    frame="[A-Za-z]+",
+    N="[0-9]+",
+
+
+ruleorder: materialize_viz > materialize
+ruleorder: solve_viz > solve
+
+
+rule all:
+    input:
+        os.path.join(RESULTS, "convergence.csv"),
+        os.path.join(RESULTS, "convergence_table.tex"),
+        os.path.join(RESULTS, "interface3d_moving_frame.png"),
+        os.path.join(RESULTS, "interface3d_non_moving_frame.png"),
+
+
+def _materialize(params, wildcards, output, write_interval):
+    import materialize3d
+
+    materialize3d.build_case(
+        template=params.template,
+        case=params.case,
+        scheme=params.scheme,
+        frame=wildcards.frame,
+        N=params.N,
+        end_time=params.end_time,
+        period=params.period,
+        write_interval=write_interval,
+        rotation_centre=params.centre,
+        swirl_centre=params.swirl,
+        revolutions=params.revolutions,
+        translation_amplitude=params.translation,
+    )
+    open(output[0], "w").close()
+
+
+rule materialize:
+    output:
+        os.path.join(RUNS, "{scheme}_{frame}_N{N}", ".materialized"),
+    params:
+        template=TEMPLATE,
+        case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
+        scheme=lambda w: w.scheme,
+        N=lambda w: int(w.N),
+        end_time=config["end_time"],
+        period=config["period"],
+        centre=config["frame"]["rotation_centre"],
+        swirl=config["frame"]["swirl_centre"],
+        revolutions=config["frame"]["revolutions"],
+        translation=config["frame"]["translation_amplitude"],
+    run:
+        _materialize(params, wildcards, output, WRITE_INTERVAL)
+
+
+rule materialize_viz:
+    output:
+        os.path.join(RUNS, VIZ_CASE, ".materialized"),
+    params:
+        template=TEMPLATE,
+        case=lambda w: os.path.join(RUNS, f"viz_{VIZ_SCHEME}_{w.frame}_N{VIZ_N}"),
+        scheme=VIZ_SCHEME,
+        N=VIZ_N,
+        end_time=config["end_time"],
+        period=config["period"],
+        centre=config["frame"]["rotation_centre"],
+        swirl=config["frame"]["swirl_centre"],
+        revolutions=config["frame"]["revolutions"],
+        translation=config["frame"]["translation_amplitude"],
+    run:
+        _materialize(params, wildcards, output, VIZ_WI)
+
+
+rule solve:
+    input:
+        os.path.join(RUNS, "{scheme}_{frame}_N{N}", ".materialized"),
+    output:
+        os.path.join(RUNS, "{scheme}_{frame}_N{N}", "volumeFractionError.dat"),
+    params:
+        case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
+        np=NP,
+        launcher=LAUNCHER,
+        runner=RUN_CASE,
+    threads: 1
+    resources:
+        tasks=NP,
+    shell:
+        PRE + 'bash {params.runner} {params.case} {params.np} "{params.launcher}"'
+
+
+rule solve_viz:
+    input:
+        os.path.join(RUNS, VIZ_CASE, ".materialized"),
+    output:
+        os.path.join(RUNS, VIZ_CASE, "volumeFractionError.dat"),
+    params:
+        case=lambda w: os.path.join(RUNS, f"viz_{VIZ_SCHEME}_{w.frame}_N{VIZ_N}"),
+        np=NP,
+        launcher=LAUNCHER,
+        runner=RUN_CASE,
+    threads: 1
+    resources:
+        tasks=NP,
+    shell:
+        PRE + 'bash {params.runner} {params.case} {params.np} "{params.launcher}"'
+
+
+rule aggregate:
+    input:
+        expand(os.path.join(RUNS, "{case}", "volumeFractionError.dat"), case=ALL_CASES),
+    output:
+        csv=os.path.join(RESULTS, "convergence.csv"),
+        tex=os.path.join(RESULTS, "convergence_table.tex"),
+    params:
+        runs=RUNS,
+        schemes=SCHEMES,
+        frames=FRAMES,
+        ns=NS,
+        end_time=config["end_time"],
+    run:
+        import aggregate
+
+        aggregate.write(
+            runs=params.runs,
+            schemes=params.schemes,
+            frames=params.frames,
+            resolutions=params.ns,
+            end_time=params.end_time,
+            csv_path=output.csv,
+            tex_path=output.tex,
+        )
+
+
+rule visualize:
+    input:
+        framed=os.path.join(
+            RUNS, f"viz_{VIZ_SCHEME}_frameA_N{VIZ_N}", "volumeFractionError.dat"
+        ),
+        plain=os.path.join(
+            RUNS, f"viz_{VIZ_SCHEME}_none_N{VIZ_N}", "volumeFractionError.dat"
+        ),
+    output:
+        moving=os.path.join(RESULTS, "interface3d_moving_frame.png"),
+        static=os.path.join(RESULTS, "interface3d_non_moving_frame.png"),
+    params:
+        framed_case=os.path.join(RUNS, f"viz_{VIZ_SCHEME}_frameA_N{VIZ_N}"),
+        plain_case=os.path.join(RUNS, f"viz_{VIZ_SCHEME}_none_N{VIZ_N}"),
+        N=VIZ_N,
+        scheme=VIZ_SCHEME,
+        end_time=config["end_time"],
+        centre=config["frame"]["rotation_centre"],
+        revolutions=config["frame"]["revolutions"],
+        script=os.path.join(WF, "scripts", "visualize3d.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} \
+            --framed-case {params.framed_case} \
+            --plain-case  {params.plain_case} \
+            --n {params.N} --scheme {params.scheme} \
+            --end-time {params.end_time} \
+            --centre "{params.centre}" \
+            --revolutions {params.revolutions} \
+            --out-moving {output.moving} \
+            --out-static {output.static}
+        """

@@ -1,0 +1,36 @@
+# 3D spiralling-deformation verification study.
+#
+# The reference case (testsuite/advection/test-deformationSphere) builds the
+# flux as a face-centre quadrature and repairs it with CorrectPhi, a Poisson
+# projection. Both columns here instead use movingFrameFlow3D, which assembles
+# the flux as the discrete circulation of the analytic vector potential: exact,
+# local, no linear solve, and discretely solenoidal by construction.
+
+resolutions: [32, 64, 128]
+schemes: [plicRDF, isoAlpha]
+frames: [none, frameA]
+
+# alpha(t) = cos(2 pi t/period); the reference spells this "spirallingFlow 3",
+# i.e. cos(pi t/3), so period = 6 and end_time = 3 = period/2.
+end_time: 3
+period: 6
+write_interval: 1.5            # reference protocol: writes t = 0, T/2, T
+
+frame:
+  rotation_centre: "(0.5 0.5 0)"
+  swirl_centre: "(0.5 0.5 0)"
+  revolutions: 1
+  translation_amplitude: 0.0
+
+np: 1
+
+viz:
+  N: 64
+  scheme: plicRDF
+  write_interval: 0.75         # writes t = 0, T/4, T/2, 3T/4, T
+
+runs_dir: runs
+results_dir: results
+
+mpi_launcher: "mpirun -np {np}"
+env_preamble: ""

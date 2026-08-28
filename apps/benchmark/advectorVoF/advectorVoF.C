@@ -43,6 +43,7 @@ Author
 #include "markInterfaceRegion.H"
 #include "setFlow.H"
 #include "movingFrameFlow.H"
+#include "movingFrameFlow3D.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -101,7 +102,14 @@ int main(int argc, char *argv[])
                 Info<< "movingFrameFlow: max|div(u)| = "
                     << frameFlow->maxMagDivPhi() << endl;
             }
-            if ( !frameFlow && reverseTime > 0.0 && t >= reverseTime )
+            if (frameFlow3D)
+            {
+                frameFlow3D->update(t + 0.5*dt);
+
+                Info<< "movingFrameFlow3D: max|div(u)| = "
+                    << frameFlow3D->maxMagDivPhi() << endl;
+            }
+            if ( !frameFlow && !frameFlow3D && reverseTime > 0.0 && t >= reverseTime )
             {
                 Info<< "Reversing flow" << endl;
                 phi = -phi;
@@ -110,12 +118,12 @@ int main(int argc, char *argv[])
                 U0 = -U0;
                 reverseTime = -1.0;
             }
-            if ( !frameFlow && period > 0.0 )
+            if ( !frameFlow && !frameFlow3D && period > 0.0 )
             {
                 phi = phi0*Foam::cos(2.0*M_PI*(t + 0.5*dt)/period);
                 U = U0*Foam::cos(2.0*M_PI*(t + 0.5*dt)/period);
             }
-            if(!frameFlow && spirallingFlow > 0)
+            if(!frameFlow && !frameFlow3D && spirallingFlow > 0)
             {
                 U = U0*Foam::cos(constant::mathematical::pi*(t+ 0.5*dt)/spirallingFlow);
                 phi = phi0*Foam::cos(constant::mathematical::pi*(t+ 0.5*dt)/spirallingFlow);

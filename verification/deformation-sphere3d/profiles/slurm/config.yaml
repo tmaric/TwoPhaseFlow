@@ -1,0 +1,43 @@
+# SLURM profile for the Lichtenberg cluster (TU Darmstadt).
+#
+#   snakemake --workflow-profile profiles/slurm
+#
+# Conventions taken from leia/CLUSTER.md:
+#   * account special00004
+#   * Lichtenberg's job_submit plugin REJECTS any job without --mem-per-cpu,
+#     supplied here via mem_mb_per_cpu; the partition is auto-routed from the
+#     runtime (deflt 24 h, deflt_short 30 min, long 7 d).
+#   * the MPI launcher must be `srun --ntasks={np} --overlap --cpu-bind=none`.
+#     Plain mpirun fails inside snakemake's slurm-jobstep wrapper ("not enough
+#     slots"), and --overlap without --cpu-bind=none confines every rank to one
+#     CPU, which is silent and costs orders of magnitude.
+#
+# The toolchain lives in env-lichtenberg.sh rather than in an `env_preamble`
+# string, because snakemake expands $VARIABLES in config values against the
+# submitting environment: a preamble that sets WM_PROJECT_USER_DIR and then
+# builds FOAM_USER_APPBIN from it produced "/platforms//bin".
+executor: slurm
+jobs: 60
+printshellcmds: true
+rerun-incomplete: true
+
+default-resources:
+  slurm_account: "special00004"
+  mem_mb_per_cpu: 4000
+  runtime: 1440
+
+set-resources:
+  solve:
+    runtime: 1440
+    mem_mb_per_cpu: 24000
+  solve_viz:
+    runtime: 1440
+    mem_mb_per_cpu: 24000
+  visualize:
+    runtime: 60
+    mem_mb_per_cpu: 8000
+
+config:
+  - "mpi_launcher=srun --ntasks={np} --overlap --cpu-bind=none"
+  - "env_script=env-lichtenberg.sh"
+  - "viz_env_script=env-python.sh"
