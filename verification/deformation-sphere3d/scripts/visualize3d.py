@@ -118,7 +118,10 @@ def draw(ax, verts, faces, title, centre=None):
     ax.set_ylim(0, LY)
     zt = ZCLIP if ZCLIP > 0 else LZ
     ax.set_zlim(0, zt)
-    ax.set_box_aspect((1, 1, zt))
+    # a 3D axes reserves a wide margin around its box; the box is the
+    # subject, so zoom it up. tight_layout would undo set_position, but
+    # box_aspect survives it.
+    ax.set_box_aspect((1, 1, zt), zoom=1.15)
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
     if zt > 1.5:
@@ -127,7 +130,11 @@ def draw(ax, verts, faces, title, centre=None):
         ax.set_zticks([0, 0.5, 1])
     else:
         ax.set_zticks([0, round(0.5 * zt, 2), zt])
-    ax.tick_params(labelsize=FS - 6, pad=0)
+    # x's last tick and y's first tick meet at the near corner; without
+    # padding they print as one run of digits
+    ax.tick_params(axis='x', labelsize=FS - 6, pad=6)
+    ax.tick_params(axis='y', labelsize=FS - 6, pad=6)
+    ax.tick_params(axis='z', labelsize=FS - 6, pad=3)
     ax.view_init(elev=18, azim=-58)
     if title:
         ax.set_title(title, fontsize=FS, pad=0)
