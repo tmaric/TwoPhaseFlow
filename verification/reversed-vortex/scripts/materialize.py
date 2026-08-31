@@ -71,14 +71,17 @@ def _write_time_control(case: str, N: int, max_alpha_co: float) -> None:
     was 2.13 against a limit of 0.5. Above Courant 1 the swept volume can reach
     past the neighbouring cell and the geometric flux construction is outside
     its design range, and the error that injects does not heal. Scaling the
-    initial step with both the mesh and the limit keeps the first step at
-    0.8 * max_alpha_co, and the controller takes over from there.
+    initial step with both the mesh and the limit keeps the first step well
+    inside it whatever the field's magnitude, and the controller takes over.
     """
     ctrl = os.path.join(case, "system", "controlDict")
     with open(ctrl) as fh:
         s = fh.read()
     s = re.sub(r"^maxAlphaCo\s.*$", f"maxAlphaCo      {max_alpha_co:g};", s, flags=re.M)
-    dt = min(1.0e-3, 0.8 * max_alpha_co / float(N))
+    # no constant cap: it would assume |u| of order one, and the LeVeque
+    # field peaks near 2. 0.25*co/N keeps the first step at or below
+    # 0.1 for |u| <= 2, and the controller reaches the target in a few steps.
+    dt = 0.25 * max_alpha_co / float(N)
     s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:g};", s, flags=re.M)
     with open(ctrl, "w") as fh:
         fh.write(s)
