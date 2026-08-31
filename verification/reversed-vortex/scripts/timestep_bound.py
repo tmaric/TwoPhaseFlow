@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
-"""The exact maximum of the laboratory-frame speed, not a triangle bound.
+"""max ||w||_1 of the laboratory field: the quantity that sets the Courant number.
 
-    U = zdot + thetadot * (-r_z, 0, r_x) + Q(theta) * alpha(t) * u0(xi)
+OpenFOAM forms the interface Courant number as
 
-transcribed from movingFrameFlow.C, line for line. The triangle inequality
-overstates this by about a third, because the rotation term peaks at the domain
-corner where u0 is smallest, so the terms never reach their maxima together.
+    Co = 0.5 * sum_f |phi_f| * dt / V ,
 
-Sampling is legitimate here rather than a trial run: the field is given in
-closed form and does not depend on the solution, so this is evaluation of a
-known function, not measurement of a simulation.
+and on a Cartesian cell each direction contributes two faces of area A with
+V = A*h, so Co = (|w_x| + |w_y| + |w_z|) * dt / h. It is the 1-norm of the
+velocity that matters, not its magnitude -- sizing the step from the magnitude
+leaves the reported Courant number a factor ||w||_1/||w||_2 too high, which is
+1.31 for the 2D case and 1.47 for the 3D shear.
+
+Taking the maximum over the whole domain rather than over the interface keeps
+the step independent of the solution: it is a property of the case definition,
+computable before anything is run, and it bounds the Courant number in every
+cell rather than only where the interface happens to be.
+
+    dt = Co * h / max||w||_1 .
+
+u0 and the frame kinematics are transcribed from movingFrameFlow.C and
+movingFrameFlow3D.C, so this bounds the field the solver integrates.
 """
 
 import math
@@ -24,6 +34,19 @@ def u0_2d(x, z):
     sx, sz = np.sin(PI * x), np.sin(PI * z)
     return (np.where(inside, -sx * sx * np.sin(2 * PI * z), 0.0),
             np.where(inside, np.sin(2 * PI * x) * sz * sz, 0.0))
+
+
+def u0_3d(x, y, z, field, swirl=(0.5, 0.5)):
+    if field == "leveque":
+        Sx, Sy, Sz = (np.sin(2 * PI * v) for v in (x, y, z))
+        sx, sy, sz = (np.sin(PI * v) ** 2 for v in (x, y, z))
+        return 2 * sx * Sy * Sz, -Sx * sy * Sz, -Sx * Sy * sz
+    inside = (x >= 0) & (x <= 1) & (y >= 0) & (y <= 1)
+    sx, sy = np.sin(PI * x), np.sin(PI * y)
+    ux = np.where(inside, np.sin(2 * PI * y) * sx * sx, 0.0)
+    uy = np.where(inside, -np.sin(2 * PI * x) * sy * sy, 0.0)
+    rho = np.sqrt((x - swirl[0]) ** 2 + (y - swirl[1]) ** 2)
+    return ux, uy, (1.0 - 2.0 * rho) ** 2
 
 
 def yoff(t, amp, T):
@@ -41,7 +64,7 @@ def yoffdot(t, amp, T):
             (amp / T) * (-s * s + (1 - s) * 2 * s + math.sin(2 * w) - 2 * s * math.cos(2 * w)))
 
 
-def wmax_2d(T, period, revolutions, amp, centre=(0.5, 0.5), n=700, nt=800):
+def wmax1_2d(T, period, revolutions, amp, centre=(0.5, 0.5), n=900, nt=1200):
     g = (np.arange(n) + 0.5) / n
     X, Z = np.meshgrid(g, g, indexing="ij")
     thd = 2 * PI * revolutions / T
@@ -58,26 +81,13 @@ def wmax_2d(T, period, revolutions, amp, centre=(0.5, 0.5), n=700, nt=800):
         ubx, ubz = a * ubx, a * ubz
         Ux = ydx + thd * (-rz) + (ubx * ct - ubz * st)
         Uz = ydz + thd * (rx) + (ubx * st + ubz * ct)
-        best = max(best, float(np.max(np.hypot(Ux, Uz))))
+        best = max(best, float(np.max(np.abs(Ux) + np.abs(Uz))))
     return best
 
 
-def u0_3d(x, y, z, field, swirl=(0.5, 0.5)):
-    if field == "leveque":
-        Sx, Sy, Sz = (np.sin(2 * PI * v) for v in (x, y, z))
-        sx, sy, sz = (np.sin(PI * v) ** 2 for v in (x, y, z))
-        return 2 * sx * Sy * Sz, -Sx * sy * Sz, -Sx * Sy * sz
-    inside = (x >= 0) & (x <= 1) & (y >= 0) & (y <= 1)
-    sx, sy = np.sin(PI * x), np.sin(PI * y)
-    ux = np.where(inside, np.sin(2 * PI * y) * sx * sx, 0.0)
-    uy = np.where(inside, -np.sin(2 * PI * x) * sy * sy, 0.0)
-    rho = np.sqrt((x - swirl[0]) ** 2 + (y - swirl[1]) ** 2)
-    return ux, uy, (1.0 - 2.0 * rho) ** 2
-
-
-def wmax_3d(T, period, revolutions, field, lz=1.0, centre=(0.5, 0.5), n=110, nt=240):
+def wmax1_3d(T, period, revolutions, field, centre=(0.5, 0.5), n=170, nt=420):
     g = (np.arange(n) + 0.5) / n
-    X, Y, Z = np.meshgrid(g, g, g * lz, indexing="ij")
+    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
     thd = 2 * PI * revolutions / T
     best = 0.0
     for t in np.linspace(0.0, T, nt):
@@ -90,22 +100,25 @@ def wmax_3d(T, period, revolutions, field, lz=1.0, centre=(0.5, 0.5), n=110, nt=
         ux, uy, uz = a * ux, a * uy, a * uz
         Ux = thd * (-ry) + (ux * ct - uy * st)
         Uy = thd * (rx) + (ux * st + uy * ct)
-        best = max(best, float(np.max(np.sqrt(Ux ** 2 + Uy ** 2 + uz ** 2))))
+        best = max(best, float(np.max(np.abs(Ux) + np.abs(Uy) + np.abs(uz))))
     return best
 
 
 CASES = [
-    ("reversed-vortex", wmax_2d(8.0, 8.0, 1.0, 0.25), 8.0, (32, 64, 128, 256, 512, 1024, 2048)),
-    ("deformation-sphere3d", wmax_3d(3.0, 6.0, 1.0, "spiralling"), 3.0, (32, 64, 128, 256)),
-    ("leveque3d", wmax_3d(3.0, 6.0, 1.0, "leveque"), 3.0, (32, 64, 128, 256)),
+    ("reversed-vortex", wmax1_2d(8.0, 8.0, 1.0, 0.25), 8.0,
+     (32, 64, 128, 256, 512, 1024, 2048)),
+    ("deformation-sphere3d", wmax1_3d(3.0, 6.0, 1.0, "spiralling"), 3.0,
+     (32, 64, 128, 256)),
+    ("leveque3d", wmax1_3d(3.0, 6.0, 1.0, "leveque"), 3.0, (32, 64, 128, 256)),
 ]
 
-print("exact max |w| over the domain and the period (framed configuration)\n")
-for name, w, T, Ns in CASES:
-    print(f"### {name}:  |w|max = {w:.6f}   (T = {T:g})")
-    for N in Ns:
-        dt_t = 0.2 / (N * w)
-        steps = 4 * math.ceil(T / (4 * dt_t))
-        dt = T / steps
-        print(f"    N={N:5d}  steps={steps:8d}  dt={dt:.6e}  Co={w * dt * N:.4f}")
-    print()
+if __name__ == "__main__":
+    print("max ||w||_1 over the domain and the period, and the fixed step it gives\n")
+    for name, w, T, Ns in CASES:
+        print(f"### {name}:  max||w||_1 = {w:.6f}   (T = {T:g})")
+        for N in Ns:
+            dt_t = 0.2 / (N * w)
+            steps = 4 * math.ceil(T / (4 * dt_t))
+            dt = T / steps
+            print(f"    N={N:5d}  steps={steps:8d}  dt={dt:.6e}  Co={w * dt * N:.4f}")
+        print()

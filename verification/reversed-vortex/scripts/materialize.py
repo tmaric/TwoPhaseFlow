@@ -81,6 +81,8 @@ def _write_time_control(case: str, N: int, max_alpha_co: float,
     ctrl = os.path.join(case, "system", "controlDict")
     with open(ctrl) as fh:
         s = fh.read()
+    # u_max is max||w||_1, because OpenFOAM's Courant number is
+    # 0.5*sum_f|phi_f|*dt/V = (|wx|+|wy|+|wz|)*dt/h on a Cartesian cell
     dt_target = max_alpha_co / (float(N) * u_max)
     steps = 4 * int(math.ceil(end_time / (4.0 * dt_target)))
     dt = end_time / steps
@@ -122,7 +124,7 @@ def build_case(
     translation_amplitude: float,
     np: int = 1,
     max_alpha_co: float = 0.2,
-    u_max: float = 1.221724,
+    u_max: float = 1.607679,
 ) -> None:
     if os.path.exists(case):
         shutil.rmtree(case)
