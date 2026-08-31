@@ -97,6 +97,7 @@ rule all:
         os.path.join(RESULTS, "convergence.csv"),
         os.path.join(RESULTS, "convergence_table.tex"),
         os.path.join(RESULTS, "convergence_shape_error.png"),
+        os.path.join(RESULTS, "potential_check.txt"),
         os.path.join(RESULTS, "interface3d_moving_frame.png"),
         os.path.join(RESULTS, "interface3d_non_moving_frame.png"),
 
@@ -271,6 +272,33 @@ rule visualize:
             --out-moving {output.moving} \
             --out-static {output.static}
         """
+
+# the swirl axis as "x,y", for the potential check
+_sw = config["frame"].get("swirl_centre", "(0.5 0.5 0)").strip("()").split()
+SWIRL_XY = f"{float(_sw[0])},{float(_sw[1])}"
+
+# -- vector-potential consistency --------------------------------------------
+# curl(A0) must reproduce u0 exactly; the manuscript asserts this and quotes a
+# residual, so the residual is computed here rather than by hand.  Complex-step
+# differentiation, so what is measured is the identity and not the
+# differencing scheme.  No solver, no cluster time.
+rule check_potential:
+    output:
+        os.path.join(RESULTS, "potential_check.txt"),
+    params:
+        field=config["base_field"],
+        swirl=SWIRL_XY,
+        lz=config["domain_height"],
+        script=os.path.join(WF, "scripts", "check_potential.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} \
+            --field {params.field} --swirl {params.swirl} \
+            --lz {params.lz} --n 64 \
+            --out {output}
+        """
+
 
 # -- convergence figure ------------------------------------------------------
 # In the workflow rather than a side script: the manuscript's convergence
