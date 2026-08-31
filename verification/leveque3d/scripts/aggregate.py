@@ -105,6 +105,8 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             continue
         L.append(r"\begin{table}[htbp]")
         L.append(r"\centering")
+        L.append(r"\small")
+        L.append(r"\setlength{\tabcolsep}{4pt}")
         L.append(
             rf"\caption{{{scheme} reconstruction on the {test_name} test. "
             r"The convergence order is reported for the L1 geometrical shape "
