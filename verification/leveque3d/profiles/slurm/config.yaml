@@ -16,6 +16,11 @@
 # string, because snakemake expands $VARIABLES in config values against the
 # submitting environment: a preamble that sets WM_PROJECT_USER_DIR and then
 # builds FOAM_USER_APPBIN from it produced "/platforms//bin".
+# Resource sizing is measured, not guessed.  A standard node is 96 cores and
+# 364800 MB, i.e. 3800 MB per core; asking for more than that per core makes
+# the job_submit plugin re-route the job to the five-node `mem` partition,
+# where 64-core jobs waited days.  Over 136 recorded jobs the peak was
+# 1702 MB/cpu and the longest step 00:15:29.
 executor: slurm
 jobs: 60
 printshellcmds: true
@@ -23,22 +28,22 @@ rerun-incomplete: true
 
 default-resources:
   slurm_account: "special00004"
-  mem_mb_per_cpu: 4000
-  runtime: 1440
+  mem_mb_per_cpu: 3600
+  runtime: 240
 
 set-resources:
   solve:
-    runtime: 1440
-    mem_mb_per_cpu: 32000
+    runtime: 240
+    mem_mb_per_cpu: 3600
   solve_viz:
-    runtime: 1440
-    mem_mb_per_cpu: 32000
+    runtime: 240
+    mem_mb_per_cpu: 3600
   plot_convergence:
     runtime: 30
-    mem_mb_per_cpu: 8000
+    mem_mb_per_cpu: 3600
   visualize:
     runtime: 60
-    mem_mb_per_cpu: 8000
+    mem_mb_per_cpu: 3600
 
 config:
   - "mpi_launcher=srun --ntasks={np} --overlap --cpu-bind=none"

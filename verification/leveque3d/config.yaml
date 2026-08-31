@@ -41,7 +41,7 @@ np:
   32: 1
   64: 4
   128: 16
-  256: 64
+  256: 128
 
 viz:
   # the material never leaves z <= 0.773; drawing the full unit cube
