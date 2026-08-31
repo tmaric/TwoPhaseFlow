@@ -122,6 +122,7 @@ def main():
     p.add_argument("--revolutions", type=float, required=True)
     p.add_argument("--lz", type=float, default=2.0)
     p.add_argument("--nz-factor", type=int, default=2)
+    p.add_argument("--field", default="spiralling deformation")
     p.add_argument("--out-moving", required=True)
     p.add_argument("--out-static", required=True)
     a = p.parse_args()
@@ -157,7 +158,7 @@ def main():
     fig.suptitle(
         f"Moving-frame case: {a.revolutions:g} revolution about the axis through "
         f"$({centre[0]:g},{centre[1]:g})$ superposed on the spiralling deformation\n"
-        f"{a.scheme}, $N={N}$ ($n_z=2N$), $T={T:g}$",
+        f"{a.scheme}, $N={N}$ ($n_z={NZF}N$), $T={T:g}$",
         fontsize=12,
     )
     fig.tight_layout(rect=[0.02, 0.0, 1, 0.93])
@@ -175,7 +176,7 @@ def main():
             ax.text2D(-0.16, 0.5, "laboratory frame\n(= co-rotating)",
                       transform=ax.transAxes, rotation=90, va="center", fontsize=9)
     fig.suptitle(
-        "Non-moving-frame case: the original spiralling deformation "
+        f"Non-moving-frame case: the original {a.field} "
         "(no frame superposed)\n"
         f"{a.scheme}, $N={N}$; the motion for $t>T/2$ retraces the motion for $t<T/2$",
         fontsize=12,
