@@ -8,6 +8,7 @@ sub-dictionary when a frame is requested).
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import shutil
@@ -64,32 +65,28 @@ def _iso_block(
 
 
 def _write_time_control(case: str, N: int, max_alpha_co: float,
-                        u_max: float) -> None:
-    """Write maxAlphaCo, and an initial step that respects it.
+                        u_max: float, end_time: float) -> None:
+    """Fix the time step from the known maximum speed.
 
-    The template carries a fixed deltaT, so the FIRST step runs at an interface
-    Courant number of roughly deltaT * N whatever the mesh -- at N = 2048 that
-    was 2.13 against a limit of 0.5. Above Courant 1 the swept volume can reach
-    past the neighbouring cell and the geometric flux construction is outside
-    its design range, and the error that injects does not heal. Scaling the
-    initial step with both the mesh and the limit keeps the first step well
-    inside it whatever the field's magnitude, and the controller takes over.
+    dt = Co*h/max|w|, with max|w| the exact maximum of the laboratory field
+    over the domain and the period. The temporal factor has modulus at most
+    one, so this is known before the run and needs no controller: the Courant
+    number is Co in every cell at every step.
+
+    The step count is rounded up to a multiple of four so that t = T/4, T/2,
+    3T/4 and T all land exactly on a step and the write-time adjustment is a
+    no-op -- OpenFOAM's adjustableRunTime otherwise shifts dt to reach a write
+    time, which makes the write interval part of the protocol.
     """
     ctrl = os.path.join(case, "system", "controlDict")
     with open(ctrl) as fh:
         s = fh.read()
+    dt_target = max_alpha_co / (float(N) * u_max)
+    steps = 4 * int(math.ceil(end_time / (4.0 * dt_target)))
+    dt = end_time / steps
+    s = re.sub(r"^adjustTimeStep\s.*$", "adjustTimeStep  no;", s, flags=re.M)
+    s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:.10g};", s, flags=re.M)
     s = re.sub(r"^maxAlphaCo\s.*$", f"maxAlphaCo      {max_alpha_co:g};", s, flags=re.M)
-    # no constant cap: it would assume |u| of order one, and the LeVeque
-    # field peaks near 2. 0.25*co/N keeps the first step at or below
-    # 0.1 for |u| <= 2, and the controller reaches the target in a few steps.
-    dt = 0.25 * max_alpha_co / (float(N) * u_max)
-    # The ceiling matters as much as the initial step: it is what the
-    # controller grows to while the base amplitude passes through zero,
-    # and a mesh-independent ceiling turns into an unbounded Courant
-    # number under refinement.
-    max_dt = max_alpha_co / (float(N) * u_max)
-    s = re.sub(r"^maxDeltaT\s.*$", f"maxDeltaT       {max_dt:g};", s, flags=re.M)
-    s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:g};", s, flags=re.M)
     with open(ctrl, "w") as fh:
         fh.write(s)
 
@@ -125,7 +122,7 @@ def build_case(
     translation_amplitude: float,
     np: int = 1,
     max_alpha_co: float = 0.2,
-    u_max: float = 1.05,
+    u_max: float = 1.221724,
 ) -> None:
     if os.path.exists(case):
         shutil.rmtree(case)
@@ -165,4 +162,4 @@ def build_case(
     open(p, "w").write(s)
 
     _write_decomposition(case, np)
-    _write_time_control(case, N, max_alpha_co, u_max)
+    _write_time_control(case, N, max_alpha_co, u_max, end_time)

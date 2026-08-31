@@ -41,15 +41,15 @@ retries: 2
 default-resources:
   slurm_account: "special00004"
   mem_mb_per_cpu: 3600
-  runtime: 240
+  runtime: 360
 
 set-resources:
   solve:
-    runtime: 240
+    runtime: 360
     mem_mb_per_cpu: 3600
     nodes: 1
   solve_viz:
-    runtime: 240
+    runtime: 360
     mem_mb_per_cpu: 3600
     nodes: 1
   plot_convergence:
