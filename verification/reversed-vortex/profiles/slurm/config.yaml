@@ -9,7 +9,8 @@
 #     runtime (deflt 24 h, deflt_short 30 min, long 7 d).
 #   * the MPI launcher must be
 #     `srun --ntasks={np} --overlap --cpu-bind=none --mem=0`, and every
-#     solve must be confined to one node with --nodes=1.  Snakemake runs
+#     solve must be confined to one node with the `nodes: 1` resource
+#     (the plugin rejects --nodes inside slurm_extra).  Snakemake runs
 #     each command inside its own `srun -n1` step; SLURM narrows that step
 #     to a single node and reserves the node's whole memory, so a nested
 #     srun is refused with "More processors requested than permitted"
@@ -46,11 +47,11 @@ set-resources:
   solve:
     runtime: 240
     mem_mb_per_cpu: 3600
-    slurm_extra: "'--nodes=1'"
+    nodes: 1
   solve_viz:
     runtime: 240
     mem_mb_per_cpu: 3600
-    slurm_extra: "'--nodes=1'"
+    nodes: 1
   plot_convergence:
     runtime: 30
     mem_mb_per_cpu: 3600
