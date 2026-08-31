@@ -61,6 +61,11 @@ contains:
 <study>/results/convergence_table.tex         the LaTeX tables
 <study>/results/convergence_shape_error.png   the convergence diagram
 <study>/results/interface*_*_frame.png        the interface snapshots
+<study>/results/frame_identity_check.txt      code-path equivalence: the
+                                              moving-frame path with the frame
+                                              set to the identity, against the
+                                              original retracing test, at every
+                                              output time
 ```
 
 Every one of those is an output of `./run.sh`; none is produced by hand.
