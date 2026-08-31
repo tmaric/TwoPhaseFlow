@@ -44,6 +44,9 @@ np:
   256: 64
 
 viz:
+  # the material never leaves z <= 0.773; drawing the full unit cube
+  # wastes two thirds of the frame
+  z_clip: 0.8
   N: 128
   scheme: plicRDF
   write_interval: 0.75

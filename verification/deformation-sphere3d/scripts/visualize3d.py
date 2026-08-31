@@ -42,6 +42,9 @@ EDGE = "#12263f"
 # domain [0,1] x [0,1] x [0,LZ]; set from the command line
 LX = LY = 1.0
 LZ = 2.0
+# the drawn box may be shorter than the domain when the material never
+# reaches the top; set from the command line, 0 means 'no clip'
+ZCLIP = 0.0
 NZF = 2
 
 
@@ -113,12 +116,18 @@ def draw(ax, verts, faces, title, centre=None):
         ax.plot([centre[0]], [centre[1]], [0.0], marker="+", color="k", ms=12)
     ax.set_xlim(0, LX)
     ax.set_ylim(0, LY)
-    ax.set_zlim(0, LZ)
-    ax.set_box_aspect((1, 1, LZ))
+    zt = ZCLIP if ZCLIP > 0 else LZ
+    ax.set_zlim(0, zt)
+    ax.set_box_aspect((1, 1, zt))
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
-    ax.set_zticks([0, 1, 2] if LZ > 1.5 else [0, 0.5, 1])
-    ax.tick_params(labelsize=6, pad=0)
+    if zt > 1.5:
+        ax.set_zticks([0, 1, 2])
+    elif zt >= 1.0:
+        ax.set_zticks([0, 0.5, 1])
+    else:
+        ax.set_zticks([0, round(0.5 * zt, 2), zt])
+    ax.tick_params(labelsize=FS - 6, pad=0)
     ax.view_init(elev=18, azim=-58)
     if title:
         ax.set_title(title, fontsize=FS, pad=0)
@@ -135,13 +144,16 @@ def main():
     p.add_argument("--revolutions", type=float, required=True)
     p.add_argument("--lz", type=float, default=2.0)
     p.add_argument("--nz-factor", type=int, default=2)
+    p.add_argument("--z-clip", type=float, default=0.0,
+                   help="draw the box only up to this height (0 = full)")
     p.add_argument("--field", default="spiralling deformation")
     p.add_argument("--out-moving", required=True)
     p.add_argument("--out-static", required=True)
     a = p.parse_args()
 
-    global LZ, NZF
+    global LZ, NZF, ZCLIP
     LZ = a.lz
+    ZCLIP = a.z_clip
     NZF = a.nz_factor
     T, N = a.end_time, a.n
     c = [float(v) for v in a.centre.strip("()").split()]
