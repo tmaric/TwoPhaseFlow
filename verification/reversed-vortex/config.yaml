@@ -45,3 +45,10 @@ results_dir: results
 # Overridden by the profiles; this default suits a plain workstation.
 mpi_launcher: "mpirun -np {np}"
 env_preamble: ""
+
+# Section 4.2: the moving-frame code path with the frame set to the
+# identity must reproduce the retracing test.  One extra run, checked
+# by the frame_identity rule.
+equivalence:
+  N: 128
+  scheme: plicRDF
