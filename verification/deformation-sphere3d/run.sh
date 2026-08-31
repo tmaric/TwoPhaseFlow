@@ -1,6 +1,6 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------
-# One command to reproduce the reversed-vortex verification study.
+# One command to reproduce the 3D spiralling-deformation verification study.
 #
 #     ./run.sh                # auto: SLURM if sbatch exists, else local
 #     ./run.sh local          # force the local profile
