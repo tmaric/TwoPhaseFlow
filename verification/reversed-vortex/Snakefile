@@ -33,11 +33,32 @@ configfile: os.path.join(WF, "config.yaml")
 NS = [int(n) for n in config["resolutions"]]
 SCHEMES = list(config["schemes"])
 FRAMES = list(config["frames"])
-NP = int(config.get("np", 1))
 RUNS = os.path.abspath(config.get("runs_dir", os.path.join(WF, "runs")))
 RESULTS = os.path.abspath(config.get("results_dir", os.path.join(WF, "results")))
 PREAMBLE = (config.get("env_preamble") or "").strip()
-LAUNCHER = config.get("mpi_launcher", "mpirun -np {np}").replace("{np}", str(NP))
+# Rank count per resolution. `np` may be a scalar (applied to every level) or a
+# mapping N -> ranks, which is what lets one table span resolutions whose cost
+# differs by three orders of magnitude while every case still clears the queue's
+# wall-clock limit.
+_np_cfg = config.get("np", 1)
+if isinstance(_np_cfg, dict):
+    _NP_BY_N = {int(k): int(v) for k, v in _np_cfg.items()}
+
+    def ranks(N):
+        return _NP_BY_N.get(int(N), 1)
+else:
+    _NP_CONST = int(_np_cfg)
+
+    def ranks(N):
+        return _NP_CONST
+
+
+_LAUNCHER_TMPL = config.get("mpi_launcher", "mpirun -np {np}")
+
+
+def launcher(N):
+    return _LAUNCHER_TMPL.replace("{np}", str(ranks(N)))
+
 TEMPLATE = os.path.join(REPO, "testsuite", "advection", "test-vortexShearedDisc")
 RUN_CASE = os.path.join(WF, "scripts", "run_case.sh")
 
@@ -98,6 +119,7 @@ rule all:
     input:
         os.path.join(RESULTS, "convergence.csv"),
         os.path.join(RESULTS, "convergence_table.tex"),
+        os.path.join(RESULTS, "convergence_shape_error.png"),
         os.path.join(RESULTS, "interface_moving_frame.png"),
         os.path.join(RESULTS, "interface_non_moving_frame.png"),
 
@@ -149,6 +171,7 @@ rule materialize:
         centre=config["frame"]["rotation_centre"],
         revolutions=config["frame"]["revolutions"],
         translation=config["frame"]["translation_amplitude"],
+        np=lambda w: ranks(w.N),
     run:
         _materialize(params, wildcards, output, WRITE_INTERVAL)
 
@@ -171,6 +194,7 @@ rule materialize_viz:
         centre=config["frame"]["rotation_centre"],
         revolutions=config["frame"]["revolutions"],
         translation=config["frame"]["translation_amplitude"],
+        np=ranks(VIZ_N),
     run:
         _materialize(params, wildcards, output, VIZ_WI)
 
@@ -183,14 +207,15 @@ rule solve:
         os.path.join(RUNS, "{scheme}_{frame}_N{N}", "volumeFractionError.dat"),
     params:
         case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
-        np=NP,
-        launcher=LAUNCHER,
+        np=lambda w: ranks(w.N),
+        launcher=lambda w: launcher(w.N),
+        recon=0,
         runner=RUN_CASE,
     threads: 1
     resources:
-        tasks=NP,
+        tasks=lambda w: ranks(w.N),
     shell:
-        PRE + 'bash {params.runner} {params.case} {params.np} "{params.launcher}"'
+        PRE + 'bash {params.runner} {params.case} {params.np} {params.recon} "{params.launcher}"'
 
 
 # -- run one snapshot case ---------------------------------------------------
@@ -201,14 +226,15 @@ rule solve_viz:
         os.path.join(RUNS, VIZ_CASE, "volumeFractionError.dat"),
     params:
         case=lambda w: os.path.join(RUNS, f"viz_{VIZ_SCHEME}_{w.frame}_N{VIZ_N}"),
-        np=NP,
-        launcher=LAUNCHER,
+        np=ranks(VIZ_N),
+        launcher=launcher(VIZ_N),
+        recon=1,
         runner=RUN_CASE,
     threads: 1
     resources:
-        tasks=NP,
+        tasks=ranks(VIZ_N),
     shell:
-        PRE + 'bash {params.runner} {params.case} {params.np} "{params.launcher}"'
+        PRE + 'bash {params.runner} {params.case} {params.np} {params.recon} "{params.launcher}"'
 
 
 # -- convergence table -------------------------------------------------------
@@ -271,4 +297,22 @@ rule visualize:
             --revolutions {params.revolutions} \
             --out-moving {output.moving} \
             --out-static {output.static}
+        """
+
+# -- convergence figure ------------------------------------------------------
+# In the workflow rather than a side script: the manuscript's convergence
+# diagram must have the same provenance as its tables.
+rule plot_convergence:
+    input:
+        csv=os.path.join(RESULTS, "convergence.csv"),
+    output:
+        png=os.path.join(RESULTS, "convergence_shape_error.png"),
+    params:
+        script=os.path.join(WF, "scripts", "plot_convergence.py"),
+        title="Reversed vortex, 2D",
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} --csv {input.csv} --out {output.png} \
+            --title "{params.title}"
         """

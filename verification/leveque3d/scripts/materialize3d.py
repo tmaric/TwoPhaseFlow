@@ -25,6 +25,23 @@ _JUNK = (
 )
 
 
+def _write_decomposition(case: str, np: int) -> None:
+    """Size system/decomposeParDict for this run.
+
+    The templates ship a hard-coded `numberOfSubdomains 4`, and the two
+    three-dimensional ones use `method simple`, which additionally needs an
+    explicit `n (x y z)` and therefore does not survive an arbitrary rank count.
+    scotch needs only the subdomain count.
+    """
+    p = os.path.join(case, "system", "decomposeParDict")
+    if not os.path.exists(p):
+        return
+    s = open(p).read()
+    s = re.sub(r"^numberOfSubdomains\s.*$", f"numberOfSubdomains {np};", s, flags=re.M)
+    s = re.sub(r"^method\s.*$", "method          scotch;", s, flags=re.M)
+    open(p, "w").write(s)
+
+
 def _iso_block(
     frame: str,
     base_field: str,
@@ -80,6 +97,8 @@ def build_case(
     translation_amplitude: float,
     base_field: str = "spiralling",
     nz_factor: int = 2,
+    np: int = 1,
+    domain_height: float = 2.0,
 ) -> None:
     if os.path.exists(case):
         shutil.rmtree(case)
@@ -96,6 +115,13 @@ def build_case(
     s = re.sub(r"^ny\s.*$", f"ny {N};", s, flags=re.M)
     s = re.sub(r"^nz\s.*$", f"nz {nz_factor * N};", s, flags=re.M)
     s = re.sub(r"^RECONSCHEME\s.*$", f"RECONSCHEME {scheme};", s, flags=re.M)
+    open(p, "w").write(s)
+
+    # domain height: the spiralling case ships a box of height 2, but the
+    # material only reaches z = 0.87, so the upper half is dead mesh
+    p = os.path.join(case, "system", "blockMeshDict")
+    s = open(p).read()
+    s = re.sub(r"^z2\s.*$", f"z2 {domain_height:g};", s, flags=re.M)
     open(p, "w").write(s)
 
     p = os.path.join(case, "system", "controlDict")
@@ -130,3 +156,5 @@ def build_case(
     if n != 1:
         raise RuntimeError(f"could not find the isoAdvector block in {p}")
     open(p, "w").write(s)
+
+    _write_decomposition(case, np)

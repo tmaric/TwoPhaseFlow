@@ -7,10 +7,10 @@
 # local, no linear solve, and discretely solenoidal by construction.
 
 base_field: spiralling
-nz_factor: 2               # [0,1]x[0,1]x[0,2] -> cubic cells
-domain_height: 2
+nz_factor: 1                   # cubic cells
+domain_height: 1
 
-resolutions: [32, 64, 128]
+resolutions: [32, 64, 128, 256]
 schemes: [plicRDF, isoAlpha]
 frames: [none, frameA]
 
@@ -26,10 +26,14 @@ frame:
   revolutions: 1
   translation_amplitude: 0.0
 
-np: 1
+np:
+  32: 1
+  64: 4
+  128: 16
+  256: 64
 
 viz:
-  N: 64
+  N: 128
   scheme: plicRDF
   write_interval: 0.75         # writes t = 0, T/4, T/2, 3T/4, T
 
