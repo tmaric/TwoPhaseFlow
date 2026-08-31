@@ -66,3 +66,9 @@ field_label: "LeVeque deformation"
 # has been demonstrated. The initial time step is scaled with it too, since a
 # fixed one violates the limit outright on fine meshes.
 max_alpha_co: 0.2
+
+# Exact max|w| of the laboratory field over the domain and the
+# period, from scripts/timestep_bound.py. The time step is fixed at
+# dt = max_alpha_co*h/u_max, so the Courant number is that value in
+# every cell at every step and both columns take the same step.
+u_max: 3.23024
