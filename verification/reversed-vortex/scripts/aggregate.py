@@ -48,7 +48,8 @@ def _fmt(x):
     return rf"${m}\times10^{{{int(e)}}}$"
 
 
-def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path):
+def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
+          test_name="reversed-vortex", label_prefix="conv", workflow="reversed-vortex"):
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
     rows = []
@@ -105,12 +106,12 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path):
         L.append(r"\begin{table}[htbp]")
         L.append(r"\centering")
         L.append(
-            rf"\caption{{{scheme} reconstruction on the reversed-vortex test. "
+            rf"\caption{{{scheme} reconstruction on the {test_name} test. "
             r"The convergence order is reported for the L1 geometrical shape "
             r"error only. Produced by the Snakemake workflow in "
-            r"\texttt{verification/reversed-vortex}.}"
+            rf"\texttt{{verification/{workflow}}}.}}"
         )
-        L.append(rf"\label{{tab:conv-{scheme}}}")
+        L.append(rf"\label{{tab:{label_prefix}-{scheme}}}")
         L.append(r"\begin{tabular}{r cc c cc c}")
         L.append(r"\toprule")
         L.append(
