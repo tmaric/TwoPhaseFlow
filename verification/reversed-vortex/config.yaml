@@ -52,3 +52,11 @@ env_preamble: ""
 equivalence:
   N: 128
   scheme: plicRDF
+
+# Interface Courant number. Scheufler & Roenby (2019) demonstrate second order
+# convergence for plicRDF "for CFL number 0.2 and below"; Roenby et al. (2016)
+# report Co in [0,1] as fairly stable with an optimum near 0.5. This is a
+# convergence study, so it runs in the regime where the order being measured
+# has been demonstrated. The initial time step is scaled with it too, since a
+# fixed one violates the limit outright on fine meshes.
+max_alpha_co: 0.2

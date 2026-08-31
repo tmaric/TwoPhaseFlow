@@ -25,6 +25,27 @@ _JUNK = (
 )
 
 
+def _write_time_control(case: str, N: int, max_alpha_co: float) -> None:
+    """Write maxAlphaCo, and an initial step that respects it.
+
+    The template carries a fixed deltaT, so the FIRST step runs at an interface
+    Courant number of roughly deltaT * N whatever the mesh -- at N = 2048 that
+    was 2.13 against a limit of 0.5. Above Courant 1 the swept volume can reach
+    past the neighbouring cell and the geometric flux construction is outside
+    its design range, and the error that injects does not heal. Scaling the
+    initial step with both the mesh and the limit keeps the first step at
+    0.8 * max_alpha_co, and the controller takes over from there.
+    """
+    ctrl = os.path.join(case, "system", "controlDict")
+    with open(ctrl) as fh:
+        s = fh.read()
+    s = re.sub(r"^maxAlphaCo\s.*$", f"maxAlphaCo      {max_alpha_co:g};", s, flags=re.M)
+    dt = min(1.0e-3, 0.8 * max_alpha_co / float(N))
+    s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:g};", s, flags=re.M)
+    with open(ctrl, "w") as fh:
+        fh.write(s)
+
+
 def _write_decomposition(case: str, np: int) -> None:
     """Size system/decomposeParDict for this run.
 
@@ -98,6 +119,7 @@ def build_case(
     base_field: str = "spiralling",
     nz_factor: int = 2,
     np: int = 1,
+    max_alpha_co: float = 0.2,
     domain_height: float = 2.0,
 ) -> None:
     if os.path.exists(case):
@@ -158,3 +180,4 @@ def build_case(
     open(p, "w").write(s)
 
     _write_decomposition(case, np)
+    _write_time_control(case, N, max_alpha_co)

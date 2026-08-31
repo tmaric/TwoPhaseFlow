@@ -121,6 +121,7 @@ def _materialize(params, wildcards, output, write_interval):
         base_field=params.base_field,
         nz_factor=params.nz_factor,
         np=params.np,
+        max_alpha_co=params.max_alpha_co,
         domain_height=params.domain_height,
     )
     open(output[0], "w").close()
@@ -143,6 +144,7 @@ rule materialize:
         base_field=config["base_field"],
         nz_factor=config["nz_factor"],
         np=lambda w: ranks(w.N),
+        max_alpha_co=config["max_alpha_co"],
         domain_height=config["domain_height"],
     run:
         _materialize(params, wildcards, output, WRITE_INTERVAL)
@@ -165,6 +167,7 @@ rule materialize_viz:
         base_field=config["base_field"],
         nz_factor=config["nz_factor"],
         np=ranks(VIZ_N),
+        max_alpha_co=config["max_alpha_co"],
         domain_height=config["domain_height"],
     run:
         _materialize(params, wildcards, output, VIZ_WI)
@@ -178,6 +181,7 @@ rule solve:
     params:
         case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
         np=lambda w: ranks(w.N),
+        max_alpha_co=config["max_alpha_co"],
         launcher=lambda w: launcher(w.N),
         recon=0,
         runner=RUN_CASE,
@@ -196,6 +200,7 @@ rule solve_viz:
     params:
         case=lambda w: os.path.join(RUNS, f"viz_{VIZ_SCHEME}_{w.frame}_N{VIZ_N}"),
         np=ranks(VIZ_N),
+        max_alpha_co=config["max_alpha_co"],
         launcher=launcher(VIZ_N),
         recon=1,
         runner=RUN_CASE,
