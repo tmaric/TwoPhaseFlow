@@ -74,6 +74,10 @@ class movingFrameFlow3D
         volVectorField& U_;
         surfaceScalarField& phi_;
 
+        //- Which base field: "spiralling" (2D vortex + axial) or "leveque"
+        //  (the fully three-dimensional deformation field)
+        word baseField_;
+
         //- Point on the frame rotation axis (axis is parallel to e_z)
         vector centre_;
 

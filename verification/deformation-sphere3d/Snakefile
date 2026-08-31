@@ -95,6 +95,8 @@ def _materialize(params, wildcards, output, write_interval):
         swirl_centre=params.swirl,
         revolutions=params.revolutions,
         translation_amplitude=params.translation,
+        base_field=params.base_field,
+        nz_factor=params.nz_factor,
     )
     open(output[0], "w").close()
 
@@ -113,6 +115,8 @@ rule materialize:
         swirl=config["frame"]["swirl_centre"],
         revolutions=config["frame"]["revolutions"],
         translation=config["frame"]["translation_amplitude"],
+        base_field=config["base_field"],
+        nz_factor=config["nz_factor"],
     run:
         _materialize(params, wildcards, output, WRITE_INTERVAL)
 
@@ -131,6 +135,8 @@ rule materialize_viz:
         swirl=config["frame"]["swirl_centre"],
         revolutions=config["frame"]["revolutions"],
         translation=config["frame"]["translation_amplitude"],
+        base_field=config["base_field"],
+        nz_factor=config["nz_factor"],
     run:
         _materialize(params, wildcards, output, VIZ_WI)
 
@@ -214,6 +220,8 @@ rule visualize:
         end_time=config["end_time"],
         centre=config["frame"]["rotation_centre"],
         revolutions=config["frame"]["revolutions"],
+        lz=config["domain_height"],
+        nz_factor=config["nz_factor"],
         script=os.path.join(WF, "scripts", "visualize3d.py"),
     threads: 1
     shell:
@@ -225,6 +233,7 @@ rule visualize:
             --end-time {params.end_time} \
             --centre "{params.centre}" \
             --revolutions {params.revolutions} \
+            --lz {params.lz} --nz-factor {params.nz_factor} \
             --out-moving {output.moving} \
             --out-static {output.static}
         """

@@ -26,9 +26,10 @@ from skimage import measure
 FACE = "#3d6fb4"
 EDGE = "#12263f"
 
-# domain [0,1] x [0,1] x [0,2]
+# domain [0,1] x [0,1] x [0,LZ]; set from the command line
 LX = LY = 1.0
 LZ = 2.0
+NZF = 2
 
 
 def read_alpha(case_dir: str, t: float, N: int) -> np.ndarray:
@@ -47,12 +48,12 @@ def read_alpha(case_dir: str, t: float, N: int) -> np.ndarray:
     i = s.index("internalField")
     if "nonuniform" not in s[i:i + 60]:
         val = float(s[i:s.index(";", i)].split()[-1])
-        return np.full((2 * N, N, N), val)
+        return np.full((NZF * N, N, N), val)
     j = s.index("(", i)
     k = s.index(")", j)
     a = np.fromstring(s[j + 1:k], sep=" ")
     nx = ny = N
-    nz = 2 * N
+    nz = NZF * N
     if a.size != nx * ny * nz:
         raise SystemExit(f"expected {nx*ny*nz} values, got {a.size}")
     return a.reshape(nz, ny, nx)
@@ -100,10 +101,10 @@ def draw(ax, verts, faces, title, centre=None):
     ax.set_xlim(0, LX)
     ax.set_ylim(0, LY)
     ax.set_zlim(0, LZ)
-    ax.set_box_aspect((1, 1, 2))
+    ax.set_box_aspect((1, 1, LZ))
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
-    ax.set_zticks([0, 1, 2])
+    ax.set_zticks([0, 1, 2] if LZ > 1.5 else [0, 0.5, 1])
     ax.tick_params(labelsize=6, pad=0)
     ax.view_init(elev=18, azim=-58)
     if title:
@@ -119,10 +120,15 @@ def main():
     p.add_argument("--end-time", type=float, required=True)
     p.add_argument("--centre", required=True)
     p.add_argument("--revolutions", type=float, required=True)
+    p.add_argument("--lz", type=float, default=2.0)
+    p.add_argument("--nz-factor", type=int, default=2)
     p.add_argument("--out-moving", required=True)
     p.add_argument("--out-static", required=True)
     a = p.parse_args()
 
+    global LZ, NZF
+    LZ = a.lz
+    NZF = a.nz_factor
     T, N = a.end_time, a.n
     c = [float(v) for v in a.centre.strip("()").split()]
     centre = (c[0], c[1])

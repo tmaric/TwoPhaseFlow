@@ -1,0 +1,132 @@
+"""Materialise one 3D advection case from a testsuite template.
+
+Three files are touched: system/simulationParameter (resolution and
+reconstruction scheme), system/controlDict (write interval and end time) and
+system/fvSolution (the isoAdvector block carrying movingFrame3D).
+
+`nz_factor * nx` keeps the cells cubic: the spiralling case lives on
+[0,1] x [0,1] x [0,2] (factor 2), the LeVeque case on [0,1]^3 (factor 1).
+Note that the committed simulationParameter of test-Leveque carries a stale
+`nz 64` against a unit-cube domain; the testsuite overrides it with nz = res,
+and so does this workflow.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+
+_JUNK = (
+    "volumeFractionError.dat",
+    "results_deformation.csv",
+    "results_leveque.csv",
+    "error.dat",
+)
+
+
+def _iso_block(
+    frame: str,
+    base_field: str,
+    period: float,
+    end_time: float,
+    rotation_centre: str,
+    swirl_centre: str,
+    revolutions: float,
+    translation_amplitude: float,
+) -> str:
+    """The isoAdvector dictionary.
+
+    Both columns go through movingFrameFlow3D, so the only difference between
+    them is the frame itself: `none` sets zero revolutions and zero
+    translation, which leaves the plain forward-backward base field.
+    """
+    if frame not in ("none", "frameA"):
+        raise ValueError(f"unknown frame: {frame!r}")
+    rev = revolutions if frame == "frameA" else 0.0
+    tra = translation_amplitude if frame == "frameA" else 0.0
+
+    lines = [
+        "isoAdvector",
+        "{",
+        "    movingFrame3D",
+        "    {",
+        f"        baseField            {base_field};",
+        f"        rotationCentre       {rotation_centre};",
+        f"        swirlCentre          {swirl_centre};",
+        f"        revolutions          {rev:g};",
+        f"        endTime              {end_time:g};",
+        f"        period               {period:g};",
+        "        baseAmplitude        1;",
+        f"        translationAmplitude {tra:g};",
+        "    }",
+        "}",
+    ]
+    return "\n".join(lines)
+
+
+def build_case(
+    template: str,
+    case: str,
+    scheme: str,
+    frame: str,
+    N: int,
+    end_time: float,
+    period: float,
+    write_interval: float,
+    rotation_centre: str,
+    swirl_centre: str,
+    revolutions: float,
+    translation_amplitude: float,
+    base_field: str = "spiralling",
+    nz_factor: int = 2,
+) -> None:
+    if os.path.exists(case):
+        shutil.rmtree(case)
+    shutil.copytree(template, case)
+
+    for name in _JUNK:
+        p = os.path.join(case, name)
+        if os.path.exists(p):
+            os.remove(p)
+
+    p = os.path.join(case, "system", "simulationParameter")
+    s = open(p).read()
+    s = re.sub(r"^nx\s.*$", f"nx {N};", s, flags=re.M)
+    s = re.sub(r"^ny\s.*$", f"ny {N};", s, flags=re.M)
+    s = re.sub(r"^nz\s.*$", f"nz {nz_factor * N};", s, flags=re.M)
+    s = re.sub(r"^RECONSCHEME\s.*$", f"RECONSCHEME {scheme};", s, flags=re.M)
+    open(p, "w").write(s)
+
+    p = os.path.join(case, "system", "controlDict")
+    s = open(p).read()
+    s = re.sub(
+        r"^(\s*)writeInterval\s.*$",
+        rf"\g<1>writeInterval   {write_interval:g};",
+        s,
+        flags=re.M,
+    )
+    s = re.sub(r"^endTime\s.*$", f"endTime         {end_time:g};", s, flags=re.M)
+    # readable fields, so the volume fraction can be parsed without gunzip
+    if re.search(r"^writeCompression\s", s, flags=re.M):
+        s = re.sub(r"^writeCompression\s.*$", "writeCompression off;", s, flags=re.M)
+    else:
+        s = s.replace("writeFormat", "writeCompression off;\n\nwriteFormat", 1)
+    open(p, "w").write(s)
+
+    p = os.path.join(case, "system", "fvSolution")
+    s = open(p).read()
+    block = _iso_block(
+        frame,
+        base_field,
+        period,
+        end_time,
+        rotation_centre,
+        swirl_centre,
+        revolutions,
+        translation_amplitude,
+    )
+    s, n = re.subn(r"isoAdvector\s*\{[^}]*\}", lambda _m: block, s, count=1)
+    if n != 1:
+        raise RuntimeError(f"could not find the isoAdvector block in {p}")
+    open(p, "w").write(s)

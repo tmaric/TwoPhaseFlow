@@ -1,10 +1,14 @@
-"""Materialise one 3D spiralling-deformation case from the testsuite template.
+"""Materialise one 3D advection case from a testsuite template.
 
 Three files are touched: system/simulationParameter (resolution and
 reconstruction scheme), system/controlDict (write interval and end time) and
 system/fvSolution (the isoAdvector block carrying movingFrame3D).
 
-The mesh is [0,1] x [0,1] x [0,2], so nz = 2 nx keeps the cells cubic.
+`nz_factor * nx` keeps the cells cubic: the spiralling case lives on
+[0,1] x [0,1] x [0,2] (factor 2), the LeVeque case on [0,1]^3 (factor 1).
+Note that the committed simulationParameter of test-Leveque carries a stale
+`nz 64` against a unit-cube domain; the testsuite overrides it with nz = res,
+and so does this workflow.
 """
 
 from __future__ import annotations
@@ -13,11 +17,17 @@ import os
 import re
 import shutil
 
-_JUNK = ("volumeFractionError.dat", "results_deformation.csv", "error.dat")
+_JUNK = (
+    "volumeFractionError.dat",
+    "results_deformation.csv",
+    "results_leveque.csv",
+    "error.dat",
+)
 
 
 def _iso_block(
     frame: str,
+    base_field: str,
     period: float,
     end_time: float,
     rotation_centre: str,
@@ -31,26 +41,28 @@ def _iso_block(
     them is the frame itself: `none` sets zero revolutions and zero
     translation, which leaves the plain forward-backward base field.
     """
-    rev = revolutions if frame == "frameA" else 0.0
-    tra = translation_amplitude if frame == "frameA" else 0.0
     if frame not in ("none", "frameA"):
         raise ValueError(f"unknown frame: {frame!r}")
+    rev = revolutions if frame == "frameA" else 0.0
+    tra = translation_amplitude if frame == "frameA" else 0.0
 
-    return (
-        "isoAdvector\n"
-        "{\n"
-        "    movingFrame3D\n"
-        "    {\n"
-        "        rotationCentre       %s;\n"
-        "        swirlCentre          %s;\n"
-        "        revolutions          %g;\n"
-        "        endTime              %g;\n"
-        "        period               %g;\n"
-        "        baseAmplitude        1;\n"
-        "        translationAmplitude %g;\n"
-        "    }\n"
-        "}"
-    ) % (rotation_centre, swirl_centre, rev, end_time, period, tra)
+    lines = [
+        "isoAdvector",
+        "{",
+        "    movingFrame3D",
+        "    {",
+        f"        baseField            {base_field};",
+        f"        rotationCentre       {rotation_centre};",
+        f"        swirlCentre          {swirl_centre};",
+        f"        revolutions          {rev:g};",
+        f"        endTime              {end_time:g};",
+        f"        period               {period:g};",
+        "        baseAmplitude        1;",
+        f"        translationAmplitude {tra:g};",
+        "    }",
+        "}",
+    ]
+    return "\n".join(lines)
 
 
 def build_case(
@@ -66,6 +78,8 @@ def build_case(
     swirl_centre: str,
     revolutions: float,
     translation_amplitude: float,
+    base_field: str = "spiralling",
+    nz_factor: int = 2,
 ) -> None:
     if os.path.exists(case):
         shutil.rmtree(case)
@@ -80,7 +94,7 @@ def build_case(
     s = open(p).read()
     s = re.sub(r"^nx\s.*$", f"nx {N};", s, flags=re.M)
     s = re.sub(r"^ny\s.*$", f"ny {N};", s, flags=re.M)
-    s = re.sub(r"^nz\s.*$", f"nz {2 * N};", s, flags=re.M)
+    s = re.sub(r"^nz\s.*$", f"nz {nz_factor * N};", s, flags=re.M)
     s = re.sub(r"^RECONSCHEME\s.*$", f"RECONSCHEME {scheme};", s, flags=re.M)
     open(p, "w").write(s)
 
@@ -104,6 +118,7 @@ def build_case(
     s = open(p).read()
     block = _iso_block(
         frame,
+        base_field,
         period,
         end_time,
         rotation_centre,

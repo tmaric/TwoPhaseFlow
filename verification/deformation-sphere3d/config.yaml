@@ -6,6 +6,10 @@
 # the flux as the discrete circulation of the analytic vector potential: exact,
 # local, no linear solve, and discretely solenoidal by construction.
 
+base_field: spiralling
+nz_factor: 2               # [0,1]x[0,1]x[0,2] -> cubic cells
+domain_height: 2
+
 resolutions: [32, 64, 128]
 schemes: [plicRDF, isoAlpha]
 frames: [none, frameA]
