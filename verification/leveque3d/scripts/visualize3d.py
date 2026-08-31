@@ -200,6 +200,10 @@ def main():
         fontsize=FS + 2,
     )
     fig.tight_layout(rect=[0.02, 0.0, 1, 0.93])
+    # a 3D axes reserves a wide margin inside its own box, so a 2x5 grid
+    # leaves about half the figure empty; at \textwidth that space is
+    # taken from the panels
+    fig.subplots_adjust(hspace=-0.30, wspace=-0.05)
     fig.savefig(a.out_moving, dpi=170)
     plt.close(fig)
     print(a.out_moving)
@@ -220,6 +224,7 @@ def main():
         fontsize=FS + 2,
     )
     fig.tight_layout(rect=[0.02, 0.0, 1, 0.88])
+    fig.subplots_adjust(wspace=-0.05)
     fig.savefig(a.out_static, dpi=170)
     plt.close(fig)
     print(a.out_static)
