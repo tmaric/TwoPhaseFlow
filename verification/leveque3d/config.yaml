@@ -49,3 +49,5 @@ results_dir: results
 
 mpi_launcher: "mpirun -np {np}"
 env_preamble: ""
+
+field_label: "LeVeque deformation"
