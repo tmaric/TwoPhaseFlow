@@ -49,3 +49,18 @@ numpy/matplotlib/foamlib:
 ```bash
 module load python && python3 -m pip install --user scikit-image
 ```
+
+## Data archive
+
+The figures and tables in the manuscript are regenerated from this study's
+`results/` directory, which is what the archive cited as `figshare2026`
+contains:
+
+```
+<study>/results/convergence.csv               errors and observed orders
+<study>/results/convergence_table.tex         the LaTeX tables
+<study>/results/convergence_shape_error.png   the convergence diagram
+<study>/results/interface*_*_frame.png        the interface snapshots
+```
+
+Every one of those is an output of `./run.sh`; none is produced by hand.
