@@ -112,3 +112,7 @@ __pychache__
 *.pyc
 env
 # end-of-file
+
+# Reference papers kept in the working copy for convenience -- never tracked
+/*.pdf
+/*.pdf:Zone.Identifier

@@ -63,21 +63,22 @@ def _iso_block(
     )
 
 
-def _write_initial_deltat(case: str, N: int) -> None:
-    """Keep the first step inside maxAlphaCo.
+def _write_time_control(case: str, N: int, max_alpha_co: float) -> None:
+    """Write maxAlphaCo, and an initial step that respects it.
 
-    The template's fixed deltaT = 1e-3 gives a first-step interface Courant
-    number of about 1e-3 * N, so from N = 512 upwards the very first step
-    violates the maxAlphaCo = 0.5 the study runs under, and above Courant 1
-    the geometric swept-volume assumption fails outright. The controller
-    recovers on step two, but the volume and boundedness error it injects
-    does not. Levels at or below 256 are left untouched, so their agreement
-    with the published values is preserved bit for bit.
+    The template carries a fixed deltaT, so the FIRST step runs at an interface
+    Courant number of roughly deltaT * N whatever the mesh -- at N = 2048 that
+    was 2.13 against a limit of 0.5. Above Courant 1 the swept volume can reach
+    past the neighbouring cell and the geometric flux construction is outside
+    its design range, and the error that injects does not heal. Scaling the
+    initial step with both the mesh and the limit keeps the first step at
+    0.8 * max_alpha_co, and the controller takes over from there.
     """
     ctrl = os.path.join(case, "system", "controlDict")
     with open(ctrl) as fh:
         s = fh.read()
-    dt = min(1.0e-3, 0.4 / float(N))
+    s = re.sub(r"^maxAlphaCo\s.*$", f"maxAlphaCo      {max_alpha_co:g};", s, flags=re.M)
+    dt = min(1.0e-3, 0.8 * max_alpha_co / float(N))
     s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:g};", s, flags=re.M)
     with open(ctrl, "w") as fh:
         fh.write(s)
@@ -113,6 +114,7 @@ def build_case(
     revolutions: float,
     translation_amplitude: float,
     np: int = 1,
+    max_alpha_co: float = 0.2,
 ) -> None:
     if os.path.exists(case):
         shutil.rmtree(case)
@@ -152,4 +154,4 @@ def build_case(
     open(p, "w").write(s)
 
     _write_decomposition(case, np)
-    _write_initial_deltat(case, N)
+    _write_time_control(case, N, max_alpha_co)

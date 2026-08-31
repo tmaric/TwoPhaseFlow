@@ -153,6 +153,7 @@ def _materialize(params, wildcards, output, write_interval):
         revolutions=params.revolutions,
         translation_amplitude=params.translation,
         np=params.np,
+        max_alpha_co=params.max_alpha_co,
     )
     open(output[0], "w").close()
 
@@ -174,6 +175,7 @@ rule materialize:
         revolutions=config["frame"]["revolutions"],
         translation=config["frame"]["translation_amplitude"],
         np=lambda w: ranks(w.N),
+        max_alpha_co=config["max_alpha_co"],
     run:
         _materialize(params, wildcards, output, WRITE_INTERVAL)
 
@@ -197,6 +199,7 @@ rule materialize_viz:
         revolutions=config["frame"]["revolutions"],
         translation=config["frame"]["translation_amplitude"],
         np=ranks(VIZ_N),
+        max_alpha_co=config["max_alpha_co"],
     run:
         _materialize(params, wildcards, output, VIZ_WI)
 
@@ -210,6 +213,7 @@ rule solve:
     params:
         case=lambda w: os.path.join(RUNS, f"{w.scheme}_{w.frame}_N{w.N}"),
         np=lambda w: ranks(w.N),
+        max_alpha_co=config["max_alpha_co"],
         launcher=lambda w: launcher(w.N),
         recon=0,
         runner=RUN_CASE,
@@ -229,6 +233,7 @@ rule solve_viz:
     params:
         case=lambda w: os.path.join(RUNS, f"viz_{VIZ_SCHEME}_{w.frame}_N{VIZ_N}"),
         np=ranks(VIZ_N),
+        max_alpha_co=config["max_alpha_co"],
         launcher=launcher(VIZ_N),
         recon=1,
         runner=RUN_CASE,
