@@ -42,3 +42,6 @@ results_dir: results
 
 mpi_launcher: "mpirun -np {np}"
 env_preamble: ""
+
+# named in the snapshot titles; do not rely on the script default
+field_label: "spiralling deformation"

@@ -105,6 +105,10 @@ def to_moving_frame(verts, t, T, centre, revolutions):
     return out
 
 
+def _nz_label(nzf):
+    """'N' rather than '1N' when the cells are already cubic."""
+    return "N" if nzf == 1 else f"{nzf}N"
+
 def draw(ax, verts, faces, title, centre=None):
     if verts is not None and len(faces):
         mesh = Poly3DCollection(verts[faces], alpha=0.9)
@@ -189,8 +193,8 @@ def main():
                        transform=ax2.transAxes, rotation=90, va="center", fontsize=FS - 2)
     fig.suptitle(
         f"Moving-frame case: {a.revolutions:g} revolution about the axis through "
-        f"$({centre[0]:g},{centre[1]:g})$ superposed on the spiralling deformation\n"
-        f"{a.scheme}, $N={N}$ ($n_z={NZF}N$), $T={T:g}$",
+        f"$({centre[0]:g},{centre[1]:g})$ superposed on the {a.field}\n"
+        f"{a.scheme}, $N={N}$ ($n_z={_nz_label(NZF)}$), $T={T:g}$",
         fontsize=FS + 2,
     )
     fig.tight_layout(rect=[0.02, 0.0, 1, 0.93])
