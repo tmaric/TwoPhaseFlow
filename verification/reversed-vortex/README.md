@@ -49,3 +49,18 @@ account `special00004`, a mandatory `--mem-per-cpu`, partition auto-routed from
 the runtime, and `srun --ntasks={np} --overlap --cpu-bind=none` as the MPI
 launcher. The build uses its own `WM_PROJECT_USER_DIR`
 (`$HOME/OpenFOAM/tpf-rfv-v2512`) so it never mixes with other builds.
+
+## Data archive
+
+The figures and tables in the manuscript are regenerated from this study's
+`results/` directory, which is what the archive cited as `figshare2026`
+contains:
+
+```
+<study>/results/convergence.csv               errors and observed orders
+<study>/results/convergence_table.tex         the LaTeX tables
+<study>/results/convergence_shape_error.png   the convergence diagram
+<study>/results/interface*_*_frame.png        the interface snapshots
+```
+
+Every one of those is an output of `./run.sh`; none is produced by hand.

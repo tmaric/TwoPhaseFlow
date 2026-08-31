@@ -108,8 +108,8 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
         L.append(
             rf"\caption{{{scheme} reconstruction on the {test_name} test. "
             r"The convergence order is reported for the L1 geometrical shape "
-            r"error only. Produced by the Snakemake workflow in "
-            rf"\texttt{{verification/{workflow}}}.}}"
+            r"error only. Data: "
+            rf"\cite{{figshare2026}}, \path{{{workflow}/results/convergence.csv}}.}}"
         )
         L.append(rf"\label{{tab:{label_prefix}-{scheme}}}")
         L.append(r"\begin{tabular}{r cc c cc c}")

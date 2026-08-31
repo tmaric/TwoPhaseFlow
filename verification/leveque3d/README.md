@@ -59,3 +59,18 @@ invariant under the base field (the velocity vanishes on all six faces), and the
 material was measured to stay within horizontal radius 0.46 of that axis, so it
 remains inside the cube under the rotation. The margin is 0.04 -- 1.3 cells at
 N=32 -- so watch `E_mass` at the coarsest level, exactly as in the 2D study.
+
+## Data archive
+
+The figures and tables in the manuscript are regenerated from this study's
+`results/` directory, which is what the archive cited as `figshare2026`
+contains:
+
+```
+<study>/results/convergence.csv               errors and observed orders
+<study>/results/convergence_table.tex         the LaTeX tables
+<study>/results/convergence_shape_error.png   the convergence diagram
+<study>/results/interface*_*_frame.png        the interface snapshots
+```
+
+Every one of those is an output of `./run.sh`; none is produced by hand.

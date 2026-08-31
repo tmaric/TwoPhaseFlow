@@ -151,6 +151,7 @@ def _materialize(params, wildcards, output, write_interval):
         rotation_centre=params.centre,
         revolutions=params.revolutions,
         translation_amplitude=params.translation,
+        np=params.np,
     )
     open(output[0], "w").close()
 
