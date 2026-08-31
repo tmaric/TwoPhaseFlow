@@ -30,7 +30,7 @@ RUNS = os.path.abspath(config.get("runs_dir", os.path.join(WF, "runs")))
 RESULTS = os.path.abspath(config.get("results_dir", os.path.join(WF, "results")))
 PREAMBLE = (config.get("env_preamble") or "").strip()
 LAUNCHER = config.get("mpi_launcher", "mpirun -np {np}").replace("{np}", str(NP))
-TEMPLATE = os.path.join(REPO, "testsuite", "advection", "test-deformationSphere")
+TEMPLATE = os.path.join(REPO, "testsuite", "advection", "test-Leveque")
 RUN_CASE = os.path.join(WF, "scripts", "run_case3d.sh")
 
 WRITE_INTERVAL = config["write_interval"]

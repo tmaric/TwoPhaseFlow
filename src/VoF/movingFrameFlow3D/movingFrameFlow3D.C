@@ -19,6 +19,7 @@ Foam::movingFrameFlow3D::movingFrameFlow3D
     mesh_(mesh),
     U_(U),
     phi_(phi),
+    baseField_(dict.lookupOrDefault<word>("baseField", "spiralling")),
     centre_(dict.lookupOrDefault<vector>("rotationCentre", vector(0.5, 0.5, 0))),
     swirl_(dict.lookupOrDefault<vector>("swirlCentre", vector(0.5, 0.5, 0))),
     revolutions_(dict.lookupOrDefault<scalar>("revolutions", 1.0)),
@@ -42,7 +43,15 @@ Foam::movingFrameFlow3D::movingFrameFlow3D
             << exit(FatalError);
     }
 
+    if (baseField_ != "spiralling" && baseField_ != "leveque")
+    {
+        FatalErrorInFunction
+            << "unknown baseField " << baseField_
+            << " (expected spiralling or leveque)" << exit(FatalError);
+    }
+
     Info<< "movingFrameFlow3D:" << nl
+        << "    baseField             " << baseField_ << nl
         << "    rotationCentre        " << centre_ << nl
         << "    swirlCentre           " << swirl_ << nl
         << "    revolutions           " << revolutions_ << nl
@@ -123,6 +132,40 @@ Foam::vector Foam::movingFrameFlow3D::A0(const vector& xi) const
 {
     const scalar pi = constant::mathematical::pi;
 
+    if (baseField_ == "leveque")
+    {
+        // Fully three-dimensional deformation field. Unlike the spiralling
+        // field this does not split into horizontal + axial, but a potential
+        // still exists in closed form; it was obtained by integrating
+        // dA3/dx = -v and dA2/dx = w and fixing the remaining freedom so that
+        // curl(A)_x comes out right:
+        //
+        //   A = ( 0,
+        //         S(y)[C(x) s(z) + C(z)]/2pi,
+        //        -C(x) s(y) S(z)/2pi )
+        //
+        // with S(a) = sin(2 pi a), C(a) = cos(2 pi a), s(a) = sin^2(pi a).
+        // NOT truncated outside the unit cube: A does not vanish on all of its
+        // faces, so a zero extension would put a tangential jump -- a spurious
+        // surface current -- into curl(A). Evaluated as written it simply
+        // continues periodically, which stays smooth and solenoidal.
+        const scalar Sx = Foam::sin(2.0*pi*xi.x());
+        const scalar Cx = Foam::cos(2.0*pi*xi.x());
+        const scalar Sy = Foam::sin(2.0*pi*xi.y());
+        const scalar Sz = Foam::sin(2.0*pi*xi.z());
+        const scalar Cz = Foam::cos(2.0*pi*xi.z());
+        const scalar sy = Foam::sqr(Foam::sin(pi*xi.y()));
+        const scalar sz = Foam::sqr(Foam::sin(pi*xi.z()));
+        (void)Sx;
+
+        return vector
+        (
+            0.0,
+            Sy*(Cx*sz + Cz)/(2.0*pi),
+           -Cx*sy*Sz/(2.0*pi)
+        );
+    }
+
     // horizontal part: the same stream function as the two-dimensional test,
     // extended by zero outside the unit square (psi0 and grad(psi0) both
     // vanish on its boundary, so the extension is C1)
@@ -148,6 +191,23 @@ Foam::vector Foam::movingFrameFlow3D::A0(const vector& xi) const
 Foam::vector Foam::movingFrameFlow3D::u0(const vector& xi) const
 {
     const scalar pi = constant::mathematical::pi;
+
+    if (baseField_ == "leveque")
+    {
+        const scalar Sx = Foam::sin(2.0*pi*xi.x());
+        const scalar Sy = Foam::sin(2.0*pi*xi.y());
+        const scalar Sz = Foam::sin(2.0*pi*xi.z());
+        const scalar sx = Foam::sqr(Foam::sin(pi*xi.x()));
+        const scalar sy = Foam::sqr(Foam::sin(pi*xi.y()));
+        const scalar sz = Foam::sqr(Foam::sin(pi*xi.z()));
+
+        return vector
+        (
+             2.0*sx*Sy*Sz,
+            -Sx*sy*Sz,
+            -Sx*Sy*sz
+        );
+    }
 
     scalar ux = 0.0;
     scalar uy = 0.0;

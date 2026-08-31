@@ -1,0 +1,106 @@
+OpenSSH_9.6p1 Ubuntu-3ubuntu13.18, OpenSSL 3.0.13 30 Jan 2024
+debug1: Reading configuration data /etc/ssh/ssh_config
+debug1: /etc/ssh/ssh_config line 19: include /etc/ssh/ssh_config.d/*.conf matched no files
+debug1: /etc/ssh/ssh_config line 21: Applying options for *
+debug2: resolving "lcluster2.hrz.tu-darmstadt.de" port 22
+debug1: Connecting to lcluster2.hrz.tu-darmstadt.de [130.83.138.194] port 22.
+debug1: Connection established.
+debug1: identity file /home/tmaric/.ssh/id_rsa type 0
+debug1: identity file /home/tmaric/.ssh/id_rsa-cert type -1
+debug1: identity file /home/tmaric/.ssh/id_ecdsa type -1
+debug1: identity file /home/tmaric/.ssh/id_ecdsa-cert type -1
+debug1: identity file /home/tmaric/.ssh/id_ecdsa_sk type -1
+debug1: identity file /home/tmaric/.ssh/id_ecdsa_sk-cert type -1
+debug1: identity file /home/tmaric/.ssh/id_ed25519 type 3
+debug1: identity file /home/tmaric/.ssh/id_ed25519-cert type -1
+debug1: identity file /home/tmaric/.ssh/id_ed25519_sk type -1
+debug1: identity file /home/tmaric/.ssh/id_ed25519_sk-cert type -1
+debug1: identity file /home/tmaric/.ssh/id_xmss type -1
+debug1: identity file /home/tmaric/.ssh/id_xmss-cert type -1
+debug1: identity file /home/tmaric/.ssh/id_dsa type -1
+debug1: identity file /home/tmaric/.ssh/id_dsa-cert type -1
+debug1: Local version string SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.18
+debug1: Remote protocol version 2.0, remote software version OpenSSH_8.7
+debug1: compat_banner: match: OpenSSH_8.7 pat OpenSSH* compat 0x04000000
+debug2: fd 3 setting O_NONBLOCK
+debug1: Authenticating to lcluster2.hrz.tu-darmstadt.de:22 as 'tm83tomy'
+debug1: load_hostkeys: fopen /home/tmaric/.ssh/known_hosts2: No such file or directory
+debug1: load_hostkeys: fopen /etc/ssh/ssh_known_hosts: No such file or directory
+debug1: load_hostkeys: fopen /etc/ssh/ssh_known_hosts2: No such file or directory
+debug1: SSH2_MSG_KEXINIT sent
+debug1: SSH2_MSG_KEXINIT received
+debug2: local client KEXINIT proposal
+debug2: KEX algorithms: sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com
+debug2: host key algorithms: ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,rsa-sha2-512,rsa-sha2-256
+debug2: ciphers ctos: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+debug2: ciphers stoc: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+debug2: MACs ctos: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+debug2: MACs stoc: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+debug2: compression ctos: none,zlib@openssh.com,zlib
+debug2: compression stoc: none,zlib@openssh.com,zlib
+debug2: languages ctos: 
+debug2: languages stoc: 
+debug2: first_kex_follows 0 
+debug2: reserved 0 
+debug2: peer server KEXINIT proposal
+debug2: KEX algorithms: curve25519-sha256@libssh.org,curve25519-sha256,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,kex-strict-s-v00@openssh.com
+debug2: host key algorithms: ssh-ed25519
+debug2: ciphers ctos: aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+debug2: ciphers stoc: aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+debug2: MACs ctos: hmac-sha2-512-etm@openssh.com,hmac-sha2-512,hmac-sha2-256-etm@openssh.com,hmac-sha2-256
+debug2: MACs stoc: hmac-sha2-512-etm@openssh.com,hmac-sha2-512,hmac-sha2-256-etm@openssh.com,hmac-sha2-256
+debug2: compression ctos: none,zlib@openssh.com
+debug2: compression stoc: none,zlib@openssh.com
+debug2: languages ctos: 
+debug2: languages stoc: 
+debug2: first_kex_follows 0 
+debug2: reserved 0 
+debug1: kex: algorithm: curve25519-sha256
+debug1: kex: host key algorithm: ssh-ed25519
+debug1: kex: server->client cipher: aes128-ctr MAC: hmac-sha2-256-etm@openssh.com compression: none
+debug1: kex: client->server cipher: aes128-ctr MAC: hmac-sha2-256-etm@openssh.com compression: none
+debug1: expecting SSH2_MSG_KEX_ECDH_REPLY
+debug1: SSH2_MSG_KEX_ECDH_REPLY received
+debug1: Server host key: ssh-ed25519 SHA256:VTbaHXupoLJCrDU19nYVFa00pv37WLfYVfofYuGvq/k
+debug1: load_hostkeys: fopen /home/tmaric/.ssh/known_hosts2: No such file or directory
+debug1: load_hostkeys: fopen /etc/ssh/ssh_known_hosts: No such file or directory
+debug1: load_hostkeys: fopen /etc/ssh/ssh_known_hosts2: No such file or directory
+debug1: Host 'lcluster2.hrz.tu-darmstadt.de' is known and matches the ED25519 host key.
+debug1: Found key in /home/tmaric/.ssh/known_hosts:12
+debug1: ssh_packet_send2_wrapped: resetting send seqnr 3
+debug2: ssh_set_newkeys: mode 1
+debug1: rekey out after 4294967296 blocks
+debug1: SSH2_MSG_NEWKEYS sent
+debug1: expecting SSH2_MSG_NEWKEYS
+debug1: ssh_packet_read_poll2: resetting read seqnr 3
+debug1: SSH2_MSG_NEWKEYS received
+debug2: ssh_set_newkeys: mode 0
+debug1: rekey in after 4294967296 blocks
+debug1: SSH2_MSG_EXT_INFO received
+debug1: kex_ext_info_client_parse: server-sig-algs=<ssh-ed25519,sk-ssh-ed25519@openssh.com,ssh-rsa,rsa-sha2-256,rsa-sha2-512,ssh-dss,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ecdsa-sha2-nistp256@openssh.com,webauthn-sk-ecdsa-sha2-nistp256@openssh.com>
+debug2: service_accept: ssh-userauth
+debug1: SSH2_MSG_SERVICE_ACCEPT received
+
+
+	In case of login problems, please first consult our FAQ "I cannot log in!":
+	https://www.hrz.tu-darmstadt.de/hlr/support_hlr/faq_hlr/index.en.jsp#faq_access
+
+
+debug1: Authentications that can continue: publickey,password,keyboard-interactive
+debug1: Next authentication method: publickey
+debug1: Will attempt key: /home/tmaric/.ssh/id_rsa RSA SHA256:liXWPSu+TVJPOlfwkYZqUjpTPm46O+78jH2OSNxNLHU
+debug1: Will attempt key: /home/tmaric/.ssh/id_ecdsa 
+debug1: Will attempt key: /home/tmaric/.ssh/id_ecdsa_sk 
+debug1: Will attempt key: /home/tmaric/.ssh/id_ed25519 ED25519 SHA256:GFM3EHsUz+ZLxWqolySrJIErzFLYgAIPW/yJdMYiFFw
+debug1: Will attempt key: /home/tmaric/.ssh/id_ed25519_sk 
+debug1: Will attempt key: /home/tmaric/.ssh/id_xmss 
+debug1: Will attempt key: /home/tmaric/.ssh/id_dsa 
+debug2: pubkey_prepare: done
+debug1: Offering public key: /home/tmaric/.ssh/id_rsa RSA SHA256:liXWPSu+TVJPOlfwkYZqUjpTPm46O+78jH2OSNxNLHU
+debug2: we sent a publickey packet, wait for reply
+debug1: Authentications that can continue: publickey,password,keyboard-interactive
+debug1: Trying private key: /home/tmaric/.ssh/id_ecdsa
+debug1: Trying private key: /home/tmaric/.ssh/id_ecdsa_sk
+debug1: Offering public key: /home/tmaric/.ssh/id_ed25519 ED25519 SHA256:GFM3EHsUz+ZLxWqolySrJIErzFLYgAIPW/yJdMYiFFw
+debug2: we sent a publickey packet, wait for reply
+debug1: Server accepts key: /home/tmaric/.ssh/id_ed25519 ED25519 SHA256:GFM3EHsUz+ZLxWqolySrJIErzFLYgAIPW/yJdMYiFFw
