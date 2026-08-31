@@ -71,6 +71,8 @@ contains:
 <study>/results/convergence_table.tex         the LaTeX tables
 <study>/results/convergence_shape_error.png   the convergence diagram
 <study>/results/interface*_*_frame.png        the interface snapshots
+<study>/results/potential_check.txt           curl(A0) against u0 by
+                                              complex-step differentiation
 ```
 
 Every one of those is an output of `./run.sh`; none is produced by hand.
