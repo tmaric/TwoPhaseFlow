@@ -63,7 +63,8 @@ def _iso_block(
     )
 
 
-def _write_time_control(case: str, N: int, max_alpha_co: float) -> None:
+def _write_time_control(case: str, N: int, max_alpha_co: float,
+                        u_max: float) -> None:
     """Write maxAlphaCo, and an initial step that respects it.
 
     The template carries a fixed deltaT, so the FIRST step runs at an interface
@@ -81,7 +82,13 @@ def _write_time_control(case: str, N: int, max_alpha_co: float) -> None:
     # no constant cap: it would assume |u| of order one, and the LeVeque
     # field peaks near 2. 0.25*co/N keeps the first step at or below
     # 0.1 for |u| <= 2, and the controller reaches the target in a few steps.
-    dt = 0.25 * max_alpha_co / float(N)
+    dt = 0.25 * max_alpha_co / (float(N) * u_max)
+    # The ceiling matters as much as the initial step: it is what the
+    # controller grows to while the base amplitude passes through zero,
+    # and a mesh-independent ceiling turns into an unbounded Courant
+    # number under refinement.
+    max_dt = max_alpha_co / (float(N) * u_max)
+    s = re.sub(r"^maxDeltaT\s.*$", f"maxDeltaT       {max_dt:g};", s, flags=re.M)
     s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:g};", s, flags=re.M)
     with open(ctrl, "w") as fh:
         fh.write(s)
@@ -118,6 +125,7 @@ def build_case(
     translation_amplitude: float,
     np: int = 1,
     max_alpha_co: float = 0.2,
+    u_max: float = 1.05,
 ) -> None:
     if os.path.exists(case):
         shutil.rmtree(case)
@@ -157,4 +165,4 @@ def build_case(
     open(p, "w").write(s)
 
     _write_decomposition(case, np)
-    _write_time_control(case, N, max_alpha_co)
+    _write_time_control(case, N, max_alpha_co, u_max)
