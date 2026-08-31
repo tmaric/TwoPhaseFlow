@@ -32,7 +32,12 @@ def _iso_block(
     """The isoAdvector dictionary, with or without the moving frame."""
     if frame == "none":
         return "isoAdvector\n{\n    period      %g;\n}" % period
-    if frame != "frameA":
+    if frame == "frameId":
+        # The identity frame: the moving-frame code path with the frame itself
+        # switched off, so the result must reproduce the unframed run exactly.
+        revolutions = 0.0
+        translation_amplitude = 0.0
+    elif frame != "frameA":
         raise ValueError(f"unknown frame: {frame!r}")
     return (
         "isoAdvector\n"

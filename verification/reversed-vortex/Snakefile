@@ -120,6 +120,7 @@ rule all:
         os.path.join(RESULTS, "convergence.csv"),
         os.path.join(RESULTS, "convergence_table.tex"),
         os.path.join(RESULTS, "convergence_shape_error.png"),
+        os.path.join(RESULTS, "frame_identity_check.txt"),
         os.path.join(RESULTS, "interface_moving_frame.png"),
         os.path.join(RESULTS, "interface_non_moving_frame.png"),
 
@@ -299,6 +300,41 @@ rule visualize:
             --out-moving {output.moving} \
             --out-static {output.static}
         """
+
+# -- code-path equivalence ---------------------------------------------------
+# Section 4.2 of the manuscript claims that the moving-frame code path with the
+# frame set to the identity reproduces the original retracing test.  That claim
+# is checked here rather than by hand, so the number in the paper has the same
+# provenance as the tables.
+EQ_N = int(config.get("equivalence", {}).get("N", 128))
+EQ_SCHEME = config.get("equivalence", {}).get("scheme", "plicRDF")
+
+
+rule frame_identity:
+    input:
+        framed=os.path.join(
+            RUNS, f"{EQ_SCHEME}_frameId_N{EQ_N}", "volumeFractionError.dat"
+        ),
+        plain=os.path.join(
+            RUNS, f"{EQ_SCHEME}_none_N{EQ_N}", "volumeFractionError.dat"
+        ),
+    output:
+        os.path.join(RESULTS, "frame_identity_check.txt"),
+    params:
+        end_time=config["end_time"],
+        scheme=EQ_SCHEME,
+        N=EQ_N,
+        script=os.path.join(WF, "scripts", "frame_identity.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} \
+            --framed {input.framed} --plain {input.plain} \
+            --end-time {params.end_time} \
+            --scheme {params.scheme} --n {params.N} \
+            --out {output}
+        """
+
 
 # -- convergence figure ------------------------------------------------------
 # In the workflow rather than a side script: the manuscript's convergence
