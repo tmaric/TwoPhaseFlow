@@ -20,6 +20,19 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# Reviewer comment: figures are reduced heavily in print, so the default
+# matplotlib sizes are unreadable. Roughly double them, and grow the canvas to
+# match so labels do not collide.
+FS = 20
+plt.rcParams.update({
+    "font.size": FS,
+    "axes.titlesize": FS + 2,
+    "axes.labelsize": FS,
+    "xtick.labelsize": FS - 4,
+    "ytick.labelsize": FS - 4,
+    "legend.fontsize": FS - 4,
+})
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from skimage import measure
 
@@ -97,7 +110,7 @@ def draw(ax, verts, faces, title, centre=None):
         mesh.set_linewidth(0.05)
         ax.add_collection3d(mesh)
     if centre is not None:
-        ax.plot([centre[0]], [centre[1]], [0.0], marker="+", color="k", ms=6)
+        ax.plot([centre[0]], [centre[1]], [0.0], marker="+", color="k", ms=12)
     ax.set_xlim(0, LX)
     ax.set_ylim(0, LY)
     ax.set_zlim(0, LZ)
@@ -108,7 +121,7 @@ def draw(ax, verts, faces, title, centre=None):
     ax.tick_params(labelsize=6, pad=0)
     ax.view_init(elev=18, azim=-58)
     if title:
-        ax.set_title(title, fontsize=10, pad=0)
+        ax.set_title(title, fontsize=FS, pad=0)
 
 
 def main():
@@ -140,26 +153,26 @@ def main():
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 
     # ---- framed case, laboratory and co-rotating views ----
-    fig = plt.figure(figsize=(15.0, 7.4))
+    fig = plt.figure(figsize=(30.0, 15.0))
     for col, (t, lab) in enumerate(zip(times, labels)):
         v, f = isosurface(read_alpha(a.framed_case, t, N), N)
         ax = fig.add_subplot(2, len(times), col + 1, projection="3d")
         draw(ax, v, f, lab, centre=centre)
         if col == 0:
             ax.text2D(-0.16, 0.5, "laboratory frame\n(as simulated)",
-                      transform=ax.transAxes, rotation=90, va="center", fontsize=9)
+                      transform=ax.transAxes, rotation=90, va="center", fontsize=FS - 2)
         ax2 = fig.add_subplot(2, len(times), len(times) + col + 1, projection="3d")
         draw(ax2,
              None if v is None else to_moving_frame(v, t, T, centre, a.revolutions),
              f, "")
         if col == 0:
             ax2.text2D(-0.16, 0.5, "co-rotating frame\n$E_t^{-1}$ applied",
-                       transform=ax2.transAxes, rotation=90, va="center", fontsize=9)
+                       transform=ax2.transAxes, rotation=90, va="center", fontsize=FS - 2)
     fig.suptitle(
         f"Moving-frame case: {a.revolutions:g} revolution about the axis through "
         f"$({centre[0]:g},{centre[1]:g})$ superposed on the spiralling deformation\n"
         f"{a.scheme}, $N={N}$ ($n_z={NZF}N$), $T={T:g}$",
-        fontsize=12,
+        fontsize=FS + 2,
     )
     fig.tight_layout(rect=[0.02, 0.0, 1, 0.93])
     fig.savefig(a.out_moving, dpi=170)
@@ -167,19 +180,19 @@ def main():
     print(a.out_moving)
 
     # ---- unframed case ----
-    fig = plt.figure(figsize=(15.0, 4.0))
+    fig = plt.figure(figsize=(30.0, 8.0))
     for col, (t, lab) in enumerate(zip(times, labels)):
         v, f = isosurface(read_alpha(a.plain_case, t, N), N)
         ax = fig.add_subplot(1, len(times), col + 1, projection="3d")
         draw(ax, v, f, lab)
         if col == 0:
             ax.text2D(-0.16, 0.5, "laboratory frame\n(= co-rotating)",
-                      transform=ax.transAxes, rotation=90, va="center", fontsize=9)
+                      transform=ax.transAxes, rotation=90, va="center", fontsize=FS - 2)
     fig.suptitle(
         f"Non-moving-frame case: the original {a.field} "
         "(no frame superposed)\n"
         f"{a.scheme}, $N={N}$; the motion for $t>T/2$ retraces the motion for $t<T/2$",
-        fontsize=12,
+        fontsize=FS + 2,
     )
     fig.tight_layout(rect=[0.02, 0.0, 1, 0.88])
     fig.savefig(a.out_static, dpi=170)

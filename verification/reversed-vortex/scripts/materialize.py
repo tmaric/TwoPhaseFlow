@@ -58,6 +58,23 @@ def _iso_block(
     )
 
 
+def _write_decomposition(case: str, np: int) -> None:
+    """Size system/decomposeParDict for this run.
+
+    The templates ship a hard-coded `numberOfSubdomains 4`, and the two
+    three-dimensional ones use `method simple`, which additionally needs an
+    explicit `n (x y z)` and therefore does not survive an arbitrary rank count.
+    scotch needs only the subdomain count.
+    """
+    p = os.path.join(case, "system", "decomposeParDict")
+    if not os.path.exists(p):
+        return
+    s = open(p).read()
+    s = re.sub(r"^numberOfSubdomains\s.*$", f"numberOfSubdomains {np};", s, flags=re.M)
+    s = re.sub(r"^method\s.*$", "method          scotch;", s, flags=re.M)
+    open(p, "w").write(s)
+
+
 def build_case(
     template: str,
     case: str,
@@ -70,6 +87,7 @@ def build_case(
     rotation_centre: str,
     revolutions: float,
     translation_amplitude: float,
+    np: int = 1,
 ) -> None:
     if os.path.exists(case):
         shutil.rmtree(case)
@@ -107,3 +125,5 @@ def build_case(
     if n != 1:
         raise RuntimeError(f"could not find the isoAdvector block in {p}")
     open(p, "w").write(s)
+
+    _write_decomposition(case, np)

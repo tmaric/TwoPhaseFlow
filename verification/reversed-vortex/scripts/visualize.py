@@ -18,6 +18,19 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# Reviewer comment: figures are reduced heavily in print, so the default
+# matplotlib sizes are unreadable. Roughly double them, and grow the canvas to
+# match so labels do not collide.
+FS = 20
+plt.rcParams.update({
+    "font.size": FS,
+    "axes.titlesize": FS + 2,
+    "axes.labelsize": FS,
+    "xtick.labelsize": FS - 4,
+    "ytick.labelsize": FS - 4,
+    "legend.fontsize": FS - 4,
+})
+
 from foamlib import FoamCase
 
 FILL = "#3d6fb4"
@@ -75,22 +88,22 @@ def to_moving_frame(seg, t, T, centre, revolutions):
 def draw(ax, segs, title, centre=None):
     for s in segs:
         ax.fill(s[:, 0], s[:, 1], color=FILL, alpha=0.85, zorder=2)
-        ax.plot(s[:, 0], s[:, 1], color=EDGE, lw=0.7, zorder=3)
+        ax.plot(s[:, 0], s[:, 1], color=EDGE, lw=1.6, zorder=3)
     th = np.linspace(0, 2 * np.pi, 400)
     ax.plot(
         DISC_CENTRE[0] + DISC_RADIUS * np.cos(th),
         DISC_CENTRE[1] + DISC_RADIUS * np.sin(th),
-        color=REF, lw=0.9, ls="--", zorder=4,
+        color=REF, lw=2.0, ls="--", zorder=4,
     )
     if centre is not None:
-        ax.plot(*centre, marker="+", color="k", ms=7, mew=1.2, zorder=5)
+        ax.plot(*centre, marker="+", color="k", ms=14, mew=2.4, zorder=5)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.set_aspect("equal")
     ax.set_xticks([0, 0.5, 1])
     ax.set_yticks([0, 0.5, 1])
-    ax.tick_params(labelsize=7, length=2)
-    ax.set_title(title, fontsize=10)
+    ax.tick_params(labelsize=FS - 6, length=2)
+    ax.set_title(title, fontsize=FS)
     for sp in ax.spines.values():
         sp.set_linewidth(0.6)
 
@@ -119,7 +132,7 @@ def main():
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 
     # ---- framed case: laboratory frame and co-rotating frame ----
-    fig, axes = plt.subplots(2, len(times), figsize=(13.5, 6.0))
+    fig, axes = plt.subplots(2, len(times), figsize=(26.0, 12.0))
     for col, (t, lab) in enumerate(zip(times, labels)):
         segs = contours(alpha_at(args.framed_case, t, N), N)
         draw(axes[0, col], segs, lab, centre=centre)
@@ -128,13 +141,13 @@ def main():
             [to_moving_frame(s, t, T, centre, args.revolutions) for s in segs],
             "",
         )
-    axes[0, 0].set_ylabel("laboratory frame\n(as simulated)", fontsize=9)
-    axes[1, 0].set_ylabel("co-rotating frame\n$E_t^{-1}$ applied", fontsize=9)
+    axes[0, 0].set_ylabel("laboratory frame\n(as simulated)", fontsize=FS - 2)
+    axes[1, 0].set_ylabel("co-rotating frame\n$E_t^{-1}$ applied", fontsize=FS - 2)
     fig.suptitle(
         f"Moving-frame case: {args.revolutions:g} revolution about "
         f"$({centre[0]:g},{centre[1]:g})$ superposed on the reversed vortex\n"
         f"{args.scheme}, $N={N}$; dashed red = exact interface at $t=0$ and $t=T$",
-        fontsize=11,
+        fontsize=FS + 1,
     )
     fig.tight_layout(rect=[0, 0.02, 1, 0.93])
     fig.savefig(args.out_moving, dpi=200)
@@ -142,14 +155,14 @@ def main():
     print(args.out_moving)
 
     # ---- unframed case ----
-    fig, axes = plt.subplots(1, len(times), figsize=(13.5, 3.3))
+    fig, axes = plt.subplots(1, len(times), figsize=(26.0, 6.6))
     for col, (t, lab) in enumerate(zip(times, labels)):
         draw(axes[col], contours(alpha_at(args.plain_case, t, N), N), lab)
-    axes[0].set_ylabel("laboratory frame\n(= co-rotating)", fontsize=9)
+    axes[0].set_ylabel("laboratory frame\n(= co-rotating)", fontsize=FS - 2)
     fig.suptitle(
         "Non-moving-frame case: the original reversed vortex (no frame superposed)\n"
         f"{args.scheme}, $N={N}$; the motion for $t>T/2$ retraces the motion for $t<T/2$",
-        fontsize=11,
+        fontsize=FS + 1,
     )
     fig.tight_layout(rect=[0, 0.02, 1, 0.88])
     fig.savefig(args.out_static, dpi=200)

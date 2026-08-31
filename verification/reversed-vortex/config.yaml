@@ -4,7 +4,7 @@
 # test-vortexShearedDisc, so the "none" column reproduces its published errors.
 # Override any of this on the command line with --config key=value.
 
-resolutions: [32, 64, 128, 256, 512]
+resolutions: [32, 64, 128, 256, 512, 1024, 2048]
 schemes: [plicRDF, isoAlpha]
 frames: [none, frameA]          # "none" = original retracing test
 
@@ -24,7 +24,14 @@ frame:
 
 # MPI ranks per solve. np=1 (serial) reproduces the reference numbers exactly;
 # the cases themselves run concurrently, one sbatch each.
-np: 1
+np:
+  32: 1
+  64: 1
+  128: 2
+  256: 4
+  512: 8
+  1024: 16
+  2048: 32
 
 # Which case the interface snapshots are made from.
 viz:

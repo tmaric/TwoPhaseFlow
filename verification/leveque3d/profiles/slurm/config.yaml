@@ -29,10 +29,13 @@ default-resources:
 set-resources:
   solve:
     runtime: 1440
-    mem_mb_per_cpu: 24000
+    mem_mb_per_cpu: 32000
   solve_viz:
     runtime: 1440
-    mem_mb_per_cpu: 24000
+    mem_mb_per_cpu: 32000
+  plot_convergence:
+    runtime: 30
+    mem_mb_per_cpu: 8000
   visualize:
     runtime: 60
     mem_mb_per_cpu: 8000

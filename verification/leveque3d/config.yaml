@@ -15,10 +15,10 @@
 # what the published errors correspond to.
 
 base_field: leveque
-nz_factor: 1                   # [0,1]^3 -> cubic cells
+nz_factor: 1                   # cubic cells
 domain_height: 1
 
-resolutions: [32, 64, 128]
+resolutions: [32, 64, 128, 256]
 schemes: [plicRDF, isoAlpha]
 frames: [none, frameA]
 
@@ -37,10 +37,14 @@ frame:
   revolutions: 1
   translation_amplitude: 0.0
 
-np: 1
+np:
+  32: 1
+  64: 4
+  128: 16
+  256: 64
 
 viz:
-  N: 64
+  N: 128
   scheme: plicRDF
   write_interval: 0.75
 
