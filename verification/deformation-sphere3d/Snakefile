@@ -1,5 +1,5 @@
 # =============================================================================
-# Three-dimensional spiralling-deformation verification, with and without a
+# Three-dimensional shear-flow verification, with and without a
 # superposed periodic Euclidean frame (Bothe & Maric).
 #
 #   materialize (local)  -> one OpenFOAM case per (scheme, frame, N)
@@ -252,7 +252,7 @@ rule visualize:
         centre=config["frame"]["rotation_centre"],
         revolutions=config["frame"]["revolutions"],
         lz=config["domain_height"],
-        field=config.get("field_label", "spiralling deformation"),
+        field=config.get("field_label", "3D shear flow"),
         nz_factor=config["nz_factor"],
         z_clip=config.get("viz", {}).get("z_clip", 0.0),
         script=os.path.join(WF, "scripts", "visualize3d.py"),
@@ -310,7 +310,7 @@ rule plot_convergence:
         png=os.path.join(RESULTS, "convergence_shape_error.png"),
     params:
         script=os.path.join(WF, "scripts", "plot_convergence.py"),
-        title="Spiralling deformation, 3D",
+        title="3D shear flow",
     threads: 1
     shell:
         VIZ_PRE + """

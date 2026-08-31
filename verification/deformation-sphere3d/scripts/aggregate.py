@@ -49,7 +49,7 @@ def _fmt(x):
 
 
 def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
-          test_name="3D spiralling-deformation", label_prefix="conv3d", workflow="deformation-sphere3d"):
+          test_name="3D shear-flow", label_prefix="conv3d", workflow="deformation-sphere3d"):
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
     rows = []
@@ -61,7 +61,14 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
                     os.path.join(runs, case, "volumeFractionError.dat"), end_time
                 )
                 if v is None:
-                    continue
+                    # a level silently missing from the table is worse than a
+                    # failed build: it looks like a study that was never run
+                    raise SystemExit(
+                        f"aggregate: {case} has no row at t={end_time} in "
+                        f"volumeFractionError.dat -- the run did not finish, or "
+                        f"its output was not flushed. Refusing to write a table "
+                        f"with a missing level."
+                    )
                 rows.append(
                     {
                         "scheme": scheme,
@@ -111,7 +118,7 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             rf"\caption{{{scheme} reconstruction on the {test_name} test. "
             r"The convergence order is reported for the L1 geometrical shape "
             r"error only. Data: "
-            rf"\cite{{figshare2026}}, \path{{{workflow}/results/convergence.csv}}.}}"
+            rf"\cite{{figshare2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
         )
         L.append(rf"\label{{tab:{label_prefix}-{scheme}}}")
         L.append(r"\begin{tabular}{r cc c cc c}")

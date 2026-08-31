@@ -56,3 +56,18 @@ fi
 SRC=postProcessing/volumeFractionError/0/volumeFractionError.dat
 [ -f "$SRC" ] || { echo "missing $SRC" >&2; exit 1; }
 cp "$SRC" volumeFractionError.dat
+# The teardown crash is NOT always harmless: it can land before the function
+# object flushes, leaving a file with only a header. Reaching "End" is
+# therefore necessary but not sufficient -- require the row we actually need.
+END_TIME=$(awk '/^endTime/{gsub(/;/,"",$2); print $2; exit}' system/controlDict)
+if ! awk -v t="$END_TIME" '
+        /^#/ {next}
+        NF > 1 { d = $1 - t; if (d < 0) d = -d; if (d < 1e-9) found = 1 }
+        END { exit(found ? 0 : 1) }
+    ' volumeFractionError.dat
+then
+    echo "volumeFractionError.dat has no row at endTime=$END_TIME" >&2
+    echo "(the solver reached End but its output was not flushed; rerun)" >&2
+    exit 1
+fi
+

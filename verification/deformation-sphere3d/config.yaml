@@ -1,4 +1,6 @@
-# 3D spiralling-deformation verification study.
+# 3D shear-flow verification study (Liovic et al. 2006; the configuration
+# distributed with TwoPhaseFlow, Scheufler & Roenby 2019 sect. 4.2.4).
+# 'spiralling' below is the OpenFOAM dictionary keyword, not the case name.
 #
 # The reference case (testsuite/advection/test-deformationSphere) builds the
 # flux as a face-centre quadrature and repairs it with CorrectPhi, a Poisson
@@ -44,4 +46,4 @@ mpi_launcher: "mpirun -np {np}"
 env_preamble: ""
 
 # named in the snapshot titles; do not rely on the script default
-field_label: "spiralling deformation"
+field_label: "3D shear flow"

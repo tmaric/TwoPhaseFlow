@@ -34,6 +34,9 @@ executor: slurm
 jobs: 60
 printshellcmds: true
 rerun-incomplete: true
+# The teardown abort is sporadic and can land before the function
+# object flushes; the runner now catches that, and a retry clears it.
+retries: 2
 
 default-resources:
   slurm_account: "special00004"
