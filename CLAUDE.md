@@ -18,10 +18,24 @@ scancel $(cat my_jobs.txt)
 Check what is running before acting: `squeue -u tm83tomy -o "%.10i %.9T %.30j"`.
 Jobs you did not submit are not yours to touch.
 
-**`pkill` needs the same care.** Use a pattern that cannot match the wrapper
-running it — `pkill -f 'snakemak[e]'`, not `pkill -f snakemake` — or kill a
-recorded PID. An ssh command whose own command line contains the pattern will
-otherwise kill its own session.
+**`pkill` needs the same care, for two reasons.** Use a pattern that cannot
+match the wrapper running it — `pkill -f 'snakemak[e]'`, not `pkill -f
+snakemake` — or an ssh command whose own command line contains the pattern
+kills its own session.
+
+More importantly, *a pattern kill is account-wide just as `scancel -u` is*.
+The account runs other Snakemake studies (`leia-curvature`, the Bayesian
+optimisation workflows) from the same login nodes, and `pkill -f 'snakemak[e]'`
+would end those drivers too, leaving their submitted jobs orphaned in the queue
+with nobody to collect the results. Kill by recorded PID, or scope the pattern
+to this repository's directory:
+
+```bash
+pgrep -af 'snakemak[e]' | grep TwoPhaseFlow | awk '{print $1}' > my_pids.txt
+kill $(cat my_pids.txt)
+```
+
+Before killing anything, check whose it is: `readlink /proc/<pid>/cwd`.
 
 **Do not modify `/work/scratch/tm83tomy/leia`.** It is a reference for SLURM and
 Snakemake conventions (see `leia/CLUSTER.md` and `leia/profiles/slurm/config.yaml`)
