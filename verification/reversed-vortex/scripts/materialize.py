@@ -63,6 +63,26 @@ def _iso_block(
     )
 
 
+def _write_initial_deltat(case: str, N: int) -> None:
+    """Keep the first step inside maxAlphaCo.
+
+    The template's fixed deltaT = 1e-3 gives a first-step interface Courant
+    number of about 1e-3 * N, so from N = 512 upwards the very first step
+    violates the maxAlphaCo = 0.5 the study runs under, and above Courant 1
+    the geometric swept-volume assumption fails outright. The controller
+    recovers on step two, but the volume and boundedness error it injects
+    does not. Levels at or below 256 are left untouched, so their agreement
+    with the published values is preserved bit for bit.
+    """
+    ctrl = os.path.join(case, "system", "controlDict")
+    with open(ctrl) as fh:
+        s = fh.read()
+    dt = min(1.0e-3, 0.4 / float(N))
+    s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:g};", s, flags=re.M)
+    with open(ctrl, "w") as fh:
+        fh.write(s)
+
+
 def _write_decomposition(case: str, np: int) -> None:
     """Size system/decomposeParDict for this run.
 
@@ -132,3 +152,4 @@ def build_case(
     open(p, "w").write(s)
 
     _write_decomposition(case, np)
+    _write_initial_deltat(case, N)
