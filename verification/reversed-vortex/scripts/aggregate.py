@@ -145,27 +145,23 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             w.writerow({k: r.get(k) for k in w.fieldnames})
 
     # ---- LaTeX ----------------------------------------------------------
+    # One table per study, with the two schemes as blocks inside it: they share
+    # the column structure, and six floats cost more page than three.
     L = []
-    for scheme in schemes:
-        by = {
-            frame: {r["N"]: r for r in rows if r["scheme"] == scheme and r["frame"] == frame}
-            for frame in frames
-        }
-        present = sorted({N for frame in frames for N in by[frame]})
-        if not present:
-            continue
+    present = sorted({r["N"] for r in rows})
+    if present:
         L.append(r"\begin{table}[htbp]")
         L.append(r"\centering")
         L.append(r"\small")
         L.append(r"\setlength{\tabcolsep}{4pt}")
         L.append(
-            rf"\caption{{{scheme} reconstruction on the {test_name} test. "
-            r"The order is a least-squares fit of $\log E_{\text{shape}}$ against "
-            r"$\log N$ over the whole sequence; the residual is the largest "
-            r"departure from that fit, in $\log E$. Data: "
+            rf"\caption{{Convergence on the {test_name} test, both reconstruction "
+            r"schemes. The order is a least-squares fit of $\log E_{\text{shape}}$ "
+            r"against $\log N$ over the whole sequence; the residual is the "
+            r"largest departure from that fit, in $\log E$. Data: "
             rf"\cite{{figshare2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
         )
-        L.append(rf"\label{{tab:{label_prefix}-{scheme}}}")
+        L.append(rf"\label{{tab:{label_prefix}}}")
         L.append(r"\begin{tabular}{r cc cc}")
         L.append(r"\toprule")
         L.append(
@@ -180,33 +176,39 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             r"$N$ & $E_{\text{shape}}$ & $E_{\text{bound}}$"
             r" & $E_{\text{shape}}$ & $E_{\text{bound}}$ \\"
         )
-        L.append(r"\midrule")
-        for N in present:
-            cells = [str(N)]
-            for frame in frames:
-                r = by[frame].get(N)
-                if r is None:
-                    cells += ["---", "---"]
-                else:
-                    cells += [_fmt(r["E_shape"]), _fmt(r["E_bound"])]
-            L.append(" & ".join(cells) + r" \\")
-        L.append(r"\midrule")
-        fo, fr_, _ = fits[(scheme, frames[0])]
-        go, gr, _ = fits[(scheme, frames[1])]
-        L.append(
-            r"fitted order & \multicolumn{2}{c}{"
-            + ("---" if fo is None else f"${fo:.2f}$")
-            + r"} & \multicolumn{2}{c}{"
-            + ("---" if go is None else f"${go:.2f}$")
-            + r"} \\"
-        )
-        L.append(
-            r"max residual & \multicolumn{2}{c}{"
-            + ("---" if fr_ is None else f"${fr_:.3f}$")
-            + r"} & \multicolumn{2}{c}{"
-            + ("---" if gr is None else f"${gr:.3f}$")
-            + r"} \\"
-        )
+        for si, scheme in enumerate(schemes):
+            by = {
+                frame: {r["N"]: r for r in rows
+                        if r["scheme"] == scheme and r["frame"] == frame}
+                for frame in frames
+            }
+            L.append(r"\midrule")
+            L.append(rf"\multicolumn{{5}}{{l}}{{\emph{{{scheme}}}}} \\")
+            for N in present:
+                cells = [str(N)]
+                for frame in frames:
+                    r = by[frame].get(N)
+                    if r is None:
+                        cells += ["---", "---"]
+                    else:
+                        cells += [_fmt(r["E_shape"]), _fmt(r["E_bound"])]
+                L.append(" & ".join(cells) + r" \\")
+            fo, fr_, _ = fits[(scheme, frames[0])]
+            go, gr, _ = fits[(scheme, frames[1])]
+            L.append(
+                r"\quad fitted order & \multicolumn{2}{c}{"
+                + ("---" if fo is None else f"${fo:.2f}$")
+                + r"} & \multicolumn{2}{c}{"
+                + ("---" if go is None else f"${go:.2f}$")
+                + r"} \\"
+            )
+            L.append(
+                r"\quad max residual & \multicolumn{2}{c}{"
+                + ("---" if fr_ is None else f"${fr_:.3f}$")
+                + r"} & \multicolumn{2}{c}{"
+                + ("---" if gr is None else f"${gr:.3f}$")
+                + r"} \\"
+            )
         L.append(r"\bottomrule")
         L.append(r"\end{tabular}")
         L.append(r"\end{table}")
