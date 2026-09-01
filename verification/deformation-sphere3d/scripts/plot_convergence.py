@@ -37,6 +37,24 @@ STYLE = {
 }
 
 
+def _fit(ns, es):
+    """Least-squares order over the whole sequence, and its worst residual.
+
+    A pairwise order rests on two points; with four to seven levels that is not
+    enough to quote two decimals. The residual is carried alongside because a
+    sequence can fit a respectable order while departing badly from a power
+    law, and that departure is a result in its own right.
+    """
+    m = (ns > 0) & (es > 0)
+    if m.sum() < 3:
+        return None, None
+    x, y = np.log(ns[m]), np.log(es[m])
+    A = np.vstack([x, np.ones_like(x)]).T
+    (slope, icpt), *_ = np.linalg.lstsq(A, y, rcond=None)
+    resid = float(np.max(np.abs(y - (slope * x + icpt))))
+    return -float(slope), resid
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--csv", required=True)
@@ -70,15 +88,14 @@ def main():
                 continue
             ns = np.array([r["N"] for r in sel], dtype=float)
             es = np.array([r["E_shape"] for r in sel])
-            ax.loglog(ns, es, mk, color=col, lw=2.6, ms=11, label=lab)
-            for i in range(1, len(ns)):
-                o = math.log(es[i - 1] / es[i]) / math.log(ns[i] / ns[i - 1])
-                ax.annotate(
-                    f"{o:.2f}",
-                    (math.sqrt(ns[i - 1] * ns[i]),
-                     math.sqrt(es[i - 1] * es[i]) * (1.5 if frame == "none" else 0.55)),
-                    fontsize=FS - 5, color=col, ha="center",
-                )
+            p, resid = _fit(ns, es)
+            tag = lab if p is None else (
+                f"{lab}\n$p={p:.2f}$, residual ${resid:.2f}$")
+            ax.loglog(ns, es, mk, color=col, lw=2.6, ms=11, label=tag)
+            if p is not None:
+                # the fit itself, so the reader can see the departures
+                fit = es[0] * (ns / ns[0]) ** (-p)
+                ax.loglog(ns, fit, "-", color=col, lw=1.0, alpha=0.45)
         base = sorted(
             [r for r in rows if r["scheme"] == scheme and r["frame"] == "none"],
             key=lambda r: r["N"],
@@ -93,7 +110,7 @@ def main():
         ax.set_xlabel("$N$ (cells per direction)")
         ax.set_title(scheme)
         ax.grid(True, which="both", alpha=0.25, lw=0.8)
-        ax.legend(frameon=False, loc="lower left")
+        ax.legend(frameon=False, loc="lower left", labelspacing=0.9)
 
     axes[0].set_ylabel(r"$E_{\mathrm{shape}}(T)$")
     if a.title:
