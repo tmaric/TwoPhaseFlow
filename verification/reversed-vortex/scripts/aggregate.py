@@ -28,6 +28,32 @@ def _read_final(path: str, end_time: float):
     return None
 
 
+def _fit_order(ns, es):
+    """Least-squares order over the whole sequence, and its residual.
+
+    Returns (order, max |residual| in log E, R^2). The residual is reported
+    because a sequence can have a respectable fitted order while departing
+    badly from a power law, and that departure is itself a result.
+    """
+    pts = [(n, e) for n, e in zip(ns, es) if n and e and e > 0]
+    if len(pts) < 3:
+        return None, None, None
+    xs = [math.log(float(n)) for n, _ in pts]
+    ys = [math.log(e) for _, e in pts]
+    n = len(pts)
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    if sxx == 0.0:
+        return None, None, None
+    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx
+    icpt = my - slope * mx
+    res = [y - (slope * x + icpt) for x, y in zip(xs, ys)]
+    ss_res = sum(r * r for r in res)
+    ss_tot = sum((y - my) ** 2 for y in ys)
+    r2 = 1.0 - ss_res / ss_tot if ss_tot else None
+    return -slope, max(abs(r) for r in res), r2
+
+
 def _orders(ns, es):
     out = [None]
     for i in range(1, len(ns)):
@@ -92,9 +118,27 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             for r, o in zip(sel, _orders(ns, es)):
                 r["order"] = o
 
+    # the fit is a property of a whole series, so it repeats down each one
+    fits = {}
+    for scheme in schemes:
+        for frame in frames:
+            sel = sorted(
+                [r for r in rows if r["scheme"] == scheme and r["frame"] == frame],
+                key=lambda r: r["N"],
+            )
+            fits[(scheme, frame)] = _fit_order(
+                [r["N"] for r in sel], [r["E_shape"] for r in sel]
+            )
+    for r in rows:
+        o, res, r2 = fits[(r["scheme"], r["frame"])]
+        r["fit_order"] = o
+        r["fit_residual"] = res
+        r["fit_r2"] = r2
+
     with open(csv_path, "w", newline="") as f:
         w = csv.DictWriter(
-            f, fieldnames=["scheme", "frame", "N", "E_shape", "order", "E_mass", "E_bound"]
+            f, fieldnames=["scheme", "frame", "N", "E_shape", "order", "E_mass",
+                           "E_bound", "fit_order", "fit_residual", "fit_r2"]
         )
         w.writeheader()
         for r in rows:
@@ -116,24 +160,25 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
         L.append(r"\setlength{\tabcolsep}{4pt}")
         L.append(
             rf"\caption{{{scheme} reconstruction on the {test_name} test. "
-            r"The convergence order is reported for the L1 geometrical shape "
-            r"error only. Data: "
+            r"The order is a least-squares fit of $\\log E_{\\text{shape}}$ against "
+            r"$\\log N$ over the whole sequence; the residual is the largest "
+            r"departure from that fit, in $\\log E$. Data: "
             rf"\cite{{figshare2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
         )
         L.append(rf"\label{{tab:{label_prefix}-{scheme}}}")
-        L.append(r"\begin{tabular}{r cc c cc c}")
+        L.append(r"\begin{tabular}{r cc cc}")
         L.append(r"\toprule")
         L.append(
-            r"& \multicolumn{3}{c}{"
+            r"& \multicolumn{2}{c}{"
             + FRAME_LABEL[frames[0]]
-            + r"} & \multicolumn{3}{c}{"
+            + r"} & \multicolumn{2}{c}{"
             + FRAME_LABEL[frames[1]]
             + r"} \\"
         )
-        L.append(r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}")
+        L.append(r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}")
         L.append(
-            r"$N$ & $E_{\text{shape}}$ & order & $E_{\text{bound}}$"
-            r" & $E_{\text{shape}}$ & order & $E_{\text{bound}}$ \\"
+            r"$N$ & $E_{\text{shape}}$ & $E_{\text{bound}}$"
+            r" & $E_{\text{shape}}$ & $E_{\text{bound}}$ \\"
         )
         L.append(r"\midrule")
         for N in present:
@@ -141,15 +186,27 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             for frame in frames:
                 r = by[frame].get(N)
                 if r is None:
-                    cells += ["---", "---", "---"]
+                    cells += ["---", "---"]
                 else:
-                    o = r.get("order")
-                    cells += [
-                        _fmt(r["E_shape"]),
-                        "---" if o is None else f"{o:.2f}",
-                        _fmt(r["E_bound"]),
-                    ]
+                    cells += [_fmt(r["E_shape"]), _fmt(r["E_bound"])]
             L.append(" & ".join(cells) + r" \\")
+        L.append(r"\midrule")
+        fo, fr_, _ = fits[(scheme, frames[0])]
+        go, gr, _ = fits[(scheme, frames[1])]
+        L.append(
+            r"fitted order & \multicolumn{2}{c}{"
+            + ("---" if fo is None else f"${fo:.2f}$")
+            + r"} & \multicolumn{2}{c}{"
+            + ("---" if go is None else f"${go:.2f}$")
+            + r"} \\"
+        )
+        L.append(
+            r"max residual & \multicolumn{2}{c}{"
+            + ("---" if fr_ is None else f"${fr_:.3f}$")
+            + r"} & \multicolumn{2}{c}{"
+            + ("---" if gr is None else f"${gr:.3f}$")
+            + r"} \\"
+        )
         L.append(r"\bottomrule")
         L.append(r"\end{tabular}")
         L.append(r"\end{table}")
