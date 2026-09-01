@@ -120,6 +120,7 @@ rule all:
         os.path.join(RESULTS, "convergence.csv"),
         os.path.join(RESULTS, "convergence_table.tex"),
         os.path.join(RESULTS, "convergence_shape_error.png"),
+        os.path.join(RESULTS, "convergence_shape_error.pdf"),
         os.path.join(RESULTS, "frame_identity_check.txt"),
         os.path.join(RESULTS, "interface_moving_frame.png"),
         os.path.join(RESULTS, "interface_non_moving_frame.png"),
@@ -349,6 +350,7 @@ rule plot_convergence:
         csv=os.path.join(RESULTS, "convergence.csv"),
     output:
         png=os.path.join(RESULTS, "convergence_shape_error.png"),
+        pdf=os.path.join(RESULTS, "convergence_shape_error.pdf"),
     params:
         script=os.path.join(WF, "scripts", "plot_convergence.py"),
         title="Reversed vortex, 2D",

@@ -121,7 +121,11 @@ def main():
 
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     fig.savefig(a.out, dpi=160)
+    # line art: Elsevier asks for vector, so write a PDF beside the raster one
+    pdf = os.path.splitext(a.out)[0] + ".pdf"
+    fig.savefig(pdf)
     print(a.out)
+    print(pdf)
 
 
 if __name__ == "__main__":

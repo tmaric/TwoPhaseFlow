@@ -159,7 +159,7 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             r"schemes. The order is a least-squares fit of $\log E_{\text{shape}}$ "
             r"against $\log N$ over the whole sequence; the residual is the "
             r"largest departure from that fit, in $\log E$. Data: "
-            rf"\cite{{figshare2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
+            rf"\cite{{tudatalib2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
         )
         L.append(rf"\label{{tab:{label_prefix}}}")
         L.append(r"\begin{tabular}{r cc cc}")
