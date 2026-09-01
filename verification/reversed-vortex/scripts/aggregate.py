@@ -160,9 +160,9 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
         L.append(r"\setlength{\tabcolsep}{4pt}")
         L.append(
             rf"\caption{{{scheme} reconstruction on the {test_name} test. "
-            r"The order is a least-squares fit of $\\log E_{\\text{shape}}$ against "
-            r"$\\log N$ over the whole sequence; the residual is the largest "
-            r"departure from that fit, in $\\log E$. Data: "
+            r"The order is a least-squares fit of $\log E_{\text{shape}}$ against "
+            r"$\log N$ over the whole sequence; the residual is the largest "
+            r"departure from that fit, in $\log E$. Data: "
             rf"\cite{{figshare2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
         )
         L.append(rf"\label{{tab:{label_prefix}-{scheme}}}")
