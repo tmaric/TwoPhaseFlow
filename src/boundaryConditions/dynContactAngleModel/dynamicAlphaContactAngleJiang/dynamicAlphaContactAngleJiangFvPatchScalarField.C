@@ -79,17 +79,6 @@ dynamicAlphaContactAngleJiangFvPatchScalarField
 Foam::dynamicAlphaContactAngleJiangFvPatchScalarField::
 dynamicAlphaContactAngleJiangFvPatchScalarField
 (
-    const dynamicAlphaContactAngleJiangFvPatchScalarField& gcpsf
-)
-:
-    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf),
-    theta0_(gcpsf.theta0_)
-{}
-
-
-Foam::dynamicAlphaContactAngleJiangFvPatchScalarField::
-dynamicAlphaContactAngleJiangFvPatchScalarField
-(
     const dynamicAlphaContactAngleJiangFvPatchScalarField& gcpsf,
     const DimensionedField<scalar, volMesh>& iF
 )

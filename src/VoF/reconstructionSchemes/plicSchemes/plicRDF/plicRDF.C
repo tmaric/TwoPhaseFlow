@@ -564,10 +564,14 @@ void Foam::reconstruction::plicRDF::reconstruct(bool forceUpdate)
         centre_.correctBoundaryConditions();
         List<normalRes> normalResidual(interfaceLabels_.size());
 
-        surfaceVectorField::Boundary nHatb(mesh_.Sf().boundaryField());
-        nHatb *= 1/(mesh_.magSf().boundaryField());
-
         {
+            surfaceVectorField::Boundary nHatb
+            (
+                mesh_.Sf().internalField(),
+                mesh_.Sf().boundaryField()
+            );
+            nHatb /= mesh_.magSf().boundaryField();
+
             centreAndNormalBC();
             RDF_.constructRDF
             (

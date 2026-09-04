@@ -193,7 +193,8 @@ void Foam::gravityDirac::calculateAcc()
         forAll(cellFaceNormalbf, pi)
         {
             surfaceScalarField weights(interp.ref().weights(faceNormal));
-            fvsPatchScalarField pWeights = weights.boundaryField()[pi];
+            const fvsPatchScalarField& pWeights =
+                weights.boundaryField()[pi];
             if (cellFaceNormal.boundaryField()[pi].coupled())
             {
                 cellFaceNormalbf[pi] = pWeights*faceNormal.boundaryField()[pi].patchInternalField()
@@ -211,8 +212,7 @@ void Foam::gravityDirac::calculateAcc()
         const auto& own = mesh.faceOwner();
         const auto& neigh = mesh.faceNeighbour();
         const surfaceScalarField& rmagSf(1/mesh.magSf());
-        surfaceScalarField::Boundary rmagSfb(mesh.magSf().boundaryField());
-        rmagSfb = 1/mesh.magSf().boundaryField();
+        const surfaceScalarField::Boundary& rmagSfb = rmagSf.boundaryField();
         
         const surfaceVectorField& Sf(mesh.Sf());
         scalarField& accfIn = accf_.primitiveFieldRef();

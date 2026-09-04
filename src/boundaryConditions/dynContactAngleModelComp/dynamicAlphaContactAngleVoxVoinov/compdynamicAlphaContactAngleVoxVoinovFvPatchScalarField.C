@@ -87,20 +87,6 @@ compdynamicAlphaContactAngleVoxVoinovFvPatchScalarField
 Foam::compdynamicAlphaContactAngleVoxVoinovFvPatchScalarField::
 compdynamicAlphaContactAngleVoxVoinovFvPatchScalarField
 (
-    const compdynamicAlphaContactAngleVoxVoinovFvPatchScalarField& gcpsf
-)
-:
-    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf),
-    init_(true),
-    theta0_(gcpsf.theta0_),
-    ct_(gcpsf.ct_),
-    muName_(gcpsf.muName_)
-{}
-
-
-Foam::compdynamicAlphaContactAngleVoxVoinovFvPatchScalarField::
-compdynamicAlphaContactAngleVoxVoinovFvPatchScalarField
-(
     const compdynamicAlphaContactAngleVoxVoinovFvPatchScalarField& gcpsf,
     const DimensionedField<scalar, volMesh>& iF
 )

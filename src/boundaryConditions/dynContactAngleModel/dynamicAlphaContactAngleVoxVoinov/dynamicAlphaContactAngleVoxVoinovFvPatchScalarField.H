@@ -96,21 +96,6 @@ public:
             const fvPatchFieldMapper&
         );
 
-        //- Construct as copy
-        dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
-        (
-            const dynamicAlphaContactAngleVoxVoinovFvPatchScalarField&
-        );
-
-        //- Construct and return a clone
-        virtual tmp<fvPatchScalarField> clone() const
-        {
-            return tmp<fvPatchScalarField>
-            (
-                new dynamicAlphaContactAngleVoxVoinovFvPatchScalarField(*this)
-            );
-        }
-
         //- Construct as copy setting internal field reference
         dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
         (
