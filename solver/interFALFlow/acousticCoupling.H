@@ -10,9 +10,11 @@
     #include "computeAlphaf.H"
     #include "computePMLCoefs.H"
 
-    rhoAcoustic == 1/(alpha1/rhol + (1 - alpha1)/rhog);
+    rhoAcoustic == alpha1*rhol + (1 - alpha1)*rhog;
     rhoAcoustic.correctBoundaryConditions();
-    invRhof == alphaf/rhol + (1 - alphaf)/rhog;
+    compressibility == alpha1*kl + (1 - alpha1)*kg;
+    compressibility.correctBoundaryConditions();
+    invRhof == 1/(alphaf*rhol + (1 - alphaf)*rhog);
 
     volScalarField k2
     (
@@ -24,7 +26,7 @@
             IOobject::NO_READ,
             IOobject::NO_WRITE
         ),
-        sqr(twoPi()*f)*(alpha1/sqr(cl) + (1 - alpha1)/sqr(cg))
+        sqr(twoPi()*f)*rhoAcoustic*compressibility
     );
 
     globalIndex globalCells(mesh.nCells());
@@ -108,6 +110,6 @@
 
     updateDerivedAcousticFields
     (
-        pr, Pa, Ua, momFlux, Pim, Pre, alpha1, rhoAcoustic, f, kl, kg
+        pr, Pa, Ua, momFlux, Pim, Pre, rhoAcoustic, compressibility, f
     );
 }

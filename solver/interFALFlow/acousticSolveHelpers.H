@@ -346,11 +346,9 @@ static void updateDerivedAcousticFields
     volTensorField& momFlux,
     const volScalarField& Pim,
     const volScalarField& Pre,
-    const volScalarField& alpha1,
     const volScalarField& rho,
-    const dimensionedScalar& f,
-    const dimensionedScalar& kl,
-    const dimensionedScalar& kg
+    const volScalarField& compressibility,
+    const dimensionedScalar& f
 )
 {
     const tmp<volVectorField> Ure = 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
@@ -361,7 +359,7 @@ static void updateDerivedAcousticFields
     Pa == Foam::sqrt(pSq);
     Ua == Foam::sqrt(uSq);
 
-    pr == 0.25*(kl*alpha1 + kg*(1-alpha1))*pSq
+    pr == 0.25*compressibility*pSq
         - 0.25*rho*uSq;
     momFlux == 0.5*rho*(Ure()*Ure() + Uim()*Uim());
 }

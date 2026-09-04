@@ -50,7 +50,20 @@ volScalarField rhoAcoustic
         IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    1/(alpha1/rhol + (1 - alpha1)/rhog)
+    alpha1*rhol + (1 - alpha1)*rhog
+);
+
+volScalarField compressibility
+(
+    IOobject
+    (
+        "compressibility",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    alpha1*kl + (1 - alpha1)*kg
 );
 
 surfaceScalarField invRhof
@@ -63,7 +76,7 @@ surfaceScalarField invRhof
         IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    alphaf/rhol + (1 - alphaf)/rhog
+    1/(alphaf*rhol + (1 - alphaf)*rhog)
 );
 
 // radiation force pressure

@@ -42,6 +42,11 @@ while (pimple.correctNonOrthogonal())
             )
           + (1.0 - theta)*previousPressureLaplacian()
           + fvm::ddt(C0, p)
+          + fvm::ddt
+            (
+                rho*compressibility*physicalAcousticDampingRate,
+                p
+            )
           + fvm::Sp(C1, p)
           + C2*v
           - fvc::div(u, "div(u)")
@@ -71,6 +76,11 @@ while (pimple.correctNonOrthogonal())
             fvm::d2dt2(rho*compressibility, p)
           - rho*fvm::laplacian(invRhof, p)
           + fvm::ddt(C0, p)
+          + fvm::ddt
+            (
+                rho*compressibility*physicalAcousticDampingRate,
+                p
+            )
           + fvm::Sp(C1, p)
           + C2*v
           - fvc::div(u)

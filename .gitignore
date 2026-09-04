@@ -1,126 +1,95 @@
-# git-ls-files --others --exclude-from=.git/info/exclude
-# Lines that start with '#' are comments.
-
-# Editor and misc backup files - anywhere
+# Editor, desktop and backup files
 *~
-.*~
 *.bak
 *.bak[0-9][0-9]
 \#*\#
-
-# File-browser settings - anywhere
 .directory
-
-# CVS recovered versions - anywhere
 .#*
+.vscode/
+.ccls-cache/
+*.config
+*.creator.user
+*.creator
+*.includes
+*.files
+/.cproject
+/.project
+/.tags
+typescript
 
-# Objects and archives - anywhere
+# Compiler and OpenFOAM build products
 *.[oa]
 *.la
 *.so
-*.o
-
-# Derived files
-lex.yy.c
-
-# Corefiles
-core
-
-# Dependency files - anywhere
 *.dep
-
-# lnInclude (symlink) directories - anywhere
+lex.yy.c
+core
 lnInclude
-
-# Top-level build directories
 /build/
-/platforms/
-
-# Reinstate wmake rules that might look like build directories
-!/wmake/rules/*/
-
-
-#OpenFOAM
-Cases
-CasesTri
-*/polyMesh/*
-0.[0-9]*
-[1-9]*
-*e-*
-#processor*
-logs
-AlphaInit
-controlDict.orig
-decomposeParDict
-*.msh
-gmsh-*-Linux64
-
-# Build directories - anywhere
+/.build
+/.timeStamp
 linux*Clang*/
 linux*Gcc*/
 linux*Icc*/
 solaris*Gcc*/
 SunOS*Gcc*/
 platforms/
-
-#dynamic code from functionObject
 dynamicCode/
 
-# Reinstate wmake/rules that might look like build directories
-!wmake/rules/*/
+# Locally built dependencies (PETSc versions pinned by petsc_build.sh)
+/petsc/
+/external/petsc4Foam/
+gmsh-*-Linux64
 
-# doxygen generated documentation
-doc/Doxygen/html
-doc/Doxygen/latex
-doc/Doxygen/man
-doc/Doxygen/DTAGS
-
-# Generated files in the main directory (e.g. ReleaseNotes-?.?.html)
-# and in the doc directory
-/*.html
-/doc/*.html
-
-# Untracked configuration files
-/etc/prefs.csh
-/etc/prefs.sh
-/etc/config/prefs.csh
-/etc/config/prefs.sh
-
-# Source packages - anywhere
+# Source archives
 *.tar.bz2
 *.tar.gz
 *.tar
 *.tgz
 *.gtgz
 
-# irgnore files qtcreator
-*.config
-*.creator.user
-*.creator
-*.includes
-*.files
-
-# Ignore the persistent .build tag in the main directory
-/.build
-
-# Ignore .timeStamp in the main directory
-/.timeStamp
-
-# Ignore .tags in the main directory
-/.tags
-
-# Ignore eclipse project files in the main directory
-/.cproject
-/.project
-
-# Ignore the test directory
-/tutorialsTest
-
-# python
-__pychache__
+# Python environments and caches
+__pycache__/
 *.pyc
 env
 venv
+.ipynb_checkpoints/
+
+# OpenFOAM time directories, meshes and generated case data
+# These legacy patterns are broad; keep source/data exceptions below them.
+0.[0-9]*
+[1-9]*
+*e-*
+polyMesh/
+uniform/
+processor*/
+AlphaInit
+controlDict.orig
+decomposeParDict
+*.msh
+*_00*_*/
+*_templateCase/
+oldData_toBeDeleted/
+
+# Case-specific generated dictionaries
+/run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/controlDict
+/run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/fvSolution
+
+# Postprocessing, logs and result data
+PyFoam*
+*.vtk
+*.vtp
+*.vtu
+*.foam
+VTK/
+log*
+Data_*
+*.csv
+*.pdf
+*.png
+isoFaces/
+slurm-*
+*.parameter.database
 
 # LaTeX build products
 *.aux
@@ -145,47 +114,11 @@ venv
 *.toc
 *.vrb
 
-# Processing and result data 
-
-PyFoam*
-polyMesh/
-*.vtk
-*.vtp
-*.vtu
-*.foam
-VTK/
-log*
-Data_*
-*.csv
-*.pdf
-.vscode/
-uniform/
-*_00*_*/
-processor*/
-isoFaces/
-slurm-*
-*_templateCase/
-oldData_toBeDeleted/
-*.parameter.database
-*.png
-
-#jupyter notebook checkpoints
-.ipynb_checkpoints/
-
-#random test folders
+# Scratch test directories (verification-source exceptions below)
 *test*/
 
-typescript
-# end-of-file
-
-run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/controlDict
-run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/decomposeParDict
-run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropAlpha/system/fvSolution
-
-.ccls-cache/
+# Legacy manuscript locations: retain protection if restored from an archive
 preprint_acousticHelmholtzFoam/
-
-# Local manuscript and presentation sources
 /paper_aHF/
 /SLIDE/
 
@@ -194,7 +127,6 @@ preprint_acousticHelmholtzFoam/
 /testsuite/*
 !/testsuite/acousticInterface/
 !/apps/benchmark/testAcousticInterface/
-__pycache__/
 !/testsuite/acousticInterface/results/pressure-comparison.svg
 
 # Secondary data for the Helmholtz/PML manuscript
@@ -207,7 +139,3 @@ __pycache__/
 !/data/publications/helmholtz-pml/**/*.pdf
 /data/publications/releases/*
 !/data/publications/releases/helmholtz-pml-secondary-data-v1.zip
-
-# Locally built dependencies (pinned by petsc_build.sh)
-/petsc/
-/external/petsc4Foam/

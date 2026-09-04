@@ -28,6 +28,8 @@ timeIntegrationTheta 0.5;
 timeIntegrationMethod blockCoupled;
 // Options: direct (LU/MUMPS), iterative (FGMRES/block-Jacobi/ILU).
 timeBlockLinearSolver iterative;
+// Linear physical-domain pressure/velocity damping rate [1/s].
+acousticDampingRate __ACOUSTIC_DAMPING_RATE__;
 
 f               __DRIVE_F__;
 sigmaMax        __SIGMA_MAX__;

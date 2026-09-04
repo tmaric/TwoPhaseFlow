@@ -18,7 +18,7 @@ endTime         0.01;
 deltaT          1e-06;
 
 writeControl    runTime;
-writeInterval   1e-5;
+writeInterval   4e-6;
 purgeWrite      0;
 writeFormat     binary;
 writePrecision  12;

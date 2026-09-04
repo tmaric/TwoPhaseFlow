@@ -96,7 +96,12 @@
 
             qQ[celli] = volume
                *(rho[celli]*compressibility[celli]/deltaT
-               + theta*C0[celli]);
+               + theta
+               *(
+                    C0[celli]
+                  + rho[celli]*compressibility[celli]
+                   *physicalAcousticDampingRate[celli]
+                ));
             qV[celli] = theta*volume*C2[celli];
 
             vP[celli] = -theta*volume;
@@ -309,7 +314,11 @@
     const tmp<volScalarField> oldPressureResidual
     (
         previousPressureLaplacian()
-      + C0*pDot.oldTime()
+      +
+        (
+            C0
+          + rho*compressibility*physicalAcousticDampingRate
+        )*pDot.oldTime()
       + C1*p.oldTime()
       + C2*v.oldTime()
       - fvc::div(u.oldTime(), "div(u)")

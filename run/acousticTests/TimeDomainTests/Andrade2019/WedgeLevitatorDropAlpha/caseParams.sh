@@ -13,6 +13,8 @@
 # ---------------------------------------------------------------------------
 # MPI-capable time-domain acoustic solver.
 SOLVER=acousticWaveFoam
+# Linear damping rate in the non-PML domain [1/s].
+: "${ACOUSTIC_DAMPING_RATE:=0}"
 
 # ---------------------------------------------------------------------------
 # Drive parameters

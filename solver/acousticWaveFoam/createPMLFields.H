@@ -48,6 +48,21 @@ const volScalarField physicalTimeWeight
     1.0 - pmlImplicitWeight
 );
 
+const volScalarField physicalAcousticDampingRate
+(
+    IOobject
+    (
+        "physicalAcousticDampingRate",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    acousticDampingRate
+   *pos0(scalar(SMALL) - pmlImplicitWeight)
+);
+
 const surfaceScalarField pmlImplicitWeightf
 (
     IOobject

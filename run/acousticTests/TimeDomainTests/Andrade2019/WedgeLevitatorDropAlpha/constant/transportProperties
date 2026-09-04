@@ -45,6 +45,8 @@ timeIntegrationMethod blockCoupled;
 timeBlockLinearSolver iterative;
 // Moving window used for acoustic radiation pressure and momentum flux.
 radiationAveragePeriods 5;
+// Linear physical-domain pressure/velocity damping rate [1/s].
+acousticDampingRate 0;
 L               0.008;
 
 PMLType         rectangle;

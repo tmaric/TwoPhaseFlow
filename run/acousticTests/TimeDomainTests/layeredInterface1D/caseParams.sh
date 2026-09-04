@@ -7,6 +7,8 @@
 : "${DRIVE_F:=20000}"
 # Harmonic piston normal-velocity amplitude [m/s].
 : "${PISTON_U:=0.01}"
+# Linear damping rate in the non-PML domain [1/s].
+: "${ACOUSTIC_DAMPING_RATE:=2000}"
 
 # Medium 1 (x < X_INTERFACE)
 : "${RHOG:=1.2}"

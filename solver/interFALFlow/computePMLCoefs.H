@@ -15,8 +15,11 @@
         const scalar dx = sigmaValue.xx();
         const scalar dy = sigmaValue.yy();
         const scalar dz = sigmaValue.zz();
-        const scalar invSoundSpeedSqr =
-            alpha/sqr(cl.value()) + (1 - alpha)/sqr(cg.value());
+        const scalar rhoMix =
+            alpha*rhol.value() + (1 - alpha)*rhog.value();
+        const scalar compressibilityMix =
+            alpha*kl.value() + (1 - alpha)*kg.value();
+        const scalar invSoundSpeedSqr = rhoMix*compressibilityMix;
         const scalar dxyzOverOmega =
             mag(omega) > VSMALL ? dx*dy*dz/omega : 0;
 

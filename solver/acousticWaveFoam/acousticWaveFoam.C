@@ -172,9 +172,17 @@ int main(int argc, char *argv[])
             solve
             (
                 fvm::ddt(rho, U)
+              + fvm::Sp
+                (
+                    timeIntegrationTheta
+                   *rho*physicalAcousticDampingRate,
+                    U
+                )
              ==
                 - timeIntegrationTheta*fvc::grad(p)
                 - (1.0 - timeIntegrationTheta)*previousPressureGradient()
+                - (1.0 - timeIntegrationTheta)
+                 *rho*physicalAcousticDampingRate*U.oldTime()
             );
         }
         else if (timeIntegrationMethod == "thetaNewmark")
@@ -188,16 +196,27 @@ int main(int argc, char *argv[])
             solve
             (
                 fvm::ddt(rho, U)
+              + fvm::Sp
+                (
+                    timeIntegrationTheta
+                   *rho*physicalAcousticDampingRate,
+                    U
+                )
              ==
                 - timeIntegrationTheta*fvc::grad(p)
                 - (1.0 - timeIntegrationTheta)*previousPressureGradient()
+                - (1.0 - timeIntegrationTheta)
+                 *rho*physicalAcousticDampingRate*U.oldTime()
             );
         }
         else
         {
             solve
             (
-                fvm::ddt(rho, U) == -fvc::grad(p)
+                fvm::ddt(rho, U)
+              + fvm::Sp(rho*physicalAcousticDampingRate, U)
+             ==
+                -fvc::grad(p)
             );
         }
         prT ==

@@ -70,13 +70,30 @@ const scalar driveFrequency = transportProperties.get<scalar>("f");
 const scalar radiationAveragePeriods =
     transportProperties.getOrDefault<scalar>("radiationAveragePeriods", 5);
 
-if (driveFrequency <= 0 || radiationAveragePeriods <= 0)
+const dimensionedScalar acousticDampingRate
+(
+    "acousticDampingRate",
+    dimless/dimTime,
+    transportProperties.getOrDefault<scalar>("acousticDampingRate", 0)
+);
+
+if
+(
+    driveFrequency <= 0
+ || radiationAveragePeriods <= 0
+ || acousticDampingRate.value() < 0
+)
 {
     FatalIOErrorInFunction(transportProperties)
-        << "f and radiationAveragePeriods must be positive, but are "
-        << driveFrequency << " and " << radiationAveragePeriods
+        << "f and radiationAveragePeriods must be positive and "
+        << "acousticDampingRate must be nonnegative, but are "
+        << driveFrequency << ", " << radiationAveragePeriods << ", and "
+        << acousticDampingRate.value()
         << exit(FatalIOError);
 }
+
+Info<< "Physical-domain acoustic damping rate = "
+    << acousticDampingRate.value() << " 1/s" << endl;
 
 const scalar laplacianCorrection =
     transportProperties.getOrDefault<scalar>("laplacianCorrection", 1.0);

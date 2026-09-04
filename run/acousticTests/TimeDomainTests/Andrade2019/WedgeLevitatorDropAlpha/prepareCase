@@ -23,6 +23,7 @@ render()
     sed \
         -e "s|__DRIVE_F__|$DRIVE_F|g" \
         -e "s|__PISTON_U__|$PISTON_U|g" \
+        -e "s|__ACOUSTIC_DAMPING_RATE__|$ACOUSTIC_DAMPING_RATE|g" \
         -e "s|__SOUND_SPEED__|$SOUND_SPEED|g" \
         -e "s|__RHOL__|$RHOL|g" \
         -e "s|__RHOG__|$RHOG|g" \
