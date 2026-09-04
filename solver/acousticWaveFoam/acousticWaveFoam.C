@@ -41,6 +41,7 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
+#include <petscksp.h>
 #include "fvCFD.H"
 #include "fvOptions.H"
 #include "pimpleControl.H"
@@ -50,9 +51,12 @@ SourceFiles
 #include "reconstructionSchemes.H"
 #include "upwind.H"
 #include "processorPolyPatch.H"
+#include "processorLduInterface.H"
 #include "processorBC.H"
 #include "emptyPolyPatch.H"
 #include "wedgePolyPatch.H"
+
+#include "petscTimeBlockAssembly.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -78,23 +82,102 @@ int main(int argc, char *argv[])
     Info<< "\nStarting time loop\n" << endl;
     #include "computeAlphaf.H"
     #include "computePMLCoefs.H"
-    scalar sampleCount = 0;
-    
-    rho = 1/(alpha1/rhol + (1 - alpha1)/rhog);
-    invRhof = alphaf/rhol + (1 - alphaf)/rhog;
+
+    globalIndex globalCells(mesh.nCells());
+    Mat timeBlockMatrix = nullptr;
+    Vec timeBlockSolution = nullptr;
+    Vec timeBlockRhs = nullptr;
+    KSP timeBlockKsp = nullptr;
+    bool timeBlockMatrixAssembled = false;
+    scalar timeBlockMatrixDeltaT = -GREAT;
+
+    if (blockCoupledTimeIntegration)
+    {
+        PetscInitialize(&argc, &argv, nullptr, nullptr);
+        initializeTimeBlockPetscSystem
+        (
+            mesh,
+            mesh.nCells(),
+            globalCells.size(),
+            timeBlockMatrix,
+            timeBlockSolution,
+            timeBlockRhs,
+            timeBlockKsp,
+            timeBlockLinearSolver
+        );
+    }
+
+    #include "createRadiationAveraging.H"
+
+    rho = alpha1*rhol + (1 - alpha1)*rhog;
+    compressibility = alpha1*kl + (1 - alpha1)*kg;
+    invRhof = 1/(alphaf*rhol + (1 - alphaf)*rhog);
 
     while (runTime.run())
     {
+        tmp<volScalarField> previousPressureLaplacian;
+        tmp<volVectorField> previousPressureGradient;
+
+        if
+        (
+            blockCoupledTimeIntegration
+         || timeIntegrationMethod == "thetaNewmark"
+        )
+        {
+            // Function-based patch coefficients are not retained by oldTime().
+            // Capture the old spatial operators before advancing the clock.
+            p.correctBoundaryConditions();
+            previousPressureGradient = fvc::grad(p);
+
+            if (blockCoupledTimeIntegration)
+            {
+                previousPressureLaplacian =
+                    -rho*fvc::laplacian
+                    (
+                        invRhof,
+                        p,
+                        "laplacian(invRhof,p)"
+                    );
+            }
+            else
+            {
+                previousPressureLaplacian =
+                    -rho*fvc::laplacian
+                    (
+                        invRhof*physicalTimeWeightf,
+                        p,
+                        "laplacian(invRhof,p)"
+                    );
+            }
+        }
+
         ++runTime;
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
-        while (pimple.correct())
+        if (blockCoupledTimeIntegration)
         {
-            #include "pEqn.H"
+            #include "timeBlockEqn.H"
+        }
+        else
+        {
+            while (pimple.correct())
+            {
+                #include "pEqn.H"
+            }
         }
 
-        if (laplacianCorrection > 0.5)
+        if (blockCoupledTimeIntegration)
+        {
+            solve
+            (
+                fvm::ddt(rho, U)
+             ==
+                - timeIntegrationTheta*fvc::grad(p)
+                - (1.0 - timeIntegrationTheta)*previousPressureGradient()
+            );
+        }
+        else if (timeIntegrationMethod == "thetaNewmark")
         {
             pDot ==
                 (p - p.oldTime())
@@ -105,11 +188,9 @@ int main(int argc, char *argv[])
             solve
             (
                 fvm::ddt(rho, U)
-             == -fvc::grad
-                 (
-                     timeIntegrationTheta*p
-                   + (1.0 - timeIntegrationTheta)*p.oldTime()
-                 )
+             ==
+                - timeIntegrationTheta*fvc::grad(p)
+                - (1.0 - timeIntegrationTheta)*previousPressureGradient()
             );
         }
         else
@@ -119,28 +200,24 @@ int main(int argc, char *argv[])
                 fvm::ddt(rho, U) == -fvc::grad(p)
             );
         }
-
-        sampleCount += 1;
-        prT == 0.5*(kl*alpha1 + kg*(1-alpha1))*p*p - 0.5*rho*(U&U);
+        prT ==
+            0.5*compressibility*sqr(p)
+           - 0.5*rho*magSqr(U);
         momFluxT == rho*(U*U);
 
-        const scalar oldWeight = (sampleCount - 1)/sampleCount;
-        const scalar newWeight = 1/sampleCount;
-        pr == oldWeight*pr + newWeight*prT;
-        momFlux == oldWeight*momFlux + newWeight*momFluxT;
-
-        if
-        (
-            mesh.foundObject<volScalarField>("prTMean")
-         && mesh.foundObject<volTensorField>("momFluxTMean")
-        )
-        {
-            pr == mesh.lookupObject<volScalarField>("prTMean");
-            momFlux == mesh.lookupObject<volTensorField>("momFluxTMean");
-        }
+        #include "updateRadiationFields.H"
         runTime.write();
 
         runTime.printExecutionTime(Info);
+    }
+
+    if (blockCoupledTimeIntegration)
+    {
+        KSPDestroy(&timeBlockKsp);
+        VecDestroy(&timeBlockSolution);
+        VecDestroy(&timeBlockRhs);
+        MatDestroy(&timeBlockMatrix);
+        PetscFinalize();
     }
 
     Info<< "End\n" << endl;

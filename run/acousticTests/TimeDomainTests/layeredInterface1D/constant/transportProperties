@@ -24,6 +24,10 @@ kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 laplacianCorrection 1;
 timeIntegrationTheta 0.5;
+// Alternatives retained for diagnostics: thetaNewmark, fullyImplicit.
+timeIntegrationMethod blockCoupled;
+// Options: direct (LU/MUMPS), iterative (FGMRES/block-Jacobi/ILU).
+timeBlockLinearSolver iterative;
 
 f               20000;
 sigmaMax        200000;

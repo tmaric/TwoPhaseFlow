@@ -5,6 +5,7 @@
 
 # Drive
 : "${DRIVE_F:=20000}"
+# Harmonic piston normal-velocity amplitude [m/s].
 : "${PISTON_U:=0.01}"
 
 # Medium 1 (x < X_INTERFACE)
@@ -30,6 +31,6 @@
 
 
 # Mesh
-: "${NX:=2000}"
+: "${NX:=8000}"
 : "${NY:=1}"
 : "${NZ:=1}"

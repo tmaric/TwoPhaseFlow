@@ -21,7 +21,6 @@ sed \
   -e "s|__DRIVE_F__|${DRIVE_F}|g" \
   -e "s|__PISTON_U__|${PISTON_U}|g" \
   -e "s|__RHOG__|${RHOG}|g" \
-  -e "s|__CG__|${CG}|g" \
   0.orig/p.in > 0.orig/p
 
 

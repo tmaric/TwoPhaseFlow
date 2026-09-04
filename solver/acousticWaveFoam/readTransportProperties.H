@@ -66,8 +66,61 @@
       transportProperties
      );
 
+const scalar driveFrequency = transportProperties.get<scalar>("f");
+const scalar radiationAveragePeriods =
+    transportProperties.getOrDefault<scalar>("radiationAveragePeriods", 5);
+
+if (driveFrequency <= 0 || radiationAveragePeriods <= 0)
+{
+    FatalIOErrorInFunction(transportProperties)
+        << "f and radiationAveragePeriods must be positive, but are "
+        << driveFrequency << " and " << radiationAveragePeriods
+        << exit(FatalIOError);
+}
+
 const scalar laplacianCorrection =
     transportProperties.getOrDefault<scalar>("laplacianCorrection", 1.0);
+
+const word timeIntegrationMethod =
+    transportProperties.getOrDefault<word>
+    (
+        "timeIntegrationMethod",
+        laplacianCorrection > 0.5 ? "thetaNewmark" : "fullyImplicit"
+    );
+
+if
+(
+    timeIntegrationMethod != "blockCoupled"
+ && timeIntegrationMethod != "thetaNewmark"
+ && timeIntegrationMethod != "fullyImplicit"
+)
+{
+    FatalIOErrorInFunction(transportProperties)
+        << "timeIntegrationMethod must be blockCoupled, thetaNewmark, or "
+        << "fullyImplicit, but is " << timeIntegrationMethod
+        << exit(FatalIOError);
+}
+
+const bool blockCoupledTimeIntegration =
+    timeIntegrationMethod == "blockCoupled";
+
+const word timeBlockLinearSolver =
+    transportProperties.getOrDefault<word>
+    (
+        "timeBlockLinearSolver",
+        "direct"
+    );
+
+if
+(
+    timeBlockLinearSolver != "direct"
+ && timeBlockLinearSolver != "iterative"
+)
+{
+    FatalIOErrorInFunction(transportProperties)
+        << "timeBlockLinearSolver must be direct or iterative, but is "
+        << timeBlockLinearSolver << exit(FatalIOError);
+}
 
 if
 (
@@ -80,9 +133,12 @@ if
         << laplacianCorrection << exit(FatalIOError);
 }
 
-Info<< "Time integration = "
-    << (laplacianCorrection > 0.5 ? "theta/Newmark" : "fully implicit")
-    << endl;
+Info<< "Time integration = " << timeIntegrationMethod << endl;
+
+if (blockCoupledTimeIntegration)
+{
+    Info<< "Time-block linear solver = " << timeBlockLinearSolver << endl;
+}
 
 const scalar timeIntegrationTheta =
     transportProperties.getOrDefault<scalar>("timeIntegrationTheta", 0.5);

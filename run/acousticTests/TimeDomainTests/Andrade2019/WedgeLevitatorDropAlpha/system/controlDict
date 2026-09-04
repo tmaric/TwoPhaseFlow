@@ -23,13 +23,13 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         5e-3; 
+endTime         5e-3;
 
-deltaT          2e-7; 
+deltaT          5e-7;
 
-writeControl    runTime; 
+writeControl    runTime;
 
-writeInterval   1e-4; 
+writeInterval   5e-6;
 
 purgeWrite      0;
 
@@ -56,69 +56,6 @@ maxDeltaT       5e-6;
 #include "FOforce"
 functions
 {
-    fieldAverage1
-    {
-        type            fieldAverage;
-        libs ( "libfieldFunctionObjects.so" );
-//        enabled         false;
-//		  cleanRestart		true;
-        writeControl   writeTime;
-//        outputControl   outputTime;
-//        outputInterval  1;
-        fields
-        (
-            U
-            {
-                mean        on;
-                prime2Mean  off;
-                base        time;
-            }
-
-            /*p_rgh
-            {
-                mean        on;
-                prime2Mean  on;
-                base        time;
-            }*/
-        );
-    }
-
-    ARFAverage
-    {
-        type            fieldAverage;
-        libs ( "libfieldFunctionObjects.so" );
-//        enabled         false;
-//                cleanRestart          true;
-        writeControl   writeTime;
-//        outputControl   outputTime;
-//        outputInterval  1;
-        fields
-        (
-            prT
-            {
-                mean            on;
-                prime2Mean      off;
-               base            time;
-               windowType      approximate;
-                window          #eval{5/25250};
-                //windowName      movingAverageWindow;
-                allowRestart    no;
-            }
-
-            momFluxT
-            {
-                mean            on;
-                prime2Mean      off;
-                base            time;
-                windowType      approximate;
-                window          #eval{5/25250};
-                //windowName      movingAverageWindow;
-                allowRestart    no;
-            }
-
-        );
-    }
-
 // #includeFunc mag(U)
 
 fieldMinMax

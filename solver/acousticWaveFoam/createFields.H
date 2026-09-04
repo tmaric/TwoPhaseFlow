@@ -82,17 +82,17 @@ volVectorField U
 //    rhol*alpha1 + rhog*(1-alpha1)
 // ); 
 
-volScalarField invc2
+volScalarField compressibility
 (
     IOobject
     (
-        "invc2",
+        "compressibility",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    alpha1/sqr(cl) + (1 - alpha1)/sqr(cg)
+    alpha1*kl + (1 - alpha1)*kg
 );
 
 volScalarField rho
@@ -105,7 +105,7 @@ volScalarField rho
         IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    1/(alpha1/rhol + (1 - alpha1)/rhog)
+   alpha1*rhol + (1 - alpha1)*rhog
 );
 
 surfaceScalarField invRhof
@@ -118,7 +118,7 @@ surfaceScalarField invRhof
         IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    alphaf/rhol + (1 - alphaf)/rhog
+   1/(alphaf*rhol + (1 - alphaf)*rhog)
 );
 /*
 volScalarField AcousticForcePotential

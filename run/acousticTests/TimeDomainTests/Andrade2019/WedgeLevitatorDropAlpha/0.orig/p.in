@@ -22,10 +22,7 @@ boundaryField
 {
    openAir
     {
-         type            acousticWaveTransmissive;
-         advectiveSpeed  __SOUND_SPEED__;
-         value           $internalField;
-
+         type            zeroGradient;
     }
 
     transducer1
@@ -35,7 +32,7 @@ boundaryField
              uniformGradientCoeffs
           {
               frequency       constant __DRIVE_F__;
-              scale           constant #eval{-__PISTON_U__*2*pi()*__DRIVE_F__};
+              scale           constant #eval{-__RHOG__*__PISTON_U__*2*pi()*__DRIVE_F__};
               level           constant 0;
           }
           value           $internalField;

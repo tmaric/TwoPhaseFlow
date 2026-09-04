@@ -13,6 +13,69 @@ volTensorField sigma
     mesh
 );
 
+const dimensionedScalar sigmaPeak
+(
+    "sigmaPeak",
+    sigma.dimensions(),
+    max(max(mag(sigma)).value(), SMALL)
+);
+
+const volScalarField pmlImplicitWeight
+(
+    IOobject
+    (
+        "pmlImplicitWeight",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    min(mag(sigma)/sigmaPeak, scalar(1))
+);
+
+const volScalarField physicalTimeWeight
+(
+    IOobject
+    (
+        "physicalTimeWeight",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    1.0 - pmlImplicitWeight
+);
+
+const surfaceScalarField pmlImplicitWeightf
+(
+    IOobject
+    (
+        "pmlImplicitWeightf",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    fvc::interpolate(pmlImplicitWeight)
+);
+
+const surfaceScalarField physicalTimeWeightf
+(
+    IOobject
+    (
+        "physicalTimeWeightf",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    1.0 - pmlImplicitWeightf
+);
+
 volVectorField u
 (
     IOobject
@@ -27,6 +90,96 @@ volVectorField u
     dimensionedVector("u", dimPressure/dimLength, vector::zero)
 );
 
+volScalarField pmlUx
+(
+    IOobject
+    (
+        "pmlUx",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    mesh,
+    dimensionedScalar("pmlUx", u.dimensions(), Zero),
+    fixedValueFvPatchScalarField::typeName
+);
+
+volScalarField pmlUy
+(
+    IOobject
+    (
+        "pmlUy",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    mesh,
+    dimensionedScalar("pmlUy", u.dimensions(), Zero),
+    fixedValueFvPatchScalarField::typeName
+);
+
+volScalarField pmlUz
+(
+    IOobject
+    (
+        "pmlUz",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    mesh,
+    dimensionedScalar("pmlUz", u.dimensions(), Zero),
+    fixedValueFvPatchScalarField::typeName
+);
+
+const surfaceScalarField SfX
+(
+    IOobject
+    (
+        "SfX",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    mesh.Sf().component(vector::X)
+);
+
+const surfaceScalarField SfY
+(
+    IOobject
+    (
+        "SfY",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    mesh.Sf().component(vector::Y)
+);
+
+const surfaceScalarField SfZ
+(
+    IOobject
+    (
+        "SfZ",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        false
+    ),
+    mesh.Sf().component(vector::Z)
+);
+
 volScalarField v
 (
     IOobject
@@ -38,7 +191,8 @@ volScalarField v
         IOobject::AUTO_WRITE
     ),
     mesh,
-    dimensionedScalar("v", dimPressure*dimTime, Zero)
+    dimensionedScalar("v", dimPressure*dimTime, Zero),
+    fixedValueFvPatchScalarField::typeName
 );
 
 volScalarField C0

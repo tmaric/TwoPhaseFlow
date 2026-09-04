@@ -39,6 +39,12 @@ kl              #eval{1.0/($rhol*$cl*$cl)};
 k               #eval{2.0*pi()*$f/$soundSpeed};
 laplacianCorrection 1.0;
 timeIntegrationTheta 0.5;
+// Alternatives retained for diagnostics: thetaNewmark, fullyImplicit.
+timeIntegrationMethod blockCoupled;
+// Options: direct (LU/MUMPS), iterative (FGMRES/block-Jacobi/ILU).
+timeBlockLinearSolver iterative;
+// Moving window used for acoustic radiation pressure and momentum flux.
+radiationAveragePeriods 5;
 L               __PML_L__;
 
 PMLType         rectangle;

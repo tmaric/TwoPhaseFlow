@@ -35,8 +35,8 @@ solvers
 
     "p.*"
     {
-          solver          GAMG; //PCG;
-          smoother    DICGaussSeidel; //preconditioner  DIC;
+          solver          GAMG;
+          smoother        DILUGaussSeidel;
           tolerance       1e-10;
           relTol          0.0;
     }
