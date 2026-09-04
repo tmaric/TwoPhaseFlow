@@ -122,7 +122,7 @@ DRIVE_F=25250
 : "${DROP_RADIUS:=0.001}"
 : "${DROP_EQUIV_RADIUS:=${DROP_RADIUS}}"
 # Horizontal long semi-axis [m]. Set equal to DROP_RADIUS for a sphere.
-: "${DROP_HORIZONTAL_LONG_AXIS:=0.0012}"
+: "${DROP_HORIZONTAL_LONG_AXIS:=0.001}"
 # Small x/z offsets keep the center away from the wedge singular line.
 : "${DROP_CENTER_X:=1e-8}"
 # Initial drop center vertical position [m] (y-coordinate).

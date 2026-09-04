@@ -13,14 +13,14 @@ transportModel  Newtonian;
 
 mu              [ 1 -1 -1 0 0 0 0 ] 0.0;
 psi             [ 0 -2 2 0 0 0 0 ] 8.5e-6;
-rho0            [ 1 -3 0 0 0 0 0 ] 1000;
+rho0            [ 1 -3 0 0 0 0 0 ] 1.2;
 R               1.51e-3;
 p0              0.0;
 
-rhol            1.2;
-rhog            1000;
-cg              1500;
-cl              343;
+rhol            1000;
+rhog            1.2;
+cg              343;
+cl              1500;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 
