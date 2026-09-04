@@ -15,6 +15,10 @@
 # MPI-capable coupled solver.
 SOLVER=interFALFlow
 
+# Optional runtime overrides. Leave empty to use system/controlDict unchanged.
+END_TIME=${END_TIME:-}
+WRITE_INTERVAL=${WRITE_INTERVAL:-}
+
 # ---------------------------------------------------------------------------
 # Drive parameters
 # ---------------------------------------------------------------------------

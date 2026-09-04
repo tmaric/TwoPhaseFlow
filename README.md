@@ -8,100 +8,51 @@ The available models and solvers are documentated in the paper:
 
 Scheufler, H., & Roenby, J. (2023). "TwoPhaseFlow: A Framework for Developing Two Phase Flow Solvers in OpenFOAM". OpenFOAM® Journal, 3, 200–224. https://doi.org/10.51560/ofj.v3.80
 
-Extensions for handling high density ratios are documented in: 
-
-[Liu, J., Tolle, T., Zuzio, D., Estivalèzes, J. L., Damian, S. M., & Marić, T. (2024). Inconsistencies in unstructured geometric volume-of-fluid methods for two-phase flows with high density ratios. Computers & Fluids, 281, 106375.](https://doi.org/10.1016/j.compfluid.2024.106375)
-
 ## Getting Started
 
 
 ### Prerequisites
 
-Requires OpenFOAM-v1812 or later:
+The acoustic-development branch uses OpenFOAM-v2606 from openfoam.com. Other
+OpenFOAM distributions are not supported for this workflow:
 
 ```
 https://www.openfoam.com/download/release-history.php
 ```
 
-Please checkout the appropriate branch to compile with later OpenFOAM version.  
-
-OpenFOAM.org versions are not supported.
+Use the branch matching the intended OpenFOAM release. OpenFOAM.org versions
+are not supported.
 
 ### Installing
 
 ```bash
-    git clone https://github.com/DLR-RY/TwoPhaseFlow
+    git clone --branch feature/acousticLevitation \
+        https://github.com/tmaric/TwoPhaseFlow.git
     cd TwoPhaseFlow
-    # To compile e.g. with OpenFOAM-v2506 checkout the appropriate branch with:
-    # git checkout of2506
-    ./Allwmake
-    ./get-gmsh.sh # will install gmsh version 493 as gmshv493
-    # for AMR
-    git submodule update --init --recursive
-    cd modules/multiDimAMR/
-    ./Allwmake
-```
-
-### First-time setup for acoustic cases
-
-For the acoustic workflow in this repository, a fresh checkout needs a few
-extra steps after cloning. In particular, the PETSc toolchain and the custom
-utilities/solvers used by the acoustic cases are not covered by the top-level
-`./Allwmake`.
-
-```bash
-    git clone https://github.com/tmaric/TwoPhaseFlow.git
-    cd TwoPhaseFlow
-
-    # Source your OpenFOAM installation first
-    source /path/to/OpenFOAM/etc/bashrc
+    source /path/to/OpenFOAM-v2606/etc/bashrc
     source ./scripts/bashrc
-
-    # Build the core TwoPhaseFlow libraries and utilities
+    ./petsc_build.sh --openfoam-bashrc "$WM_PROJECT_DIR/etc/bashrc"
     ./Allwmake
-
-    # Build PETSc and petsc4Foam inside this repository
-    ./petsc_build.sh
-
-    # Build the modified setAlphaField shipped in this repo
-    ./apps/utilities/preProcessing/setAlphaField/Allwmake
-
-    # Build the PML field utility used by the acoustic cases
-    wmake apps/utilities/mesh/setPMLFields
-
-    # Build the acoustic solvers
-    wmake solver/acousticHelmholtzFoam
-    wmake solver/interFALFlow
-
-    # Optional: install gmsh for the meshing scripts used by several cases
-    ./get-gmsh.sh
 ```
 
-Notes:
+### Acoustic workflow
 
-- `setAlphaField` above refers to the modified utility in
-  `apps/utilities/preProcessing/setAlphaField`.
-- The PML utility executable is `setPMLFields` (plural).
-- Rerun `setPMLFields` before an acoustic solver. The utility writes only the
-  directional damping tensor `sigma`; each solver derives its own
-  formulation-specific PML coefficients from `sigma`.
-- `petsc_build.sh` expects the OpenFOAM environment to be available. If it is
-  not already sourced, pass `--openfoam-bashrc /path/to/OpenFOAM/etc/bashrc`.
-- The script creates local third-party build directories such as `petsc/` and
-  `external/petsc4Foam/`; these are build dependencies for each user and should
-  not be committed back to the repository.
+PETSc and MUMPS must be built before the top-level `./Allwmake`, since that
+script now includes the PETSc-backed acoustic solvers. See
+[INSTALL_ACOUSTICS.md](INSTALL_ACOUSTICS.md) for the complete fresh-clone
+procedure, dependency revisions, environment checks, and smoke tests.
 
 ### Running testsuite
 
-Make sure that the desired OpenFOAM installation is sourced e.g. v2506 and that 
-python is installed with a version >= 3.6 (miniconda is a great option, but anaconda works as well)
+Make sure that OpenFOAM-v2606 is sourced and that Python 3 is installed.
 
 ```bash
-    python -m venv env # creats virtual python enviroments (optional step)
+    python3 -m venv env
+    source env/bin/activate
     pip install oftest
 
-    py.test # runs the tests
-    py.test --writeNSteps=1 run/ # test all testcases in run
+    pytest
+    pytest --writeNSteps=1 run/
 ```
 
 ## Authors
@@ -110,9 +61,10 @@ python is installed with a version >= 3.6 (miniconda is a great option, but anac
 
 ## Contributors
 
-* **Tomislav Maric**
-* **Tobias Tolle**
+* **Chuanchao Xu**
 * **Jun Liu**
+* **Tomislav Maric**
+
 
 ### adaptive mesh refinement with multiple regions
 

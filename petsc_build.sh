@@ -8,7 +8,7 @@ set -euo pipefail
 # - Clones/builds petsc4Foam and wires it to OpenFOAM.
 #
 # Default behavior:
-# 1) Clone/update PETSc in $HOME/petsc
+# 1) Clone/checkout PETSc under this repository
 # 2) Configure PETSc with MPI + Helmholtz-relevant packages
 # 3) Build PETSc
 # 4) Build external/petsc4Foam (after sourcing OpenFOAM environment)
@@ -22,14 +22,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PETSC_DIR_DEFAULT="${SCRIPT_DIR}/petsc"
 PETSC_ARCH_DEFAULT="arch-linux-c-opt"
-PETSC_BRANCH_DEFAULT="release"
-OPENFOAM_BASHRC_DEFAULT="$WM_PROJECT_DIR/etc/bashrc"
+PETSC_REF_DEFAULT="0eed7b4d3dc0b28ce2d9ef5959622812f5883345"
+PETSC4FOAM_REF_DEFAULT="d72de946b0d893a7bb9b8e052cec2dad5bc1af73"
+OPENFOAM_BASHRC_DEFAULT="${WM_PROJECT_DIR:+${WM_PROJECT_DIR}/etc/bashrc}"
 TWOPHASEFLOW_BASHRC_DEFAULT="${SCRIPT_DIR}/scripts/bashrc"
 PETSC4FOAM_REPO_DEFAULT="https://gitlab.com/petsc/petsc4foam.git"
 
 PETSC_DIR="${PETSC_DIR_DEFAULT}"
 PETSC_ARCH="${PETSC_ARCH_DEFAULT}"
-PETSC_BRANCH="${PETSC_BRANCH_DEFAULT}"
+PETSC_REF="${PETSC_REF_DEFAULT}"
+PETSC4FOAM_REF="${PETSC4FOAM_REF_DEFAULT}"
 OPENFOAM_BASHRC="${OPENFOAM_BASHRC_DEFAULT}"
 TWOPHASEFLOW_BASHRC="${TWOPHASEFLOW_BASHRC_DEFAULT}"
 PETSC4FOAM_REPO="${PETSC4FOAM_REPO_DEFAULT}"
@@ -48,7 +50,8 @@ Options:
   --install-deps               Install Ubuntu packages via apt (uses sudo)
   --petsc-dir DIR              PETSc source/install directory (default: ${PETSC_DIR_DEFAULT})
   --petsc-arch ARCH            PETSc arch name (default: ${PETSC_ARCH_DEFAULT})
-  --petsc-branch BRANCH        PETSc git branch/tag (default: ${PETSC_BRANCH_DEFAULT})
+  --petsc-ref REF              PETSc commit/tag (default: ${PETSC_REF_DEFAULT})
+  --petsc4foam-ref REF         petsc4Foam commit/tag (default: ${PETSC4FOAM_REF_DEFAULT})
   --openfoam-bashrc FILE       OpenFOAM bashrc for petsc4Foam build (default: ${OPENFOAM_BASHRC_DEFAULT})
   --twophaseflow-bashrc FILE   TwoPhaseFlow bashrc to source (default: ${TWOPHASEFLOW_BASHRC_DEFAULT})
   --petsc4foam-repo URL        petsc4Foam git repo (default: ${PETSC4FOAM_REPO_DEFAULT})
@@ -64,7 +67,8 @@ while [[ $# -gt 0 ]]; do
         --install-deps) INSTALL_DEPS=1; shift ;;
         --petsc-dir) PETSC_DIR="$2"; shift 2 ;;
         --petsc-arch) PETSC_ARCH="$2"; shift 2 ;;
-        --petsc-branch) PETSC_BRANCH="$2"; shift 2 ;;
+        --petsc-ref|--petsc-branch) PETSC_REF="$2"; shift 2 ;;
+        --petsc4foam-ref) PETSC4FOAM_REF="$2"; shift 2 ;;
         --openfoam-bashrc) OPENFOAM_BASHRC="$2"; shift 2 ;;
         --twophaseflow-bashrc) TWOPHASEFLOW_BASHRC="$2"; shift 2 ;;
         --petsc4foam-repo) PETSC4FOAM_REPO="$2"; shift 2 ;;
@@ -124,12 +128,10 @@ if [[ "${SKIP_PETSC}" -eq 0 ]]; then
     fi
 
     if [[ ! -d "${PETSC_DIR}/.git" ]]; then
-        git clone -b "${PETSC_BRANCH}" https://gitlab.com/petsc/petsc.git "${PETSC_DIR}"
-    else
-        git -C "${PETSC_DIR}" fetch --tags origin
-        git -C "${PETSC_DIR}" checkout "${PETSC_BRANCH}"
-        git -C "${PETSC_DIR}" pull --ff-only
+        git clone https://gitlab.com/petsc/petsc.git "${PETSC_DIR}"
     fi
+    git -C "${PETSC_DIR}" fetch --tags origin
+    git -C "${PETSC_DIR}" checkout --detach "${PETSC_REF}"
 
     cd "${PETSC_DIR}"
 
@@ -167,9 +169,9 @@ if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
         exit 1
     fi
 
-    if [[ ! -f "${OPENFOAM_BASHRC}" ]]; then
+    if [[ -z "${OPENFOAM_BASHRC}" || ! -f "${OPENFOAM_BASHRC}" ]]; then
         echo "Error: OpenFOAM bashrc not found: ${OPENFOAM_BASHRC}" >&2
-        echo "Use --openfoam-bashrc to set the correct path." >&2
+        echo "Source OpenFOAM first or use --openfoam-bashrc FILE." >&2
         exit 1
     fi
 
@@ -177,6 +179,9 @@ if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
         mkdir -p "${SCRIPT_DIR}/external"
         git clone "${PETSC4FOAM_REPO}" "${SCRIPT_DIR}/external/petsc4Foam"
     fi
+    git -C "${SCRIPT_DIR}/external/petsc4Foam" fetch --tags origin
+    git -C "${SCRIPT_DIR}/external/petsc4Foam" checkout --detach \
+        "${PETSC4FOAM_REF}"
     if [[ ! -x "${SCRIPT_DIR}/external/petsc4Foam/Allwmake" ]]; then
         echo "Error: petsc4Foam Allwmake not found at ${SCRIPT_DIR}/external/petsc4Foam/Allwmake" >&2
         exit 1
@@ -187,8 +192,8 @@ if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
     # or reference variables that aren't set yet.
     # shellcheck disable=SC1090
     set +eu
-    source "${TWOPHASEFLOW_BASHRC}"
     source "${OPENFOAM_BASHRC}"
+    source "${TWOPHASEFLOW_BASHRC}"
     set -eu
     PETSC_DIR="${PETSC_DIR_SCRIPT}"
     PETSC_ARCH="${PETSC_ARCH_SCRIPT}"
@@ -213,9 +218,13 @@ if [[ "${SKIP_PETSC4FOAM}" -eq 0 ]]; then
     ./Allwmake
 fi
 
+PETSC_ARCH_PATH="${PETSC_DIR}"
+
 cat <<EOF
 Done.
 PETSC_DIR=${PETSC_DIR}
 PETSC_ARCH=${PETSC_ARCH}
 PETSC_ARCH_PATH=${PETSC_ARCH_PATH}
+PETSc ref=${PETSC_REF}
+petsc4Foam ref=${PETSC4FOAM_REF}
 EOF

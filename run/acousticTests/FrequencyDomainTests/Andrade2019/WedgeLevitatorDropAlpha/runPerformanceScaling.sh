@@ -106,14 +106,15 @@ run_solver()
     foamDictionary system/decomposeParDict \
         -entry numberOfSubdomains -set "$ranks" >/dev/null
 
+    # Keep coded force postprocessing and any dynamic compilation out of timing.
     if [ "$ranks" -eq 1 ]; then
         /usr/bin/time -f '%e' -o "$timeFile" \
-            acousticHelmholtzFoam > "$logFile" 2>&1
+            acousticHelmholtzFoam -noFunctionObjects > "$logFile" 2>&1
     else
         decomposePar -force > "$RESULTS_DIR/logs/${tag}.decomposePar.log" 2>&1
         /usr/bin/time -f '%e' -o "$timeFile" \
             "$MPIEXEC" "${MPI_OPTION_ARRAY[@]}" -np "$ranks" \
-            acousticHelmholtzFoam -parallel \
+            acousticHelmholtzFoam -parallel -noFunctionObjects \
             > "$logFile" 2>&1
     fi
 

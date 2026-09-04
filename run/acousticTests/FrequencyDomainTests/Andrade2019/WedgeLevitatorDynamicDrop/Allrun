@@ -5,6 +5,29 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ./caseParams.sh                                   # Case parameters
 #------------------------------------------------------------------------------
 
+controlDictBackup=""
+restoreControlDict()
+{
+    if [ -n "$controlDictBackup" ] && [ -f "$controlDictBackup" ]; then
+        cp "$controlDictBackup" system/controlDict
+        rm -f "$controlDictBackup"
+    fi
+}
+
+if [ -n "$END_TIME" ] || [ -n "$WRITE_INTERVAL" ]; then
+    controlDictBackup=$(mktemp)
+    cp system/controlDict "$controlDictBackup"
+    trap restoreControlDict EXIT
+
+    if [ -n "$END_TIME" ]; then
+        foamDictionary system/controlDict -entry endTime -set "$END_TIME"
+    fi
+
+    if [ -n "$WRITE_INTERVAL" ]; then
+        foamDictionary system/controlDict -entry writeInterval -set "$WRITE_INTERVAL"
+    fi
+fi
+
 ./Allclean
 ./prepareCase
 

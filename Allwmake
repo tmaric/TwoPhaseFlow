@@ -33,5 +33,5 @@ wmake $withBear solver/interFlow
 wmake $withBear solver/compressibleInterFlow
 
 wmake $withBear solver/acousticWaveFoam
-wmake $withBear solver/acousticFDSPMLFoam
-wmake $withBear solver/interALFlow
+wmake $withBear solver/acousticHelmholtzFoam
+wmake $withBear solver/interFALFlow
