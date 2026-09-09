@@ -12,6 +12,8 @@ TUdatalib deposit: [dataset record, handle tudatalib/5583](https://tudatalib.ulb
 
 The archived file is `helmholtz_pml_secondary_data_v1_0_fluid_dynamics.zip` (5,879,552 bytes; SHA-256 `f9fb1c9ad0b3573593823a7d5694fd044c525ed1ac3ecf28f08a395e710257d4`). The [release and deposit record](testsuite/acousticInterface/results/publication-release.json) identifies its uploaded bitstream and reserved DOI. The ZIP retains the validated preparation snapshot; its internal draft metadata predates DOI reservation and has not been rewritten after archiving.
 
+The [standalone BibTeX citation](data/publications/helmholtz-pml-citation.bib) is prepared from the authenticated TUdatalib metadata and verified reserved DOI. The live record did not expose a BibTeX download control. The citation uses key `XuMaric2026HelmholtzPMLData` and retains the authors' order, complete dataset title, software revision and dataset version. It is cited in the revised manuscript's Code and data availability section. This post-deposit citation file is outside the frozen archive payload. Remove the pending-registration note when the DOI is registered.
+
 | Item | LaTeX label | Secondary data / illustration source | Origin and method |
 |---|---|---|---|
 | Figure 1 | `fig:standardFVMControlVolume` | [manuscript/revised-assets/figures/fvm_control_volume_tikz.tex](data/publications/helmholtz-pml/manuscript/revised-assets/figures/fvm_control_volume_tikz.tex) | Original TikZ/PGF polyhedral schematic; CC-BY-4.0; no numerical dataset or external illustration. |
