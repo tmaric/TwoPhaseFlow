@@ -46,7 +46,10 @@
         "Software",
         "Visualization",
         "Writing - original draft"
-      ]
+      ],
+      "email": "xu@mma.tu-darmstadt.de",
+      "email_source": "https://www.mma.tu-darmstadt.de/mma_institute/mma_team/contact_details_184768.en.jsp",
+      "email_verified_date": "2026-09-09"
     },
     {
       "name": "Jun Liu",
@@ -89,7 +92,10 @@
         "Software",
         "Supervision",
         "Writing - review & editing"
-      ]
+      ],
+      "email": "maric@mma.tu-darmstadt.de",
+      "email_source": "https://www.mma.tu-darmstadt.de/mma_institute/mma_team/maric_tomislav.en.jsp",
+      "email_verified_date": "2026-09-09"
     },
     {
       "name": "Dieter Bothe",
@@ -102,8 +108,16 @@
         "Resources",
         "Supervision",
         "Writing - review & editing"
-      ]
+      ],
+      "email": "bothe@mma.tu-darmstadt.de",
+      "email_source": "https://www.mathematik.tu-darmstadt.de/fb/personal/details/dieter_bothe.de.jsp",
+      "email_verified_date": "2026-09-09"
     }
   ],
-  "contribution_scope": "These affiliations and CRediT roles describe the manuscript authors, as supplied by Tomislav Maric. They do not assign dataset creator roles or assert completed approval by every coauthor."
+  "contribution_scope": "These affiliations and CRediT roles describe the manuscript authors, as supplied by Tomislav Maric. They do not assign dataset creator roles or assert completed approval by every coauthor.",
+  "manuscript_corresponding_author": {
+    "name": "Tomislav Maric",
+    "email": "maric@mma.tu-darmstadt.de",
+    "designation_note": "Designated by Tomislav Maric for the current manuscript draft."
+  }
 }

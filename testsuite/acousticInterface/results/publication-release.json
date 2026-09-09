@@ -1,7 +1,7 @@
 {
   "date": "2026-09-09",
   "implementation_commit": "bb09dbfb34c1830478feecd8dd445957ac15949c",
-  "manuscript_commit": "3ada57b7807f0002fab8e3c57a8c025232e28d95",
+  "manuscript_commit": "993badafc60e7dfc01c8cbce4500bb06840335b4",
   "compiled_integration_tests": {
     "passed": 20,
     "failed": 0,
@@ -12,13 +12,13 @@
   "manuscript_pdf": {
     "pages": 38,
     "warnings": 0,
-    "sha256": "723c117431f00164a552181ba94a5fed3a7b28f8e3d6d032a758fafe68b95e03",
-    "visual_check": "Updated CRediT statement and adjacent reference page inspected; no layout defects."
+    "sha256": "009279f7eefb9207f8674a92f4e4608eded9b922acb5bff58eb6a01bf0c0ea62",
+    "visual_check": "Updated first-page author emails and corresponding-author marker, title layout and abstract continuation on the second page inspected; no layout defects."
   },
   "deposit_archive": {
     "path": "data/publications/releases/helmholtz-pml-secondary-data-v1.zip",
-    "sha256": "4fcb4580d222df04424491a911f69c0cdb1934df3f6cb954ffffc5bf53d1cb90",
-    "bytes": 3437082,
+    "sha256": "f530db4620e0cdee4f1e62eacb9cf4e9c40d2ba7bb5fcb08f2d4037af24fe82d",
+    "bytes": 3437351,
     "files": 105
   },
   "standalone_deposit_validation": {
@@ -45,6 +45,8 @@
     "project_administration_assignees": [
       "Dieter Bothe",
       "Mario Kupnik"
-    ]
+    ],
+    "manuscript_corresponding_author": "Tomislav Maric",
+    "author_emails_verified": 3
   }
 }
