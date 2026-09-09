@@ -27,7 +27,7 @@
     "acoustic radiation force",
     "OpenFOAM"
   ],
-  "DFG_subjects": [{"code": "3.31-01", "label": "Mathematik"}],
+  "DFG_subjects": [{"code": "4.22-03", "label": "Strömungsmechanik", "label_en": "Fluid Dynamics"}],
   "TUdatalib_collection": {
     "uuid": "fc0e593d-562b-4f47-a665-bec676d883c7",
     "uri": "https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/5582",

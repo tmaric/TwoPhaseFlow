@@ -16,9 +16,9 @@
     "visual_check": "The preceding manuscript operation inspected updated Figure 1, computational-workflow disclosure and final declarations pages; no layout defects. This deposit preparation copies that exact source without further manuscript edits."
   },
   "deposit_archive": {
-    "path": "data/publications/releases/helmholtz_pml_secondary_data_v1_0.zip",
-    "sha256": "cf103e6b09d18c92a6033b1b3a57c222b30e3d58f9b2eb5fe4b13972d7a7e2eb",
-    "bytes": 5879458,
+    "path": "data/publications/releases/helmholtz_pml_secondary_data_v1_0_fluid_dynamics.zip",
+    "sha256": "f9fb1c9ad0b3573593823a7d5694fd044c525ed1ac3ecf28f08a395e710257d4",
+    "bytes": 5879552,
     "files": 105,
     "compression": "stored (uncompressed)"
   },
@@ -56,9 +56,11 @@
     "dataset_version": "1.0",
     "workspace_url": "https://tudatalib.ulb.tu-darmstadt.de/workspaceitems/4393/edit",
     "collection_uri": "https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/5582",
-    "status": "Uploaded and saved; all metadata and upload sections valid. Deposit agreement confirmation and archiving required before DOI reservation is available",
-    "uploaded_bitstream_uuid": "5caab88c-69d1-4157-9059-04715b2c119a",
-    "uploaded_md5_verified": "e6aa2ba94e0d24a058d9295c95af5c63",
+    "status": "DFG subject corrected to Fluid Dynamics; corrected archive uploaded and saved. Superseded upload removal and deposit agreement confirmation remain required before archiving and DOI reservation",
+    "uploaded_bitstream_uuid": "efbf5add-c711-4827-b34d-26da515938a0",
+    "uploaded_md5_verified": "63f55d16501d0e1cc31f8d21eb0165de",
+    "DFG_subject": "4.22-03 Strömungsmechanik (Fluid Dynamics)",
+    "superseded_bitstream_pending_removal": "5caab88c-69d1-4157-9059-04715b2c119a",
     "access": "Use collection default (workgroup and submitters)",
     "dataset_DOI": null,
     "reproduced_numerical_figures": 12,

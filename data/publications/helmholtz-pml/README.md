@@ -38,7 +38,7 @@ Raw volume meshes, OpenFOAM cell fields, processor partitions and solver binarie
 
 ## TUdatalib preparation
 
-The title, description, data year, methods and file documentation are prepared. The creators and CC BY 4.0 data license were selected by Tomislav Maric. The collection is under Mathematical Modelling and Analysis; DFG subject 3.31-01 Mathematik is selected. No related article DOI is available yet. The current data tree has more than 20 files and depends on its directory structure, so a ZIP export is provided alongside the uncompressed tree. TUdatalib's guidance allows archives for preserving folder structure or larger file collections. [TUdatalib FAQ](https://tudatalib.ulb.tu-darmstadt.de/docs/en/faq/)
+The title, description, data year, methods and file documentation are prepared. The creators and CC BY 4.0 data license were selected by Tomislav Maric. The collection is under Mathematical Modelling and Analysis; DFG subject 4.22-03 Strömungsmechanik (Fluid Dynamics) is selected as requested by Tomislav Maric. No related article DOI is available yet. The current data tree has more than 20 files and depends on its directory structure, so a ZIP export is provided alongside the uncompressed tree. TUdatalib's guidance allows archives for preserving folder structure or larger file collections. [TUdatalib FAQ](https://tudatalib.ulb.tu-darmstadt.de/docs/en/faq/)
 
 The metadata draft follows the fields described in the [TUdatalib user guide](https://tudatalib.ulb.tu-darmstadt.de/docs/en/nutzer_leitfaden/). No upload, DOI registration or publication is performed by these tools.
 
