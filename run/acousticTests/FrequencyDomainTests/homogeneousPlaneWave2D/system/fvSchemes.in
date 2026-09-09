@@ -6,3 +6,10 @@ laplacianSchemes { default __LAPLACIAN_SCHEME__; }
 interpolationSchemes { default linear; }
 snGradSchemes { default __SNGRAD_SCHEME__; }
 
+// Submission method: geometric face areas with the established flux.
+acousticInterface
+{
+    areaFraction       plicAverage;
+    flux               legacy;
+    writeDiagnostics   false;
+}

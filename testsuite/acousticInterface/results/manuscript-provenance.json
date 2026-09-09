@@ -1,0 +1,409 @@
+{
+  "date": "2026-09-09",
+  "branch": "feature/acousticLevitation",
+  "baseRevision": "5b1d46437356dc4debfdd8e33932d201e3c63c88",
+  "manuscriptSourceSHA256": "10ba40977570e79cce6a2ca0e5efd1e399ee799d30fe8e4cc6e04dbd45c40b8c",
+  "originalManuscriptUnchanged": true,
+  "originalAssetsUnchanged": 23,
+  "items": [
+    {
+      "kind": "Figure",
+      "number": 1,
+      "label": "fig:standardFVMControlVolume",
+      "assets": [
+        {
+          "asset": "figures/fvm_polyhedral_control_volume.pdf",
+          "assetSHA256": "6df060f7f80fb583d3acd9936bc53eb5aafea9cd3d9c27d0f9ff76aa9b7c80e5",
+          "group": "original-illustration"
+        }
+      ],
+      "status": "illustration; not numerical evidence"
+    },
+    {
+      "kind": "Figure",
+      "number": 2,
+      "label": "fig:unstructuredFVMSchematic",
+      "assets": [],
+      "status": "illustration; not numerical evidence"
+    },
+    {
+      "kind": "Figure",
+      "number": 3,
+      "label": "fig:homogeneousBaselineSchematic",
+      "assets": [],
+      "status": "illustration; not numerical evidence"
+    },
+    {
+      "kind": "Figure",
+      "number": 4,
+      "label": "fig:homogeneousMeshes",
+      "assets": [
+        {
+          "asset": "figures/mesh_orthogonal.png",
+          "assetSHA256": "b976e6a0522b9676c3eeb8f449e166fa2171267450975688d423f25cc907895f",
+          "group": "original-illustration"
+        },
+        {
+          "asset": "figures/mesh_warpedInterior.png",
+          "assetSHA256": "dfb5f66e6f5515c42b11e81e12fd8b00043499fcb92d2e4b1254aa683bf0f005",
+          "group": "original-illustration"
+        }
+      ],
+      "status": "illustration; not numerical evidence"
+    },
+    {
+      "kind": "Figure",
+      "number": 5,
+      "label": "fig:homogeneousConvergence",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/homogeneous_convergence.png",
+          "source": ".review-testing/submission-evidence-audit/historical/volume-54501269/case/studyResults/convergence/homogeneous_convergence.png",
+          "sourceSHA256": "0aa345f3b87864a842b5c92c66ea2daacc09d4a791294a5a0cae18d966af3ce5",
+          "assetSHA256": "0aa345f3b87864a842b5c92c66ea2daacc09d4a791294a5a0cae18d966af3ce5",
+          "group": "homogeneous-volume-weighted"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 6,
+      "label": "fig:combinedLayeredSchematic",
+      "assets": [],
+      "status": "illustration; not numerical evidence"
+    },
+    {
+      "kind": "Figure",
+      "number": 7,
+      "label": "fig:combinedLayeredPressure",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/pressureField_Pre_Pim_compare.png",
+          "source": ".review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureField_Pre_Pim_compare.png",
+          "sourceSHA256": "649fa1e135b86205fe411b293d2c44f60766ad9f5901cea9944ede197b9bd5cd",
+          "assetSHA256": "649fa1e135b86205fe411b293d2c44f60766ad9f5901cea9944ede197b9bd5cd",
+          "group": "layered-geometric-rerun"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 8,
+      "label": "fig:combinedLayeredAmplitude",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/pressureField_abs_compare.png",
+          "source": ".review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureField_abs_compare.png",
+          "sourceSHA256": "3b722413ab40898d3a1cbb10d12e306582ee06f8baa8cfa78154995491a8ad0e",
+          "assetSHA256": "3b722413ab40898d3a1cbb10d12e306582ee06f8baa8cfa78154995491a8ad0e",
+          "group": "layered-geometric-rerun"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 9,
+      "label": "fig:combinedLayeredWaterAir",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/pressureField_Pre_Pim_compare_water_air.png",
+          "source": ".review-testing/submission-geometric-averaging/pml-v2/N8000-reverse-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureField_Pre_Pim_compare.png",
+          "sourceSHA256": "6982c296fa76f61178bebde3ca101b59cb2e1b99dc16c1fe64efa87fd54f6045",
+          "assetSHA256": "6982c296fa76f61178bebde3ca101b59cb2e1b99dc16c1fe64efa87fd54f6045",
+          "group": "layered-geometric-rerun"
+        },
+        {
+          "asset": "revised-assets/figures/pressureField_abs_compare_water_air.png",
+          "source": ".review-testing/submission-geometric-averaging/pml-v2/N8000-reverse-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureField_abs_compare.png",
+          "sourceSHA256": "54388d5de4bf29097ee8dcbf79ae07107d1d1ccda39ae1154db0a6086344c5d4",
+          "assetSHA256": "54388d5de4bf29097ee8dcbf79ae07107d1d1ccda39ae1154db0a6086344c5d4",
+          "group": "layered-geometric-rerun"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 10,
+      "label": "fig:pmlSigmaSensitivity",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/pml_sigma_sensitivity.png",
+          "group": "layered-geometric-rerun",
+          "sourceRows": [
+            ".review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s10000-submission-np1",
+            ".review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s50000-submission-np1",
+            ".review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s100000-submission-np1",
+            ".review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s200000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s500000-submission-np1"
+          ],
+          "assetSHA256": "513971843fcc1068c60ffaad3579a6729aa07ea4ee033763f9c09d2da4e9e465"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 11,
+      "label": "fig:pmlMeshSensitivity",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/pml_mesh_sensitivity.png",
+          "group": "layered-geometric-rerun",
+          "sourceRows": [
+            ".review-testing/submission-geometric-averaging/pml-v2/N560-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N1120-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N2240-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N4480-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N8960-forward-s500000-submission-np1"
+          ],
+          "assetSHA256": "b32ee076f458ba7c5055458d469e12fb1c44ff9ccbfb22666b16bcab6010c6f1"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 12,
+      "label": "fig:pistonConfiguration",
+      "assets": [],
+      "status": "illustration; not numerical evidence"
+    },
+    {
+      "kind": "Figure",
+      "number": 13,
+      "label": "fig:pistonNearAmpMethod",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/piston_nearField_onAxis_meshConvergence.png",
+          "source": ".review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/nearField_onAxis_meshConvergence.png",
+          "sourceSHA256": "b7cd9a4f187de278f528aac5fa0d274cc8432f422dad3b09c874418073107b7b",
+          "assetSHA256": "b7cd9a4f187de278f528aac5fa0d274cc8432f422dad3b09c874418073107b7b",
+          "group": "piston-aligned-edge"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 14,
+      "label": "fig:pistonFarAmpMethod",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/piston_farField_SPL_meshConvergence.png",
+          "source": ".review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/farField_SPL_meshConvergence.png",
+          "sourceSHA256": "0c89198409947f3c741d53627284d7c95febce177d4bb4ce9dc71c1930207e0c",
+          "assetSHA256": "0c89198409947f3c741d53627284d7c95febce177d4bb4ce9dc71c1930207e0c",
+          "group": "piston-aligned-edge"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 15,
+      "label": "fig:pistonFarFieldPattern",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/piston_farFieldPatternPolar.png",
+          "source": ".review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N80/analyticalCompare/farFieldPatternPolar.png",
+          "sourceSHA256": "9021fb7846b526c68320e4cd8c73db5e3a32d00e297a408cee3307e04a84f96f",
+          "assetSHA256": "9021fb7846b526c68320e4cd8c73db5e3a32d00e297a408cee3307e04a84f96f",
+          "group": "piston-aligned-edge"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 16,
+      "label": "fig:gorkovDomainSchematic",
+      "assets": [
+        {
+          "asset": "figures/mesh_gorkov_local.png",
+          "assetSHA256": "941d2c12cee59d32d8a06d76c1cdcafac4abc299bde621652d4c942b6d477e91",
+          "group": "original-illustration"
+        }
+      ],
+      "status": "illustration; not numerical evidence"
+    },
+    {
+      "kind": "Figure",
+      "number": 17,
+      "label": "fig:gorkovMeshConvergence",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/gorkov_mesh_convergence.png",
+          "source": ".review-testing/submission-evidence-audit/historical/gorkov-54501044/gorkov_mesh_convergence.png",
+          "sourceSHA256": "8ea72f86a5d6c5774300f94e87087938b512ae3df7849460b7c0ca6ae8640ead",
+          "assetSHA256": "8ea72f86a5d6c5774300f94e87087938b512ae3df7849460b7c0ca6ae8640ead",
+          "group": "gorkov-archived-integrated-forces"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 18,
+      "label": "fig:gorkovRadiusSweep",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/gorkov_radius_comparison.png",
+          "source": ".review-testing/submission-evidence-audit/historical/gorkov-54501044/gorkov_radius_comparison.png",
+          "sourceSHA256": "ff55508d57f8ed64733b504e20cabfc1b9d36d11e73480ee22c52a1b435b10c9",
+          "assetSHA256": "ff55508d57f8ed64733b504e20cabfc1b9d36d11e73480ee22c52a1b435b10c9",
+          "group": "gorkov-archived-integrated-forces"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Figure",
+      "number": 19,
+      "label": "fig:gorkovPositionSweep",
+      "assets": [
+        {
+          "asset": "revised-assets/figures/gorkov_position_sweep.png",
+          "source": ".review-testing/submission-evidence-audit/historical/gorkov-54501044/gorkov_position_sweep.png",
+          "sourceSHA256": "c80b57da826cb1cbe17d795dcf06c6fa23aa99fe46a29d9d2c9ee179841356c2",
+          "assetSHA256": "c80b57da826cb1cbe17d795dcf06c6fa23aa99fe46a29d9d2c9ee179841356c2",
+          "group": "gorkov-archived-integrated-forces"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Table",
+      "number": 1,
+      "label": "tab:homogeneousConvergence",
+      "assets": [
+        {
+          "asset": "revised-assets/tables/homogeneous_convergence_table.tex",
+          "source": ".review-testing/submission-evidence-audit/historical/volume-54501269/case/studyResults/convergence/homogeneous_convergence_table.tex",
+          "sourceSHA256": "f7a47e0971cf9f611b68a4b12c0d1d2af3d90b50c656594ba6c75eaea1142e77",
+          "assetSHA256": "38047ce9e336c39c9c8b37de8910ee0dd413a377a0aac6855308cb362fd030ed",
+          "group": "homogeneous-volume-weighted"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Table",
+      "number": 2,
+      "label": "tab:pmlSigmaSensitivity",
+      "assets": [
+        {
+          "asset": "revised-assets/tables/pml_sigma_sensitivity_table.tex",
+          "group": "layered-geometric-rerun",
+          "sourceRows": [
+            ".review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s10000-submission-np1",
+            ".review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s50000-submission-np1",
+            ".review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s100000-submission-np1",
+            ".review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s200000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s500000-submission-np1"
+          ],
+          "assetSHA256": "d1787af941b376bc3bd9af1abcb75cae5b9090edd635f597969f3a5c038f4cae"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Table",
+      "number": 3,
+      "label": "tab:pmlMeshSensitivity",
+      "assets": [
+        {
+          "asset": "revised-assets/tables/pml_mesh_sensitivity_table.tex",
+          "group": "layered-geometric-rerun",
+          "sourceRows": [
+            ".review-testing/submission-geometric-averaging/pml-v2/N560-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N1120-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N2240-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N4480-forward-s500000-submission-np1",
+            ".review-testing/submission-geometric-averaging/pml-v2/N8960-forward-s500000-submission-np1"
+          ],
+          "assetSHA256": "b0edad46dc6ba6fe6e3797bab9189ca77e67cc54b82c55379c05826813eb115c"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Table",
+      "number": 4,
+      "label": "tab:geometricComparison",
+      "assets": [
+        {
+          "asset": "revised-assets/tables/geometric_comparison_table.tex",
+          "group": "sphere-area-comparison",
+          "source": ".review-testing/interface-implementation/lichtenberg/study-54503635-2-sphere/results.json",
+          "sourceSHA256": "b3df8ac76830757dcb4babc98cc89790e0f2a8af53ea396a8606a23db9c8a519",
+          "assetSHA256": "1f81bd7a636aee623de9861d8f2ae9570297e83115265a73a55e50906844a0b7"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Table",
+      "number": 5,
+      "label": "tab:pistonConvergence",
+      "assets": [
+        {
+          "asset": "revised-assets/tables/nearField_convergence_table.tex",
+          "source": ".review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/nearField_convergence_table.tex",
+          "sourceSHA256": "312c517ec94834d790d4361282051d5ccad5211a5fe3a0ee20eafd56c8e2a748",
+          "assetSHA256": "312c517ec94834d790d4361282051d5ccad5211a5fe3a0ee20eafd56c8e2a748",
+          "group": "piston-aligned-edge"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Table",
+      "number": 6,
+      "label": "tab:pistonFarFieldConvergence",
+      "assets": [
+        {
+          "asset": "revised-assets/tables/farField_convergence_table.tex",
+          "source": ".review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/farField_convergence_table.tex",
+          "sourceSHA256": "e58376afbb580640fe63044737064741b109bccea962eb0255dd021abbd6db6e",
+          "assetSHA256": "e58376afbb580640fe63044737064741b109bccea962eb0255dd021abbd6db6e",
+          "group": "piston-aligned-edge"
+        }
+      ],
+      "status": "numerical data traced"
+    },
+    {
+      "kind": "Table",
+      "number": 7,
+      "label": "tab:gorkovMeshConvergence",
+      "assets": [
+        {
+          "asset": "tables/gorkov_mesh_convergence_table.tex",
+          "assetSHA256": "d1a6c2b134ba25fc30a38fcc4678eef89f69409302ec0e92bb73d378fc8c3129",
+          "group": "gorkov-archived-integrated-forces",
+          "source": "run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropGorkov/meshConvergence/mesh_convergence.tsv"
+        }
+      ],
+      "status": "numerical data traced"
+    }
+  ],
+  "numericalChecks": [
+    "16 homogeneous table rows match volume-weighted source; both pressure and velocity orders checked",
+    "10 piston table rows match the geometry-aligned near-field and pressure-magnitude far-field source",
+    "All 10 PML sensitivity rows match geometric-method fields sampled at 1200 valid points",
+    "3 rigid-sphere mesh table rows match archived integrated forces, face counts and relative errors",
+    "All 16 entries in the new sphere comparison table match the original completed study rows"
+  ],
+  "limitations": [
+    "Historical single-phase results are retained, not represented as newly rerun geometric cases.",
+    "Rigid-sphere force provenance reaches archived integrated-force TSV data, not a newly recovered complete field/binary archive.",
+    "Original mesh illustrations are retained for geometry illustration; their image hashes do not establish solver-run provenance."
+  ],
+  "removedUnsupportedClaim": "The 0.0602 fN finer-mesh zero-crossing result had no matching record in the available force data and was removed from the revised manuscript together with the causal inference based on it.",
+  "pdfSHA256": "1bdd46a81c16537e144db1b0a546a7642552025e19e70d7ed6a6a599bf0efc6b",
+  "pdfPages": 38,
+  "latexWarnings": 0
+}

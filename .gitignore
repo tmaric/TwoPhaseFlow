@@ -188,3 +188,25 @@ preprint_acousticHelmholtzFoam/
 # Local manuscript and presentation sources
 /paper_aHF/
 /SLIDE/
+
+# Acoustic-interface verification sources
+!/testsuite/
+/testsuite/*
+!/testsuite/acousticInterface/
+!/apps/benchmark/testAcousticInterface/
+__pycache__/
+!/testsuite/acousticInterface/results/pressure-comparison.svg
+
+# Secondary data for the Helmholtz/PML manuscript
+!/data/publications/helmholtz-pml/**/*.csv
+!/data/publications/helmholtz-pml/software-provenance.json
+!/data/publications/helmholtz-pml/manuscript/elsarticle-num.bst
+!/data/publications/helmholtz-pml/manuscript/figure-source/
+!/data/publications/helmholtz-pml/secondary/layered/metrics-text/N8000-reverse-sigma500000.txt
+!/data/publications/helmholtz-pml/**/*.png
+!/data/publications/helmholtz-pml/**/*.pdf
+/data/publications/releases/
+
+# Locally built dependencies (pinned by petsc_build.sh)
+/petsc/
+/external/petsc4Foam/

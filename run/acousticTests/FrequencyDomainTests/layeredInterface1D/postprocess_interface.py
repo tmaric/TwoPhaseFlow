@@ -66,9 +66,18 @@ def probe_line(vtu: pathlib.Path, p1: tuple[float, float, float], p2: tuple[floa
     probe.Update()
 
     out = probe.GetOutput()
+    data = out.GetPointData()
+    arrays = {name: data.GetArray(name) for name in ("Pre", "Pim", "vtkValidPointMask")}
+    if any(array is None for array in arrays.values()) or out.GetNumberOfPoints() != n:
+        raise RuntimeError("Missing pressure samples or probe-validity flags")
     pts = vtk_to_numpy(out.GetPoints().GetData())
-    pre = vtk_to_numpy(out.GetPointData().GetArray("Pre"))
-    pim = vtk_to_numpy(out.GetPointData().GetArray("Pim"))
+    pre = vtk_to_numpy(arrays["Pre"])
+    pim = vtk_to_numpy(arrays["Pim"])
+    valid = vtk_to_numpy(arrays["vtkValidPointMask"])
+    if not np.all(valid == 1):
+        raise RuntimeError(f"Invalid probe samples: {np.count_nonzero(valid != 1)}/{n}")
+    if not (np.isfinite(pts).all() and np.isfinite(pre).all() and np.isfinite(pim).all()):
+        raise RuntimeError("Nonfinite pressure or sample coordinates")
     return pts[:, 0], pre + 1j*pim
 
 
@@ -159,7 +168,9 @@ def main():
         R,
     )
     # Use the complete gas--liquid--PML domain for the verification norm.
-    compare_mask = np.isfinite(pc) & np.isfinite(pc_th)
+    if not (np.isfinite(pc).all() and np.isfinite(pc_th).all()):
+        raise RuntimeError("Nonfinite numerical or analytical pressure")
+    compare_mask = np.ones(len(pc), dtype=bool)
     p_rel_l2 = np.linalg.norm((pc - pc_th)[compare_mask]) / max(
         np.linalg.norm(pc_th[compare_mask]), 1e-30
     )
@@ -213,6 +224,9 @@ def main():
         fobj.write(f"sigmaMax = {sigma_max:.8e}\n")
         fobj.write(f"PML_order = {pml_order:.8e}\n")
         fobj.write("errorDomain = whole domain including PML\n")
+        fobj.write("sampling = VTK cell-to-point conversion and linear line probing\n")
+        fobj.write(f"nSamples = {len(x)}\n")
+        fobj.write("weights = uniform; all probe samples valid\n")
         fobj.write(f"P_relL2 = {p_rel_l2:.8e}\n")
         fobj.write(f"Pre_relL2 = {pre_rel_l2:.8e}\n")
         fobj.write(f"Pim_relL2 = {pim_rel_l2:.8e}\n")

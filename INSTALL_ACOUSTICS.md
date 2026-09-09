@@ -71,8 +71,8 @@ source ./scripts/bashrc
 
 ## 4. Build TwoPhaseFlow
 
-The top-level build compiles the core libraries, `setPMLFields`, and the three
-acoustic solvers:
+The top-level build compiles the core libraries, the acoustic-interface library,
+`setPMLFields`, and the three acoustic solvers:
 
 ```bash
 ./Allwmake
@@ -108,7 +108,7 @@ VTK for postprocessing:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install numpy scipy matplotlib vtk oftest
+pip install numpy scipy matplotlib vtk oftest pytest
 ```
 
 Some legacy meshes require the `gmsh` command. Install it through the operating
@@ -121,6 +121,13 @@ Initialize the AMR module only when AMR is required:
 git submodule update --init --recursive
 ./modules/multiDimAMR/Allwmake
 ```
+
+## Submission method
+
+The submission cases explicitly select `areaFraction plicAverage` and `flux legacy`
+in `system/fvSchemes` (or its preparation template). The original method remains
+selectable, and dictionaries without these entries retain legacy behavior.
+See [SUBMISSION_ACOUSTICS.md](SUBMISSION_ACOUSTICS.md).
 
 ## 7. Smoke Tests
 

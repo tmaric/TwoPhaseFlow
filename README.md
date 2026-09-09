@@ -42,6 +42,15 @@ script now includes the PETSc-backed acoustic solvers. See
 [INSTALL_ACOUSTICS.md](INSTALL_ACOUSTICS.md) for the complete fresh-clone
 procedure, dependency revisions, environment checks, and smoke tests.
 
+### Submission configuration
+
+The methods-paper cases use geometric PLIC face averaging with the established
+acoustic flux: `areaFraction plicAverage; flux legacy;`. The selection is explicit
+in the case dictionaries; missing entries still use legacy behavior.
+See [SUBMISSION_ACOUSTICS.md](SUBMISSION_ACOUSTICS.md) for the selected cases,
+reproduction settings and evidence, and [the interface guide](src/acousticInterface/README.md)
+for switching back to the original method.
+
 ### Running testsuite
 
 Make sure that OpenFOAM-v2606 is sourced and that Python 3 is installed.
@@ -117,3 +126,7 @@ Alternatively, the runAll.sh can be executed in the folder.
 Note:
 
 Some cases use the slurm queuing system and call `sbatch Allrun_Slurm` in the Allrun script, so you might need to modify it in the template case.
+
+## Publication data and provenance
+
+See [PROVENANCE.md](PROVENANCE.md) for manuscript-by-manuscript mappings of figures and tables to repository data. The [Helmholtz/PML secondary-data deposit](data/publications/helmholtz-pml/README.md) contains portable data, documentation and reproduction tools for TUdatalib preparation.

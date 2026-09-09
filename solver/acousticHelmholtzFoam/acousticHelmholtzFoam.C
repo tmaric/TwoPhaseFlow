@@ -58,7 +58,8 @@ Description
 #include "upwind.H"
 #include "processorPolyPatch.H"
 #include "processorLduInterface.H"
-#include "processorBC.H"
+#include "acousticInterface.H"
+#include <cmath>
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
 
@@ -73,15 +74,17 @@ int main(int argc, char *argv[])
     #include "createTime.H"
     #include "createMesh.H"
     #include "createFields.H"
-    #include "computeAlphaf.H"
+    globalIndex globalCells(mesh.nCells());
+    Foam::acoustic::acousticInterface interfaceModel(mesh,globalCells);
+    interfaceModel.computeAreas(alpha1,alphaf,phi,cutFace);
     #include "computePMLCoefs.H"
 
     simpleControl simple(mesh);
 
-    PetscInitialize(&argc, &argv, nullptr, nullptr);
+    PetscCallAbort(PETSC_COMM_WORLD, PetscInitialize(&argc, &argv, nullptr, nullptr));
 
     // Global indexing for block system
-    globalIndex globalCells(mesh.nCells());
+    interfaceModel.build(sigma,rhol.value(),rhog.value());
     const PetscInt N      = (PetscInt)globalCells.size();
     const PetscInt nLocal = (PetscInt)mesh.nCells();
 
@@ -89,7 +92,7 @@ int main(int argc, char *argv[])
     Vec x, b;
     KSP ksp;
 
-    initializePetscSystem(mesh, nLocal, N, M, x, b, ksp);
+    initializePetscSystem(mesh, globalCells, interfaceModel.operators(), nLocal, N, M, x, b, ksp);
 
     Info<< "\nStarting time loop\n" << endl;
 
@@ -97,6 +100,9 @@ int main(int argc, char *argv[])
     compressibility = alpha1*kl + (1 - alpha1)*kg;
     invRhof = 1/(alphaf*rhol + (1 - alphaf)*rhog);
     k2 = sqr(twoPi()*f)*rho*compressibility;
+    // Zeroing this coefficient removes both the old implicit face term and
+    // its explicit nonorthogonal correction on replaced faces.
+    interfaceModel.mask(invRhof);
 
     while (simple.loop())
     {
@@ -104,8 +110,8 @@ int main(int argc, char *argv[])
 
         while (simple.correctNonOrthogonal())
         {
-            MatZeroEntries(M);
-            VecSet(b, 0.0);
+            PetscCallAbort(PETSC_COMM_WORLD, MatZeroEntries(M));
+            PetscCallAbort(PETSC_COMM_WORLD, VecSet(b, 0.0));
 
             fvScalarMatrix AopPre
             (
@@ -137,6 +143,8 @@ int main(int argc, char *argv[])
                 couplingLaplPim, couplingMassPim
             );
 
+            insertTransmissionOperators(M,globalCells,interfaceModel.operators(),rho);
+
             scalarField bPim;
             scalarField bPre;
             buildRhs
@@ -153,16 +161,25 @@ int main(int argc, char *argv[])
 
             setBlockRhs(b, bPim, bPre);
 
-            MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY);
-            VecAssemblyBegin(b);
-            VecAssemblyEnd(b);
+            PetscCallAbort(PETSC_COMM_WORLD, MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY));
+            PetscCallAbort(PETSC_COMM_WORLD, MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY));
+            PetscCallAbort(PETSC_COMM_WORLD, VecAssemblyBegin(b));
+            PetscCallAbort(PETSC_COMM_WORLD, VecAssemblyEnd(b));
 
-            KSPSolve(ksp, b, x);
+            const scalarField previousPre(Pre.primitiveField());
+            const scalarField previousPim(Pim.primitiveField());
+            PetscCallAbort(PETSC_COMM_WORLD, KSPSolve(ksp, b, x));
+            verifyPetscSolution(M,x,b,ksp);
             scatterBlockSolution(x, globalCells, Pim, Pre);
 
             Pre.correctBoundaryConditions();
             Pim.correctBoundaryConditions();
+            const scalar change = Foam::sqrt
+            (
+                gSum(sqr(Pre.primitiveField()-previousPre)+sqr(Pim.primitiveField()-previousPim))
+               /max(gSum(sqr(Pre.primitiveField())+sqr(Pim.primitiveField())),scalar(VSMALL))
+            );
+            Info<< "Acoustic nonorthogonal change=" << change << nl;
         }
 
         Ure == 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
@@ -173,17 +190,18 @@ int main(int argc, char *argv[])
         momFlux == 0.5*rho*(Ure*Ure + Uim*Uim);
 
         runTime.write();
+        if (runTime.writeTime()) interfaceModel.write(alphaf,Pre,Pim);
 
         Info<< "ExecutionTime = " << runTime.elapsedCpuTime() << " s"
             << "  ClockTime = " << runTime.elapsedClockTime() << " s"
             << nl << endl;
     }
 
-    KSPDestroy(&ksp);
-    VecDestroy(&x);
-    VecDestroy(&b);
-    MatDestroy(&M);
-    PetscFinalize();
+    PetscCallAbort(PETSC_COMM_WORLD, KSPDestroy(&ksp));
+    PetscCallAbort(PETSC_COMM_WORLD, VecDestroy(&x));
+    PetscCallAbort(PETSC_COMM_WORLD, VecDestroy(&b));
+    PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&M));
+    PetscCallAbort(PETSC_COMM_WORLD, PetscFinalize());
 
     Info<< "End\n" << endl;
     return 0;

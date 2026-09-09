@@ -1,0 +1,12 @@
+acousticInterface
+{
+    areaFraction legacy;
+    flux legacy;
+    writeDiagnostics false;
+    plicTransmissionCoeffs
+    {
+        maxStencilRings 3;
+        svdRelativeTolerance 1e-12;
+        maxConditionNumber 1e10;
+    }
+}

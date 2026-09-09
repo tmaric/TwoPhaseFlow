@@ -1,0 +1,6 @@
+# Preserve exact archival bytes, including on Windows clones.
+data/publications/helmholtz-pml/** -text -whitespace
+# These headers deliberately reproduce the baseline byte for byte.
+src/acousticInterface/legacy/** -text -whitespace
+# Matplotlib emits trailing spaces inside SVG path data.
+testsuite/acousticInterface/results/*.svg whitespace=-blank-at-eol

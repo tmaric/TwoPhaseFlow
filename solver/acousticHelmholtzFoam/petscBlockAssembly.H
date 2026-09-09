@@ -377,7 +377,7 @@ static void insertScalarOpIntoBlock
         }
 
         const PetscInt row = 2*localGlobalIds[i] + rowComponent;
-        MatSetValues
+        PetscCallAbort(PETSC_COMM_WORLD, MatSetValues
         (
             M,
             1,
@@ -386,7 +386,7 @@ static void insertScalarOpIntoBlock
             rowCols[i].begin(),
             rowVals[i].begin(),
             ADD_VALUES
-        );
+        ));
     }
 }
 
@@ -426,11 +426,41 @@ static void setBlockRhs
 )
 {
     PetscScalar* bArr = nullptr;
-    VecGetArray(b, &bArr);
+    PetscCallAbort(PETSC_COMM_WORLD, VecGetArray(b, &bArr));
     forAll(bPim, i)
     {
         bArr[2*i] = (PetscScalar)bPim[i];
         bArr[2*i + 1] = (PetscScalar)bPre[i];
     }
-    VecRestoreArray(b, &bArr);
+    PetscCallAbort(PETSC_COMM_WORLD, VecRestoreArray(b, &bArr));
+}
+
+static void insertTransmissionOperators
+(
+    Mat M,const globalIndex& globalCells,
+    const std::vector<Foam::acoustic::FaceOperator>& operators,
+    const volScalarField& rho
+)
+{
+    for(const auto& op:operators)
+    {
+        for(label side=0;side<2;++side)
+        {
+            const label cell=side==0 ? op.owner:op.neighbour;
+            if(cell<0) continue; // remote row is inserted by its owning rank
+            const scalar scale=(side==0 ? 1:-1)*rho[cell];
+            for(label c=0;c<2;++c)
+            {
+                PetscInt row=2*globalCells.toGlobal(cell)+c;
+                List<PetscInt> cols(op.cells.size());
+                List<PetscScalar> values(op.cells.size());
+                forAll(op.cells,k)
+                {
+                    cols[k]=2*op.cells[k]+c;
+                    values[k]=scale*op.weights[k];
+                }
+                PetscCallAbort(PETSC_COMM_WORLD, MatSetValues(M,1,&row,cols.size(),cols.begin(),values.begin(),ADD_VALUES));
+            }
+        }
+    }
 }

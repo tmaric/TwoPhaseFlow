@@ -1,0 +1,42 @@
+{
+  "baselineRevision": "5b1d46437356dc4debfdd8e33932d201e3c63c88",
+  "branch": "feature/acousticLevitation",
+  "compiledSourceSHA256": {
+    "solver/acousticHelmholtzFoam/computeAlphaf.H": "b0787c2b6fe9816babfc55a21c1932f435bb1586d9ba3c197f0270128ac8f48f",
+    "solver/acousticHelmholtzFoam/processorBC.H": "c5ca37578fa150f4e1fc3bb5e365ab08c2ecdcdcb6a340e44cf5dbc2cc4d4d10",
+    "solver/acousticHelmholtzFoam/createFields.H": "3bdf50064cae9ad4bd2d3315dcae9fb038c856ffeb7fa56315e45fc6f7a05487",
+    "solver/acousticHelmholtzFoam/petscBlockAssembly.H": "54f11aa5a5deac78c4dd374dc3d0c204d7218a60245a7e37f6ae2d4202bc3c9c",
+    "solver/acousticHelmholtzFoam/petscBlockSolve.H": "cfa175f6575e699b62554348174a45346349b22a6b78284161d4d27e23064e1a",
+    "solver/acousticHelmholtzFoam/computePMLCoefs.H": "eab163a173c28ae9c62b164bd17d11a3f884a678be4f7e0f0ab46608cce8e0bd",
+    "solver/acousticHelmholtzFoam/acousticHelmholtzFoam.C": "cc89ac6ee6afaa3e4d8febd403b7812fb69ed94e55541e0e6d2469c5dd4f4ab4",
+    "solver/acousticHelmholtzFoam/readTransportProperties.H": "adfeb17db24b9c4252bf9ffb7f2097d0c88893c2059a2b711f4e3fc71610b6ce",
+    "solver/acousticHelmholtzFoam/Make/options": "6a5c0961d2c57e04c91a21565b6e6c521375d8b80be8c24aadfc46c3df25c1f8",
+    "solver/acousticHelmholtzFoam/Make/files": "7ef945567616d61f167729def5d7b744298fd180e4f8f65adfc6334922d9650d",
+    "solver/acousticHelmholtzFoam/Make/linux64GccDPInt32Opt/options": "881c7a742de9689f6379eca50e28763b622ac900b1a98338f6f37dac68e01f6b",
+    "src/acousticInterface/transmissionFit.C": "ceead9487ab662f9f0e0c176223da54a4727fefacb53ae5203b120b44047c8f6",
+    "src/acousticInterface/acousticInterface.C": "c05c122214652280be4d6d8028f6b998108ed47cce8a65c7c0a5e6711518b3f9",
+    "src/acousticInterface/acousticInterface.H": "623aeb1b1c878e7cf82cf03a31e6c840a70955b9dd07c0692012aaf25d34d38f",
+    "src/acousticInterface/transmissionFit.H": "9172be0eea695983ff3716b1aa571d2c1f8cfcb50050da306072139cdbe779e5",
+    "src/acousticInterface/legacy/computeAlphaf.H": "b0787c2b6fe9816babfc55a21c1932f435bb1586d9ba3c197f0270128ac8f48f",
+    "src/acousticInterface/legacy/processorBC.H": "c5ca37578fa150f4e1fc3bb5e365ab08c2ecdcdcb6a340e44cf5dbc2cc4d4d10",
+    "src/acousticInterface/Make/options": "45223bdae0aedf0803b28edb2db08b5fee06af8b06bffee43b583d36664a6d0a",
+    "src/acousticInterface/Make/files": "409073121a82a84b007d8081dcee7a4ab4b2df34214480607b42edcc5d085bbc",
+    "src/acousticInterface/Make/linux64GccDPInt32Opt/options": "2f938190fa99b6f8c0fa10ba55181bad60b4e023956651c2b4b04ea0536b8841",
+    "apps/benchmark/testAcousticInterface/testAcousticInterface.C": "1e49233b2b06f7ac23c62ae5170e5961c7bb3baf694a0cf9200c6baff48605f5",
+    "apps/benchmark/testAcousticInterface/Make/options": "9974e2a6b54f4fef16d96ff2d4f3fdf34aa512028ef79541b17817d6498ca678",
+    "apps/benchmark/testAcousticInterface/Make/files": "efa3908adcd58eb5a9139a442b5db19d486d4fc98b11d60775aa63035b51c038",
+    "apps/benchmark/testAcousticInterface/Make/linux64GccDPInt32Opt/options": "4134f5daceee158af9840b893dc455ce6b85bc217a94cb6440d5f078c442828c"
+  },
+  "WSLBinaries": {
+    "acousticHelmholtzFoam": "ddf703aa7827ce127712cd2dbb3c08fef0ca79d38e6bce8ffdac33a79ee7ee01",
+    "libacousticInterface.so": "a665c69e5017013e0527004c442aa7fd42f63101e89d5a457839ee5dd07f6d4f",
+    "acousticHelmholtzFoam-baseline": "6d701dd6925966f14ed12b9afed1aa9687abdcd6914bd3e82f704e0ce2a8ed20"
+  },
+  "LichtenbergBinaries": {
+    "solverSHA256": "1a53abdf552d1f14750551db89c3503dfdb0a8ee184c5db9378fdda56f45750f",
+    "librarySHA256": "36154dbf17ba7c56991a6fba21b8e94d7e5cc2e283445d5efda8617dc82643fa",
+    "OpenFOAM": "v2512"
+  },
+  "LichtenbergReleaseJob": 54504147,
+  "identicalCompiledSource": true
+}

@@ -38,3 +38,11 @@ snGradSchemes
 {
     default orthogonal;
 }
+
+// Submission method: geometric face areas with the established flux.
+acousticInterface
+{
+    areaFraction       plicAverage;
+    flux               legacy;
+    writeDiagnostics   false;
+}
