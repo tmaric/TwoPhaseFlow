@@ -29,5 +29,79 @@
   "data_license": null,
   "related_manuscript_DOI": null,
   "dataset_DOI": null,
-  "metadata_note": "Draft only. Dataset creators, subject classification, collection and license need the authors' deposit choices. Manuscript authors are recorded as manuscript metadata, not asserted to be the final dataset creators."
+  "metadata_note": "Draft only. Dataset creators, subject classification, collection and license need the authors' deposit choices. Manuscript authors are recorded as manuscript metadata, not asserted to be the final dataset creators.",
+  "manuscript_affiliations": {
+    "mma": "Mathematical Modeling and Analysis, Mathematics Department, TU Darmstadt, Germany",
+    "must": "Measurement and Sensor Technology, Department of Electrical Engineering and Information Technology, TU Darmstadt, Germany"
+  },
+  "manuscript_author_profiles": [
+    {
+      "name": "Chuanchao Xu",
+      "affiliation": "mma",
+      "credit_roles": [
+        "Data curation",
+        "Formal analysis",
+        "Investigation",
+        "Methodology",
+        "Software",
+        "Visualization",
+        "Writing - original draft"
+      ]
+    },
+    {
+      "name": "Jun Liu",
+      "affiliation": "mma",
+      "credit_roles": [
+        "Formal analysis",
+        "Investigation",
+        "Methodology",
+        "Software"
+      ]
+    },
+    {
+      "name": "Jan-Helge Dörsam",
+      "affiliation": "must",
+      "credit_roles": [
+        "Validation",
+        "Writing - review & editing"
+      ]
+    },
+    {
+      "name": "Mario Kupnik",
+      "affiliation": "must",
+      "credit_roles": [
+        "Conceptualization",
+        "Funding acquisition",
+        "Validation",
+        "Writing - review & editing"
+      ]
+    },
+    {
+      "name": "Tomislav Maric",
+      "affiliation": "mma",
+      "credit_roles": [
+        "Conceptualization",
+        "Data curation",
+        "Formal analysis",
+        "Investigation",
+        "Methodology",
+        "Software",
+        "Supervision",
+        "Writing - review & editing"
+      ]
+    },
+    {
+      "name": "Dieter Bothe",
+      "affiliation": "mma",
+      "credit_roles": [
+        "Conceptualization",
+        "Formal analysis",
+        "Methodology",
+        "Resources",
+        "Supervision",
+        "Writing - review & editing"
+      ]
+    }
+  ],
+  "contribution_scope": "These affiliations and CRediT roles describe the manuscript authors, as supplied by Tomislav Maric. They do not assign dataset creator roles or assert completed approval by every coauthor."
 }

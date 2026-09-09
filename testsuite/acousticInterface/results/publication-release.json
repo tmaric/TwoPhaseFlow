@@ -1,7 +1,7 @@
 {
   "date": "2026-09-09",
   "implementation_commit": "bb09dbfb34c1830478feecd8dd445957ac15949c",
-  "manuscript_commit": "26b19d48edd7e281c819cc56a5b37bdf67fabe67",
+  "manuscript_commit": "82657c725a56ed735c1a59cf56ef5b24694b52cb",
   "compiled_integration_tests": {
     "passed": 20,
     "failed": 0,
@@ -12,13 +12,13 @@
   "manuscript_pdf": {
     "pages": 38,
     "warnings": 0,
-    "sha256": "f94ec08a125224dea8b1d6f316d97ccc2f1f147ad804ffc46fec78804331249c",
-    "visual_check": "Title page, new TikZ Figure 1 and changed availability pages inspected."
+    "sha256": "2cc2301d4caf27b9b3fa392e304de32587ed28cb58f29b03c97c10ed38581413",
+    "visual_check": "Updated affiliations, CRediT statement and adjacent reference page inspected; no layout defects."
   },
   "deposit_archive": {
     "path": "data/publications/releases/helmholtz-pml-secondary-data-v1.zip",
-    "sha256": "2ca02bf885290c837606f819eacb3e70858480dd16e668a7ea9b18bb8773bb2d",
-    "bytes": 3436353,
+    "sha256": "fff0dba04cef3c6b13eb6dd2d78e48b4fc122871c3e0ef0b3888ca0c18aad756",
+    "bytes": 3437040,
     "files": 105
   },
   "standalone_deposit_validation": {
@@ -35,8 +35,12 @@
     ],
     "figures": 19,
     "tables": 7,
-    "csv_files": 33,
-    "reproduced_numerical_figures": 12,
-    "regenerated_tables": 7
+    "csv_files": 33
+  },
+  "author_metadata_update": {
+    "numerical_data_changed": false,
+    "CRediT_roles_used": 13,
+    "project_administration_assigned": false,
+    "reproduction_note": "The 33 numerical CSV files and reproduction scripts are unchanged from the preceding release, which regenerated all 12 numerical figures and seven tables. This update revalidated the complete extracted archive."
   }
 }

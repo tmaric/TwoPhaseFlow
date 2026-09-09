@@ -261,8 +261,8 @@
   {
     "path": "manuscript/helmHoltzPML-revised.tex",
     "origin": "article-workspace:helmHoltzPML-revised.tex",
-    "source_sha256": "c155a769f7ad49e03e89c0871b07d4e898988f3016178f87972beb0ae638ee81",
-    "note": "Frozen manuscript identification snapshot at article commit 26b19d48edd7e281c819cc56a5b37bdf67fabe67"
+    "source_sha256": "3f3fc63ef081f8a039d80800a551331a9e080dcdc29be3114b169a2678ae94bd",
+    "note": "Frozen manuscript identification snapshot at article commit 82657c725a56ed735c1a59cf56ef5b24694b52cb"
   },
   {
     "path": "manuscript/bibliography.bib",

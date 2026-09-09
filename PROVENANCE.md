@@ -4,7 +4,7 @@ All file links below are relative to this repository root. Each manuscript has i
 
 ## An unstructured finite-volume Helmholtz method with perfectly matched layers for heterogeneous two-phase acoustics
 
-Manuscript: [helmHoltzPML-revised.tex](data/publications/helmholtz-pml/manuscript/helmHoltzPML-revised.tex). The snapshot covers 19 figures and 7 tables and has SHA-256 `c155a769f7ad49e03e89c0871b07d4e898988f3016178f87972beb0ae638ee81`.
+Manuscript: [helmHoltzPML-revised.tex](data/publications/helmholtz-pml/manuscript/helmHoltzPML-revised.tex). The snapshot covers 19 figures and 7 tables and has SHA-256 `3f3fc63ef081f8a039d80800a551331a9e080dcdc29be3114b169a2678ae94bd`.
 
 Data publication folder: [data/publications/helmholtz-pml](data/publications/helmholtz-pml/README.md). [Methods and physical settings](data/publications/helmholtz-pml/methods.json), [column definitions and units](data/publications/helmholtz-pml/DATA_DICTIONARY.md), [file-level origins](data/publications/helmholtz-pml/origins.json), and [machine-readable figure/table provenance](data/publications/helmholtz-pml/provenance.json).
 
