@@ -1,8 +1,8 @@
 {
   "manuscript_title": "An unstructured finite-volume Helmholtz method with perfectly matched layers for heterogeneous two-phase acoustics",
   "manuscript_source": "manuscript/helmHoltzPML-revised.tex",
-  "manuscript_source_sha256": "8cc4d6c3706cfe7894542e3d00524872993f9467c60231dc21fcc65b1e99c441",
-  "manuscript_pdf_sha256": "009279f7eefb9207f8674a92f4e4608eded9b922acb5bff58eb6a01bf0c0ea62",
+  "manuscript_source_sha256": "364f87f956a0044b8db8dfb62de6cbf8e2dfc19e841e974903a2b543bb9d2c77",
+  "manuscript_pdf_sha256": "9d1082498fab81440262e4a0091a900682f1940e34de8161c62683330184a09c",
   "repository": "https://github.com/tmaric/TwoPhaseFlow",
   "branch": "feature/acousticLevitation",
   "base_revision": "5b1d46437356dc4debfdd8e33932d201e3c63c88",
@@ -414,5 +414,5 @@
     "secondary/gorkov/amplitude-scaling.csv"
   ],
   "implementation_commit": "bb09dbfb34c1830478feecd8dd445957ac15949c",
-  "manuscript_git_commit": "993badafc60e7dfc01c8cbce4500bb06840335b4"
+  "manuscript_git_commit": "86ba984bfdb854b6be4140699f7608bdee8bee0e"
 }

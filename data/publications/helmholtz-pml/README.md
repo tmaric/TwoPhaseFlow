@@ -16,7 +16,7 @@ The data support choosing geometric PLIC face averaging with the previous pressu
 - `scripts/reproduce.py`: regenerates all 12 numerical figures and 7 tables using only the included CSV files. Static schematic/mesh illustrations are retained in their original form.
 - `scripts/validate.py`: checks hashes, paths, schemas, counts, finiteness, numerical error measures and every displayed table row.
 - `scripts/original/`: the original postprocessing sources, including the archived homogeneous/piston/Gorkov versions; field-to-sample stages in those historical scripts require the original solver environment.
-- `metadata-draft.json`: TUdatalib metadata prepared for author review; no DOI, license, collection or dataset-creator assignment has been invented.
+- `metadata-draft.json`: TUdatalib submission metadata, including the selected creators (Chuanchao Xu, then Tomislav Maric), CC BY 4.0 data license, MMA collection, funding and immutable software revision. A null DOI means that no identifier has yet been assigned.
 - `RIGHTS.md`: distinguishes data and software licenses, including the CC-BY-4.0 license of the original TikZ Figure 1.
 
 ## Use without OpenFOAM
@@ -38,12 +38,12 @@ Raw volume meshes, OpenFOAM cell fields, processor partitions and solver binarie
 
 ## TUdatalib preparation
 
-The title, description, data year, methods and file documentation are prepared. Final dataset creators, collection, DFG subject selection, license and any related article DOI remain deposit metadata choices. The current data tree has more than 20 files and depends on its directory structure, so a ZIP export is provided alongside the uncompressed tree. TUdatalib's guidance allows archives for preserving folder structure or larger file collections. [TUdatalib FAQ](https://tudatalib.ulb.tu-darmstadt.de/docs/en/faq/)
+The title, description, data year, methods and file documentation are prepared. The creators and CC BY 4.0 data license were selected by Tomislav Maric. The collection is under Mathematical Modelling and Analysis; DFG subject 3.31-01 Mathematik is selected. No related article DOI is available yet. The current data tree has more than 20 files and depends on its directory structure, so a ZIP export is provided alongside the uncompressed tree. TUdatalib's guidance allows archives for preserving folder structure or larger file collections. [TUdatalib FAQ](https://tudatalib.ulb.tu-darmstadt.de/docs/en/faq/)
 
 The metadata draft follows the fields described in the [TUdatalib user guide](https://tudatalib.ulb.tu-darmstadt.de/docs/en/nutzer_leitfaden/). No upload, DOI registration or publication is performed by these tools.
 
 ## Version identity
 
-`checksums.json` fixes the exact payload. `provenance.json` identifies the manuscript source/PDF hashes, the repository branch and the baseline revision. The implementation commit is recorded separately from its baseline; recorded source and binary hashes distinguish the measured historical versions. This deposit is version `1.0-draft`, assembled on 2026-09-09.
+`checksums.json` fixes the exact payload. `provenance.json` identifies the manuscript source/PDF hashes, the repository branch and the baseline revision. The implementation commit is recorded separately from its baseline; recorded source and binary hashes distinguish the measured historical versions. This deposit candidate is version `1.0`, assembled on 2026-09-09. The title identifies acousticHelmholtzFoam by immutable implementation revision `bb09dbfb34c1`, because no acoustic software release tag exists. This version designation is not a claim that the dataset has been published.
 
-To create another checked ZIP in a new location, run `python3 scripts/make_release.py --output ../helmholtz-pml-secondary-data.zip`. The archive has a fixed file order and timestamps for reproducible transfer.
+To create another checked ZIP in a new location, run `python3 scripts/make_release.py --output ../helmholtz-pml-secondary-data.zip`. The archive has a fixed file order and timestamps for reproducible transfer. Entries are stored without compression, following TUdatalib's guidance for directory-preserving containers.

@@ -261,8 +261,8 @@
   {
     "path": "manuscript/helmHoltzPML-revised.tex",
     "origin": "article-workspace:helmHoltzPML-revised.tex",
-    "source_sha256": "8cc4d6c3706cfe7894542e3d00524872993f9467c60231dc21fcc65b1e99c441",
-    "note": "Frozen manuscript identification snapshot at article commit 993badafc60e7dfc01c8cbce4500bb06840335b4"
+    "source_sha256": "364f87f956a0044b8db8dfb62de6cbf8e2dfc19e841e974903a2b543bb9d2c77",
+    "note": "Frozen manuscript identification snapshot at article commit 86ba984bfdb854b6be4140699f7608bdee8bee0e"
   },
   {
     "path": "manuscript/bibliography.bib",
@@ -519,7 +519,7 @@
   {
     "path": "manuscript/figure-source/figure01.tex",
     "origin": "article-workspace:helmHoltzPML-revised.tex",
-    "source_sha256": "c155a769f7ad49e03e89c0871b07d4e898988f3016178f87972beb0ae638ee81",
-    "note": "Figure 1 environment excerpt, source lines 574-585."
+    "source_sha256": "afe9334db7d779336170d5eea7a028659d341ea81942d20c5553e0d1a02ddc74",
+    "note": "Figure 1 environment excerpt including AI disclosure, source lines 579-592."
   }
 ]

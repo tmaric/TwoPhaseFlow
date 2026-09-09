@@ -1,7 +1,7 @@
 {
   "date": "2026-09-09",
   "implementation_commit": "bb09dbfb34c1830478feecd8dd445957ac15949c",
-  "manuscript_commit": "993badafc60e7dfc01c8cbce4500bb06840335b4",
+  "manuscript_commit": "86ba984bfdb854b6be4140699f7608bdee8bee0e",
   "compiled_integration_tests": {
     "passed": 20,
     "failed": 0,
@@ -10,16 +10,17 @@
     "source_hashes_match_recorded_compiled_sources": true
   },
   "manuscript_pdf": {
-    "pages": 38,
+    "pages": 40,
     "warnings": 0,
-    "sha256": "009279f7eefb9207f8674a92f4e4608eded9b922acb5bff58eb6a01bf0c0ea62",
-    "visual_check": "Updated first-page author emails and corresponding-author marker, title layout and abstract continuation on the second page inspected; no layout defects."
+    "sha256": "9d1082498fab81440262e4a0091a900682f1940e34de8161c62683330184a09c",
+    "visual_check": "The preceding manuscript operation inspected updated Figure 1, computational-workflow disclosure and final declarations pages; no layout defects. This deposit preparation copies that exact source without further manuscript edits."
   },
   "deposit_archive": {
-    "path": "data/publications/releases/helmholtz-pml-secondary-data-v1.zip",
-    "sha256": "f530db4620e0cdee4f1e62eacb9cf4e9c40d2ba7bb5fcb08f2d4037af24fe82d",
-    "bytes": 3437351,
-    "files": 105
+    "path": "data/publications/releases/helmholtz_pml_secondary_data_v1_0.zip",
+    "sha256": "cf103e6b09d18c92a6033b1b3a57c222b30e3d58f9b2eb5fe4b13972d7a7e2eb",
+    "bytes": 5879458,
+    "files": 105,
+    "compression": "stored (uncompressed)"
   },
   "standalone_deposit_validation": {
     "status": "passed",
@@ -41,12 +42,27 @@
     "numerical_data_changed": false,
     "CRediT_roles_used": 14,
     "project_administration_assigned": true,
-    "reproduction_note": "The 33 numerical CSV files and reproduction scripts are unchanged from the preceding release, which regenerated all 12 numerical figures and seven tables. This update revalidated the complete extracted archive.",
+    "reproduction_note": "The 33 numerical CSV files are unchanged. This deposit preparation regenerated all 12 numerical figures and seven tables and revalidated the complete extracted archive. The compiled integration results above are retained from the preceding implementation verification; solver sources were not changed or rebuilt for this metadata update.",
     "project_administration_assignees": [
       "Dieter Bothe",
       "Mario Kupnik"
     ],
     "manuscript_corresponding_author": "Tomislav Maric",
     "author_emails_verified": 3
+  },
+  "dataset_deposit_preparation": {
+    "creators": ["Chuanchao Xu", "Tomislav Maric"],
+    "data_license": "CC-BY-4.0",
+    "dataset_version": "1.0",
+    "workspace_url": "https://tudatalib.ulb.tu-darmstadt.de/workspaceitems/4393/edit",
+    "collection_uri": "https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/5582",
+    "status": "Uploaded and saved; all metadata and upload sections valid. Deposit agreement confirmation and archiving required before DOI reservation is available",
+    "uploaded_bitstream_uuid": "5caab88c-69d1-4157-9059-04715b2c119a",
+    "uploaded_md5_verified": "e6aa2ba94e0d24a058d9295c95af5c63",
+    "access": "Use collection default (workgroup and submitters)",
+    "dataset_DOI": null,
+    "reproduced_numerical_figures": 12,
+    "regenerated_tables": 7,
+    "numerical_data_changed": false
   }
 }

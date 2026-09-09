@@ -1,6 +1,6 @@
 {
-  "title": "Secondary data supporting \"An unstructured finite-volume Helmholtz method with perfectly matched layers for heterogeneous two-phase acoustics\"",
-  "version": "1.0-draft",
+  "title": "An unstructured finite-volume Helmholtz method with perfectly matched layers for heterogeneous two-phase acoustics - Secondary data (acousticHelmholtzFoam revision bb09dbfb34c1, dataset v1.0)",
+  "version": "1.0",
   "prepared_date": "2026-09-09",
   "data_collection_year": 2026,
   "language": "en",
@@ -14,7 +14,10 @@
     "Tomislav Maric",
     "Dieter Bothe"
   ],
-  "dataset_creators": null,
+  "dataset_creators": [
+    {"name": "Chuanchao Xu", "family_name": "Xu", "given_name": "Chuanchao", "affiliation": "Mathematical Modeling and Analysis, Mathematics Department, TU Darmstadt, Germany"},
+    {"name": "Tomislav Maric", "family_name": "Maric", "given_name": "Tomislav", "affiliation": "Mathematical Modeling and Analysis, Mathematics Department, TU Darmstadt, Germany"}
+  ],
   "keywords": [
     "Helmholtz equation",
     "finite volume method",
@@ -24,12 +27,38 @@
     "acoustic radiation force",
     "OpenFOAM"
   ],
-  "DFG_subjects": null,
-  "TUdatalib_collection": null,
-  "data_license": null,
+  "DFG_subjects": [{"code": "3.31-01", "label": "Mathematik"}],
+  "TUdatalib_collection": {
+    "uuid": "fc0e593d-562b-4f47-a665-bec676d883c7",
+    "uri": "https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/5582",
+    "parent": "Mathematical Modelling and Analysis"
+  },
+  "data_license": {"identifier": "CC-BY-4.0", "url": "https://creativecommons.org/licenses/by/4.0/", "scope": "Secondary numerical data and numerical tables; scripts retain existing software licenses. See RIGHTS.md."},
   "related_manuscript_DOI": null,
   "dataset_DOI": null,
-  "metadata_note": "Draft only. Dataset creators, subject classification, collection and license need the authors' deposit choices. Manuscript authors are recorded as manuscript metadata, not asserted to be the final dataset creators.",
+  "metadata_note": "Creators, creator order and CC BY 4.0 data license explicitly selected by Tomislav Maric. This is submission metadata, not evidence of publication or DOI registration.",
+  "deposit_status": "workspace draft",
+  "workspace_url": "https://tudatalib.ulb.tu-darmstadt.de/workspaceitems/4393/edit",
+  "software": {
+    "name": "acousticHelmholtzFoam",
+    "version_type": "git commit",
+    "version": "bb09dbfb34c1830478feecd8dd445957ac15949c",
+    "repository": "https://github.com/tmaric/TwoPhaseFlow",
+    "branch": "feature/acousticLevitation",
+    "note": "Final implementation identifier; historical study versions are recorded separately in software-provenance.json."
+  },
+  "funding": [{
+    "funder": "Deutsche Forschungsgemeinschaft (DFG, German Research Foundation)",
+    "project_number": "542327521",
+    "project_title": "Dynamic vertical positioning of liquid droplets in transducer-reflector sound field arrangement",
+    "acknowledged_by": ["Mario Kupnik", "Dieter Bothe"],
+    "source": "https://www.etit.tu-darmstadt.de/must/news_details_271040.en.jsp"
+  }],
+  "acknowledgements": "The authors gratefully acknowledge the computing time provided on the high-performance computer Lichtenberg II at TU Darmstadt, funded by the German Federal Ministry of Research, Technology and Space (BMFTR), and the State of Hesse Ministry of Science and Research, Art and Culture (HMWK).",
+  "AI_assistance": {
+    "tool": "OpenAI Codex", "provider": "OpenAI", "model": "gpt-6-astra",
+    "scope": "Manuscript review and revision, software development, verification and data-processing scripts, reproducible visualizations and a TikZ schematic under the corresponding author's direction. The manuscript snapshot preserves the complete disclosure."
+  },
   "manuscript_affiliations": {
     "mma": "Mathematical Modeling and Analysis, Mathematics Department, TU Darmstadt, Germany",
     "must": "Measurement and Sensor Technology, Department of Electrical Engineering and Information Technology, TU Darmstadt, Germany"

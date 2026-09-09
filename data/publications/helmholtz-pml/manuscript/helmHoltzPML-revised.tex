@@ -585,7 +585,9 @@ control-volume geometry is summarized in
     area vector $\Sf=|\mathcal S_f|\mathbf n_f$.  The dashed line joins
     the owner centroid to the centroid $\x_N$ of an adjacent cell, whose
     boundary is omitted for clarity.  This is a schematic projection;
-    $\mathbf d_f=\x_N-\x_P$ need not be parallel to $\Sf$.}
+    $\mathbf d_f=\x_N-\x_P$ need not be parallel to $\Sf$.
+    OpenAI Codex (OpenAI, model \texttt{gpt-6-astra}) assisted with generating
+    and revising the TikZ drawing code.}
     \label{fig:standardFVMControlVolume}
 \end{figure}
 
@@ -980,6 +982,19 @@ verification studies.
 
 \section{Verification}
 \label{sec:verification}
+
+\subsection{Computational workflow and AI assistance}
+\label{sec:aiWorkflow}
+
+During this revision, OpenAI Codex (OpenAI, model
+\texttt{gpt-6-astra}) assisted with source-code changes, preparation of
+verification cases, data-processing and plotting scripts, and consistency
+checks between the manuscript and its supporting data.  The corresponding
+author directed these tasks and selected the changes included in the
+revision.  Numerical results were obtained using the compiled solver or by
+reprocessing archived simulation outputs, as distinguished in the code and
+data availability statement.  The secondary-data package records the
+inputs and scripts used to reproduce the numerical plots and tables.
 
 \subsection{Error measures}
 \label{sec:errorMeasures}
@@ -1979,6 +1994,30 @@ its repository-relative data source.  A checksum manifest identifies the
 exact package contents.  Raw simulation fields and meshes are not included
 in this secondary-data package.
 
+\section*{Acknowledgements}
+
+% Lichtenberg wording: TU Darmstadt HRZ publications guidance, checked 2026-09-09.
+% https://www.hrz.tu-darmstadt.de/hlr/hochleistungsrechnen/publikationen_hlr/index.de.jsp
+The authors gratefully acknowledge the computing time provided on the
+high-performance computer Lichtenberg II at TU Darmstadt, funded by the
+German Federal Ministry of Research, Technology and Space (BMFTR), and the
+State of Hesse Ministry of Science and Research, Art and Culture (HMWK).
+
+\section*{Funding}
+
+% DFG project number checked against the TU Darmstadt MUST project announcement
+% and confirmed by Tomislav Maric on 2026-09-09.
+% https://www.etit.tu-darmstadt.de/must/news_details_271040.en.jsp
+Mario Kupnik and Dieter Bothe acknowledge support through their tandem
+project, funded by the Deutsche Forschungsgemeinschaft (DFG, German Research
+Foundation) -- project number 542327521.
+
+\section*{Declaration of competing interest}
+
+The authors declare that they have no competing financial interests or
+personal relationships that could have influenced the work reported in this
+paper.
+
 \section*{CRediT authorship contribution statement}
 
 \noindent\textbf{Chuanchao Xu}: Data curation, Formal analysis, Investigation, Methodology, Software, Visualization, Writing -- original draft.
@@ -1992,6 +2031,15 @@ in this secondary-data package.
 \noindent\textbf{Tomislav Maric}: Conceptualization, Data curation, Formal analysis, Investigation, Methodology, Software, Supervision, Writing -- review \& editing.
 
 \noindent\textbf{Dieter Bothe}: Conceptualization, Formal analysis, Methodology, Project administration, Resources, Supervision, Writing -- review \& editing.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+
+During revision of this work, OpenAI Codex was used under the direction of
+the corresponding author to assist with manuscript review and revision,
+software development, verification and data-processing scripts, and
+preparation of reproducible visualizations and a TikZ schematic.  The
+authors retain responsibility for the scientific content, interpretation,
+and final manuscript.
 
 \bibliographystyle{elsarticle-num}
 \paperbibliography{bibliography}
