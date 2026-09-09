@@ -1,0 +1,12 @@
+{
+  "Python": "3.12.3",
+  "NumPy": "2.5.0",
+  "Matplotlib": "3.11.0",
+  "role": "Portable validation and plot regeneration on collection date; original simulation environments are recorded separately.",
+  "additional_validation_environment": {
+    "Python": "3.12.3",
+    "NumPy": "1.26.4",
+    "Matplotlib": "3.6.3",
+    "selection": "Ubuntu system packages, PYTHONNOUSERSITE=1"
+  }
+}

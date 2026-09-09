@@ -1,0 +1,151 @@
+{
+  "common": {
+    "submission_area_fraction": "plicAverage",
+    "submission_flux": "legacy",
+    "time_convention": "exp(-i*omega*t)",
+    "pressure_unknowns": "complex pressure at cell centres",
+    "excluded": "Raw OpenFOAM fields, volume meshes, solver binaries, processor directories, and experimental transmission-flux results are not part of this secondary-data deposit."
+  },
+  "homogeneous": {
+    "status": "archived single-phase results; area choice is algebraically inactive",
+    "jobs": [
+      "54501269"
+    ],
+    "resolutions": [
+      16,
+      24,
+      32,
+      48,
+      64,
+      96
+    ],
+    "mesh_families": [
+      "orthogonal",
+      "warpedInterior"
+    ],
+    "boundary_modes": [
+      "dirichlet",
+      "mixed"
+    ],
+    "frequency_Hz": 1,
+    "density_kg_m3": 1,
+    "sound_speed_m_s": 1,
+    "amplitude_Pa": 1,
+    "phase_rad": 0.5235987755982988,
+    "domain_m": [
+      1.125,
+      0.625,
+      0.01
+    ],
+    "warping_amplitude": 0.08,
+    "orthogonal_boundary_layers": 1,
+    "boundary_transition_fraction": 0.15,
+    "nonorthogonal_correctors": 2,
+    "norm": "Cell-volume-weighted combined complex pressure and velocity L2; job explicitly writes cell volumes before postprocessing.",
+    "boundary_diagnostic_job": "54501267",
+    "boundary_diagnostic": "Separate prior mesh deformation with no orthogonal boundary layer; supports the diagnostic orders only."
+  },
+  "layered": {
+    "status": "selected geometric method; compared against independently frozen original executable",
+    "cluster_job": "54506190",
+    "local_runs": 44,
+    "cluster_runs": 32,
+    "frequency_Hz": 20000,
+    "drive_velocity_m_s": 0.01,
+    "domain_m": [
+      0,
+      0.35
+    ],
+    "interface_m": 0.09,
+    "pml_start_m": 0.2,
+    "pml_length_m": 0.15,
+    "pml_order": 3,
+    "rho_g_kg_m3": 1.2,
+    "c_g_m_s": 343,
+    "rho_l_kg_m3": 1000,
+    "c_l_m_s": 1500,
+    "reverse": "Swap material ordering, retaining geometry/excitation/PML settings.",
+    "sampling": "VTK cell-to-point conversion and linear line probing at 1200 points including endpoints; all probe flags valid.",
+    "reported_norm": "Uniform sample-weighted combined complex-pressure L2 over the entire domain including PML.",
+    "comparison_norm": "Relative cell-centre L2 difference from the original serial field; uniform cells.",
+    "matrix_residual": "True assembled relative residual <=1e-10 for the instrumented selected solver. Empty baseline residuals mean unreported, not zero."
+  },
+  "sphere": {
+    "status": "controlled comparison with the previous pressure flux for both area choices",
+    "job": "54503635_2",
+    "N": [
+      16,
+      24,
+      32,
+      48
+    ],
+    "ranks": [
+      1,
+      8
+    ],
+    "radius_m": 0.001,
+    "cube_m": [
+      -0.002,
+      0.002
+    ],
+    "ka": 1,
+    "rho_g_kg_m3": 1.2,
+    "c_g_m_s": 343,
+    "rho_l_kg_m3": 1000,
+    "c_l_m_s": 1500,
+    "incident_amplitude_Pa": 1,
+    "incident_direction": "positive x",
+    "reference": "25 angular orders, 0 through 24; regular spherical Bessel interior and outgoing Hankel exterior; pressure and inverse-density derivative continuity.",
+    "outer_boundary": "Exact total-pressure Dirichlet data, no PML",
+    "pressure_norm": "Volume-weighted complex-pressure L2. Cartesian cells have equal volumes.",
+    "parallel_difference": "Eight-rank field mapped to the serial ordering, divided by serial field L2 for the same area method.",
+    "cost_note": "Matrix entries and factor memory from the recorded eight-rank solve; single timing, not a scaling study."
+  },
+  "piston": {
+    "status": "archived single-phase results; area choice is algebraically inactive",
+    "job": "54501043",
+    "resolutions": [
+      20,
+      30,
+      40,
+      60,
+      80
+    ],
+    "frequency_Hz": 10000,
+    "density_kg_m3": 1.2,
+    "sound_speed_m_s": 343,
+    "drive_velocity_m_s": 1,
+    "piston_radius_m": 0.1,
+    "physical_extent_m": 0.2,
+    "pml_outer_extent_m": 0.28,
+    "sigma_max_s_inv": 100000,
+    "pml_order": 3,
+    "wedge_angle_deg": 2,
+    "on_axis_samples": 400,
+    "angular_samples": 361,
+    "azimuthal_samples": 180,
+    "source_radius_m": 0.2,
+    "far_field_radius_m": 4,
+    "reference_pressure_Pa": 2e-05,
+    "near_norm": "Relative L2/Linf of pressure magnitudes normalized by rho*c*u0; uniform sample weights.",
+    "far_norm": "Relative L2 of pressure magnitudes over 0 to 90 degrees; not relative SPL error.",
+    "polar_display": "Mirror the sampled 0..90 degree SPL about zero and subtract each curve maximum; radial display range -40..0 dB.",
+    "SPL_definition": "10*log10(0.5*|P|^2/p_ref^2); RMS pressure from the complex peak amplitude."
+  },
+  "gorkov": {
+    "status": "archived integrated-force secondary data reprocessed in job 54501044; no new solver rerun",
+    "frequency_Hz": 25250,
+    "density_kg_m3": 1.2,
+    "sound_speed_m_s": 343,
+    "pressure_amplitude_Pa": 1,
+    "cavity_height_m": 0.00764,
+    "cavity_radius_m": 0.01,
+    "wedge_angle_deg": 1,
+    "mesh_and_position_radius_m": 6e-05,
+    "radius_study_position_m": 0.0040003,
+    "rigid_contrast_factor": 0.8333333333333334,
+    "force_unit": "N in CSV; multiply by 1e15 for fN in figures.",
+    "peak_normalization": "Position error normalized by the peak analytical force; well-defined at analytical zero crossings.",
+    "limitations": "Original full fields and binaries of the force sweeps are not recovered. Provenance reaches the archived integrated forces and their original postprocessing."
+  }
+}

@@ -1,0 +1,29 @@
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrr}
+\toprule
+Mesh & BC & $N_\lambda$ & $E_2(P)$ & $q_P$ & $E_2(\mathbf{u})$ & $q_{\mathbf{u}}$ \\
+\midrule
+Orthogonal & Dirichlet & 32 & 4.421e-03 & 2.02 & 3.590e-03 & 1.98 \\
+Orthogonal & Dirichlet & 48 & 1.958e-03 & 2.01 & 1.609e-03 & 1.98 \\
+Orthogonal & Dirichlet & 64 & 1.100e-03 & 2.00 & 9.108e-04 & 1.98 \\
+Orthogonal & Dirichlet & 96 & 4.885e-04 & 2.00 & 4.081e-04 & 1.98 \\
+Orthogonal & Mixed & 32 & 1.301e-02 & 2.05 & 1.024e-02 & 2.04 \\
+Orthogonal & Mixed & 48 & 5.722e-03 & 2.03 & 4.512e-03 & 2.02 \\
+Orthogonal & Mixed & 64 & 3.207e-03 & 2.01 & 2.530e-03 & 2.01 \\
+Orthogonal & Mixed & 96 & 1.421e-03 & 2.01 & 1.122e-03 & 2.01 \\
+Interior-warped & Dirichlet & 32 & 1.026e-02 & 2.09 & 4.447e-02 & 1.50 \\
+Interior-warped & Dirichlet & 48 & 4.662e-03 & 1.95 & 2.545e-02 & 1.38 \\
+Interior-warped & Dirichlet & 64 & 2.564e-03 & 2.08 & 1.522e-02 & 1.79 \\
+Interior-warped & Dirichlet & 96 & 1.121e-03 & 2.04 & 7.724e-03 & 1.67 \\
+Interior-warped & Mixed & 32 & 1.843e-02 & 1.79 & 5.336e-02 & 1.51 \\
+Interior-warped & Mixed & 48 & 9.606e-03 & 1.61 & 3.055e-02 & 1.38 \\
+Interior-warped & Mixed & 64 & 5.449e-03 & 1.97 & 1.823e-02 & 1.79 \\
+Interior-warped & Mixed & 96 & 2.481e-03 & 1.94 & 9.219e-03 & 1.68 \\
+\bottomrule
+\end{tabular}
+\caption{Homogeneous plane-wave convergence. $N_\lambda$ denotes cells per wavelength; $q_P$ and $q_{\mathbf{u}}$ are the observed pressure and velocity orders.}
+\label{tab:homogeneousConvergence}
+\end{table}

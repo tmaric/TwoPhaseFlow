@@ -1,0 +1,33 @@
+{
+  "title": "Secondary data supporting \"An unstructured finite-volume Helmholtz method with perfectly matched layers for heterogeneous two-phase acoustics\"",
+  "version": "1.0-draft",
+  "prepared_date": "2026-09-09",
+  "data_collection_year": 2026,
+  "language": "en",
+  "resource_type": "Dataset",
+  "description": "Secondary numerical data, sampled numerical and analytical pressure profiles, convergence/error summaries, integrated radiation-force results, and original illustration sources underlying all 19 figures and 7 tables of the identified manuscript. Includes self-contained reproduction and validation tools; excludes raw simulation fields and meshes.",
+  "manuscript_authors": [
+    "Chuanchao Xu",
+    "Jun Liu",
+    "Jan-Helge Dörsam",
+    "Mario Kupnik",
+    "Tomislav Maric",
+    "Dieter Bothe"
+  ],
+  "dataset_creators": null,
+  "keywords": [
+    "Helmholtz equation",
+    "finite volume method",
+    "perfectly matched layer",
+    "two-phase acoustics",
+    "PLIC",
+    "acoustic radiation force",
+    "OpenFOAM"
+  ],
+  "DFG_subjects": null,
+  "TUdatalib_collection": null,
+  "data_license": null,
+  "related_manuscript_DOI": null,
+  "dataset_DOI": null,
+  "metadata_note": "Draft only. Dataset creators, subject classification, collection and license need the authors' deposit choices. Manuscript authors are recorded as manuscript metadata, not asserted to be the final dataset creators."
+}

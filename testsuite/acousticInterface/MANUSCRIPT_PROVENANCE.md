@@ -18,7 +18,7 @@ This audit covers **19 figures and 7 tables** in `helmHoltzPML-revised.tex`. The
 
 | Item | LaTeX label | Provenance / status |
 |---|---|---|
-| Figure 1 | `fig:standardFVMControlVolume` | Original illustration, hash preserved; visually checked against the described geometry. Not solver-run evidence. |
+| Figure 1 | `fig:standardFVMControlVolume` | Original TikZ/PGF source in `data/publications/helmholtz-pml/manuscript/revised-assets/figures/fvm_control_volume_tikz.tex`, CC-BY-4.0. |
 | Figure 2 | `fig:unstructuredFVMSchematic` | Native LaTeX/TikZ schematic; checked against equations, geometry and boundary conditions. No simulation data. |
 | Figure 3 | `fig:homogeneousBaselineSchematic` | Native LaTeX/TikZ schematic; checked against equations, geometry and boundary conditions. No simulation data. |
 | Figure 4 | `fig:homogeneousMeshes` | Original illustration, hash preserved; visually checked against the described geometry. Not solver-run evidence. |
@@ -73,3 +73,5 @@ python3 testsuite/acousticInterface/submission_check.py \
 ## Stable publication data location
 
 The audited secondary data have now been gathered in [data/publications/helmholtz-pml](../../data/publications/helmholtz-pml/README.md). [The root provenance file](../../PROVENANCE.md) provides a repository-relative source link for every manuscript figure and table. The paths above remain historical audit origins; they are no longer required to use the publication dataset.
+
+The publication snapshot now includes the original TikZ replacement for Figure 1 and the code/data-availability statement. The earlier result JSON files retain the historical numerical audit identity; the current snapshot hashes and article commit are in the publication folder's `provenance.json`.

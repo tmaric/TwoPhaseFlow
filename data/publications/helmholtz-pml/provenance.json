@@ -1,0 +1,418 @@
+{
+  "manuscript_title": "An unstructured finite-volume Helmholtz method with perfectly matched layers for heterogeneous two-phase acoustics",
+  "manuscript_source": "manuscript/helmHoltzPML-revised.tex",
+  "manuscript_source_sha256": "c155a769f7ad49e03e89c0871b07d4e898988f3016178f87972beb0ae638ee81",
+  "manuscript_pdf_sha256": "f94ec08a125224dea8b1d6f316d97ccc2f1f147ad804ffc46fec78804331249c",
+  "repository": "https://github.com/tmaric/TwoPhaseFlow",
+  "branch": "feature/acousticLevitation",
+  "base_revision": "5b1d46437356dc4debfdd8e33932d201e3c63c88",
+  "revision_note": "Implementation retained at implementation_commit; per-study source and binary hashes identify the measured historical versions. No publication DOI has been assigned.",
+  "items": [
+    {
+      "kind": "Figure",
+      "number": 1,
+      "label": "fig:standardFVMControlVolume",
+      "data_paths": [],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/fvm_control_volume_tikz.tex",
+        "manuscript/figure-source/figure01.tex"
+      ],
+      "method": "illustration",
+      "note": "Original TikZ/PGF polyhedral control-volume construction; no external illustration or numerical dataset. CC-BY-4.0.",
+      "reproduce": "manuscript/helmHoltzPML-revised.tex",
+      "license": {
+        "identifier": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "scope": "New Figure 1 TikZ source and schematic only"
+      }
+    },
+    {
+      "kind": "Figure",
+      "number": 2,
+      "label": "fig:unstructuredFVMSchematic",
+      "data_paths": [],
+      "asset_paths": [
+        "manuscript/figure-source/figure02.tex"
+      ],
+      "method": "illustration",
+      "note": "Schematic or mesh illustration; no numerical dataset. Exact source/image is included.",
+      "reproduce": "manuscript/helmHoltzPML-revised.tex"
+    },
+    {
+      "kind": "Figure",
+      "number": 3,
+      "label": "fig:homogeneousBaselineSchematic",
+      "data_paths": [],
+      "asset_paths": [
+        "manuscript/figure-source/figure03.tex"
+      ],
+      "method": "homogeneous",
+      "note": "Schematic or mesh illustration; no numerical dataset. Exact source/image is included.",
+      "reproduce": "manuscript/helmHoltzPML-revised.tex"
+    },
+    {
+      "kind": "Figure",
+      "number": 4,
+      "label": "fig:homogeneousMeshes",
+      "data_paths": [],
+      "asset_paths": [
+        "manuscript/figures/mesh_orthogonal.png",
+        "manuscript/figures/mesh_warpedInterior.png"
+      ],
+      "method": "homogeneous",
+      "note": "Schematic or mesh illustration; no numerical dataset. Exact source/image is included.",
+      "reproduce": "manuscript/helmHoltzPML-revised.tex"
+    },
+    {
+      "kind": "Figure",
+      "number": 5,
+      "label": "fig:homogeneousConvergence",
+      "data_paths": [
+        "secondary/homogeneous/convergence.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/homogeneous_convergence.png"
+      ],
+      "method": "homogeneous",
+      "note": "archived single-phase results; area choice is algebraically inactive",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 6,
+      "label": "fig:combinedLayeredSchematic",
+      "data_paths": [],
+      "asset_paths": [
+        "manuscript/figure-source/figure06.tex"
+      ],
+      "method": "layered",
+      "note": "Schematic or mesh illustration; no numerical dataset. Exact source/image is included.",
+      "reproduce": "manuscript/helmHoltzPML-revised.tex"
+    },
+    {
+      "kind": "Figure",
+      "number": 7,
+      "label": "fig:combinedLayeredPressure",
+      "data_paths": [
+        "secondary/layered/profiles/N8000-forward-sigma500000.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/pressureField_Pre_Pim_compare.png"
+      ],
+      "method": "layered",
+      "note": "selected geometric method; compared against independently frozen original executable",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 8,
+      "label": "fig:combinedLayeredAmplitude",
+      "data_paths": [
+        "secondary/layered/profiles/N8000-forward-sigma500000.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/pressureField_abs_compare.png"
+      ],
+      "method": "layered",
+      "note": "selected geometric method; compared against independently frozen original executable",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 9,
+      "label": "fig:combinedLayeredWaterAir",
+      "data_paths": [
+        "secondary/layered/profiles/N8000-reverse-sigma500000.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/pressureField_Pre_Pim_compare_water_air.png",
+        "manuscript/revised-assets/figures/pressureField_abs_compare_water_air.png"
+      ],
+      "method": "layered",
+      "note": "selected geometric method; compared against independently frozen original executable",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 10,
+      "label": "fig:pmlSigmaSensitivity",
+      "data_paths": [
+        "secondary/layered/metrics.csv",
+        "secondary/layered/profiles/N8000-forward-sigma10000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma500000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma100000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma200000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma50000.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/pml_sigma_sensitivity.png"
+      ],
+      "method": "layered",
+      "note": "selected geometric method; compared against independently frozen original executable",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 11,
+      "label": "fig:pmlMeshSensitivity",
+      "data_paths": [
+        "secondary/layered/metrics.csv",
+        "secondary/layered/profiles/N1120-forward-sigma500000.csv",
+        "secondary/layered/profiles/N2240-forward-sigma500000.csv",
+        "secondary/layered/profiles/N4480-forward-sigma500000.csv",
+        "secondary/layered/profiles/N560-forward-sigma500000.csv",
+        "secondary/layered/profiles/N8960-forward-sigma500000.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/pml_mesh_sensitivity.png"
+      ],
+      "method": "layered",
+      "note": "selected geometric method; compared against independently frozen original executable",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 12,
+      "label": "fig:pistonConfiguration",
+      "data_paths": [],
+      "asset_paths": [
+        "manuscript/figure-source/figure12.tex"
+      ],
+      "method": "piston",
+      "note": "Schematic or mesh illustration; no numerical dataset. Exact source/image is included.",
+      "reproduce": "manuscript/helmHoltzPML-revised.tex"
+    },
+    {
+      "kind": "Figure",
+      "number": 13,
+      "label": "fig:pistonNearAmpMethod",
+      "data_paths": [
+        "secondary/piston/on-axis-N20.csv",
+        "secondary/piston/on-axis-N30.csv",
+        "secondary/piston/on-axis-N40.csv",
+        "secondary/piston/on-axis-N60.csv",
+        "secondary/piston/on-axis-N80.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/piston_nearField_onAxis_meshConvergence.png"
+      ],
+      "method": "piston",
+      "note": "archived single-phase results; area choice is algebraically inactive",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 14,
+      "label": "fig:pistonFarAmpMethod",
+      "data_paths": [
+        "secondary/piston/far-field-N20.csv",
+        "secondary/piston/far-field-N30.csv",
+        "secondary/piston/far-field-N40.csv",
+        "secondary/piston/far-field-N60.csv",
+        "secondary/piston/far-field-N80.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/piston_farField_SPL_meshConvergence.png"
+      ],
+      "method": "piston",
+      "note": "archived single-phase results; area choice is algebraically inactive",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 15,
+      "label": "fig:pistonFarFieldPattern",
+      "data_paths": [
+        "secondary/piston/far-field-N80.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/piston_farFieldPatternPolar.png"
+      ],
+      "method": "piston",
+      "note": "archived single-phase results; area choice is algebraically inactive",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 16,
+      "label": "fig:gorkovDomainSchematic",
+      "data_paths": [],
+      "asset_paths": [
+        "manuscript/figure-source/figure16.tex",
+        "manuscript/figures/mesh_gorkov_local.png"
+      ],
+      "method": "gorkov",
+      "note": "Schematic or mesh illustration; no numerical dataset. Exact source/image is included.",
+      "reproduce": "manuscript/helmHoltzPML-revised.tex"
+    },
+    {
+      "kind": "Figure",
+      "number": 17,
+      "label": "fig:gorkovMeshConvergence",
+      "data_paths": [
+        "secondary/gorkov/mesh-convergence.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/gorkov_mesh_convergence.png"
+      ],
+      "method": "gorkov",
+      "note": "archived integrated-force secondary data reprocessed in job 54501044; no new solver rerun",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 18,
+      "label": "fig:gorkovRadiusSweep",
+      "data_paths": [
+        "secondary/gorkov/radius-sweep.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/gorkov_radius_comparison.png"
+      ],
+      "method": "gorkov",
+      "note": "archived integrated-force secondary data reprocessed in job 54501044; no new solver rerun",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Figure",
+      "number": 19,
+      "label": "fig:gorkovPositionSweep",
+      "data_paths": [
+        "secondary/gorkov/position-sweep.csv",
+        "secondary/gorkov/position-analytical-curve.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/figures/gorkov_position_sweep.png"
+      ],
+      "method": "gorkov",
+      "note": "archived integrated-force secondary data reprocessed in job 54501044; no new solver rerun",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Table",
+      "number": 1,
+      "label": "tab:homogeneousConvergence",
+      "data_paths": [
+        "secondary/homogeneous/convergence.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/tables/homogeneous_convergence_table.tex"
+      ],
+      "method": "homogeneous",
+      "note": "archived single-phase results; area choice is algebraically inactive",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Table",
+      "number": 2,
+      "label": "tab:pmlSigmaSensitivity",
+      "data_paths": [
+        "secondary/layered/metrics.csv",
+        "secondary/layered/profiles/N8000-forward-sigma10000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma500000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma100000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma200000.csv",
+        "secondary/layered/profiles/N8000-forward-sigma50000.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/tables/pml_sigma_sensitivity_table.tex"
+      ],
+      "method": "layered",
+      "note": "selected geometric method; compared against independently frozen original executable",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Table",
+      "number": 3,
+      "label": "tab:pmlMeshSensitivity",
+      "data_paths": [
+        "secondary/layered/metrics.csv",
+        "secondary/layered/profiles/N1120-forward-sigma500000.csv",
+        "secondary/layered/profiles/N2240-forward-sigma500000.csv",
+        "secondary/layered/profiles/N4480-forward-sigma500000.csv",
+        "secondary/layered/profiles/N560-forward-sigma500000.csv",
+        "secondary/layered/profiles/N8960-forward-sigma500000.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/tables/pml_mesh_sensitivity_table.tex"
+      ],
+      "method": "layered",
+      "note": "selected geometric method; compared against independently frozen original executable",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Table",
+      "number": 4,
+      "label": "tab:geometricComparison",
+      "data_paths": [
+        "secondary/sphere/area-comparison.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/tables/geometric_comparison_table.tex"
+      ],
+      "method": "sphere",
+      "note": "controlled comparison with the previous pressure flux for both area choices",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Table",
+      "number": 5,
+      "label": "tab:pistonConvergence",
+      "data_paths": [
+        "secondary/piston/metrics.csv",
+        "secondary/piston/on-axis-N20.csv",
+        "secondary/piston/on-axis-N30.csv",
+        "secondary/piston/on-axis-N40.csv",
+        "secondary/piston/on-axis-N60.csv",
+        "secondary/piston/on-axis-N80.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/tables/nearField_convergence_table.tex"
+      ],
+      "method": "piston",
+      "note": "archived single-phase results; area choice is algebraically inactive",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Table",
+      "number": 6,
+      "label": "tab:pistonFarFieldConvergence",
+      "data_paths": [
+        "secondary/piston/metrics.csv",
+        "secondary/piston/far-field-N20.csv",
+        "secondary/piston/far-field-N30.csv",
+        "secondary/piston/far-field-N40.csv",
+        "secondary/piston/far-field-N60.csv",
+        "secondary/piston/far-field-N80.csv"
+      ],
+      "asset_paths": [
+        "manuscript/revised-assets/tables/farField_convergence_table.tex"
+      ],
+      "method": "piston",
+      "note": "archived single-phase results; area choice is algebraically inactive",
+      "reproduce": "scripts/reproduce.py"
+    },
+    {
+      "kind": "Table",
+      "number": 7,
+      "label": "tab:gorkovMeshConvergence",
+      "data_paths": [
+        "secondary/gorkov/mesh-convergence.csv"
+      ],
+      "asset_paths": [
+        "manuscript/tables/gorkov_mesh_convergence_table.tex"
+      ],
+      "method": "gorkov",
+      "note": "archived integrated-force secondary data reprocessed in job 54501044; no new solver rerun",
+      "reproduce": "scripts/reproduce.py"
+    }
+  ],
+  "text_only_support": [
+    "secondary/homogeneous/boundary-skew-diagnostic.csv",
+    "secondary/layered/method-comparisons.csv",
+    "secondary/sphere/matrix-cost.csv",
+    "secondary/gorkov/amplitude-scaling.csv"
+  ],
+  "implementation_commit": "bb09dbfb34c1830478feecd8dd445957ac15949c",
+  "manuscript_git_commit": "26b19d48edd7e281c819cc56a5b37bdf67fabe67"
+}

@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "checks": [
+    "All 33 CSV files match the schema, row counts, missing-value rules and finite-value checks",
+    "All 19 figures, 7 tables and text-only supporting results resolve within this deposit",
+    "All 11 layered pressure norms independently recomputed from the 1200-point profiles",
+    "Both piston error tables, SPL and directivity recomputed from all five exported profile pairs",
+    "Homogeneous pressure and velocity orders recomputed for both retained mesh studies",
+    "Gorkov analytical forces, error measures and the 500-point analytical curve independently checked",
+    "Every numerical row of all seven manuscript tables matches its portable secondary-data source"
+  ],
+  "figures": 19,
+  "tables": 7,
+  "csv_files": 33
+}

@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-09",
+  "implementation_commit": "bb09dbfb34c1830478feecd8dd445957ac15949c",
+  "manuscript_commit": "26b19d48edd7e281c819cc56a5b37bdf67fabe67",
+  "compiled_integration_tests": {
+    "passed": 20,
+    "failed": 0,
+    "Python": "3.13.11",
+    "pytest": "9.0.2",
+    "source_hashes_match_recorded_compiled_sources": true
+  },
+  "manuscript_pdf": {
+    "pages": 38,
+    "warnings": 0,
+    "sha256": "f94ec08a125224dea8b1d6f316d97ccc2f1f147ad804ffc46fec78804331249c",
+    "visual_check": "Title page, new TikZ Figure 1 and changed availability pages inspected."
+  },
+  "deposit_archive": {
+    "path": "data/publications/releases/helmholtz-pml-secondary-data-v1.zip",
+    "sha256": "2ca02bf885290c837606f819eacb3e70858480dd16e668a7ea9b18bb8773bb2d",
+    "bytes": 3436353,
+    "files": 105
+  },
+  "standalone_deposit_validation": {
+    "status": "passed",
+    "checks": [
+      "SHA-256 and sizes checked for 104 files",
+      "All 33 CSV files match the schema, row counts, missing-value rules and finite-value checks",
+      "All 19 figures, 7 tables and text-only supporting results resolve within this deposit",
+      "All 11 layered pressure norms independently recomputed from the 1200-point profiles",
+      "Both piston error tables, SPL and directivity recomputed from all five exported profile pairs",
+      "Homogeneous pressure and velocity orders recomputed for both retained mesh studies",
+      "Gorkov analytical forces, error measures and the 500-point analytical curve independently checked",
+      "Every numerical row of all seven manuscript tables matches its portable secondary-data source"
+    ],
+    "figures": 19,
+    "tables": 7,
+    "csv_files": 33,
+    "reproduced_numerical_figures": 12,
+    "regenerated_tables": 7
+  }
+}

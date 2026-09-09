@@ -1,0 +1,947 @@
+{
+  "format": "UTF-8 CSV, comma delimiter, header row, decimal point. Empty cells mean explicitly documented not-applicable/unreported values; NaN/Inf are invalid.",
+  "columns": {
+    "meshFamily": {
+      "type": "string",
+      "unit": "not applicable",
+      "description": "Category or identifier. Method and ordering meanings are defined in methods.json."
+    },
+    "boundaryMode": {
+      "type": "string",
+      "unit": "not applicable",
+      "description": "Category or identifier. Method and ordering meanings are defined in methods.json."
+    },
+    "level": {
+      "type": "string",
+      "unit": "not applicable",
+      "description": "Category or identifier. Method and ordering meanings are defined in methods.json."
+    },
+    "mode": {
+      "type": "string",
+      "unit": "not applicable",
+      "description": "Category or identifier. Method and ordering meanings are defined in methods.json."
+    },
+    "ordering": {
+      "type": "string",
+      "unit": "not applicable",
+      "description": "Category or identifier. Method and ordering meanings are defined in methods.json."
+    },
+    "host": {
+      "type": "string",
+      "unit": "not applicable",
+      "description": "Category or identifier. Method and ordering meanings are defined in methods.json."
+    },
+    "job_id": {
+      "type": "string",
+      "unit": "not applicable",
+      "description": "Category or identifier. Method and ordering meanings are defined in methods.json."
+    },
+    "profile_path": {
+      "type": "path",
+      "unit": "not applicable",
+      "description": "Path relative to the dataset root to the exact 1200-point sampled pressure profile."
+    },
+    "N": {
+      "type": "number",
+      "unit": "1",
+      "description": "Resolution parameter: N is total longitudinal cells for layered cases, or cells per Cartesian cube edge for sphere cases. cellsPerWavelength is cells per acoustic wavelength."
+    },
+    "cellsPerWavelength": {
+      "type": "number",
+      "unit": "1",
+      "description": "Resolution parameter: N is total longitudinal cells for layered cases, or cells per Cartesian cube edge for sphere cases. cellsPerWavelength is cells per acoustic wavelength."
+    },
+    "cells": {
+      "type": "number",
+      "unit": "1",
+      "description": "Number of acoustic control volumes."
+    },
+    "n_cells": {
+      "type": "number",
+      "unit": "1",
+      "description": "Number of acoustic control volumes."
+    },
+    "ranks": {
+      "type": "number",
+      "unit": "1",
+      "description": "Number of MPI processes; 1 denotes a serial run."
+    },
+    "n_samples": {
+      "type": "number",
+      "unit": "1",
+      "description": "Number of included sample points, all with valid probe flags."
+    },
+    "hOverLambda": {
+      "type": "number",
+      "unit": "1",
+      "description": "Nominal cell size divided by acoustic wavelength."
+    },
+    "h_over_lambda": {
+      "type": "number",
+      "unit": "1",
+      "description": "Nominal cell size divided by acoustic wavelength."
+    },
+    "maxNonOrthogonality": {
+      "type": "number",
+      "unit": "degree",
+      "description": "Maximum cell-face nonorthogonality angle in the mesh."
+    },
+    "max_nonorthogonality_deg": {
+      "type": "number",
+      "unit": "degree",
+      "description": "Maximum cell-face nonorthogonality angle in the mesh."
+    },
+    "avgNonOrthogonality": {
+      "type": "number",
+      "unit": "degree",
+      "description": "Average cell-face nonorthogonality angle in the mesh."
+    },
+    "avg_nonorthogonality_deg": {
+      "type": "number",
+      "unit": "degree",
+      "description": "Average cell-face nonorthogonality angle in the mesh."
+    },
+    "max_skewness": {
+      "type": "number",
+      "unit": "1",
+      "description": "Maximum mesh skewness diagnostic."
+    },
+    "pressureRelL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative combined complex-pressure L2 error. Cell-volume weighting is used for homogeneous/sphere studies; see methods.json."
+    },
+    "pressureRelLinf": {
+      "type": "number",
+      "unit": "1",
+      "description": "Maximum complex-pressure error magnitude divided by maximum analytical complex-pressure magnitude."
+    },
+    "velocityRelL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative L2 error of the complex velocity vector, with the same cell-volume weights as pressure."
+    },
+    "velocityInteriorRelL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Velocity L2 error over the indicated cell subset; interior cells are more than 2.5 nominal cell widths from the boundary."
+    },
+    "velocityBoundaryRelL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Velocity L2 error over the indicated cell subset; interior cells are more than 2.5 nominal cell widths from the boundary."
+    },
+    "pressureOrder": {
+      "type": "number",
+      "unit": "1",
+      "description": "Observed order log(E_coarse/E_fine)/log(h_coarse/h_fine). Empty at the first level, where no preceding level exists."
+    },
+    "velocityOrder": {
+      "type": "number",
+      "unit": "1",
+      "description": "Observed order log(E_coarse/E_fine)/log(h_coarse/h_fine). Empty at the first level, where no preceding level exists."
+    },
+    "pressureRelL2_cell_centres": {
+      "type": "number",
+      "unit": "1",
+      "description": "Combined complex-pressure relative L2 error at cell centres, distinct from the manuscript 1200-point sampled norm."
+    },
+    "baselineDifference": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative complex-pressure L2 difference from the original serial baseline field for the same physical configuration."
+    },
+    "parallelDifference": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative complex-pressure L2 difference between the indicated run and the serial field of the same method, in serial cell ordering."
+    },
+    "liquidRelL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative complex-pressure L2 error over the indicated cell subset; see archived sphere/advanced.py metrics definition for the interface band."
+    },
+    "gasRelL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative complex-pressure L2 error over the indicated cell subset; see archived sphere/advanced.py metrics definition for the interface band."
+    },
+    "interfaceRelL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative complex-pressure L2 error over the indicated cell subset; see archived sphere/advanced.py metrics definition for the interface band."
+    },
+    "seconds": {
+      "type": "number",
+      "unit": "s",
+      "description": "Comparison-driver elapsed wall time; a single timing measurement, not a scaling result."
+    },
+    "max_relative_residual": {
+      "type": "number",
+      "unit": "1",
+      "description": "Maximum true assembled relative linear-system residual over correction sweeps. Empty only for frozen baseline runs that did not report this diagnostic."
+    },
+    "sigma_max_s_inv": {
+      "type": "number",
+      "unit": "s^-1",
+      "description": "Positive maximum PML damping magnitude. Some original reports print its negative implementation coefficient."
+    },
+    "P_relL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Combined real/imaginary pressure L2 error over 1200 uniformly weighted samples including the PML."
+    },
+    "Pre_relL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Real or imaginary pressure component L2 error, normalized by the corresponding analytical component norm."
+    },
+    "Pim_relL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Real or imaginary pressure component L2 error, normalized by the corresponding analytical component norm."
+    },
+    "x_m": {
+      "type": "number",
+      "unit": "m",
+      "description": "Sample position along the layered domain, including endpoints."
+    },
+    "Pre_sim": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Real or imaginary component of numerical (sim) or analytical complex pressure."
+    },
+    "Pim_sim": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Real or imaginary component of numerical (sim) or analytical complex pressure."
+    },
+    "Pre_analytic": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Real or imaginary component of numerical (sim) or analytical complex pressure."
+    },
+    "Pim_analytic": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Real or imaginary component of numerical (sim) or analytical complex pressure."
+    },
+    "p_abs_sim": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Magnitude of numerical or analytical complex pressure at the sample point."
+    },
+    "p_abs_analytic": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Magnitude of numerical or analytical complex pressure at the sample point."
+    },
+    "z_m": {
+      "type": "number",
+      "unit": "m",
+      "description": "Piston on-axis sample distance from the baffle (the solver axial direction is y)."
+    },
+    "z_over_rayleigh": {
+      "type": "number",
+      "unit": "1",
+      "description": "Axial distance divided by Rayleigh distance R0=k*a^2/2."
+    },
+    "p_sim_pa": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Piston on-axis numerical or analytical pressure magnitude."
+    },
+    "p_analytic_pa": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Piston on-axis numerical or analytical pressure magnitude."
+    },
+    "p_sim_over_p0": {
+      "type": "number",
+      "unit": "1",
+      "description": "Piston on-axis pressure magnitude divided by rho*c*u0."
+    },
+    "p_analytic_over_p0": {
+      "type": "number",
+      "unit": "1",
+      "description": "Piston on-axis pressure magnitude divided by rho*c*u0."
+    },
+    "theta_deg": {
+      "type": "number",
+      "unit": "degree",
+      "description": "Polar angle from the piston axis, ranging from zero to 90 degrees."
+    },
+    "SPL_sim_dB": {
+      "type": "number",
+      "unit": "dB re 20 uPa",
+      "description": "10*log10(0.5*|P|^2/(20e-6 Pa)^2), using RMS pressure from the complex peak amplitude."
+    },
+    "SPL_analytic_dB": {
+      "type": "number",
+      "unit": "dB re 20 uPa",
+      "description": "10*log10(0.5*|P|^2/(20e-6 Pa)^2), using RMS pressure from the complex peak amplitude."
+    },
+    "directivity_sim": {
+      "type": "number",
+      "unit": "1",
+      "description": "Far-field pressure magnitude divided by its on-axis value for the same curve."
+    },
+    "directivity_analytic": {
+      "type": "number",
+      "unit": "1",
+      "description": "Far-field pressure magnitude divided by its on-axis value for the same curve."
+    },
+    "p_far_abs_sim_pa": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Numerical or analytical far-field pressure magnitude at r_far_m."
+    },
+    "p_far_abs_analytic_pa": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Numerical or analytical far-field pressure magnitude at r_far_m."
+    },
+    "p_far_real": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Real or imaginary component of pressure reconstructed by the Kirchhoff integral."
+    },
+    "p_far_imag": {
+      "type": "number",
+      "unit": "Pa",
+      "description": "Real or imaginary component of pressure reconstructed by the Kirchhoff integral."
+    },
+    "r_far_m": {
+      "type": "number",
+      "unit": "m",
+      "description": "Radius of the exterior far-field sampling arc."
+    },
+    "time": {
+      "type": "number",
+      "unit": "solver pseudo-time",
+      "description": "Stationary solver output index; not elapsed physical or wall-clock time."
+    },
+    "relL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Piston near-field relative L2 or Linf error of the pressure magnitude, using the uniformly sampled on-axis profile."
+    },
+    "relLinf": {
+      "type": "number",
+      "unit": "1",
+      "description": "Piston near-field relative L2 or Linf error of the pressure magnitude, using the uniformly sampled on-axis profile."
+    },
+    "absLinf": {
+      "type": "number",
+      "unit": "1",
+      "description": "Maximum absolute error of piston pressure magnitude after normalization by rho*c*u0; despite the column name it is dimensionless."
+    },
+    "farField_pressureMagnitude_relL2": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative L2 error of far-field pressure magnitudes over the sampled polar angles."
+    },
+    "farField_onAxisAmplitude_relError": {
+      "type": "number",
+      "unit": "1",
+      "description": "Signed numerical/analytical on-axis far-field magnitude ratio minus one."
+    },
+    "h_over_a": {
+      "type": "number",
+      "unit": "1",
+      "description": "Target cell size near the sphere divided by sphere radius."
+    },
+    "segments": {
+      "type": "number",
+      "unit": "1",
+      "description": "Number of generating semicircle surface segments."
+    },
+    "n_surface_faces": {
+      "type": "number",
+      "unit": "1",
+      "description": "Number of acoustic mesh faces on the sphere boundary."
+    },
+    "cell_size_m": {
+      "type": "number",
+      "unit": "m",
+      "description": "Target cell size next to the rigid-sphere surface."
+    },
+    "drop_cell_size_m": {
+      "type": "number",
+      "unit": "m",
+      "description": "Target cell size next to the rigid-sphere surface."
+    },
+    "radius_m": {
+      "type": "number",
+      "unit": "m",
+      "description": "Rigid-sphere radius."
+    },
+    "radius_um": {
+      "type": "number",
+      "unit": "um",
+      "description": "Rigid-sphere radius in micrometres."
+    },
+    "position_m": {
+      "type": "number",
+      "unit": "m",
+      "description": "Sphere-centre coordinate along the standing-wave axis."
+    },
+    "position_mm": {
+      "type": "number",
+      "unit": "mm",
+      "description": "Sphere-centre coordinate along the standing-wave axis in millimetres."
+    },
+    "numerical_force_y_N": {
+      "type": "number",
+      "unit": "N",
+      "description": "Integrated numerical axial radiation force in the archived whole-sphere convention. Multiply by 1e15 for plotted fN."
+    },
+    "gorkov_force_y_N": {
+      "type": "number",
+      "unit": "N",
+      "description": "Analytical rigid-Rayleigh-sphere Gorkov axial force for the documented excitation."
+    },
+    "ka": {
+      "type": "number",
+      "unit": "1",
+      "description": "Acoustic wavenumber times sphere radius."
+    },
+    "numerical_to_gorkov": {
+      "type": "number",
+      "unit": "1",
+      "description": "Signed ratio of numerical to analytical axial force."
+    },
+    "absolute_relative_error": {
+      "type": "number",
+      "unit": "1",
+      "description": "Absolute force difference divided by absolute Gorkov force, for nonzero-reference cases."
+    },
+    "difference_from_gorkov": {
+      "type": "number",
+      "unit": "1",
+      "description": "Absolute force difference divided by absolute Gorkov force, for nonzero-reference cases."
+    },
+    "difference_normalized_by_peak_force": {
+      "type": "number",
+      "unit": "1",
+      "description": "Absolute force difference divided by the peak analytical force over position; finite at analytical zero crossings."
+    },
+    "change_to_next_finer": {
+      "type": "number",
+      "unit": "1",
+      "description": "Absolute force change to the next finer grid divided by that finer-grid force magnitude. Empty on the finest grid."
+    },
+    "force_at_1Pa_N": {
+      "type": "number",
+      "unit": "N",
+      "description": "Archived integrated axial force for the stated incident pressure amplitude."
+    },
+    "force_at_1000Pa_N": {
+      "type": "number",
+      "unit": "N",
+      "description": "Archived integrated axial force for the stated incident pressure amplitude."
+    },
+    "force_at_1000Pa_div_1e6_N": {
+      "type": "number",
+      "unit": "N",
+      "description": "1000-Pa result divided by 1000^2 for comparison with the 1-Pa force."
+    },
+    "relative_scaling_deviation": {
+      "type": "number",
+      "unit": "1",
+      "description": "Relative deviation from the expected quadratic pressure-amplitude scaling; original archived statistic."
+    },
+    "matrixNonzeros": {
+      "type": "number",
+      "unit": "1",
+      "description": "Stored entries in the PETSc real block matrix, including both pressure components."
+    },
+    "mumpsFactorMemorySumMB": {
+      "type": "number",
+      "unit": "MB as reported by MUMPS",
+      "description": "Summed factor-memory diagnostic INFOG(22); not total process peak memory."
+    }
+  },
+  "files": {
+    "secondary/gorkov/amplitude-scaling.csv": {
+      "rows": 2,
+      "columns": [
+        "position_mm",
+        "force_at_1Pa_N",
+        "force_at_1000Pa_N",
+        "force_at_1000Pa_div_1e6_N",
+        "relative_scaling_deviation"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/gorkov/mesh-convergence.csv": {
+      "rows": 3,
+      "columns": [
+        "level",
+        "h_over_a",
+        "segments",
+        "cell_size_m",
+        "n_cells",
+        "n_surface_faces",
+        "max_nonorthogonality_deg",
+        "avg_nonorthogonality_deg",
+        "max_skewness",
+        "numerical_force_y_N",
+        "gorkov_force_y_N",
+        "difference_from_gorkov",
+        "change_to_next_finer"
+      ],
+      "allowed_empty_columns": [
+        "change_to_next_finer"
+      ]
+    },
+    "secondary/gorkov/position-analytical-curve.csv": {
+      "rows": 500,
+      "columns": [
+        "position_m",
+        "gorkov_force_y_N"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/gorkov/position-sweep.csv": {
+      "rows": 11,
+      "columns": [
+        "position_mm",
+        "position_m",
+        "n_cells",
+        "n_surface_faces",
+        "max_nonorthogonality_deg",
+        "avg_nonorthogonality_deg",
+        "max_skewness",
+        "numerical_force_y_N",
+        "gorkov_force_y_N",
+        "difference_normalized_by_peak_force"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/gorkov/radius-sweep.csv": {
+      "rows": 7,
+      "columns": [
+        "radius_um",
+        "radius_m",
+        "drop_cell_size_m",
+        "n_cells",
+        "n_surface_faces",
+        "max_nonorthogonality_deg",
+        "avg_nonorthogonality_deg",
+        "max_skewness",
+        "numerical_force_y_N",
+        "ka",
+        "gorkov_force_y_N",
+        "numerical_to_gorkov",
+        "absolute_relative_error"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/homogeneous/boundary-skew-diagnostic.csv": {
+      "rows": 12,
+      "columns": [
+        "meshFamily",
+        "boundaryMode",
+        "cellsPerWavelength",
+        "cells",
+        "hOverLambda",
+        "maxNonOrthogonality",
+        "avgNonOrthogonality",
+        "pressureRelL2",
+        "pressureRelLinf",
+        "velocityRelL2",
+        "velocityInteriorRelL2",
+        "velocityBoundaryRelL2",
+        "pressureOrder",
+        "velocityOrder"
+      ],
+      "allowed_empty_columns": [
+        "pressureOrder",
+        "velocityOrder"
+      ]
+    },
+    "secondary/homogeneous/convergence.csv": {
+      "rows": 24,
+      "columns": [
+        "meshFamily",
+        "boundaryMode",
+        "cellsPerWavelength",
+        "cells",
+        "hOverLambda",
+        "maxNonOrthogonality",
+        "avgNonOrthogonality",
+        "pressureRelL2",
+        "pressureRelLinf",
+        "velocityRelL2",
+        "velocityInteriorRelL2",
+        "velocityBoundaryRelL2",
+        "pressureOrder",
+        "velocityOrder"
+      ],
+      "allowed_empty_columns": [
+        "pressureOrder",
+        "velocityOrder"
+      ]
+    },
+    "secondary/layered/method-comparisons.csv": {
+      "rows": 76,
+      "columns": [
+        "host",
+        "job_id",
+        "N",
+        "ordering",
+        "sigma_max_s_inv",
+        "mode",
+        "ranks",
+        "pressureRelL2_cell_centres",
+        "baselineDifference",
+        "seconds",
+        "max_relative_residual"
+      ],
+      "allowed_empty_columns": [
+        "job_id",
+        "max_relative_residual"
+      ]
+    },
+    "secondary/layered/metrics.csv": {
+      "rows": 11,
+      "columns": [
+        "N",
+        "ordering",
+        "sigma_max_s_inv",
+        "P_relL2",
+        "Pre_relL2",
+        "Pim_relL2",
+        "n_samples",
+        "profile_path"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N1120-forward-sigma500000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N2240-forward-sigma500000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N4480-forward-sigma500000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N560-forward-sigma500000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N8000-forward-sigma10000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N8000-forward-sigma100000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N8000-forward-sigma200000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N8000-forward-sigma50000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N8000-forward-sigma500000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N8000-reverse-sigma500000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/layered/profiles/N8960-forward-sigma500000.csv": {
+      "rows": 1200,
+      "columns": [
+        "x_m",
+        "Pre_sim",
+        "Pim_sim",
+        "p_abs_sim",
+        "Pre_analytic",
+        "Pim_analytic",
+        "p_abs_analytic"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/far-field-N20.csv": {
+      "rows": 361,
+      "columns": [
+        "theta_deg",
+        "SPL_sim_dB",
+        "SPL_analytic_dB",
+        "directivity_sim",
+        "directivity_analytic",
+        "p_far_abs_sim_pa",
+        "p_far_abs_analytic_pa",
+        "p_far_real",
+        "p_far_imag",
+        "r_far_m"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/far-field-N30.csv": {
+      "rows": 361,
+      "columns": [
+        "theta_deg",
+        "SPL_sim_dB",
+        "SPL_analytic_dB",
+        "directivity_sim",
+        "directivity_analytic",
+        "p_far_abs_sim_pa",
+        "p_far_abs_analytic_pa",
+        "p_far_real",
+        "p_far_imag",
+        "r_far_m"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/far-field-N40.csv": {
+      "rows": 361,
+      "columns": [
+        "theta_deg",
+        "SPL_sim_dB",
+        "SPL_analytic_dB",
+        "directivity_sim",
+        "directivity_analytic",
+        "p_far_abs_sim_pa",
+        "p_far_abs_analytic_pa",
+        "p_far_real",
+        "p_far_imag",
+        "r_far_m"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/far-field-N60.csv": {
+      "rows": 361,
+      "columns": [
+        "theta_deg",
+        "SPL_sim_dB",
+        "SPL_analytic_dB",
+        "directivity_sim",
+        "directivity_analytic",
+        "p_far_abs_sim_pa",
+        "p_far_abs_analytic_pa",
+        "p_far_real",
+        "p_far_imag",
+        "r_far_m"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/far-field-N80.csv": {
+      "rows": 361,
+      "columns": [
+        "theta_deg",
+        "SPL_sim_dB",
+        "SPL_analytic_dB",
+        "directivity_sim",
+        "directivity_analytic",
+        "p_far_abs_sim_pa",
+        "p_far_abs_analytic_pa",
+        "p_far_real",
+        "p_far_imag",
+        "r_far_m"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/metrics.csv": {
+      "rows": 5,
+      "columns": [
+        "cellsPerWavelength",
+        "h_over_lambda",
+        "time",
+        "relL2",
+        "relLinf",
+        "absLinf",
+        "farField_pressureMagnitude_relL2",
+        "farField_onAxisAmplitude_relError"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/on-axis-N20.csv": {
+      "rows": 400,
+      "columns": [
+        "z_m",
+        "z_over_rayleigh",
+        "p_sim_pa",
+        "p_analytic_pa",
+        "p_sim_over_p0",
+        "p_analytic_over_p0"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/on-axis-N30.csv": {
+      "rows": 400,
+      "columns": [
+        "z_m",
+        "z_over_rayleigh",
+        "p_sim_pa",
+        "p_analytic_pa",
+        "p_sim_over_p0",
+        "p_analytic_over_p0"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/on-axis-N40.csv": {
+      "rows": 400,
+      "columns": [
+        "z_m",
+        "z_over_rayleigh",
+        "p_sim_pa",
+        "p_analytic_pa",
+        "p_sim_over_p0",
+        "p_analytic_over_p0"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/on-axis-N60.csv": {
+      "rows": 400,
+      "columns": [
+        "z_m",
+        "z_over_rayleigh",
+        "p_sim_pa",
+        "p_analytic_pa",
+        "p_sim_over_p0",
+        "p_analytic_over_p0"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/piston/on-axis-N80.csv": {
+      "rows": 400,
+      "columns": [
+        "z_m",
+        "z_over_rayleigh",
+        "p_sim_pa",
+        "p_analytic_pa",
+        "p_sim_over_p0",
+        "p_analytic_over_p0"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/sphere/area-comparison.csv": {
+      "rows": 16,
+      "columns": [
+        "N",
+        "mode",
+        "ranks",
+        "pressureRelL2",
+        "liquidRelL2",
+        "gasRelL2",
+        "interfaceRelL2",
+        "parallelDifference",
+        "seconds",
+        "max_relative_residual",
+        "job_id"
+      ],
+      "allowed_empty_columns": []
+    },
+    "secondary/sphere/matrix-cost.csv": {
+      "rows": 2,
+      "columns": [
+        "mode",
+        "ranks",
+        "seconds",
+        "mumpsFactorMemorySumMB",
+        "matrixNonzeros"
+      ],
+      "allowed_empty_columns": []
+    }
+  }
+}

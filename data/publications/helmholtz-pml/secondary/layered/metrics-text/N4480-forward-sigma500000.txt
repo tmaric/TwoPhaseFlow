@@ -1,0 +1,24 @@
+Layered interface validation
+Analytical pressure field includes polynomial PML attenuation
+rho1 = 1.20000000e+00
+c1 = 3.43000000e+02
+rho2 = 1.00000000e+03
+c2 = 1.50000000e+03
+u0 = 1.00000000e-02
+L1_interface = 9.00000000e-02
+L2_PML_start = 2.00000000e-01
+L_domain_end = 3.50000000e-01
+k1 = 3.66366490e+02
+k2 = 8.37758041e+01
+R = 9.99451351e-01
+PML_length = 1.50000000e-01
+sigmaMax = -5.00000000e+05
+PML_order = 3.00000000e+00
+errorDomain = whole domain including PML
+sampling = VTK cell-to-point conversion and linear line probing
+nSamples = 1200
+weights = uniform; all probe samples valid
+P_relL2 = 5.85271755e-04
+Pre_relL2 = 1.22108847e-04
+Pim_relL2 = 7.46508557e-04
+|p|_relL2 = 5.84448805e-04

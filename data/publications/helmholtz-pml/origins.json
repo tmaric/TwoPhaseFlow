@@ -1,0 +1,525 @@
+[
+  {
+    "path": "secondary/homogeneous/convergence.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/volume-54501269/case/studyResults/convergence/metrics_summary.csv",
+    "note": "Archived secondary data; see methods.json for generation status.",
+    "source_sha256": "a631565ba1fe0e59c5be619a47358f11523a9636e06cb19c4b167bbbe8e79155"
+  },
+  {
+    "path": "secondary/homogeneous/boundary-skew-diagnostic.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/boundary-54501267/case/studyResults/convergence/metrics_summary.csv",
+    "note": "Archived secondary data; see methods.json for generation status.",
+    "source_sha256": "3a99cca5bf8dd2ef9f29349c5e0f50ff75c7e440ecac957638c9843804554d2c"
+  },
+  {
+    "path": "secondary/piston/metrics.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/metrics_summary.csv",
+    "note": "Archived secondary data; see methods.json for generation status.",
+    "source_sha256": "20d8eb33c61d6106b59db291c7fdc8e5df5b791b51f600ccc366a0e0ea630ef4"
+  },
+  {
+    "path": "secondary/gorkov/mesh-convergence.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/gorkov-54501044/mesh_convergence.tsv",
+    "note": "Archived secondary data; see methods.json for generation status.",
+    "source_sha256": "65a0c0fb556b9eaa74d6a7de0ec1b755e86e8d14195f5b8512d30011e0ab12c1"
+  },
+  {
+    "path": "secondary/gorkov/radius-sweep.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/gorkov-54501044/gorkov_comparison.tsv",
+    "note": "Archived secondary data; see methods.json for generation status.",
+    "source_sha256": "c1294fa8ae9db50ad5de59c0eb9425a39542072eedbf25440b7a171bd55b8f25"
+  },
+  {
+    "path": "secondary/gorkov/position-sweep.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/gorkov-54501044/position_sweep.tsv",
+    "note": "Archived secondary data; see methods.json for generation status.",
+    "source_sha256": "036e503c04071a169f29dcad8714120876ab19e416d996d8cf39313d2db95a78"
+  },
+  {
+    "path": "secondary/layered/profiles/N1120-forward-sigma500000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N1120-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "c054d927292079a0a68086c75996987875be6052b03a8b9ff62ea82e262ea021",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N1120-forward-sigma500000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N1120-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "5a696b388c43d7a7a4f06f198a2a9611fd732c168ea389c7a82035cdf7089bcc",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N2240-forward-sigma500000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N2240-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "c14e8cfbcb1825093f5fa9c0b506350df2e9dae4656f097b1384d536541ab08f",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N2240-forward-sigma500000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N2240-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "9404983a4f9eb9b3e7b3156feff4e6b4295aed6961e8754cf08ecfdbd6c34155",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N4480-forward-sigma500000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N4480-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "c3146a6045719bf9dfa8e15d5343293b57c312562fa2df09eef8e435928c3d4b",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N4480-forward-sigma500000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N4480-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "ec8e085c9fca332ebd2a4ddc03eb865ae006887378eb42d89135bd3af894b24c",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N560-forward-sigma500000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N560-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "de3eff60f9961c071d04eff1b389711ceacc994c677c3ef5891afcae33bc40b3",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N560-forward-sigma500000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N560-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "b68d3e445ea6320d24307f9f476b20bad6a9ba6e1990a7f3d40c87e98d1b2094",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N8000-forward-sigma10000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s10000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "09ab955f0d1b45ed8fe00d318b2df15f4fa283d1be4ff3c895ad09b68ea0217a",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N8000-forward-sigma10000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s10000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "54494a8f7b85f49e609fd7323d4aeb605ea6b3dc4e33adb487a6a3ee33264f4e",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N8000-forward-sigma500000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "2584fd42bbd8457eeb19ca50fe02a427b772582e7584302e9ba88b5ae67d63d4",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N8000-forward-sigma500000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8000-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "2c5400b2633798a94dfa73dbcc09fa0a28869b57be7221071c288b50437d9982",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N8000-reverse-sigma500000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8000-reverse-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "00bbc8875f0ae8f591f7383b0e22c3eca3367d6835126e8ebd647f15831a3ad9",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N8000-reverse-sigma500000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8000-reverse-s500000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "ac89650d874387a52682294adfd4cfc9f10f63cf1033528022b1ac01f05d4525",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N8960-forward-sigma500000.csv",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8960-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "de724e254b34d45e6f91ebf4f4d8493c5a60c68d2caa516950934f9ae913ab87",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N8960-forward-sigma500000.txt",
+    "origin": "repository:.review-testing/submission-geometric-averaging/pml-v2/N8960-forward-s500000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "43a1676567e1643b83f66afa7301c4e52f540fcf97805e40ca97619743432878",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N8000-forward-sigma100000.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s100000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "b09f8e029cffa04fe050cf1c1ddd629f4668005cc6c33b363454f1a80529bd6f",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N8000-forward-sigma100000.txt",
+    "origin": "repository:.review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s100000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "b0bf587410c8945d3c652087368461fd08208fa57f2094beb30d241b64efaaad",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N8000-forward-sigma200000.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s200000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "01ba73ac98fd10cde58a9e6263b66afa8960c66f05cc9b2dc09a2edd42df8a4d",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N8000-forward-sigma200000.txt",
+    "origin": "repository:.review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s200000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "0ec503ac401fe1845e05d9f386f8821ce42bbc52dc2d0ae2f54adca83810f069",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/profiles/N8000-forward-sigma50000.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s50000-submission-np1/postProcessing/interfaceValidation/1/pressureFieldComparison.csv",
+    "source_sha256": "00ea5324449f404e20842484a90fc22094223b3b38620160b0eaf9a9b2f00341",
+    "note": "All 1200 samples valid; uniform sample weights."
+  },
+  {
+    "path": "secondary/layered/metrics-text/N8000-forward-sigma50000.txt",
+    "origin": "repository:.review-testing/submission-evidence-audit/remaining-damping/N8000-forward-s50000-submission-np1/postProcessing/interfaceValidation/1/metrics.txt",
+    "source_sha256": "fbeb6d0df2f1fbc73123318106b93accd36e2122b85d983f34ff77307373c77f",
+    "note": "Original postprocessor report; sigmaMax uses the implementation sign convention."
+  },
+  {
+    "path": "secondary/layered/metrics.csv",
+    "origin": "Derived from the included per-case sampled pressure profiles and original metric reports.",
+    "note": ""
+  },
+  {
+    "path": "secondary/layered/method-comparisons.csv",
+    "origin": "repository:testsuite/acousticInterface/results/submission-selection.json",
+    "note": "76 runs; baseline serial field is the comparison reference. Empty residual means the frozen original executable did not report that quantity."
+  },
+  {
+    "path": "secondary/sphere/area-comparison.csv",
+    "origin": "repository:.review-testing/interface-implementation/lichtenberg/study-54503635-2-sphere/results.json",
+    "note": ""
+  },
+  {
+    "path": "secondary/sphere/matrix-cost.csv",
+    "origin": "repository:testsuite/acousticInterface/results/verification-summary.json",
+    "note": "MUMPS factor-memory sum is not total process memory; timings are single observations."
+  },
+  {
+    "path": "secondary/piston/on-axis-N20.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N20/analyticalCompare/onAxisComparison.csv",
+    "source_sha256": "17f3b7bac346be3c1642036b66e92e6f9d2bffffc6255b33b2545aaf6df0ae33",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/far-field-N20.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N20/analyticalCompare/farFieldPatternComparison.csv",
+    "source_sha256": "6d3f7834aeff0725bb59f22410429614370edc4b8ad07dc9a007f8c2d5d309cd",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/on-axis-N30.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N30/analyticalCompare/onAxisComparison.csv",
+    "source_sha256": "a4d75cc782a3b992623bcb1fdb0b59d15950bbb7eea0ce6805d705022c30a77d",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/far-field-N30.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N30/analyticalCompare/farFieldPatternComparison.csv",
+    "source_sha256": "42c1e8b6dfec0da5bb028a853517e862dc8a94eef4dda705a29edc4099bdcf2f",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/on-axis-N40.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N40/analyticalCompare/onAxisComparison.csv",
+    "source_sha256": "d23922babec01e89970e92d807abfc6a17cbd27e5f0e2475f82b94c2e239cdef",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/far-field-N40.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N40/analyticalCompare/farFieldPatternComparison.csv",
+    "source_sha256": "34d78d50e24ad7c65d55255d343aa4c537cd80b858158c54336e71f9d3a3fb08",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/on-axis-N60.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N60/analyticalCompare/onAxisComparison.csv",
+    "source_sha256": "45a9628c753a6abdad4bae11acd210d796701eb77b7554097d792787a0ac2352",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/far-field-N60.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N60/analyticalCompare/farFieldPatternComparison.csv",
+    "source_sha256": "19a91e6580fd6592b8eebd92c60ae0be70cc7ff4d0043d3a37a7506fadceb0e6",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/on-axis-N80.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N80/analyticalCompare/onAxisComparison.csv",
+    "source_sha256": "40bea1b079fa8eacb052c2906fa4be9886cddd9f98d5b689a87f9b88301a7cf4",
+    "note": ""
+  },
+  {
+    "path": "secondary/piston/far-field-N80.csv",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConvergence/N80/analyticalCompare/farFieldPatternComparison.csv",
+    "source_sha256": "c7f82b23757a82cd4ca5b1d65cb4ffdeec3bf21b83cb9814c72e0953f8d2d3f4",
+    "note": ""
+  },
+  {
+    "path": "secondary/gorkov/position-analytical-curve.csv",
+    "origin": "Derived from the archived postprocessPositionSweep.py formula, 500 points, H=0.00764 m.",
+    "note": "Supporting analytical line; not an additional simulation."
+  },
+  {
+    "path": "secondary/gorkov/amplitude-scaling.csv",
+    "origin": "repository:run/acousticTests/FrequencyDomainTests/Andrade2019/WedgeLevitatorDropGorkov/positionSweep/amplitude_scaling.tsv",
+    "note": "Auxiliary archived force-amplitude consistency check.",
+    "source_sha256": "4b77126dfd6b09b7058140c0307c0b0bd9aa8f92656fdea091ee25e1f3b5438a"
+  },
+  {
+    "path": "manuscript/helmHoltzPML-revised.tex",
+    "origin": "article-workspace:helmHoltzPML-revised.tex",
+    "source_sha256": "c155a769f7ad49e03e89c0871b07d4e898988f3016178f87972beb0ae638ee81",
+    "note": "Frozen manuscript identification snapshot at article commit 26b19d48edd7e281c819cc56a5b37bdf67fabe67"
+  },
+  {
+    "path": "manuscript/bibliography.bib",
+    "origin": "article-workspace:bibliography.bib",
+    "source_sha256": "982d66395c794b112c98b665227111e1be04649c6041c10f91527a9e680606b7",
+    "note": "Frozen identification snapshot; unchanged manuscript input."
+  },
+  {
+    "path": "manuscript/elsarticle-num.bst",
+    "origin": "article-workspace:elsarticle-num.bst",
+    "source_sha256": "0db2e53b2378cbe5815e436c1afe9dcac67123a32406fa8f11fad7978808e202",
+    "note": "Frozen identification snapshot; unchanged manuscript input."
+  },
+  {
+    "path": "manuscript/figures/mesh_orthogonal.png",
+    "origin": "article-workspace:figures/mesh_orthogonal.png",
+    "source_sha256": "b976e6a0522b9676c3eeb8f449e166fa2171267450975688d423f25cc907895f",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/figures/mesh_warpedInterior.png",
+    "origin": "article-workspace:figures/mesh_warpedInterior.png",
+    "source_sha256": "dfb5f66e6f5515c42b11e81e12fd8b00043499fcb92d2e4b1254aa683bf0f005",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/homogeneous_convergence.png",
+    "origin": "article-workspace:revised-assets/figures/homogeneous_convergence.png",
+    "source_sha256": "0aa345f3b87864a842b5c92c66ea2daacc09d4a791294a5a0cae18d966af3ce5",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/pressureField_Pre_Pim_compare.png",
+    "origin": "article-workspace:revised-assets/figures/pressureField_Pre_Pim_compare.png",
+    "source_sha256": "649fa1e135b86205fe411b293d2c44f60766ad9f5901cea9944ede197b9bd5cd",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/pressureField_abs_compare.png",
+    "origin": "article-workspace:revised-assets/figures/pressureField_abs_compare.png",
+    "source_sha256": "3b722413ab40898d3a1cbb10d12e306582ee06f8baa8cfa78154995491a8ad0e",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/pressureField_Pre_Pim_compare_water_air.png",
+    "origin": "article-workspace:revised-assets/figures/pressureField_Pre_Pim_compare_water_air.png",
+    "source_sha256": "6982c296fa76f61178bebde3ca101b59cb2e1b99dc16c1fe64efa87fd54f6045",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/pressureField_abs_compare_water_air.png",
+    "origin": "article-workspace:revised-assets/figures/pressureField_abs_compare_water_air.png",
+    "source_sha256": "54388d5de4bf29097ee8dcbf79ae07107d1d1ccda39ae1154db0a6086344c5d4",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/pml_sigma_sensitivity.png",
+    "origin": "article-workspace:revised-assets/figures/pml_sigma_sensitivity.png",
+    "source_sha256": "513971843fcc1068c60ffaad3579a6729aa07ea4ee033763f9c09d2da4e9e465",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/pml_mesh_sensitivity.png",
+    "origin": "article-workspace:revised-assets/figures/pml_mesh_sensitivity.png",
+    "source_sha256": "b32ee076f458ba7c5055458d469e12fb1c44ff9ccbfb22666b16bcab6010c6f1",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/piston_nearField_onAxis_meshConvergence.png",
+    "origin": "article-workspace:revised-assets/figures/piston_nearField_onAxis_meshConvergence.png",
+    "source_sha256": "b7cd9a4f187de278f528aac5fa0d274cc8432f422dad3b09c874418073107b7b",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/piston_farField_SPL_meshConvergence.png",
+    "origin": "article-workspace:revised-assets/figures/piston_farField_SPL_meshConvergence.png",
+    "source_sha256": "0c89198409947f3c741d53627284d7c95febce177d4bb4ce9dc71c1930207e0c",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/piston_farFieldPatternPolar.png",
+    "origin": "article-workspace:revised-assets/figures/piston_farFieldPatternPolar.png",
+    "source_sha256": "9021fb7846b526c68320e4cd8c73db5e3a32d00e297a408cee3307e04a84f96f",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/figures/mesh_gorkov_local.png",
+    "origin": "article-workspace:figures/mesh_gorkov_local.png",
+    "source_sha256": "941d2c12cee59d32d8a06d76c1cdcafac4abc299bde621652d4c942b6d477e91",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/gorkov_mesh_convergence.png",
+    "origin": "article-workspace:revised-assets/figures/gorkov_mesh_convergence.png",
+    "source_sha256": "8ea72f86a5d6c5774300f94e87087938b512ae3df7849460b7c0ca6ae8640ead",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/gorkov_radius_comparison.png",
+    "origin": "article-workspace:revised-assets/figures/gorkov_radius_comparison.png",
+    "source_sha256": "ff55508d57f8ed64733b504e20cabfc1b9d36d11e73480ee22c52a1b435b10c9",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/gorkov_position_sweep.png",
+    "origin": "article-workspace:revised-assets/figures/gorkov_position_sweep.png",
+    "source_sha256": "c80b57da826cb1cbe17d795dcf06c6fa23aa99fe46a29d9d2c9ee179841356c2",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/tables/homogeneous_convergence_table.tex",
+    "origin": "article-workspace:revised-assets/tables/homogeneous_convergence_table.tex",
+    "source_sha256": "38047ce9e336c39c9c8b37de8910ee0dd413a377a0aac6855308cb362fd030ed",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/tables/pml_sigma_sensitivity_table.tex",
+    "origin": "article-workspace:revised-assets/tables/pml_sigma_sensitivity_table.tex",
+    "source_sha256": "d1787af941b376bc3bd9af1abcb75cae5b9090edd635f597969f3a5c038f4cae",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/tables/pml_mesh_sensitivity_table.tex",
+    "origin": "article-workspace:revised-assets/tables/pml_mesh_sensitivity_table.tex",
+    "source_sha256": "b0edad46dc6ba6fe6e3797bab9189ca77e67cc54b82c55379c05826813eb115c",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/tables/geometric_comparison_table.tex",
+    "origin": "article-workspace:revised-assets/tables/geometric_comparison_table.tex",
+    "source_sha256": "1f81bd7a636aee623de9861d8f2ae9570297e83115265a73a55e50906844a0b7",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/tables/nearField_convergence_table.tex",
+    "origin": "article-workspace:revised-assets/tables/nearField_convergence_table.tex",
+    "source_sha256": "312c517ec94834d790d4361282051d5ccad5211a5fe3a0ee20eafd56c8e2a748",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/revised-assets/tables/farField_convergence_table.tex",
+    "origin": "article-workspace:revised-assets/tables/farField_convergence_table.tex",
+    "source_sha256": "e58376afbb580640fe63044737064741b109bccea962eb0255dd021abbd6db6e",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "manuscript/tables/gorkov_mesh_convergence_table.tex",
+    "origin": "article-workspace:tables/gorkov_mesh_convergence_table.tex",
+    "source_sha256": "d1a6c2b134ba25fc30a38fcc4678eef89f69409302ec0e92bb73d378fc8c3129",
+    "note": "Exact asset used in the manuscript."
+  },
+  {
+    "path": "scripts/original/homogeneous/postprocess.py",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/volume-54501269/case/postprocess.py",
+    "source_sha256": "8174fd196cef742d2dd61f62db8500efec5a53125757b9294081d6aa697b04ad",
+    "note": "Archived processing source; field-to-sample stages need OpenFOAM/VTK, whereas reproduce.py needs only secondary data."
+  },
+  {
+    "path": "scripts/original/homogeneous/summarize_convergence.py",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/volume-54501269/case/summarize_convergence.py",
+    "source_sha256": "e5e622ba8cbed84941ffb8cdd33f626d09459f016a9a1c46e204415b88e5520f",
+    "note": "Archived processing source; field-to-sample stages need OpenFOAM/VTK, whereas reproduce.py needs only secondary data."
+  },
+  {
+    "path": "scripts/original/piston/postprocess_compare.py",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/postprocess_compare.py",
+    "source_sha256": "d74ce23a5c165810f612128a732a066241f0c5a090386fbbc9808b3c7aab11be",
+    "note": "Archived processing source; field-to-sample stages need OpenFOAM/VTK, whereas reproduce.py needs only secondary data."
+  },
+  {
+    "path": "scripts/original/piston/meshConv.sh",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/piston-54501043/case/meshConv.sh",
+    "source_sha256": "d752303c44d2e138b477d3f7bf874209ec572dd84c5ae56e49dd39b9bd733bd9",
+    "note": "Archived processing source; field-to-sample stages need OpenFOAM/VTK, whereas reproduce.py needs only secondary data."
+  },
+  {
+    "path": "scripts/original/gorkov/postprocessGorkovStudy.py",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/gorkov-54501044/case/postprocessGorkovStudy.py",
+    "source_sha256": "0cc82794b4f0aa4d965fdea07f2449cbdb1dd06ba1235d04f5cdc495f72b06ba",
+    "note": "Archived processing source; field-to-sample stages need OpenFOAM/VTK, whereas reproduce.py needs only secondary data."
+  },
+  {
+    "path": "scripts/original/gorkov/postprocessMeshConvergence.py",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/gorkov-54501044/case/postprocessMeshConvergence.py",
+    "source_sha256": "4790ac93ac61aee706f7b5416dfdebccb9f3bc3a3f908b52977ffcbd05a90fa4",
+    "note": "Archived processing source; field-to-sample stages need OpenFOAM/VTK, whereas reproduce.py needs only secondary data."
+  },
+  {
+    "path": "scripts/original/gorkov/postprocessPositionSweep.py",
+    "origin": "repository:.review-testing/submission-evidence-audit/historical/gorkov-54501044/case/postprocessPositionSweep.py",
+    "source_sha256": "127887fd488104a392b359d55a710f32fe90fe69d483d2091dcb6e406c818adf",
+    "note": "Archived processing source; field-to-sample stages need OpenFOAM/VTK, whereas reproduce.py needs only secondary data."
+  },
+  {
+    "path": "scripts/original/layered/postprocess_interface.py",
+    "origin": "repository:run/acousticTests/FrequencyDomainTests/layeredInterface1D/postprocess_interface.py",
+    "source_sha256": "1f4d7d727ec83df483a587b0b384b75dc2afa4e121178bdbe334fefc2169e92e",
+    "note": ""
+  },
+  {
+    "path": "scripts/original/sphere/advanced.py",
+    "origin": "repository:testsuite/acousticInterface/advanced.py",
+    "source_sha256": "1446e20a60a1703de76d6a6a462e91c758a1ccebb7de20e89e7d6a6f40de39b4",
+    "note": "Source for the independent sphere series and metric definitions."
+  },
+  {
+    "path": "scripts/original/sphere/compare.py",
+    "origin": "repository:testsuite/acousticInterface/compare.py",
+    "source_sha256": "7832e3dea4410ea294403db132e2e434e8ac2d43343bebcf8fefb91bd07327cf",
+    "note": ""
+  },
+  {
+    "path": "scripts/original/COPYING",
+    "origin": "repository:LICENSE",
+    "source_sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+    "note": "Existing repository software license; does not assign a license to all data or illustrations."
+  },
+  {
+    "path": "manuscript/figure-source/figure02.tex",
+    "origin": "manuscript/helmHoltzPML-revised.tex",
+    "source_line": 577,
+    "note": "Exact native figure environment extracted for direct provenance lookup."
+  },
+  {
+    "path": "manuscript/figure-source/figure03.tex",
+    "origin": "manuscript/helmHoltzPML-revised.tex",
+    "source_line": 1038,
+    "note": "Exact native figure environment extracted for direct provenance lookup."
+  },
+  {
+    "path": "manuscript/figure-source/figure06.tex",
+    "origin": "manuscript/helmHoltzPML-revised.tex",
+    "source_line": 1165,
+    "note": "Exact native figure environment extracted for direct provenance lookup."
+  },
+  {
+    "path": "manuscript/figure-source/figure12.tex",
+    "origin": "manuscript/helmHoltzPML-revised.tex",
+    "source_line": 1404,
+    "note": "Exact native figure environment extracted for direct provenance lookup."
+  },
+  {
+    "path": "manuscript/figure-source/figure16.tex",
+    "origin": "manuscript/helmHoltzPML-revised.tex",
+    "source_line": 1695,
+    "note": "Exact native figure environment extracted for direct provenance lookup."
+  },
+  {
+    "path": "manuscript/revised-assets/figures/fvm_control_volume_tikz.tex",
+    "origin": "article-workspace:revised-assets/figures/fvm_control_volume_tikz.tex",
+    "source_sha256": "cd994678926f678620270e32e9829ec0a4c7524cd370b429c926bccf5aaf9295",
+    "note": "Original geometric construction for Figure 1; CC-BY-4.0."
+  },
+  {
+    "path": "manuscript/figure-source/figure01.tex",
+    "origin": "article-workspace:helmHoltzPML-revised.tex",
+    "source_sha256": "c155a769f7ad49e03e89c0871b07d4e898988f3016178f87972beb0ae638ee81",
+    "note": "Figure 1 environment excerpt, source lines 574-585."
+  }
+]

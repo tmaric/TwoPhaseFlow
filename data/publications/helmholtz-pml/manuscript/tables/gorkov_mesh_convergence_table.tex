@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+    \centering
+    \caption{Near-sphere mesh sensitivity for the rigid sphere with
+    $a=60\,\mu\mathrm{m}$.  The Gorkov reference is
+    $F_{G,y}=-0.982526\,\mathrm{fN}$ and
+    $E_F=|F_h-F_G|/|F_G|$.}
+    \label{tab:gorkovMeshConvergence}
+    \small
+    \begin{tabular}{lrrrrr}
+        \toprule
+        Level & $h_s/a$ & Segments & Faces & $F_{h,y}$ (fN) & $E_F$ (\%) \\
+        \midrule
+        Coarse & 0.12500 & 64  & 67  & -0.955343 & 2.767 \\
+        Medium & 0.06250 & 128 & 131 & -0.981500 & 0.104 \\
+        Fine   & 0.03125 & 256 & 259 & -0.983455 & 0.095 \\
+        \bottomrule
+    \end{tabular}
+\end{table}

@@ -205,7 +205,8 @@ __pycache__/
 !/data/publications/helmholtz-pml/secondary/layered/metrics-text/N8000-reverse-sigma500000.txt
 !/data/publications/helmholtz-pml/**/*.png
 !/data/publications/helmholtz-pml/**/*.pdf
-/data/publications/releases/
+/data/publications/releases/*
+!/data/publications/releases/helmholtz-pml-secondary-data-v1.zip
 
 # Locally built dependencies (pinned by petsc_build.sh)
 /petsc/

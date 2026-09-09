@@ -1,0 +1,421 @@
+{
+  "algorithm": "SHA-256",
+  "files": {
+    "DATA_DICTIONARY.md": {
+      "bytes": 10510,
+      "sha256": "da7c0c3a5742c52942163ebf95cc5d52d735218b3e7954c431b07b932636ed85"
+    },
+    "PROVENANCE.md": {
+      "bytes": 9821,
+      "sha256": "75e777dec90700eaa708131aad8d35f8f004c10bf1b48ab5ccf7f47c88f21d49"
+    },
+    "README.md": {
+      "bytes": 5529,
+      "sha256": "dcb6ba8efa6f4c03ce1e0ff0c6f6c0265a52527dfa8e26f14f8c594a0c5eed5d"
+    },
+    "RIGHTS.md": {
+      "bytes": 1739,
+      "sha256": "455807388db8b22686c8934a99016420eb7b8022eea2a70b3173b41606f710de"
+    },
+    "VALIDATION.json": {
+      "bytes": 773,
+      "sha256": "0d79724ee4a15f63dadc8295a9068b48cd72af7ef2e3587d9b92209d969259bb"
+    },
+    "data-dictionary.json": {
+      "bytes": 28213,
+      "sha256": "a48384d1e270b8dd290eb37da2f46c0e6827af6d69ce855e17f784ae22b47066"
+    },
+    "manuscript/bibliography.bib": {
+      "bytes": 17889,
+      "sha256": "982d66395c794b112c98b665227111e1be04649c6041c10f91527a9e680606b7"
+    },
+    "manuscript/elsarticle-num.bst": {
+      "bytes": 29462,
+      "sha256": "0db2e53b2378cbe5815e436c1afe9dcac67123a32406fa8f11fad7978808e202"
+    },
+    "manuscript/figure-source/figure01.tex": {
+      "bytes": 647,
+      "sha256": "da3506631694a43ef6f78da86cfce941773fa800c0d31037df3ce2a47f5fdfe5"
+    },
+    "manuscript/figure-source/figure02.tex": {
+      "bytes": 5978,
+      "sha256": "910238653ecd7d5a6718c034ed7aea7c8c64f4e678d26f967aa102f70d7d5685"
+    },
+    "manuscript/figure-source/figure03.tex": {
+      "bytes": 2587,
+      "sha256": "7ee2b697d5c4d5d5266e3d0b24624fbd0b4afc3a208faeb0dfde1c004dbca2f9"
+    },
+    "manuscript/figure-source/figure06.tex": {
+      "bytes": 1654,
+      "sha256": "02f13b7014a6bda8280023915c1066ece8e01c23fa2936287eca19a17d37ba7c"
+    },
+    "manuscript/figure-source/figure12.tex": {
+      "bytes": 1963,
+      "sha256": "1d04da1fe3d3868d8917a9114a82a9fb3c4c533157f7ba684ac48122da4211a3"
+    },
+    "manuscript/figure-source/figure16.tex": {
+      "bytes": 3240,
+      "sha256": "0f63964ee3e72b17d6bf0fef1abf3bdb5dfd6267850f310dd4d2cf643215bfe0"
+    },
+    "manuscript/figures/mesh_gorkov_local.png": {
+      "bytes": 152243,
+      "sha256": "941d2c12cee59d32d8a06d76c1cdcafac4abc299bde621652d4c942b6d477e91"
+    },
+    "manuscript/figures/mesh_orthogonal.png": {
+      "bytes": 42247,
+      "sha256": "b976e6a0522b9676c3eeb8f449e166fa2171267450975688d423f25cc907895f"
+    },
+    "manuscript/figures/mesh_warpedInterior.png": {
+      "bytes": 223133,
+      "sha256": "dfb5f66e6f5515c42b11e81e12fd8b00043499fcb92d2e4b1254aa683bf0f005"
+    },
+    "manuscript/helmHoltzPML-revised.tex": {
+      "bytes": 95317,
+      "sha256": "c155a769f7ad49e03e89c0871b07d4e898988f3016178f87972beb0ae638ee81"
+    },
+    "manuscript/revised-assets/figures/fvm_control_volume_tikz.tex": {
+      "bytes": 2742,
+      "sha256": "cd994678926f678620270e32e9829ec0a4c7524cd370b429c926bccf5aaf9295"
+    },
+    "manuscript/revised-assets/figures/gorkov_mesh_convergence.png": {
+      "bytes": 138307,
+      "sha256": "8ea72f86a5d6c5774300f94e87087938b512ae3df7849460b7c0ca6ae8640ead"
+    },
+    "manuscript/revised-assets/figures/gorkov_position_sweep.png": {
+      "bytes": 167366,
+      "sha256": "c80b57da826cb1cbe17d795dcf06c6fa23aa99fe46a29d9d2c9ee179841356c2"
+    },
+    "manuscript/revised-assets/figures/gorkov_radius_comparison.png": {
+      "bytes": 142845,
+      "sha256": "ff55508d57f8ed64733b504e20cabfc1b9d36d11e73480ee22c52a1b435b10c9"
+    },
+    "manuscript/revised-assets/figures/homogeneous_convergence.png": {
+      "bytes": 168595,
+      "sha256": "0aa345f3b87864a842b5c92c66ea2daacc09d4a791294a5a0cae18d966af3ce5"
+    },
+    "manuscript/revised-assets/figures/piston_farFieldPatternPolar.png": {
+      "bytes": 116353,
+      "sha256": "9021fb7846b526c68320e4cd8c73db5e3a32d00e297a408cee3307e04a84f96f"
+    },
+    "manuscript/revised-assets/figures/piston_farField_SPL_meshConvergence.png": {
+      "bytes": 117233,
+      "sha256": "0c89198409947f3c741d53627284d7c95febce177d4bb4ce9dc71c1930207e0c"
+    },
+    "manuscript/revised-assets/figures/piston_nearField_onAxis_meshConvergence.png": {
+      "bytes": 130189,
+      "sha256": "b7cd9a4f187de278f528aac5fa0d274cc8432f422dad3b09c874418073107b7b"
+    },
+    "manuscript/revised-assets/figures/pml_mesh_sensitivity.png": {
+      "bytes": 107354,
+      "sha256": "b32ee076f458ba7c5055458d469e12fb1c44ff9ccbfb22666b16bcab6010c6f1"
+    },
+    "manuscript/revised-assets/figures/pml_sigma_sensitivity.png": {
+      "bytes": 95163,
+      "sha256": "513971843fcc1068c60ffaad3579a6729aa07ea4ee033763f9c09d2da4e9e465"
+    },
+    "manuscript/revised-assets/figures/pressureField_Pre_Pim_compare.png": {
+      "bytes": 215888,
+      "sha256": "649fa1e135b86205fe411b293d2c44f60766ad9f5901cea9944ede197b9bd5cd"
+    },
+    "manuscript/revised-assets/figures/pressureField_Pre_Pim_compare_water_air.png": {
+      "bytes": 164740,
+      "sha256": "6982c296fa76f61178bebde3ca101b59cb2e1b99dc16c1fe64efa87fd54f6045"
+    },
+    "manuscript/revised-assets/figures/pressureField_abs_compare.png": {
+      "bytes": 160018,
+      "sha256": "3b722413ab40898d3a1cbb10d12e306582ee06f8baa8cfa78154995491a8ad0e"
+    },
+    "manuscript/revised-assets/figures/pressureField_abs_compare_water_air.png": {
+      "bytes": 93231,
+      "sha256": "54388d5de4bf29097ee8dcbf79ae07107d1d1ccda39ae1154db0a6086344c5d4"
+    },
+    "manuscript/revised-assets/tables/farField_convergence_table.tex": {
+      "bytes": 426,
+      "sha256": "e58376afbb580640fe63044737064741b109bccea962eb0255dd021abbd6db6e"
+    },
+    "manuscript/revised-assets/tables/geometric_comparison_table.tex": {
+      "bytes": 1056,
+      "sha256": "1f81bd7a636aee623de9861d8f2ae9570297e83115265a73a55e50906844a0b7"
+    },
+    "manuscript/revised-assets/tables/homogeneous_convergence_table.tex": {
+      "bytes": 1541,
+      "sha256": "38047ce9e336c39c9c8b37de8910ee0dd413a377a0aac6855308cb362fd030ed"
+    },
+    "manuscript/revised-assets/tables/nearField_convergence_table.tex": {
+      "bytes": 497,
+      "sha256": "312c517ec94834d790d4361282051d5ccad5211a5fe3a0ee20eafd56c8e2a748"
+    },
+    "manuscript/revised-assets/tables/pml_mesh_sensitivity_table.tex": {
+      "bytes": 986,
+      "sha256": "b0edad46dc6ba6fe6e3797bab9189ca77e67cc54b82c55379c05826813eb115c"
+    },
+    "manuscript/revised-assets/tables/pml_sigma_sensitivity_table.tex": {
+      "bytes": 822,
+      "sha256": "d1787af941b376bc3bd9af1abcb75cae5b9090edd635f597969f3a5c038f4cae"
+    },
+    "manuscript/tables/gorkov_mesh_convergence_table.tex": {
+      "bytes": 641,
+      "sha256": "d1a6c2b134ba25fc30a38fcc4678eef89f69409302ec0e92bb73d378fc8c3129"
+    },
+    "metadata-draft.json": {
+      "bytes": 1417,
+      "sha256": "3afadfbc8ce6a098d662b050e23ac381ccdafea88b2c3c399d72f3936ec9adcf"
+    },
+    "methods.json": {
+      "bytes": 5502,
+      "sha256": "9ceb9b4b7dfd95c573040227a70c4612eb37490b098955926d9f77fece498ad2"
+    },
+    "origins.json": {
+      "bytes": 30173,
+      "sha256": "c057bbb5cf3543ea1b5bb5db398ae1725577d47a64bde6e7813004a80ebfae59"
+    },
+    "provenance.json": {
+      "bytes": 15156,
+      "sha256": "485485cf62a47fd2e429ff7aba685b60a601fbe1e6452f9a1189356cfe72bf21"
+    },
+    "reproduction-environment.json": {
+      "bytes": 386,
+      "sha256": "baf3faa4633f2a1da6aa671d5f18a295259683bdf320ec697bd960e080e46857"
+    },
+    "requirements.txt": {
+      "bytes": 28,
+      "sha256": "3375370eec2c6a1f458a4abab8f8f13f27981197d3b20cb8b14fb200dacf3fca"
+    },
+    "scripts/make_release.py": {
+      "bytes": 1298,
+      "sha256": "a0b3045252d1d4056d1054f0f63b71a7f26a262a9e5a744a20b4d3ec45e42673"
+    },
+    "scripts/original/COPYING": {
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    "scripts/original/gorkov/postprocessGorkovStudy.py": {
+      "bytes": 3388,
+      "sha256": "0cc82794b4f0aa4d965fdea07f2449cbdb1dd06ba1235d04f5cdc495f72b06ba"
+    },
+    "scripts/original/gorkov/postprocessMeshConvergence.py": {
+      "bytes": 3372,
+      "sha256": "4790ac93ac61aee706f7b5416dfdebccb9f3bc3a3f908b52977ffcbd05a90fa4"
+    },
+    "scripts/original/gorkov/postprocessPositionSweep.py": {
+      "bytes": 3381,
+      "sha256": "127887fd488104a392b359d55a710f32fe90fe69d483d2091dcb6e406c818adf"
+    },
+    "scripts/original/homogeneous/postprocess.py": {
+      "bytes": 5194,
+      "sha256": "8174fd196cef742d2dd61f62db8500efec5a53125757b9294081d6aa697b04ad"
+    },
+    "scripts/original/homogeneous/summarize_convergence.py": {
+      "bytes": 4818,
+      "sha256": "e5e622ba8cbed84941ffb8cdd33f626d09459f016a9a1c46e204415b88e5520f"
+    },
+    "scripts/original/layered/postprocess_interface.py": {
+      "bytes": 10843,
+      "sha256": "1f4d7d727ec83df483a587b0b384b75dc2afa4e121178bdbe334fefc2169e92e"
+    },
+    "scripts/original/piston/meshConv.sh": {
+      "bytes": 7501,
+      "sha256": "d752303c44d2e138b477d3f7bf874209ec572dd84c5ae56e49dd39b9bd733bd9"
+    },
+    "scripts/original/piston/postprocess_compare.py": {
+      "bytes": 24033,
+      "sha256": "d74ce23a5c165810f612128a732a066241f0c5a090386fbbc9808b3c7aab11be"
+    },
+    "scripts/original/sphere/advanced.py": {
+      "bytes": 12359,
+      "sha256": "1446e20a60a1703de76d6a6a462e91c758a1ccebb7de20e89e7d6a6f40de39b4"
+    },
+    "scripts/original/sphere/compare.py": {
+      "bytes": 13076,
+      "sha256": "7832e3dea4410ea294403db132e2e434e8ac2d43343bebcf8fefb91bd07327cf"
+    },
+    "scripts/reproduce.py": {
+      "bytes": 9156,
+      "sha256": "2d5113b6722a7ea10dbe1207e179c758319755f6a6d6d59fd1f82950cce91660"
+    },
+    "scripts/validate.py": {
+      "bytes": 11428,
+      "sha256": "16a79070b70e565cfe2936ab41b11c644c223adc09b4ce8be070ecacc032ca9f"
+    },
+    "secondary/gorkov/amplitude-scaling.csv": {
+      "bytes": 258,
+      "sha256": "614ec5415fdc8bdccf4de166a1e80dbd28e6e1a91720d56bf1b4e1de06cff60a"
+    },
+    "secondary/gorkov/mesh-convergence.csv": {
+      "bytes": 631,
+      "sha256": "3fe8440e0c11ea134769fc73564c073951eef6b2d221aec7c2f42aeee7d101ae"
+    },
+    "secondary/gorkov/position-analytical-curve.csv": {
+      "bytes": 22654,
+      "sha256": "e1629272116236ad5859e79d3d014d66ac816bff8bbf2e8c50ded63efe79ea98"
+    },
+    "secondary/gorkov/position-sweep.csv": {
+      "bytes": 1486,
+      "sha256": "d4562738aa1cc048521bdccf538523d2efa8d55365ac89aed6d6bd9a3e8ab8a7"
+    },
+    "secondary/gorkov/radius-sweep.csv": {
+      "bytes": 1267,
+      "sha256": "06e326786dd2479f18449abc4d6b525266b5cf15d79d359327c4c61abc3e8b35"
+    },
+    "secondary/homogeneous/boundary-skew-diagnostic.csv": {
+      "bytes": 2584,
+      "sha256": "3a99cca5bf8dd2ef9f29349c5e0f50ff75c7e440ecac957638c9843804554d2c"
+    },
+    "secondary/homogeneous/convergence.csv": {
+      "bytes": 4705,
+      "sha256": "a631565ba1fe0e59c5be619a47358f11523a9636e06cb19c4b167bbbe8e79155"
+    },
+    "secondary/layered/method-comparisons.csv": {
+      "bytes": 8440,
+      "sha256": "4f2caf4b6e10737f997fb9982739104380caea73069ff941ffacf9f00522342c"
+    },
+    "secondary/layered/metrics-text/N1120-forward-sigma500000.txt": {
+      "bytes": 696,
+      "sha256": "5a696b388c43d7a7a4f06f198a2a9611fd732c168ea389c7a82035cdf7089bcc"
+    },
+    "secondary/layered/metrics-text/N2240-forward-sigma500000.txt": {
+      "bytes": 696,
+      "sha256": "9404983a4f9eb9b3e7b3156feff4e6b4295aed6961e8754cf08ecfdbd6c34155"
+    },
+    "secondary/layered/metrics-text/N4480-forward-sigma500000.txt": {
+      "bytes": 696,
+      "sha256": "ec8e085c9fca332ebd2a4ddc03eb865ae006887378eb42d89135bd3af894b24c"
+    },
+    "secondary/layered/metrics-text/N560-forward-sigma500000.txt": {
+      "bytes": 696,
+      "sha256": "b68d3e445ea6320d24307f9f476b20bad6a9ba6e1990a7f3d40c87e98d1b2094"
+    },
+    "secondary/layered/metrics-text/N8000-forward-sigma10000.txt": {
+      "bytes": 696,
+      "sha256": "54494a8f7b85f49e609fd7323d4aeb605ea6b3dc4e33adb487a6a3ee33264f4e"
+    },
+    "secondary/layered/metrics-text/N8000-forward-sigma100000.txt": {
+      "bytes": 696,
+      "sha256": "b0bf587410c8945d3c652087368461fd08208fa57f2094beb30d241b64efaaad"
+    },
+    "secondary/layered/metrics-text/N8000-forward-sigma200000.txt": {
+      "bytes": 696,
+      "sha256": "0ec503ac401fe1845e05d9f386f8821ce42bbc52dc2d0ae2f54adca83810f069"
+    },
+    "secondary/layered/metrics-text/N8000-forward-sigma50000.txt": {
+      "bytes": 696,
+      "sha256": "fbeb6d0df2f1fbc73123318106b93accd36e2122b85d983f34ff77307373c77f"
+    },
+    "secondary/layered/metrics-text/N8000-forward-sigma500000.txt": {
+      "bytes": 696,
+      "sha256": "2c5400b2633798a94dfa73dbcc09fa0a28869b57be7221071c288b50437d9982"
+    },
+    "secondary/layered/metrics-text/N8000-reverse-sigma500000.txt": {
+      "bytes": 697,
+      "sha256": "ac89650d874387a52682294adfd4cfc9f10f63cf1033528022b1ac01f05d4525"
+    },
+    "secondary/layered/metrics-text/N8960-forward-sigma500000.txt": {
+      "bytes": 696,
+      "sha256": "43a1676567e1643b83f66afa7301c4e52f540fcf97805e40ca97619743432878"
+    },
+    "secondary/layered/metrics.csv": {
+      "bytes": 1432,
+      "sha256": "fb3cc936e1ff8b6dda81ba2a15f1f7c3ed7b2e8d06db71c5f89bc1f5dfda833e"
+    },
+    "secondary/layered/profiles/N1120-forward-sigma500000.csv": {
+      "bytes": 212550,
+      "sha256": "c054d927292079a0a68086c75996987875be6052b03a8b9ff62ea82e262ea021"
+    },
+    "secondary/layered/profiles/N2240-forward-sigma500000.csv": {
+      "bytes": 212551,
+      "sha256": "c14e8cfbcb1825093f5fa9c0b506350df2e9dae4656f097b1384d536541ab08f"
+    },
+    "secondary/layered/profiles/N4480-forward-sigma500000.csv": {
+      "bytes": 212550,
+      "sha256": "c3146a6045719bf9dfa8e15d5343293b57c312562fa2df09eef8e435928c3d4b"
+    },
+    "secondary/layered/profiles/N560-forward-sigma500000.csv": {
+      "bytes": 212550,
+      "sha256": "de3eff60f9961c071d04eff1b389711ceacc994c677c3ef5891afcae33bc40b3"
+    },
+    "secondary/layered/profiles/N8000-forward-sigma10000.csv": {
+      "bytes": 212556,
+      "sha256": "09ab955f0d1b45ed8fe00d318b2df15f4fa283d1be4ff3c895ad09b68ea0217a"
+    },
+    "secondary/layered/profiles/N8000-forward-sigma100000.csv": {
+      "bytes": 212551,
+      "sha256": "b09f8e029cffa04fe050cf1c1ddd629f4668005cc6c33b363454f1a80529bd6f"
+    },
+    "secondary/layered/profiles/N8000-forward-sigma200000.csv": {
+      "bytes": 212551,
+      "sha256": "01ba73ac98fd10cde58a9e6263b66afa8960c66f05cc9b2dc09a2edd42df8a4d"
+    },
+    "secondary/layered/profiles/N8000-forward-sigma50000.csv": {
+      "bytes": 212552,
+      "sha256": "00ea5324449f404e20842484a90fc22094223b3b38620160b0eaf9a9b2f00341"
+    },
+    "secondary/layered/profiles/N8000-forward-sigma500000.csv": {
+      "bytes": 212550,
+      "sha256": "2584fd42bbd8457eeb19ca50fe02a427b772582e7584302e9ba88b5ae67d63d4"
+    },
+    "secondary/layered/profiles/N8000-reverse-sigma500000.csv": {
+      "bytes": 212456,
+      "sha256": "00bbc8875f0ae8f591f7383b0e22c3eca3367d6835126e8ebd647f15831a3ad9"
+    },
+    "secondary/layered/profiles/N8960-forward-sigma500000.csv": {
+      "bytes": 212551,
+      "sha256": "de724e254b34d45e6f91ebf4f4d8493c5a60c68d2caa516950934f9ae913ab87"
+    },
+    "secondary/piston/far-field-N20.csv": {
+      "bytes": 90752,
+      "sha256": "6d3f7834aeff0725bb59f22410429614370edc4b8ad07dc9a007f8c2d5d309cd"
+    },
+    "secondary/piston/far-field-N30.csv": {
+      "bytes": 90751,
+      "sha256": "42c1e8b6dfec0da5bb028a853517e862dc8a94eef4dda705a29edc4099bdcf2f"
+    },
+    "secondary/piston/far-field-N40.csv": {
+      "bytes": 90752,
+      "sha256": "34d78d50e24ad7c65d55255d343aa4c537cd80b858158c54336e71f9d3a3fb08"
+    },
+    "secondary/piston/far-field-N60.csv": {
+      "bytes": 90752,
+      "sha256": "19a91e6580fd6592b8eebd92c60ae0be70cc7ff4d0043d3a37a7506fadceb0e6"
+    },
+    "secondary/piston/far-field-N80.csv": {
+      "bytes": 90752,
+      "sha256": "c7f82b23757a82cd4ca5b1d65cb4ffdeec3bf21b83cb9814c72e0953f8d2d3f4"
+    },
+    "secondary/piston/metrics.csv": {
+      "bytes": 538,
+      "sha256": "4f5d535c4ed46ecf67340c4981532c77e779ed0846b21ea89fbe87473fad31b5"
+    },
+    "secondary/piston/on-axis-N20.csv": {
+      "bytes": 60076,
+      "sha256": "17f3b7bac346be3c1642036b66e92e6f9d2bffffc6255b33b2545aaf6df0ae33"
+    },
+    "secondary/piston/on-axis-N30.csv": {
+      "bytes": 60076,
+      "sha256": "a4d75cc782a3b992623bcb1fdb0b59d15950bbb7eea0ce6805d705022c30a77d"
+    },
+    "secondary/piston/on-axis-N40.csv": {
+      "bytes": 60076,
+      "sha256": "d23922babec01e89970e92d807abfc6a17cbd27e5f0e2475f82b94c2e239cdef"
+    },
+    "secondary/piston/on-axis-N60.csv": {
+      "bytes": 60076,
+      "sha256": "45a9628c753a6abdad4bae11acd210d796701eb77b7554097d792787a0ac2352"
+    },
+    "secondary/piston/on-axis-N80.csv": {
+      "bytes": 60076,
+      "sha256": "40bea1b079fa8eacb052c2906fa4be9886cddd9f98d5b689a87f9b88301a7cf4"
+    },
+    "secondary/sphere/area-comparison.csv": {
+      "bytes": 2638,
+      "sha256": "5e97b856113488b625b6a10e4e7aa81d75ae93c535edad20f4e2090202292550"
+    },
+    "secondary/sphere/matrix-cost.csv": {
+      "bytes": 143,
+      "sha256": "1059f527ecf41ad1fac54ebbeb246425c4011c99cf11c70a208d2de9c72e0bcf"
+    },
+    "software-provenance.json": {
+      "bytes": 29113,
+      "sha256": "2be84295e1447d1e128e10a9dbbc2035ca35e50257c352104a2471b9dafeda33"
+    }
+  }
+}

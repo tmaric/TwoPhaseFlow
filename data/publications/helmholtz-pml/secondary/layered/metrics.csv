@@ -1,0 +1,12 @@
+N,ordering,sigma_max_s_inv,P_relL2,Pre_relL2,Pim_relL2,n_samples,profile_path
+1120,forward,500000,0.00537618515,0.00182736052,0.00675708687,1200,secondary/layered/profiles/N1120-forward-sigma500000.csv
+2240,forward,500000,0.00158223269,0.000487045974,0.00199719051,1200,secondary/layered/profiles/N2240-forward-sigma500000.csv
+4480,forward,500000,0.000585271755,0.000122108847,0.000746508557,1200,secondary/layered/profiles/N4480-forward-sigma500000.csv
+560,forward,500000,0.0199719936,0.00535962952,0.025327494,1200,secondary/layered/profiles/N560-forward-sigma500000.csv
+8000,forward,10000,0.518822026,0.765535031,0.185059589,1200,secondary/layered/profiles/N8000-forward-sigma10000.csv
+8000,forward,500000,0.0011970121,0.001303176,0.00112199553,1200,secondary/layered/profiles/N8000-forward-sigma500000.csv
+8000,reverse,500000,0.0044245418,0.00753867363,0.00442453765,1200,secondary/layered/profiles/N8000-reverse-sigma500000.csv
+8960,forward,500000,0.000265685823,3.07431128e-05,0.000340930893,1200,secondary/layered/profiles/N8960-forward-sigma500000.csv
+8000,forward,100000,0.0179749589,0.0186452476,0.0174970208,1200,secondary/layered/profiles/N8000-forward-sigma100000.csv
+8000,forward,200000,0.00149983475,0.00140116061,0.00156285804,1200,secondary/layered/profiles/N8000-forward-sigma200000.csv
+8000,forward,50000,0.121201894,0.162872507,0.07937184,1200,secondary/layered/profiles/N8000-forward-sigma50000.csv

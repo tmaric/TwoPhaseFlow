@@ -1,0 +1,12 @@
+\begin{figure}[htbp]
+    \centering
+    \paperinput{revised-assets/figures/fvm_control_volume_tikz.tex}
+    \caption{Polyhedral control-volume geometry for the cell-centred FVM.
+    The owner cell $\Omega_P$ has volume $V_P$ and centroid $\x_P$.
+    The highlighted face $\mathcal S_f$ has centroid $\x_f$ and outward
+    area vector $\Sf=|\mathcal S_f|\mathbf n_f$.  The dashed line joins
+    the owner centroid to the centroid $\x_N$ of an adjacent cell, whose
+    boundary is omitted for clarity.  This is a schematic projection;
+    $\mathbf d_f=\x_N-\x_P$ need not be parallel to $\Sf$.}
+    \label{fig:standardFVMControlVolume}
+\end{figure}
