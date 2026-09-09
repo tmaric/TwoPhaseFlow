@@ -8,6 +8,10 @@ Manuscript: [helmHoltzPML-revised.tex](data/publications/helmholtz-pml/manuscrip
 
 Data publication folder: [data/publications/helmholtz-pml](data/publications/helmholtz-pml/README.md). [Methods and physical settings](data/publications/helmholtz-pml/methods.json), [column definitions and units](data/publications/helmholtz-pml/DATA_DICTIONARY.md), [file-level origins](data/publications/helmholtz-pml/origins.json), and [machine-readable figure/table provenance](data/publications/helmholtz-pml/provenance.json).
 
+TUdatalib deposit: [dataset record, handle tudatalib/5583](https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/5583), archived on 9 September 2026 with access restricted to the collection's authorized users. Reserved DOI: `10.48328/tudatalib-2357`; registration and public release remain pending. Dataset creators are Chuanchao Xu, followed by Tomislav Maric; numerical data are CC BY 4.0. DFG subject: 4.22-03 Strömungsmechanik (Fluid Dynamics).
+
+The archived file is `helmholtz_pml_secondary_data_v1_0_fluid_dynamics.zip` (5,879,552 bytes; SHA-256 `f9fb1c9ad0b3573593823a7d5694fd044c525ed1ac3ecf28f08a395e710257d4`). The [release and deposit record](testsuite/acousticInterface/results/publication-release.json) identifies its uploaded bitstream and reserved DOI. The ZIP retains the validated preparation snapshot; its internal draft metadata predates DOI reservation and has not been rewritten after archiving.
+
 | Item | LaTeX label | Secondary data / illustration source | Origin and method |
 |---|---|---|---|
 | Figure 1 | `fig:standardFVMControlVolume` | [manuscript/revised-assets/figures/fvm_control_volume_tikz.tex](data/publications/helmholtz-pml/manuscript/revised-assets/figures/fvm_control_volume_tikz.tex) | Original TikZ/PGF polyhedral schematic; CC-BY-4.0; no numerical dataset or external illustration. |
