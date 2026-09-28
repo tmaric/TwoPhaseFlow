@@ -25,6 +25,7 @@ License
 
 #include "reconstructionSchemes.H"
 #include "implicitFunction.H"
+#include "mathematicalConstants.H"
 
 
 
@@ -46,6 +47,13 @@ void Foam::reconstructionError::writeFileHeader(Ostream& os) const
     writeTabbed(os, "length");
     writeTabbed(os, "nCells");
     writeTabbed(os, "avgVol");
+    // appended (davof): existing consumers index the columns above by position
+    writeTabbed(os, "LNormalDiff1");
+    writeTabbed(os, "LNormalDiff2");
+    writeTabbed(os, "LNormalDiffInf");
+    writeTabbed(os, "areaSum");
+    writeTabbed(os, "areaExact");
+    writeTabbed(os, "nInterface");
     os  << endl;
 }
 
@@ -66,8 +74,17 @@ Foam::reconstructionError::reconstructionError
     LNormal1_(0),
     LCentreInf_(0),
     LCentre1_(0),
+    LCurvInf_(0),
+    LCurv1_(0),
     avgLNormal_(100),
-    avgLCentre_(100)
+    avgLCentre_(100),
+    avgLCurv_(100),
+    LNormalDiff1_(0),
+    LNormalDiff2_(0),
+    LNormalDiffInf_(0),
+    areaSum_(0),
+    areaExact_(0),
+    nInterface_(0)
 {
 
 
@@ -134,6 +151,10 @@ void Foam::reconstructionError::calcError
     DynamicList<scalar> LCentre(1000);
     DynamicList<scalar> LCurv(1000);
 
+    // appended (davof): |n - n_exact| moments, total area, interface count
+    scalar sumD = 0, sumD2 = 0, maxD = 0, areaLocal = 0;
+    label nLocal = 0;
+
     forAll(normal,cellI)
     {
         if(mag(normal[cellI]) != 0)
@@ -148,7 +169,31 @@ void Foam::reconstructionError::calcError
            LNormal.append(1-(normalCellI & exactNormal));
            LCentre.append(mag(func->distanceToSurfaces(centreCellI)));
            LCurv.append(mag(curv[cellI]-exactCurv));
+
+           const scalar diff = mag(normalCellI - exactNormal);
+           sumD += diff;
+           sumD2 += diff*diff;
+           maxD = max(maxD, diff);
+           areaLocal += mag(normal[cellI]);
+           ++nLocal;
         }
+    }
+
+    nInterface_ = returnReduce(nLocal, sumOp<label>());
+    const scalar sumDg = returnReduce(sumD, sumOp<scalar>());
+    const scalar sumD2g = returnReduce(sumD2, sumOp<scalar>());
+    LNormalDiff1_ = sumDg/max(nInterface_, label(1));
+    LNormalDiff2_ = Foam::sqrt(sumD2g/max(nInterface_, label(1)));
+    LNormalDiffInf_ = returnReduce(maxD, maxOp<scalar>());
+    areaSum_ = returnReduce(areaLocal, sumOp<scalar>());
+    if (type == "sphere")
+    {
+        const scalar R = readScalar(dict.lookup("radius"));
+        areaExact_ = 4.0*constant::mathematical::pi*R*R;
+    }
+    else
+    {
+        areaExact_ = 0;
     }
 
 
@@ -214,6 +259,12 @@ void Foam::reconstructionError::write(const scalar k1, const scalar k2)
             << token::TAB << length
             << token::TAB << nCells
             << token::TAB << avgVol
+            << token::TAB << LNormalDiff1_
+            << token::TAB << LNormalDiff2_
+            << token::TAB << LNormalDiffInf_
+            << token::TAB << areaSum_
+            << token::TAB << areaExact_
+            << token::TAB << nInterface_
             << endl;
     }
 
@@ -241,6 +292,12 @@ void Foam::reconstructionError::write()
             << token::TAB << length
             << token::TAB << nCells
             << token::TAB << avgVol
+            << token::TAB << LNormalDiff1_
+            << token::TAB << LNormalDiff2_
+            << token::TAB << LNormalDiffInf_
+            << token::TAB << areaSum_
+            << token::TAB << areaExact_
+            << token::TAB << nInterface_
             << endl;
     }
 

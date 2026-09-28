@@ -76,6 +76,19 @@ class reconstructionError
         DynamicList<scalar> avgLCentre_;
         DynamicList<scalar> avgLCurv_;
 
+        // Appended columns (davof, 2026-09-28): the normal error |n - n_exact|
+        // (n and n_exact both unit, into alpha = 1) over the interface cells as
+        // mean (1), root mean square (2) and maximum (Inf); the total
+        // reconstructed area sum |normal|; the exact area (4 pi R^2 for a
+        // sphere, 0 otherwise); the interface-cell count. Values of the last
+        // calcError call, reduced over the ranks.
+        scalar LNormalDiff1_;
+        scalar LNormalDiff2_;
+        scalar LNormalDiffInf_;
+        scalar areaSum_;
+        scalar areaExact_;
+        label nInterface_;
+
     // Protected Member Functions
 
         //- File header information
