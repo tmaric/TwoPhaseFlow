@@ -1,4 +1,11 @@
 #!/bin/bash
+# Installs into THIS clone's platforms/<WM_OPTIONS>/ (etc/davof-env.sh); source OpenFOAM's
+# etc/bashrc first. WM_NCOMPPROCS=<n> parallelises each wmake.
+cd "${0%/*}" || exit 1
+. "$PWD/etc/davof-env.sh" || exit 1
+mkdir -p "$FOAM_USER_APPBIN" "$FOAM_USER_LIBBIN" || exit 1
+echo "$WM_PROJECT_VERSION" > "platforms/$WM_OPTIONS/.openfoam-version"
+echo "TwoPhaseFlow: OpenFOAM-$WM_PROJECT_VERSION -> $TPF_ROOT/platforms/$WM_OPTIONS"
 
 wmake libso src/VoF
 wmake all src/boundaryConditions

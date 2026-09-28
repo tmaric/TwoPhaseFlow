@@ -1,5 +1,9 @@
 #!/bin/bash
 cd ${0%/*} || exit 1    # run from this directory
+# This clone's installed binaries and build stamp (etc/davof-env.sh) -- removed BEFORE
+# sourcing, so a stamp of another OpenFOAM version can never block the clean.
+rm -rf "$PWD/platforms"
+. "$PWD/etc/davof-env.sh" || exit 1
 
 
 wclean all src/
