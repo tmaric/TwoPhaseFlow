@@ -1,0 +1,32 @@
+/*--------------------------------*- C++ -*----------------------------------*| =========                 |                                                 |
+| \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \    /   O peration     | Version:  v2606                                 |
+|   \  /    A nd           | Website:  www.openfoam.com                      |
+|    \/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      simulationParameter;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// The FoamFile header is what PyFoam (oftest.Case_modifiers) needs to parse
+// and rewrite this file; OpenFOAM merges it harmlessly on #include.
+// Parameters of the sphere-normal reconstruction benchmark, #included by
+// blockMeshDict, fvSolution and initAlphaFieldDict; genCases.py and
+// test_sphereNormal3D.py rewrite the values line by line (KEY value;).
+//
+// The sphere (R = 1 mm) in a 4R box, centre off every mesh symmetry plane and
+// off every grid line and cell centre of the N = 20/40/80/160 ladder; the same
+// literal centre as the leia study config/davof/sphereNormal3D.yaml.
+N 20;
+L 0.004;
+R 0.001;
+CX 0.0020692;
+CY 0.0021172;
+CZ 0.0019548;
+RECONSCHEME plicRDF;
+SETALPHAMETHOD cutCellIso;
