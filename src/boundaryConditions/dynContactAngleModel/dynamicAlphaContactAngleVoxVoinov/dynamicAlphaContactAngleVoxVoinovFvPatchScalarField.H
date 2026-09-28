@@ -53,6 +53,9 @@ class dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
 :
     public alphaContactAngleTwoPhaseFvPatchScalarField
 {
+    typedef dynamicAlphaContactAngleVoxVoinovFvPatchScalarField this_bctype;
+    typedef alphaContactAngleTwoPhaseFvPatchScalarField parent_bctype;
+
     // Private data
 
         //- Equilibrium contact angle
@@ -90,33 +93,25 @@ public:
         //  onto a new patch
         dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
         (
-            const dynamicAlphaContactAngleVoxVoinovFvPatchScalarField&,
+            const this_bctype&,
             const fvPatch&,
             const DimensionedField<scalar, volMesh>&,
             const fvPatchFieldMapper&
         );
 
-        //- Construct as copy
-        dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
-        (
-            const dynamicAlphaContactAngleVoxVoinovFvPatchScalarField&
-        );
-
-        //- Construct and return a clone
-        virtual tmp<fvPatchScalarField> clone() const
-        {
-            return tmp<fvPatchScalarField>
-            (
-                new dynamicAlphaContactAngleVoxVoinovFvPatchScalarField(*this)
-            );
-        }
-
         //- Construct as copy setting internal field reference
         dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
         (
-            const dynamicAlphaContactAngleVoxVoinovFvPatchScalarField&,
+            const this_bctype&,
             const DimensionedField<scalar, volMesh>&
         );
+        
+        //- No copy without an internal field
+        dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
+        (
+            const this_bctype&
+        ) 
+            = delete;
 
         //- Construct and return a clone setting internal field reference
         virtual tmp<fvPatchScalarField> clone
@@ -124,10 +119,7 @@ public:
             const DimensionedField<scalar, volMesh>& iF
         ) const
         {
-            return tmp<fvPatchScalarField>
-            (
-                new dynamicAlphaContactAngleVoxVoinovFvPatchScalarField(*this, iF)
-            );
+            return fvPatchScalarField::Clone(*this, iF);
         }
 
 
@@ -142,6 +134,11 @@ public:
 
         //- Write
         virtual void write(Ostream&) const;
+
+        // Member Operators
+
+            //- Inherit assignment
+            using parent_bctype::operator=;
 };
 
 

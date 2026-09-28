@@ -100,7 +100,6 @@ void Foam::heightFunction::computeColumns
         return;
     }
 
-    scalar avgColVal = 0.5;
     DynamicField<scalar > alphaValues(100); // should be big enough avoids resizing
 
     for (label i = HFCol.status[orientation].iterI;i<7;i++) // move four times in both direction
@@ -132,6 +131,10 @@ void Foam::heightFunction::computeColumns
                 );
             }
         }
+		else
+		{
+			return;
+		}
 
         if (fullColumn(HFCol.status[orientation].avgColVal,columnHeightTol) )
         {
@@ -319,7 +322,6 @@ void Foam::heightFunction::correct()
     deltaFunctionModel_->correct();
 
     const fvMesh& mesh = alpha1_.mesh();
-    const surfaceVectorField& Sf = mesh.Sf();
 
     reconstructionSchemes& surf =
         mesh.lookupObjectRef<reconstructionSchemes>("reconstructionScheme");
@@ -333,8 +335,6 @@ void Foam::heightFunction::correct()
     const globalIndex& globalIdx = zoneDistribute::New(mesh_).globalNumbering();
 
     boolList nextToInterface(mesh.nCells(),false);
-
-    scalar deltaX = mag(mesh_.delta())().average().value();
 
     volScalarField cellDistField
     (
@@ -414,9 +414,21 @@ void Foam::heightFunction::correct()
         dimensionedScalar("scalar", dimless, 0),
         "calculated"   //alpha1.boundaryField().types()
     );
-    label test = twoDim_ ? 2 : 3;
     Vector<label> geomDir = mesh_.geometricD();
     label dirs = twoDim_ ? 2 : 3;
+
+    scalar thickness = 1.0;
+    if (twoDim_)
+    {
+        forAll(geomDir, iDir)
+        {
+            if (geomDir[iDir] == -1)
+            {
+                thickness = mesh.bounds().span()[iDir];
+                break;
+            }
+        }
+    }
 
     twoDimStencilMap parallelStencil;
     List<List<twoDimFDStencil>> sendStencil(Pstream::nProcs());
@@ -443,7 +455,6 @@ void Foam::heightFunction::correct()
                 sortedDirs.reverseSort();
                 foundHeightField[celli] = 0;
 
-                bool success = false;
                 for (int dirI=0;dirI<dirs;dirI++)
                 {
                     label direction = sortedDirs.indices()[dirI];
@@ -475,8 +486,9 @@ void Foam::heightFunction::correct()
                     if (cols.foundHeight())
                     {
                         foundHeightField[celli] = 1;
+                        scalar deltaX = twoDim_? sqrt(mesh.V()[celli]/thickness) : cbrt(mesh.V()[celli]);
                         K_[celli] = cols.calcCurvature(deltaX);
-                        success = true;
+
                         break;
                     }
 
@@ -489,6 +501,8 @@ void Foam::heightFunction::correct()
                         );
                         label procI = globalIdx.whichProcID(cols.status[0].gblIdx);
                         sendStencil[procI].append(cols);
+
+						break;
                     }
                     if (!globalIdx.isLocal(cols.status[1].gblIdx))
                     {
@@ -499,6 +513,8 @@ void Foam::heightFunction::correct()
                         );
                         label procI = globalIdx.whichProcID(cols.status[1].gblIdx);
                         sendStencil[procI].append(cols);
+
+						break;
                     }
 
                 }
@@ -532,20 +548,23 @@ void Foam::heightFunction::correct()
             const label localIdx = globalIdx.toLocal(HFcols.status[0].gblIdx);
             HFcols.status[1].gblIdx = -1;
 
-            computeColumns
-            (
-                HFcols.direction(),
-                MapAlpha,
-                localIdx,
-                HFStencil::orientation::pos,
-                HFcols
-            );
+            getStencilValues(MapAlpha,stencil[localIdx],alphaValues);
+            HFcols.status[0].avgColVal = HFcols.addColumnHeight(alphaValues);
 
-            if
-            (
-                HFcols.status[0].avgColVal < 1e-6
-             || HFcols.status[0].avgColVal >  1-1e-6
-            )
+            if (!fullColumn(HFcols.status[0].avgColVal, 1e-6))
+            {
+                // moves straight to nextPos.
+                computeColumns
+                (
+                    HFcols.direction(),
+                    MapAlpha,
+                    localIdx,
+                    HFStencil::orientation::pos,
+                    HFcols
+                );
+            }
+
+            if (fullColumn(HFcols.status[0].avgColVal, 1e-6))
             {
                 label origProc = globalIdx.whichProcID(HFcols.gblcelli());
                 sendStencil[origProc].append(HFcols);
@@ -557,20 +576,22 @@ void Foam::heightFunction::correct()
             const label localIdx = globalIdx.toLocal(HFcols.status[1].gblIdx);
             HFcols.status[0].gblIdx = -1;
 
-            computeColumns
-            (
-                HFcols.direction(),
-                MapAlpha,
-                localIdx,
-                HFStencil::orientation::neg,
-                HFcols
-            );
+            getStencilValues(MapAlpha,stencil[localIdx],alphaValues);
+            HFcols.status[1].avgColVal = HFcols.addColumnHeight(alphaValues);
 
-            if
-            (
-                HFcols.status[0].avgColVal < 1e-6
-             || HFcols.status[0].avgColVal >  1-1e-6
-            )
+            if (!fullColumn(HFcols.status[1].avgColVal, 1e-6))
+            {
+                computeColumns
+                (
+                    HFcols.direction(),
+                    MapAlpha,
+                    localIdx,
+                    HFStencil::orientation::neg,
+                    HFcols
+                );
+            }
+
+            if (fullColumn(HFcols.status[1].avgColVal, 1e-6))
             {
                 label origProc = globalIdx.whichProcID(HFcols.gblcelli());
                 sendStencil[origProc].append(HFcols);
@@ -614,6 +635,8 @@ void Foam::heightFunction::correct()
         {
             label celli = globalIdx.toLocal(iter().gblcelli());
             foundHeightField[celli] = 1;
+
+            scalar deltaX = twoDim_? sqrt(mesh.V()[celli]/thickness) : cbrt(mesh.V()[celli]);
             K_[celli] = iter().calcCurvature(deltaX);
         }
 
@@ -708,7 +731,7 @@ void Foam::heightFunction::correct()
             Field < vector> centreField = mapCentres[celli];
             forAll(centreField,i)
             {
-                if (centreField[i] != vector::zero)
+                if (centreField[i] != vector::zero && i > 0)
                 {
                     scalar dist = mag(cc-centreField[i]);
                     if (smallDist > dist)
@@ -721,6 +744,7 @@ void Foam::heightFunction::correct()
             K_[celli] = mapCurv[celli][smallestDistIdx];
         }
     }
+    K_.correctBoundaryConditions();
 
     Kf_ = fvc::interpolate(K_);
 

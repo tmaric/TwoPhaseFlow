@@ -22,7 +22,7 @@ look at the citing articles on [google scholar](https://scholar.google.com/schol
 Requires an installed OpenCFD version of OpenFOAM (v1812 or later) from
 https://www.openfoam.com.
 
-The master branch currently (april 2026) compiles with OpenFOAM-v2406 to v2512.
+The master branch currently (August 2026) compiles with OpenFOAM-v2406 to v2606.
 For older OpenFOAM versions (down to v1812) please checkout the appropriate
 branch. Don't expect older branches to be regularly updated or bug fixed. Use a
 newer OpenFOAM version if possible.

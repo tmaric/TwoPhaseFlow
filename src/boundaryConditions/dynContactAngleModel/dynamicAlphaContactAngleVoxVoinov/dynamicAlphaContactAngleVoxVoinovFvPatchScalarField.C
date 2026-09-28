@@ -41,7 +41,7 @@ dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    alphaContactAngleTwoPhaseFvPatchScalarField(p, iF),
+    parent_bctype(p, iF),
     theta0_(0.0),
     ct_(0.0)
 {}
@@ -50,13 +50,13 @@ dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
 Foam::dynamicAlphaContactAngleVoxVoinovFvPatchScalarField::
 dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
 (
-    const dynamicAlphaContactAngleVoxVoinovFvPatchScalarField& gcpsf,
+    const this_bctype& gcpsf,
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
     const fvPatchFieldMapper& mapper
 )
 :
-    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, p, iF, mapper),
+    parent_bctype(gcpsf, p, iF, mapper),
     theta0_(gcpsf.theta0_),
     ct_(gcpsf.ct_)
 {}
@@ -70,7 +70,7 @@ dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
     const dictionary& dict
 )
 :
-    alphaContactAngleTwoPhaseFvPatchScalarField(p, iF, dict),
+    parent_bctype(p, iF, dict),
     theta0_(readScalar(dict.lookup("theta0"))),
     ct_(readScalar(dict.lookup("ct")))
 {
@@ -81,23 +81,11 @@ dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
 Foam::dynamicAlphaContactAngleVoxVoinovFvPatchScalarField::
 dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
 (
-    const dynamicAlphaContactAngleVoxVoinovFvPatchScalarField& gcpsf
-)
-:
-    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf),
-    theta0_(gcpsf.theta0_),
-    ct_(gcpsf.ct_)
-{}
-
-
-Foam::dynamicAlphaContactAngleVoxVoinovFvPatchScalarField::
-dynamicAlphaContactAngleVoxVoinovFvPatchScalarField
-(
-    const dynamicAlphaContactAngleVoxVoinovFvPatchScalarField& gcpsf,
+    const this_bctype& gcpsf,
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, iF),
+    parent_bctype(gcpsf, iF),
     theta0_(gcpsf.theta0_),
     ct_(gcpsf.ct_)
 {}
