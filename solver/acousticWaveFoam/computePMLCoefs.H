@@ -3,6 +3,7 @@
     [&]
     (
         const tensor& sigmaValue,
+        const scalar alpha,
         scalar& c0,
         scalar& c1,
         scalar& c2,
@@ -31,10 +32,16 @@
             0, 0, dx*dy
         );
 
-        const scalar invCgSqr = 1/sqr(cg.value());
-        c0 = (dx + dy + dz)*invCgSqr;
-        c1 = (dx*dy + dx*dz + dy*dz)*invCgSqr;
-        c2 = dx*dy*dz*invCgSqr;
+        // Local 1/c^2 keeps the layer matched to the adjacent medium.
+        const scalar rhoMix =
+            alpha*rhol.value() + (1 - alpha)*rhog.value();
+        const scalar compressibilityMix =
+            alpha*kl.value() + (1 - alpha)*kg.value();
+        const scalar invSoundSpeedSqr = rhoMix*compressibilityMix;
+
+        c0 = (dx + dy + dz)*invSoundSpeedSqr;
+        c1 = (dx*dy + dx*dz + dy*dz)*invSoundSpeedSqr;
+        c2 = dx*dy*dz*invSoundSpeedSqr;
     };
 
     forAll(sigma, celli)
@@ -42,6 +49,7 @@
         updateCoefficients
         (
             sigma[celli],
+            min(max(alpha1[celli], scalar(0)), scalar(1)),
             C0[celli],
             C1[celli],
             C2[celli],
@@ -58,6 +66,11 @@
             updateCoefficients
             (
                 sigma.boundaryField()[patchi][facei],
+                min
+                (
+                    max(alpha1.boundaryField()[patchi][facei], scalar(0)),
+                    scalar(1)
+                ),
                 C0.boundaryFieldRef()[patchi][facei],
                 C1.boundaryFieldRef()[patchi][facei],
                 C2.boundaryFieldRef()[patchi][facei],
