@@ -1,0 +1,94 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+calc() { awk "BEGIN { printf \"%.15g\", $1 }"; }
+
+NX=$(calc "$CELLS_PER_WAVELENGTH*$MODE_N/2")
+case "$NX" in
+    ''|*[!0-9]*)
+        echo "CELLS_PER_WAVELENGTH*MODE_N/2 = $NX is not an integer" >&2
+        exit 1
+        ;;
+esac
+
+if [ "$STEPS_PER_PERIOD" -le "$PROBE_SAMPLES_PER_PERIOD" ]
+then
+    PROBE_STRIDE=1
+else
+    PROBE_STRIDE=$(calc "$STEPS_PER_PERIOD/$PROBE_SAMPLES_PER_PERIOD")
+fi
+case "$PROBE_STRIDE" in
+    ''|*[!0-9]*)
+        echo "STEPS_PER_PERIOD must be a multiple of PROBE_SAMPLES_PER_PERIOD" >&2
+        exit 1
+        ;;
+esac
+
+PI=3.14159265358979323846
+DRIVE_F=$(calc "$MODE_N*$CG/(2*$CAVITY_L)")
+K=$(calc "$MODE_N*$PI/$CAVITY_L")
+H=$(calc "$CAVITY_L/$NX")
+HALF_H=$(calc "0.5*$H")
+N_STEPS=$(calc "$STEPS_PER_PERIOD*$N_PERIODS")
+DELTA_T=$(calc "1/($DRIVE_F*$STEPS_PER_PERIOD)")
+END_TIME=$(calc "$N_STEPS*$DELTA_T")
+
+sed \
+  -e "s|__RHOG__|${RHOG}|g" \
+  -e "s|__CG__|${CG}|g" \
+  -e "s|__DRIVE_F__|${DRIVE_F}|g" \
+  -e "s|__TIME_METHOD__|${TIME_METHOD}|g" \
+  -e "s|__THETA__|${THETA}|g" \
+  -e "s|__BLOCK_SOLVER__|${BLOCK_SOLVER}|g" \
+  constant/transportProperties.in > constant/transportProperties
+
+sed \
+  -e "s|__L__|${CAVITY_L}|g" \
+  -e "s|__HALF_H__|${HALF_H}|g" \
+  -e "s|__NX__|${NX}|g" \
+  system/blockMeshDict.in > system/blockMeshDict
+
+sed \
+  -e "s|__SOLVER__|${SOLVER}|g" \
+  -e "s|__DELTA_T__|${DELTA_T}|g" \
+  -e "s|__END_TIME__|${END_TIME}|g" \
+  -e "s|__PROBE_STRIDE__|${PROBE_STRIDE}|g" \
+  system/controlDict.in > system/controlDict
+
+sed \
+  -e "s|__PA__|${PA}|g" \
+  -e "s|__K__|${K}|g" \
+  system/setExprFieldsDict.in > system/setExprFieldsDict
+
+# One probe per cell centre: the probes return the exact cell values.
+awk -v n="$NX" -v h="$H" 'BEGIN {
+    print "probeLocations"; print "(";
+    for (i = 0; i < n; i++) printf "    (%.15g 0 0)\n", (i + 0.5)*h;
+    print ");"
+}' > system/probeLocations
+
+cat > caseSetup.json <<EOF
+{
+  "rho": ${RHOG},
+  "c": ${CG},
+  "L": ${CAVITY_L},
+  "mode": ${MODE_N},
+  "Pa": ${PA},
+  "nx": ${NX},
+  "h": ${H},
+  "crossSection": $(calc "$H*$H"),
+  "k": ${K},
+  "f": ${DRIVE_F},
+  "deltaT": ${DELTA_T},
+  "nSteps": ${N_STEPS},
+  "cellsPerWavelength": ${CELLS_PER_WAVELENGTH},
+  "stepsPerPeriod": ${STEPS_PER_PERIOD},
+  "nPeriods": ${N_PERIODS},
+  "probeStride": ${PROBE_STRIDE},
+  "method": "${TIME_METHOD}",
+  "theta": ${THETA},
+  "blockSolver": "${BLOCK_SOLVER}"
+}
+EOF

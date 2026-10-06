@@ -1,0 +1,24 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volTensorField;
+    object      sigma;
+}
+
+dimensions      [0 0 -1 0 0 0 0];
+
+// No PML: all damping rates are zero.
+internalField   uniform (0 0 0 0 0 0 0 0 0);
+
+boundaryField
+{
+    left  { type calculated; value $internalField; }
+    right { type calculated; value $internalField; }
+    yMin  { type empty; }
+    yMax  { type empty; }
+    zMin  { type empty; }
+    zMax  { type empty; }
+}

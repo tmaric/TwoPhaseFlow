@@ -1,0 +1,79 @@
+#!/bin/sh
+# Closed-cavity verification studies; see README.md.
+#   A  scheme identification against the fully discrete references
+#   B  temporal refinement at fixed mesh
+#   C  spatial refinement with the time step tied to the mesh
+# Usage: ./runStudy [A|B|C|all]     (outputs in ${STUDY_DIR:-studies})
+set -e
+cd "${0%/*}" || exit 1
+
+STUDY=${1:-all}
+OUT=${STUDY_DIR:-studies}
+
+variant()
+{
+    name=$1
+    shift
+    dir=$OUT/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system caseParams.sh prepareCase Allrun Allclean \
+        postprocess_cavity.py "$dir"/
+    if (cd "$dir" && env "$@" ./Allrun > run.out 2>&1)
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/run.out)"
+        return 1
+    fi
+}
+
+studyA()
+{
+    set -- CELLS_PER_WAVELENGTH=40 STEPS_PER_PERIOD=20 N_PERIODS=100 \
+        PROBE_SAMPLES_PER_PERIOD=20
+    variant A/backward         "$@" TIME_METHOD=fullyImplicit
+    variant A/segregatedTheta  "$@" TIME_METHOD=thetaNewmark THETA=0.5
+    variant A/blockDirect      "$@" TIME_METHOD=blockCoupled THETA=0.5
+    variant A/blockIterative   "$@" TIME_METHOD=blockCoupled THETA=0.5 \
+        BLOCK_SOLVER=iterative
+    variant A/blockTheta0.55   "$@" TIME_METHOD=blockCoupled THETA=0.55
+    variant A/blockTheta1      "$@" TIME_METHOD=blockCoupled THETA=1
+}
+
+studyB()
+{
+    # The backward E2 reaches its first-order regime only for
+    # N_T >> 2 pi^2 N_PERIODS (~400), hence the longer backward sequence.
+    for nt in 10 20 40 80 160 320 640 1280 2560
+    do
+        set -- CELLS_PER_WAVELENGTH=40 STEPS_PER_PERIOD=$nt N_PERIODS=20 \
+            PROBE_SAMPLES_PER_PERIOD=10
+        if [ "$nt" -le 160 ]
+        then
+            variant B/trapezoidal_NT$nt "$@" TIME_METHOD=blockCoupled \
+                THETA=0.5
+        fi
+        variant B/backward_NT$nt "$@" TIME_METHOD=fullyImplicit
+    done
+}
+
+studyC()
+{
+    for nl in 10 20 40 80 160
+    do
+        variant C/trapezoidal_NL$nl CELLS_PER_WAVELENGTH=$nl \
+            STEPS_PER_PERIOD=$((10*nl)) N_PERIODS=20 \
+            PROBE_SAMPLES_PER_PERIOD=20 TIME_METHOD=blockCoupled THETA=0.5
+    done
+}
+
+case "$STUDY" in
+    A) studyA ;;
+    B) studyB ;;
+    C) studyC ;;
+    all) studyA; studyB; studyC ;;
+    *) echo "Usage: $0 [A|B|C|all]" >&2; exit 1 ;;
+esac
+
+python3 summarize_cavity_study.py "$OUT"
