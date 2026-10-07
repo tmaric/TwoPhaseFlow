@@ -1,0 +1,60 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+
+solvers
+{
+    "alpha.*"
+    {
+        nAlphaCorr      2;
+        isoFaceTol      1e-8;
+        surfCellTol     1e-8;
+        nAlphaBounds    3;
+        snapTol         0;
+        clip            false;
+        cAlpha          1;
+        nAlphaSubCycles 1;
+        advectionScheme isoAdvection;
+        reconstructionScheme plicRDF;
+    }
+
+    "p.*"
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-12;
+        relTol          0.0;
+    }
+
+    "(U.*|v.*|u.*)"
+    {
+        solver          diagonal;
+    }
+}
+
+PIMPLE
+{
+    // Linear equations: one pass solves the segregated branches exactly.
+    momentumPredictor   no;
+    nOuterCorrectors    1;
+    nCorrectors         1;
+    nNonOrthogonalCorrectors 0;
+}
+
+relaxationFactors
+{
+    fields
+    {
+    }
+    equations
+    {
+        ".*" 1;
+    }
+}

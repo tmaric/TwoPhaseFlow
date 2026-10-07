@@ -1,0 +1,87 @@
+#!/bin/sh
+# Two-layer cavity verification studies; see README.md.
+#   A  scheme identification against the fully discrete reference
+#   B  spatial refinement, interface on a face
+#   C  spatial refinement, interface within a cell (s = 1/4, 1/2)
+#   D  parallel consistency: serial versus two ranks split at the interface
+# Usage: ./runStudy [A|B|C|D|all]     (outputs in ${STUDY_DIR:-studies})
+set -e
+cd "${0%/*}" || exit 1
+
+STUDY=${1:-all}
+OUT=${STUDY_DIR:-studies}
+MODES="lower upper"
+
+variant()
+{
+    name=$1
+    shift
+    dir=$OUT/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system caseParams.sh prepareCase \
+        prepare_two_layer.py twoLayerModes.py postprocess_two_layer.py \
+        Allrun Allclean "$dir"/
+    if (cd "$dir" && env "$@" ./Allrun > run.out 2>&1)
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/run.out)"
+        return 1
+    fi
+}
+
+studyA()
+{
+    for mode in $MODES
+    do
+        set -- MODE=$mode CELLS_PER_UNIT=2 STEPS_PER_PERIOD=20 N_PERIODS=100 \
+            PROBE_SAMPLES_PER_PERIOD=20
+        variant A/${mode}_backward       "$@" TIME_METHOD=fullyImplicit
+        variant A/${mode}_segregated     "$@" TIME_METHOD=thetaNewmark
+        variant A/${mode}_blockDirect    "$@" TIME_METHOD=blockCoupled
+        variant A/${mode}_blockIterative "$@" TIME_METHOD=blockCoupled \
+            BLOCK_SOLVER=iterative
+    done
+}
+
+refinement()
+{
+    # $1 study letter, $2 interface offset
+    for mode in $MODES
+    do
+        for cpu in 1 2 4 8 16
+        do
+            variant "$1/s$2_${mode}_CPU$cpu" MODE=$mode CELLS_PER_UNIT=$cpu \
+                STEPS_PER_PERIOD=$((320*cpu)) N_PERIODS=20 \
+                PROBE_SAMPLES_PER_PERIOD=20 INTERFACE_OFFSET=$2
+        done
+    done
+}
+
+studyD()
+{
+    for mode in $MODES
+    do
+        for s in 0 0.5
+        do
+            for np in 1 2
+            do
+                variant "D/s${s}_${mode}_np$np" MODE=$mode CELLS_PER_UNIT=2 \
+                    STEPS_PER_PERIOD=20 N_PERIODS=20 \
+                    PROBE_SAMPLES_PER_PERIOD=20 INTERFACE_OFFSET=$s NPROCS=$np
+            done
+        done
+    done
+}
+
+case "$STUDY" in
+    A) studyA ;;
+    B) refinement B 0 ;;
+    C) refinement C 0.25; refinement C 0.5 ;;
+    D) studyD ;;
+    all) studyA; refinement B 0; refinement C 0.25; refinement C 0.5; studyD ;;
+    *) echo "Usage: $0 [A|B|C|D|all]" >&2; exit 1 ;;
+esac
+
+python3 summarize_two_layer_study.py "$OUT"
