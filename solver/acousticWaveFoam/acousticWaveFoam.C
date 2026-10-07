@@ -57,6 +57,7 @@ SourceFiles
 #include "wedgePolyPatch.H"
 
 #include "petscTimeBlockAssembly.H"
+#include "reconstructPressureAcceleration.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -113,10 +114,20 @@ int main(int argc, char *argv[])
     compressibility = alpha1*kl + (1 - alpha1)*kg;
     invRhof = 1/(alphaf*rhol + (1 - alphaf)*rhog);
 
+    // Velocity is recovered from the same face fluxes as the pressure
+    // Laplacian. A cell Gauss gradient interpolates p linearly across an
+    // interface face and corrupts the velocity of the light cell beside it.
+    const auto reconstructedPressureAcceleration =
+        [&](const volScalarField& pressure)
+        {
+            return reconstructPressureAcceleration(pressure, invRhof, alpha1);
+        };
+
     while (runTime.run())
     {
         tmp<volScalarField> previousPressureLaplacian;
         tmp<volVectorField> previousPressureGradient;
+        tmp<volVectorField> previousPressureAcceleration;
 
         if
         (
@@ -128,6 +139,8 @@ int main(int argc, char *argv[])
             // Capture the old spatial operators before advancing the clock.
             p.correctBoundaryConditions();
             previousPressureGradient = fvc::grad(p);
+            previousPressureAcceleration =
+                reconstructedPressureAcceleration(p);
 
             if (blockCoupledTimeIntegration)
             {
@@ -179,8 +192,10 @@ int main(int argc, char *argv[])
                     U
                 )
              ==
-                - timeIntegrationTheta*fvc::grad(p)
-                - (1.0 - timeIntegrationTheta)*previousPressureGradient()
+                - timeIntegrationTheta
+                 *rho*reconstructedPressureAcceleration(p)
+                - (1.0 - timeIntegrationTheta)
+                 *rho*previousPressureAcceleration()
                 - (1.0 - timeIntegrationTheta)
                  *rho*physicalAcousticDampingRate*U.oldTime()
             );
@@ -203,8 +218,10 @@ int main(int argc, char *argv[])
                     U
                 )
              ==
-                - timeIntegrationTheta*fvc::grad(p)
-                - (1.0 - timeIntegrationTheta)*previousPressureGradient()
+                - timeIntegrationTheta
+                 *rho*reconstructedPressureAcceleration(p)
+                - (1.0 - timeIntegrationTheta)
+                 *rho*previousPressureAcceleration()
                 - (1.0 - timeIntegrationTheta)
                  *rho*physicalAcousticDampingRate*U.oldTime()
             );
@@ -216,7 +233,7 @@ int main(int argc, char *argv[])
                 fvm::ddt(rho, U)
               + fvm::Sp(rho*physicalAcousticDampingRate, U)
              ==
-                -fvc::grad(p)
+                -rho*reconstructedPressureAcceleration(p)
             );
         }
         prT ==
