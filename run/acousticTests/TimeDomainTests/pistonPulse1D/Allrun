@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit 1
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+. ./caseParams.sh
+
+./Allclean
+restore0Dir
+./prepareCase
+
+runApplication blockMesh
+runApplication setExprFields
+runApplication setPMLFields
+runApplication "${SOLVER}"
+
+python3 postprocess_pulse.py > log.postprocess 2>&1
+tail -n 15 log.postprocess

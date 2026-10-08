@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit 1
+. ./caseParams.sh
+
+export SOLVER RHOG CG RHOL CL CONFIG LENGTH X_INTERFACE PML_THICKNESS \
+    SIGMA_MAX PML_ORDER NX F0 N_CYCLES U0 STEPS_PER_PERIOD T_OBS \
+    PROBE_SAMPLES_PER_PERIOD TIME_METHOD THETA BLOCK_SOLVER
+
+python3 prepare_pulse.py

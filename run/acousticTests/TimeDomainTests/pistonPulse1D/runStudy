@@ -1,0 +1,77 @@
+#!/bin/sh
+# Piston-pulse verification studies; see README.md.
+#   A  temporal refinement (monolithic theta = 1/2 and backward)
+#   B  spatial refinement, piston in gas
+#   C  PML strength and thickness
+#   D  spatial refinement, reversed configuration (piston in liquid)
+# Usage: ./runStudy [A|B|C|D|all]     (outputs in ${STUDY_DIR:-studies})
+set -e
+cd "${0%/*}" || exit 1
+
+STUDY=${1:-all}
+OUT=${STUDY_DIR:-studies}
+
+variant()
+{
+    name=$1
+    shift
+    dir=$OUT/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system caseParams.sh prepareCase prepare_pulse.py \
+        pulseReference.py postprocess_pulse.py Allrun Allclean "$dir"/
+    if (cd "$dir" && env "$@" ./Allrun > run.out 2>&1)
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/run.out)"
+        return 1
+    fi
+}
+
+studyA()
+{
+    # The backward update reaches its first-order regime only for
+    # N_T >> 2 pi^2 N_p (about 630 for 32 periods), hence the longer sequence.
+    for nt in 10 20 40 80 160 320 640 1280 2560
+    do
+        if [ "$nt" -le 160 ]
+        then
+            variant A/trapezoidal_NT$nt NX=2800 STEPS_PER_PERIOD=$nt
+        fi
+        variant A/backward_NT$nt NX=2800 STEPS_PER_PERIOD=$nt \
+            TIME_METHOD=fullyImplicit
+    done
+}
+
+refinement()
+{
+    # $1 study letter, $2 configuration
+    for nx in 700 1400 2800 5600
+    do
+        variant "$1/NX$nx" CONFIG=$2 NX=$nx STEPS_PER_PERIOD=$((nx/2))
+    done
+}
+
+studyC()
+{
+    for thickness in 0.075 0.15
+    do
+        for sigma in 1e5 2e5 5e5 1e6
+        do
+            variant "C/L${thickness}_sigma$sigma" NX=2800 \
+                STEPS_PER_PERIOD=1400 PML_THICKNESS=$thickness SIGMA_MAX=$sigma
+        done
+    done
+}
+
+case "$STUDY" in
+    A) studyA ;;
+    B) refinement B gasFirst ;;
+    C) studyC ;;
+    D) refinement D liquidFirst ;;
+    all) studyA; refinement B gasFirst; studyC; refinement D liquidFirst ;;
+    *) echo "Usage: $0 [A|B|C|D|all]" >&2; exit 1 ;;
+esac
+
+python3 summarize_pulse_study.py "$OUT"
