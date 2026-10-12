@@ -19,6 +19,7 @@ wmake libso src/postProcessing
 
 wmake apps/setFieldfromTable
 wmake apps/initAlphaField
+wmake apps/initDavofFields
 
 wmake apps/benchmark/advectorVoF
 wmake apps/benchmark/reconstructInterface
