@@ -48,9 +48,7 @@ the orders pairwise 32 -> 64:
 | davof-quadraticFaces | 32 | 1.42e-1 | 1.39 | 5.36e-1 | 8.44e-2 | 2.7e-3 | -2.0 |
 | davof-quadraticFaces | 64 | 1.25e-1 (0.18) | 1.38 (0.01) | 5.69e-1 | 8.16e-2 (0.05) | 4.8e-3 | -2.2 |
 | davof-detrixheAslam | 32 | 1.36e-1 | 1.40 | 5.33e-1 | 8.51e-2 | 2.4e-3 | -1.5 |
-
-(`davof-detrixheAslam` at N = 64 was still running at the commit; its
-numbers are in `results_sphereTranslation3D.csv` when the ladder finished.)
+| davof-detrixheAslam | 64 | 1.24e-1 (0.14) | 1.38 (0.01) | 5.68e-1 | 8.12e-2 (0.07) | 4.6e-3 | -2.5 |
 
 The comparators behave as expected (normal first order, centre second
 order, E1 between first and second order, mass conserved, bounded). The
