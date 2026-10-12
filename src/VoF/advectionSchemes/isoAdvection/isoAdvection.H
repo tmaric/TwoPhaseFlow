@@ -157,6 +157,49 @@ class isoAdvection
             List<DynamicLabelList> surfaceCellFacesOnProcPatches_;
 
 
+        // DAVOF face fractions (davof reconstruction): the moving plane's
+        // submerged face area at the end of the step stored as alphaf.<group>
+
+            //- Store the end-of-step face fractions (default: the
+            //  reconstruction scheme is davof; dictionary key
+            //  storeAreaFractions)
+            bool storeAreaFractions_;
+
+            //- The registered face fractions alphaf.<group>; nullptr when
+            //  none is registered and storeAreaFractions_ is false
+            surfaceScalarField* alphafPtr_;
+
+            //- The face fractions created here when storeAreaFractions_
+            //  and nothing was registered (initialised upwind)
+            autoPtr<surfaceScalarField> alphafOwnPtr_;
+
+            //- Faces set by a plane sweep in this step
+            bitSet alphafSetFace_;
+
+            //- Counters of the step: faces set by their own cell's plane,
+            //  faces set by a neighbouring cell's plane (second ring),
+            //  sweeps that could not set the face (default kept), values
+            //  clipped to [0, 1] by more than 1e-12
+            label nAlphafFromPlane_;
+            label nAlphafSecondRing_;
+            label nAlphafFallback_;
+            label nAlphafClipped_;
+
+            //- Faces beyond the downwind faces of the surface cells that
+            //  the sweeping plane crosses during the step (every swept
+            //  face carries the plane's flux dVf; the count tells how many
+            //  differ from the upwind flux by a swept part)
+            label nFluxSecondRing_;
+
+            //- The plane of every surface cell of the step (x0, n0, Un0),
+            //  indexed as surfCells_; cellToSurf_ maps a cell to that index
+            //  (-1: not a surface cell)
+            DynamicVectorList surfX0_;
+            DynamicVectorList surfN0_;
+            DynamicScalarList surfUn0_;
+            labelList cellToSurf_;
+
+
     // Private Member Functions
 
         //- No copy construct
@@ -256,13 +299,43 @@ class isoAdvection
 
         // Parallel run handling functions
 
-            //- Synchronize dVf across processor boundaries using upwind value
+            //- Synchronize dVf across processor boundaries using upwind value;
+            //  alphaf (optional) is exchanged on the same faces, the upwind
+            //  side's face fraction copied without the sign change
             DynamicList<label> syncProcPatches
             (
                 surfaceScalarField& dVf,
                 const surfaceScalarField& phi,
-                bool returnSyncedFaces=false
+                bool returnSyncedFaces=false,
+                surfaceScalarField* alphaf = nullptr
             );
+
+
+        // DAVOF face fractions
+
+            //- Look up alphaf.<group> in the registry; create it (upwind)
+            //  when storeAreaFractions_ and none is registered
+            void initAreaFractions();
+
+            //- Every face (untouchedOnly false) or every face not set by a
+            //  plane in this step: the upwind cell's alpha, boundary faces
+            //  the owner's
+            void defaultAreaFractions(const bool untouchedOnly);
+
+            //- Store the end area of the last sweep on facei as the face
+            //  fraction (clipped to [0, 1]); a negative end area keeps the
+            //  default and counts as a fallback
+            void storeAreaFraction
+            (
+                const label facei,
+                const scalar areaEnd,
+                const bool secondRing
+            );
+
+            //- The faces not set by any plane whose cell shares a face with
+            //  a surface cell: swept by the neighbouring plane whose
+            //  end-of-step position is closest to the face
+            void sweepSecondRing(const scalar dt);
 
             //- Check if the face is on processor patch and append it to the
             //  list of surface cell faces on processor patches

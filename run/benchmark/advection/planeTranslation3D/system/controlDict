@@ -1,0 +1,79 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "simulationParameter"
+
+application     advectorVoF;
+
+startFrom       startTime;
+startTime       0;
+stopAt          endTime;
+endTime         $ENDTIME;
+deltaT          $DELTAT;
+
+writeControl    timeStep;
+writeInterval   10;
+purgeWrite      0;
+writeFormat     ascii;
+writePrecision  16;
+writeCompression off;
+timeFormat      general;
+timePrecision   10;
+graphFormat     raw;
+runTimeModifiable no;
+
+// fixed time step: 0.5 h / |U| (simulationParameter)
+adjustTimeStep  no;
+maxCo           1e6;
+maxAlphaCo      1e6;
+maxDeltaT       1e6;
+
+functions
+{
+    areaFractionError
+    {
+        type            areaFractionError;
+        libs            ("libpostProcess.so");
+        field           alpha.water;
+        functionType    plane;
+        origin          ($PX $PY $PZ);
+        normal          ($NX $NY $NZ);
+        U0              ($UX $UY $UZ);
+        davofMethod     $DAVOFMETHOD;
+        wispTol         $WISPTOL;
+        reconstructionError true;
+        reconstructionErrorEveryStep true;
+        writeControl    timeStep;
+        writeInterval   1;
+        writePrecision  16;
+    }
+
+    volumeFractionError
+    {
+        type            volumeFractionError;
+        libs            ("libpostProcess.so");
+        field           alpha.water;
+        functionType    plane;
+        origin          ($PX $PY $PZ);
+        normal          ($NX $NY $NZ);
+        writeControl    timeStep;
+        writeInterval   1;
+        writePrecision  16;
+    }
+}
+
+// ************************************************************************* //

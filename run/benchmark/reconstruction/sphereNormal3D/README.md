@@ -64,3 +64,8 @@ and pairwise orders per scheme x setAlphaMethod, normal and position),
 Measured 2026-10-12 (N = 20, 40, 80; least-squares orders of the normal error,
 L1 / L2, and of the position error L2, with the L2 normal error at N = 80):
 see the commit message of the A4(a) step and `orders_sphereNormal3D.csv`.
+Those CSVs were measured with `WISPTOL 1e-6`; since the A3 step the
+parameter files (here and in `../planeNormal3D`) carry leia's `1e-3`, which
+only drops the sliver cells from the interface-cell count (the orders and
+the L2 values of the sphere ladder change in the last digit at most; the
+ladder has not been re-run).

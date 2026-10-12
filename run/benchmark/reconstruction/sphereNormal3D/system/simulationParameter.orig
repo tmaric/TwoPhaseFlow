@@ -33,4 +33,4 @@ RECONSCHEME plicRDF;
 // (alpha AND the face fractions alphaf written by initDavofFields, DAVOFMETHOD)
 SETALPHAMETHOD cutCellIso;
 DAVOFMETHOD detrixheAslam;
-WISPTOL 1e-6;
+WISPTOL 1e-3;

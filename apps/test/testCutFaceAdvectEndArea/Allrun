@@ -1,0 +1,12 @@
+#!/bin/sh
+# Build and run the cutFaceAdvect end-area check (sourced OpenFOAM and etc/davof-env.sh).
+cd ${0%/*} || exit 1
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+wmake . > log.wmake 2>&1 || { cat log.wmake; exit 1; }
+cd case || exit 1
+rm -rf constant/polyMesh log.*
+runApplication blockMesh
+testCutFaceAdvectEndArea > log.testCutFaceAdvectEndArea 2>&1
+rc=$?
+tail -4 log.testCutFaceAdvectEndArea
+exit $rc

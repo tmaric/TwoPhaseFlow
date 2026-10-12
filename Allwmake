@@ -23,6 +23,7 @@ wmake apps/initDavofFields
 
 wmake apps/benchmark/advectorVoF
 wmake apps/benchmark/reconstructInterface
+wmake apps/test/testCutFaceAdvectEndArea
 
 wmake solver/multiRegionPhaseChangeFlow
 wmake solver/interFlow

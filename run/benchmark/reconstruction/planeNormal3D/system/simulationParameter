@@ -38,6 +38,6 @@ RECONSCHEME davof;
 // (alpha AND the face fractions alphaf written by initDavofFields, DAVOFMETHOD)
 SETALPHAMETHOD davof;
 DAVOFMETHOD detrixheAslam;
-WISPTOL 1e-6;
+WISPTOL 1e-3;
 
 // ************************************************************************* //

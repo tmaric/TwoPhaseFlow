@@ -104,7 +104,7 @@ Foam::reconstruction::davof::davof
         dict
     ),
     mesh_(alpha1.mesh()),
-    wispTol_(modelDict().getOrDefault<scalar>("wispTol", 1e-6)),
+    wispTol_(modelDict().getOrDefault<scalar>("wispTol", 1e-3)),
     surfCellTol_(modelDict().getOrDefault<scalar>("surfCellTol", 1e-8)),
     isoFaceTol_(modelDict().getOrDefault<scalar>("isoFaceTol", 1e-8)),
     sIterPLIC_(mesh_, surfCellTol_),

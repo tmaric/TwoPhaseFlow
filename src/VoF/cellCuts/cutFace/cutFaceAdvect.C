@@ -48,7 +48,9 @@ Foam::cutFaceAdvect::cutFaceAdvect
     pointStatus_(10),
     weight_(10),
     pTimes_(10),
-    faceStatus_(-1)
+    faceStatus_(-1),
+    subFaceAreaEnd_(-1),
+    faceSwept_(false)
 {
     clearStorage();
 }
@@ -271,6 +273,9 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedFaceFlux
             fPts_tri[0] = mesh_.faceCentres()[faceI];
             pTimes_tri[0] = ((fPts_tri[0] - x0) & n0)/Un0;
             scalar area = 0;
+            // The wetted triangle areas at t = dt, summed over the fan
+            scalar wetAreaEnd = 0;
+            bool anySwept = false;
             for (label pi = 0; pi < nPoints; ++pi)
             {
                 fPts_tri[1] = fPts[pi];
@@ -296,10 +301,17 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedFaceFlux
                         magSf_tri,
                         Un0
                     );
+                wetAreaEnd += subFaceAreaEnd_;
+                anySwept = anySwept || faceSwept_;
             }
+            // The fraction over the fan, as an area of the face
+            subFaceAreaEnd_ = (area > VSMALL) ? magSf*wetAreaEnd/area : -1;
+            faceSwept_ = anySwept;
         }
         else
         {
+            subFaceAreaEnd_ = -1;
+            faceSwept_ = false;
             if (debug)
             {
                 WarningInFunction
@@ -315,8 +327,10 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedFaceFlux
     else
     {
         // Un0 is almost zero and isoFace is treated as stationary
-        calcSubFace(faceI, -n0, x0);
+        const label status = calcSubFace(faceI, -n0, x0);
         const scalar alphaf = mag(subFaceArea() / magSf);
+        subFaceAreaEnd_ = mag(subFaceArea());
+        faceSwept_ = (status == 0);
 
         if (debug)
         {
@@ -404,6 +418,8 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedArea
         // If all face cuttings were in the past and cell is filling up (Un0>0)
         // then face must be full during whole time interval
         tIntArea = magSf * dt * pos0(Un0);
+        subFaceAreaEnd_ = magSf * pos0(Un0);
+        faceSwept_ = false;
         return tIntArea;
     }
 
@@ -415,8 +431,12 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedArea
         // if cell is filling up (Un0 > 0) face must be empty during whole time
         // interval
         tIntArea = magSf * dt * (1 - pos0(Un0));
+        subFaceAreaEnd_ = magSf * (1 - pos0(Un0));
+        faceSwept_ = false;
         return tIntArea;
     }
+
+    faceSwept_ = true;
 
     // If we reach this point in the code some part of the face will be swept
     // during [tSmall, dt-tSmall]. However, it may be the case that there are no
@@ -507,12 +527,15 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedArea
         // Integration of area(t) = A*t^2+B*t from t = 0 to 1
         tIntArea += (dt - time) *
                     (initialArea + sign(Un0)*(alpha / 3.0 + 0.5 * beta));
+        // The submerged area at t = dt: the last quadrilateral added
+        subFaceAreaEnd_ = initialArea + sign(Un0)*(alpha + beta);
     }
     else
     {
         // FIIL will leave the face at lastTime and face will be fully in fluid
         // A or fluid B in the time interval from lastTime to dt.
         tIntArea += magSf*(dt - lastTime)*pos0(Un0);
+        subFaceAreaEnd_ = magSf*pos0(Un0);
     }
 
     return tIntArea;
@@ -662,6 +685,8 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedArea
         // If all face cuttings were in the past and cell is filling up (Un0>0)
         // then face must be full during whole time interval
         tIntArea = magSf* dt * pos0(Un0);
+        subFaceAreaEnd_ = magSf*pos0(Un0);
+        faceSwept_ = false;
         return tIntArea;
     }
 
@@ -673,8 +698,12 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedArea
         // if cell is filling up (Un0 > 0) face must be empty during whole time
         // interval
         tIntArea = magSf * dt * (1 - pos0(Un0));
+        subFaceAreaEnd_ = magSf*(1 - pos0(Un0));
+        faceSwept_ = false;
         return tIntArea;
     }
+
+    faceSwept_ = true;
 
     // If we reach this point in the code some part of the face will be swept
     // during [tSmall, dt-tSmall]. However, it may be the case that there are no
@@ -767,12 +796,15 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedArea
         tIntArea +=
             (dt - time)
           * (initialArea + sign(Un0) * (alpha / 3.0 + 0.5 * beta));
+        // The submerged area at t = dt: the last quadrilateral added
+        subFaceAreaEnd_ = initialArea + sign(Un0)*(alpha + beta);
     }
     else
     {
         // FIIL will leave the face at lastTime and face will be fully in fluid
         // A or fluid B in the time interval from lastTime to dt.
         tIntArea += magSf * (dt - lastTime) * pos0(Un0);
+        subFaceAreaEnd_ = magSf*pos0(Un0);
     }
 
     return tIntArea;
@@ -1020,6 +1052,8 @@ void Foam::cutFaceAdvect::clearStorage()
     pTimes_.clear();
     weight_.clear();
     faceStatus_ = -1;
+    subFaceAreaEnd_ = -1;
+    faceSwept_ = false;
 }
 
 

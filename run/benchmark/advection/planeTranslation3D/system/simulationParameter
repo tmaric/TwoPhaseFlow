@@ -1,0 +1,49 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      simulationParameter;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Parameters of the plane-translation gate of the DAVOF face update,
+// #included by blockMeshDict, controlDict, fvSolution, initAlphaFieldDict and
+// 0.orig/U; genCases.py rewrites the values line by line (KEY value;).
+//
+// The plane of ../../reconstruction/planeNormal3D (normal (0.3 0.5 0.8124),
+// unit) positioned in the (L, L, L) corner of the 4 mm box, n.x = 1.33 L
+// (origin (0.8 L, 0.9 L, 0.7878 L)): the plane meets only the x = L, y = L
+// and z = L boundaries, which are outflow (or zero-flux) boundaries for both
+// velocities, so no cut cell has an inflow boundary face (whose flux is the
+// boundary condition's, not the plane's). Ten steps of 0.5 h / |U| move the
+// plane by 2.5 h along U: n.x from 1.33 L to 1.58 L (VELOCITY normal, U = n)
+// or to 1.405 L (VELOCITY oblique, U = (1 0 0)), inside the corner
+// (n.x < 1.6124 L).
+N 20;
+L 0.004;
+PX 0.0032;
+PY 0.0036;
+PZ 0.0031512;
+NX 0.3;
+NY 0.5;
+NZ 0.8124;
+VELOCITY normal;
+UX 0.3;
+UY 0.5;
+UZ 0.8124;
+DELTAT 1e-4;
+ENDTIME 1e-3;
+RECONSCHEME davof;
+DAVOFMETHOD detrixheAslam;
+WISPTOL 1e-3;
+
+// ************************************************************************* //

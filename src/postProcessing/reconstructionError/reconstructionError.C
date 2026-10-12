@@ -332,6 +332,10 @@ void Foam::reconstructionError::write()
             << token::TAB << LCentre1_
             << token::TAB << LCurvInf_
             << token::TAB << LCurv1_
+            // k1, k2 (the header names them): zero, so that the columns
+            // match the header as in write(k1, k2)
+            << token::TAB << scalar(0)
+            << token::TAB << scalar(0)
             << token::TAB << length
             << token::TAB << nCells
             << token::TAB << avgVol

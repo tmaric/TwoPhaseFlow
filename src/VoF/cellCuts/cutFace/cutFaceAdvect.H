@@ -112,6 +112,15 @@ class cutFaceAdvect
         //   +1: face is fully above the isosurface
         label faceStatus_;
 
+        //- The liquid (alpha = 1) area of the face at the END of the last
+        //  timeIntegratedFaceFlux sweep, t = dt (DAVOF face update: the
+        //  moving plane's submerged face area); -1 when the sweep could not
+        //  set it (the nShifts warning branch) or no sweep was done
+        scalar subFaceAreaEnd_;
+
+        //- The plane cut the face at some time in [0, dt] of the last sweep
+        bool faceSwept_;
+
 
     // Private Member Functions
 
@@ -238,6 +247,21 @@ class cutFaceAdvect
 
         //- Returns area vector of cutted face
         const vector& subFaceArea() const;
+
+        //- The liquid face area at t = dt of the last
+        //  timeIntegratedFaceFlux sweep (a fan of triangles on a
+        //  non-planar face: the wetted triangle areas summed, scaled by
+        //  magSf over the fan area); -1 when unset
+        scalar subFaceAreaEnd() const
+        {
+            return subFaceAreaEnd_;
+        }
+
+        //- The plane crossed (cut) the face during the last sweep
+        bool faceSwept() const
+        {
+            return faceSwept_;
+        }
 
         //- Returns the cut edge of the cutted face
         const DynamicList<point>& subFacePoints() const;

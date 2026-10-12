@@ -74,10 +74,12 @@ Description
     The face fractions alphaf.<group> are looked up from the registry; when
     not registered they are read from the time directory (initDavofFields
     writes them). Nothing updates them here: the face update is the
-    transport step (isoAdvection), not the reconstruction.
+    transport step (isoAdvection stores the moving plane's submerged face
+    area at the end of every step as alphaf, see isoAdvection.H), not the
+    reconstruction.
 
     Dictionary (the reconstruction dictionary):
-        wispTol      1e-6;
+        wispTol      1e-3;      // leia's value (V^(2/3) scaled)
         surfCellTol  1e-8;
         isoFaceTol   1e-8;
 

@@ -9,5 +9,6 @@ interfaceRegion/interfaceRegion.C
 
 volumeFractionError/volumeFractionError.C
 reconstructionError/reconstructionError.C
+areaFractionError/areaFractionError.C
 
 LIB = $(FOAM_USER_LIBBIN)/libpostProcess

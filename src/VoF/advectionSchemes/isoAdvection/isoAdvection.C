@@ -105,9 +105,33 @@ Foam::advection::isoAdvection::isoAdvection
 
     // Parallel run data
     procPatchLabels_(mesh_.boundary().size()),
-    surfaceCellFacesOnProcPatches_(0)
+    surfaceCellFacesOnProcPatches_(0),
+
+    // DAVOF face fractions
+    storeAreaFractions_
+    (
+        modelDict().getOrDefault<bool>
+        (
+            "storeAreaFractions",
+            surf_->type() == "davof"
+        )
+    ),
+    alphafPtr_(nullptr),
+    alphafOwnPtr_(nullptr),
+    alphafSetFace_(),
+    nAlphafFromPlane_(0),
+    nAlphafSecondRing_(0),
+    nAlphafFallback_(0),
+    nAlphafClipped_(0),
+    nFluxSecondRing_(0),
+    surfX0_(0),
+    surfN0_(0),
+    surfUn0_(0),
+    cellToSurf_(0)
 {
    cutFaceAdvect::debug = debug;
+
+    initAreaFractions();
 
     // Prepare lists used in parallel runs
     if (Pstream::parRun())
@@ -210,6 +234,29 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     // Get necessary mesh data
     const cellList& cellFaces = mesh_.cells();
     const labelList& own = mesh_.faceOwner();
+    const labelList& nei = mesh_.faceNeighbour();
+    const volVectorField& normal = surf_->normal();
+    const boolList& interfaceCell = surf_->interfaceCell();
+
+    // DAVOF: the default face fractions (the upwind cell's alpha) before
+    // the planes overwrite the faces they sweep
+    const bool storeAf = (storeAreaFractions_ && alphafPtr_);
+    if (storeAf)
+    {
+        defaultAreaFractions(false);
+        alphafSetFace_.reset();
+        alphafSetFace_.resize(mesh_.nFaces());
+        nAlphafFromPlane_ = 0;
+        nAlphafSecondRing_ = 0;
+        nAlphafFallback_ = 0;
+        nAlphafClipped_ = 0;
+        nFluxSecondRing_ = 0;
+        surfX0_.clear();
+        surfN0_.clear();
+        surfUn0_.clear();
+        cellToSurf_.resize(mesh_.nCells());
+        cellToSurf_ = -1;
+    }
 
 
     // Storage for isoFace points. Only used if writeIsoFacesToFile_
@@ -220,7 +267,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     forAll(interfaceLabels, i)
     {
         const label celli = interfaceLabels[i];
-        if (mag(surf_->normal()[celli]) != 0)
+        if (mag(normal[celli]) != 0)
         {
 
             // This is a surface cell, increment counter, append and mark cell
@@ -235,7 +282,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
 
             // Cell is cut
             const point x0 = surf_->centre()[celli];
-            vector n0 = -surf_->normal()[celli];
+            vector n0 = -normal[celli];
             n0 /= (mag(n0));
 
             // Get the speed of the isoface by interpolating velocity and
@@ -246,6 +293,14 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 << "calcIsoFace gives initial surface: \nx0 = " << x0
                 << ", \nn0 = " << n0 << ", \nUn0 = "
                 << Un0 << endl;
+
+            if (storeAf)
+            {
+                cellToSurf_[celli] = surfX0_.size();
+                surfX0_.append(x0);
+                surfN0_.append(n0);
+                surfUn0_.append(Un0);
+            }
 
             // Estimate time integrated flux through each downwind face
             // Note: looping over all cell faces - in reduced-D, some of
@@ -286,6 +341,57 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                             phiIn[facei],
                             magSfIn[facei]
                         );
+
+                        if (storeAf)
+                        {
+                            // The downwind face: this cell's plane sets it
+                            storeAreaFraction
+                            (
+                                facei,
+                                advectFace_.subFaceAreaEnd(),
+                                false
+                            );
+                        }
+                    }
+                    else if (storeAf)
+                    {
+                        // The upwind face: the upwind cell's plane sets it
+                        // when that cell is a surface cell (its downwind
+                        // face); otherwise this cell's plane sweeps it and
+                        // only the end area is kept (the flux stays upwind)
+                        const label upCell =
+                            (celli == own[facei]) ? nei[facei] : own[facei];
+                        if (!(interfaceCell[upCell] && mag(normal[upCell]) != 0))
+                        {
+                            const scalar dVfPlane =
+                                advectFace_.timeIntegratedFaceFlux
+                                (
+                                    facei,
+                                    x0,
+                                    n0,
+                                    Un0,
+                                    dt,
+                                    phiIn[facei],
+                                    magSfIn[facei]
+                                );
+                            storeAreaFraction
+                            (
+                                facei,
+                                advectFace_.subFaceAreaEnd(),
+                                false
+                            );
+                            // The flux is the plane's too (as on the
+                            // second-ring faces): the upwind value
+                            // phi alpha_W dt is the side value only when
+                            // the upwind cell W is pure; a sliver below the
+                            // interface-cell threshold, or the plane leaving
+                            // this cell through the face, makes it differ
+                            dVfIn[facei] = dVfPlane;
+                            if (advectFace_.faceSwept())
+                            {
+                                ++nFluxSecondRing_;
+                            }
+                        }
                     }
 
                 }
@@ -341,15 +447,263 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 // Check if the face is on processor patch and append it to
                 // the list if necessary
                 checkIfOnProcPatch(facei);
+
+                if (storeAf)
+                {
+                    storeAreaFraction
+                    (
+                        facei,
+                        advectFace_.subFaceAreaEnd(),
+                        false
+                    );
+                }
+            }
+            else if (storeAf)
+            {
+                // The inflow boundary face of a surface cell: the owner's
+                // plane sweeps it, only the end area is kept (the flux is
+                // the boundary condition's); on a processor patch the
+                // neighbouring surface cell's value replaces it in the sync
+                const scalar magSf = magSfb[patchi][patchFacei];
+                advectFace_.timeIntegratedFaceFlux
+                (
+                    facei,
+                    bsx0_[i],
+                    bsn0_[i],
+                    bsUn0_[i],
+                    dt,
+                    phiP,
+                    magSf
+                );
+                storeAreaFraction(facei, advectFace_.subFaceAreaEnd(), false);
             }
         }
     }
 
+    // DAVOF: the faces of the neighbours of the surface cells that no plane
+    // has set yet, swept by the neighbouring plane
+    if (storeAf)
+    {
+        sweepSecondRing(dt);
+    }
+
     // Synchronize processor patches
-    syncProcPatches(dVf_, phi_);
+    syncProcPatches(dVf_, phi_, false, storeAf ? alphafPtr_ : nullptr);
 
     DebugInfo << "Number of isoAdvector surface cells = "
         << returnReduce(nSurfaceCells, sumOp<label>()) << endl;
+
+    if (storeAf)
+    {
+        Info<< "isoAdvection: alphaf set by a plane on "
+            << returnReduce(nAlphafFromPlane_, sumOp<label>()) << " faces ("
+            << returnReduce(nAlphafSecondRing_, sumOp<label>())
+            << " in the second ring; "
+            << returnReduce(nFluxSecondRing_, sumOp<label>())
+            << " faces beyond the downwind faces crossed by the plane), "
+            << returnReduce(nAlphafFallback_, sumOp<label>())
+            << " fallbacks, "
+            << returnReduce(nAlphafClipped_, sumOp<label>())
+            << " clips" << endl;
+    }
+}
+
+
+void Foam::advection::isoAdvection::initAreaFractions()
+{
+    const word name(IOobject::groupName("alphaf", alpha1_.group()));
+
+    if (mesh_.foundObject<surfaceScalarField>(name))
+    {
+        alphafPtr_ = &mesh_.lookupObjectRef<surfaceScalarField>(name);
+    }
+    else if (storeAreaFractions_)
+    {
+        Info<< "isoAdvection: creating the face fractions " << name
+            << " (upwind) for the DAVOF face update" << endl;
+        alphafOwnPtr_.reset
+        (
+            new surfaceScalarField
+            (
+                IOobject
+                (
+                    name,
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                upwind<scalar>(mesh_, phi_).interpolate(alpha1_)
+            )
+        );
+        alphafPtr_ = alphafOwnPtr_.get();
+    }
+}
+
+
+void Foam::advection::isoAdvection::defaultAreaFractions
+(
+    const bool untouchedOnly
+)
+{
+    surfaceScalarField& alphaf = *alphafPtr_;
+    const scalarField& alphaIn = alpha1_.primitiveField();
+    const scalarField& phiIn = phi_.primitiveField();
+    const labelList& own = mesh_.faceOwner();
+    const labelList& nei = mesh_.faceNeighbour();
+
+    scalarField& afIn = alphaf.primitiveFieldRef();
+    forAll(afIn, facei)
+    {
+        if (untouchedOnly && alphafSetFace_.test(facei))
+        {
+            continue;
+        }
+        afIn[facei] = (phiIn[facei] >= 0) ? alphaIn[own[facei]] : alphaIn[nei[facei]];
+    }
+
+    surfaceScalarField::Boundary& bf = alphaf.boundaryFieldRef();
+    forAll(bf, patchi)
+    {
+        const label start = mesh_.boundaryMesh()[patchi].start();
+        fvsPatchScalarField& pf = bf[patchi];
+        forAll(pf, i)
+        {
+            const label facei = start + i;
+            if (untouchedOnly && alphafSetFace_.test(facei))
+            {
+                continue;
+            }
+            pf[i] = alphaIn[own[facei]];
+        }
+    }
+}
+
+
+void Foam::advection::isoAdvection::storeAreaFraction
+(
+    const label facei,
+    const scalar areaEnd,
+    const bool secondRing
+)
+{
+    if (areaEnd < 0)
+    {
+        ++nAlphafFallback_;
+        return;
+    }
+
+    scalar af = areaEnd/mag(mesh_.faceAreas()[facei]);
+    if (af < -1e-12 || af > 1 + 1e-12)
+    {
+        ++nAlphafClipped_;
+    }
+    af = min(max(af, scalar(0)), scalar(1));
+
+    setFaceValue(*alphafPtr_, facei, af);
+    alphafSetFace_.set(facei);
+    if (secondRing)
+    {
+        ++nAlphafSecondRing_;
+    }
+    else
+    {
+        ++nAlphafFromPlane_;
+    }
+}
+
+
+void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
+{
+    // A face cut by the moving interface at t = dt whose two cells were not
+    // surface cells at t = 0 is swept by no plane of its own: it lies in the
+    // slab the planes cross. Its cell shares a face with a surface cell
+    // (the slab is thinner than a cell at Courant numbers below one); that
+    // cell's plane, extended, gives the end-of-step fraction. Among several
+    // candidates the plane closest to the face centre at t = dt is taken
+    // (one and the same plane for a planar interface).
+    const cellList& cellFaces = mesh_.cells();
+    const labelList& own = mesh_.faceOwner();
+    const labelList& nei = mesh_.faceNeighbour();
+    const vectorField& Cf = mesh_.faceCentres();
+    const vectorField& Sf = mesh_.faceAreas();
+    const scalarField& phiIn = phi_.primitiveField();
+
+    labelList bestSurf(mesh_.nFaces(), -1);
+    scalarField bestDist(mesh_.nFaces(), GREAT);
+
+    forAll(surfCells_, si)
+    {
+        const label celli = surfCells_[si];
+        const cell& cf = cellFaces[celli];
+        forAll(cf, fi)
+        {
+            const label g = cf[fi];
+            if (!mesh_.isInternalFace(g)) continue;
+            const label cellD = (own[g] == celli) ? nei[g] : own[g];
+            if (cellToSurf_[cellD] >= 0) continue;   // has its own plane
+
+            const cell& Df = cellFaces[cellD];
+            forAll(Df, dfi)
+            {
+                const label f = Df[dfi];
+                if (alphafSetFace_.test(f)) continue;
+                const scalar d =
+                    mag(((Cf[f] - surfX0_[si]) & surfN0_[si]) - surfUn0_[si]*dt);
+                if (d < bestDist[f])
+                {
+                    bestDist[f] = d;
+                    bestSurf[f] = si;
+                }
+            }
+        }
+    }
+
+    scalarField& dVfIn = dVf_.primitiveFieldRef();
+    forAll(bestSurf, f)
+    {
+        const label si = bestSurf[f];
+        if (si < 0) continue;
+        const scalar magSf = mag(Sf[f]);
+        if (magSf <= VSMALL) continue;
+        const scalar phif =
+            mesh_.isInternalFace(f) ? phiIn[f] : faceValue(phi_, f);
+        const scalar dVf = advectFace_.timeIntegratedFaceFlux
+        (
+            f,
+            surfX0_[si],
+            surfN0_[si],
+            surfUn0_[si],
+            dt,
+            phif,
+            magSf
+        );
+        storeAreaFraction(f, advectFace_.subFaceAreaEnd(), true);
+
+        // The flux is the plane's as well: the swept part when the plane
+        // crosses the face during the step, the side value (0 or phi dt)
+        // when it does not; the upwind value phi alpha dt equals the side
+        // value only for a pure upwind cell (not for a sliver below the
+        // interface-cell threshold). Inflow boundary faces keep the
+        // boundary condition's flux.
+        if (mesh_.isInternalFace(f))
+        {
+            dVfIn[f] = dVf;
+        }
+        else if (phif >= 0)
+        {
+            setFaceValue(dVf_, f, dVf);
+            checkIfOnProcPatch(f);
+        }
+        else
+        {
+            continue;
+        }
+        if (advectFace_.faceSwept())
+        {
+            ++nFluxSecondRing_;
+        }
+    }
 }
 
 
@@ -429,7 +783,8 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
 (
     surfaceScalarField& dVf,
     const surfaceScalarField& phi,
-    bool returnSyncedFaces
+    bool returnSyncedFaces,
+    surfaceScalarField* alphaf
 )
 {
     DynamicLabelList syncedFaces(0);
@@ -460,6 +815,16 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
             );
 
             toNbr << surfCellFacesOnProcPatch << dVfPatch;
+
+            if (alphaf)
+            {
+                const UIndirectList<scalar> afPatch
+                (
+                    alphaf->boundaryField()[patchi],
+                    surfCellFacesOnProcPatch
+                );
+                toNbr << afPatch;
+            }
         }
 
         pBufs.finishedSends();
@@ -478,6 +843,11 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
             List<scalar> nbrdVfs;
 
             fromNeighb >> faceIDs >> nbrdVfs;
+            List<scalar> nbrAf;
+            if (alphaf)
+            {
+                fromNeighb >> nbrAf;
+            }
             if (returnSyncedFaces)
             {
                 List<label> syncedFaceI(faceIDs);
@@ -503,6 +873,12 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
             {
                 const label facei = faceIDs[i];
                 localFlux[facei] = - nbrdVfs[i];
+                if (alphaf)
+                {
+                    // The upwind side's face fraction, no sign change
+                    alphaf->boundaryFieldRef()[patchi][facei] = nbrAf[i];
+                    alphafSetFace_.set(procPatch.start() + facei);
+                }
                 if (debug && mag(localFlux[facei] + nbrdVfs[i]) > ROOTVSMALL)
                 {
                     Pout<< "localFlux[facei] = " << localFlux[facei]

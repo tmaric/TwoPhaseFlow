@@ -438,6 +438,12 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // Note: We should be able to write out alpha before this is done!
     applyBruteForceBounding();
 
+    // DAVOF: the faces no plane has set carry the upwind cell's new alpha
+    if (storeAreaFractions_ && alphafPtr_)
+    {
+        defaultAreaFractions(true);
+    }
+
     advectionTime_ += (mesh_.time().elapsedCpuTime() - advectionStartTime);
     DebugInfo
         << "isoAdvection: time consumption = "
