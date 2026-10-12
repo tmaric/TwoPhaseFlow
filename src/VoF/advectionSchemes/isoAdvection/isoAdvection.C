@@ -380,17 +380,10 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                                 advectFace_.subFaceAreaEnd(),
                                 false
                             );
-                            // The flux is the plane's too (as on the
-                            // second-ring faces): the upwind value
-                            // phi alpha_W dt is the side value only when
-                            // the upwind cell W is pure; a sliver below the
-                            // interface-cell threshold, or the plane leaving
-                            // this cell through the face, makes it differ
-                            dVfIn[facei] = dVfPlane;
-                            if (advectFace_.faceSwept())
-                            {
-                                ++nFluxSecondRing_;
-                            }
+                            // The flux is the plane's where the plane can
+                            // speak for the upwind cell (planeFlux)
+                            dVfIn[facei] =
+                                planeFlux(upCell, dVfPlane, dVfIn[facei]);
                         }
                     }
 
@@ -498,9 +491,9 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
         Info<< "isoAdvection: alphaf set by a plane on "
             << returnReduce(nAlphafFromPlane_, sumOp<label>()) << " faces ("
             << returnReduce(nAlphafSecondRing_, sumOp<label>())
-            << " in the second ring; "
+            << " in the second ring; the plane's flux on "
             << returnReduce(nFluxSecondRing_, sumOp<label>())
-            << " faces beyond the downwind faces crossed by the plane), "
+            << " faces beyond the downwind faces), "
             << returnReduce(nAlphafFallback_, sumOp<label>())
             << " fallbacks, "
             << returnReduce(nAlphafClipped_, sumOp<label>())
@@ -678,32 +671,60 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
             phif,
             magSf
         );
+
+        // The face fraction: the plane's end value (the swept part or the
+        // side value; the upwind default re-evaluated with the new alpha
+        // would hand the cell fraction of a cell the plane has entered to
+        // all its faces)
         storeAreaFraction(f, advectFace_.subFaceAreaEnd(), true);
 
-        // The flux is the plane's as well: the swept part when the plane
-        // crosses the face during the step, the side value (0 or phi dt)
-        // when it does not; the upwind value phi alpha dt equals the side
-        // value only for a pure upwind cell (not for a sliver below the
-        // interface-cell threshold). Inflow boundary faces keep the
-        // boundary condition's flux.
-        if (mesh_.isInternalFace(f))
+        // The flux is the plane's where the plane can speak for the
+        // upwind cell (planeFlux); inflow boundary faces keep the boundary
+        // condition's flux
+        const bool internal = mesh_.isInternalFace(f);
+        const label upCell = (internal && phif < 0) ? nei[f] : own[f];
+        if (internal)
         {
-            dVfIn[f] = dVf;
+            dVfIn[f] = planeFlux(upCell, dVf, dVfIn[f]);
         }
         else if (phif >= 0)
         {
-            setFaceValue(dVf_, f, dVf);
+            setFaceValue(dVf_, f, planeFlux(upCell, dVf, faceValue(dVf_, f)));
             checkIfOnProcPatch(f);
         }
-        else
-        {
-            continue;
-        }
-        if (advectFace_.faceSwept())
-        {
-            ++nFluxSecondRing_;
-        }
     }
+}
+
+
+bool Foam::advection::isoAdvection::planeSpeaks(const label upCell) const
+{
+    // The upwind cell is not a surface cell. A pure cell (alpha 0 or 1)
+    // is described by the plane only where the plane crosses the face
+    // during the step (the swept part; the side value of an extended
+    // plane may contradict the cell's content on a curved interface); a
+    // partial cell below the interface-cell threshold (a sliver) has no
+    // plane of its own and takes the neighbouring plane's value, the
+    // swept part or the side value (the upwind value phi alpha dt is
+    // neither).
+    const scalar a = alpha1In_[upCell];
+    const bool pure = (a <= 0 || a >= 1);
+    return !(pure && !advectFace_.faceSwept());
+}
+
+
+Foam::scalar Foam::advection::isoAdvection::planeFlux
+(
+    const label upCell,
+    const scalar dVfPlane,
+    const scalar dVfUpwind
+)
+{
+    if (!planeSpeaks(upCell))
+    {
+        return dVfUpwind;
+    }
+    ++nFluxSecondRing_;
+    return dVfPlane;
 }
 
 

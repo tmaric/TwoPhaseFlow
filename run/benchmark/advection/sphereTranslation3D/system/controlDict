@@ -1,0 +1,86 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "simulationParameter"
+
+application     advectorVoF;
+
+startFrom       startTime;
+startTime       0;
+stopAt          endTime;
+endTime         $ENDTIME;
+deltaT          $DELTAT;
+
+writeControl    adjustableRunTime;
+writeInterval   0.25;
+purgeWrite      0;
+writeFormat     ascii;
+writePrecision  12;
+writeCompression off;
+timeFormat      general;
+timePrecision   10;
+graphFormat     raw;
+runTimeModifiable no;
+
+// fixed time step 0.5 h / |U| (simulationParameter)
+adjustTimeStep  no;
+maxCo           1e6;
+maxAlphaCo      1e6;
+maxDeltaT       1e6;
+
+functions
+{
+    // the face-fraction error against the translated sphere at every step
+    // (the davof rows; -1 otherwise) and, at the end time, the reconstruction
+    // error of the scheme (normal and centre) in
+    // postProcessing/reconstructionError/0/error.dat
+    areaFractionError
+    {
+        type            areaFractionError;
+        libs            ("libpostProcess.so");
+        field           alpha.water;
+        functionType    sphere;
+        origin          ($CX $CY $CZ);
+        radius          $R;
+        U0              ($UX $UY $UZ);
+        davofMethod     exactSphere;
+        wispTol         $WISPTOL;
+        reconstructionError true;
+        reconstructionErrorEveryStep false;
+        writeControl    timeStep;
+        writeInterval   1;
+        writePrecision  12;
+    }
+
+    // E1 = sum |alpha - alpha_exact| V against the translated sphere (the
+    // linear interpolant at the mesh points cut by cutCellIso), the mass
+    // error and the boundedness error
+    volumeFractionError
+    {
+        type            volumeFractionError;
+        libs            ("libpostProcess.so");
+        field           alpha.water;
+        functionType    sphere;
+        origin          ($CX $CY $CZ);
+        radius          $R;
+        writeControl    timeStep;
+        writeInterval   1;
+        writePrecision  12;
+    }
+}
+
+// ************************************************************************* //

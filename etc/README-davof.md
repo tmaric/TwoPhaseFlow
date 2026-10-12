@@ -85,21 +85,30 @@ step):
    as before, `dVf`.
 3. An upwind face of a surface cell: the upwind cell's plane sets it when
    that cell is a surface cell (its downwind face, rule 2); otherwise this
-   cell's plane sweeps it and sets `alphaf` AND `dVf` (the upwind value
-   phi alpha_W dt equals the side value only for a pure upwind cell W, not
-   for a sliver below the interface-cell threshold).
+   cell's plane sweeps it and sets `alphaf`, and `dVf` where the plane can
+   speak for the upwind cell W (`planeSpeaks`): W a partial cell below the
+   interface-cell threshold (a sliver, whose upwind value phi alpha_W dt is
+   neither the side value nor the swept part), or W pure and the plane
+   crossing the face during the step (the swept part); a pure W the plane
+   does not reach keeps the upwind flux (the side value of an extended
+   plane can contradict a pure cell's content on a curved interface).
 4. Boundary faces of a surface cell: the owner's plane sets `alphaf`; the
    outflow flux is the plane's as before, an inflow face keeps the boundary
    condition's flux.
 5. The second ring: every face no plane has set whose cell shares a face
    with a surface cell is swept by the neighbouring plane whose
    end-of-step position is closest to the face centre (one and the same
-   plane for a planar interface), which sets `alphaf` and `dVf` (inflow
-   boundary faces excepted). A face the moving plane crosses during the
-   step without belonging to a surface cell exists whenever a face-normal
-   component of n is below the Courant number (the plane passes within
-   Co h of a vertex ahead of both cells); without this rule the plane
-   gate fails at the first step.
+   plane for a planar interface), which sets `alphaf` (the swept part or
+   the side value) and `dVf` under the same `planeSpeaks` condition as
+   rule 3 (inflow boundary faces excepted). A face the moving plane
+   crosses during the step without belonging to a surface cell exists
+   whenever a face-normal component of n is below the Courant number (the
+   plane passes within Co h of a vertex ahead of both cells); without
+   this rule the plane gate fails at the second step (the flux through
+   such a face is 0 upwind instead of the swept part), and without the
+   side value on the faces of a cell the plane enters it fails as well
+   (the upwind default re-evaluated with the new alpha hands the cell's
+   fraction to all its faces).
 6. Processor patches: `alphaf` is exchanged with `dVf` (the upwind side's
    value, no sign change); the second ring does not cross processor
    boundaries.
@@ -125,6 +134,29 @@ exact-solution gate is `run/benchmark/advection/planeTranslation3D`
 (README there: the oblique arm passes at round-off; the normal arm is
 exact per step and amplifies round-off through sliver interface cells by
 a factor that falls with wispTol, a C2 finding).
+
+## The advection benchmarks (run/benchmark/advection)
+
+- `planeTranslation3D`: the exact-solution gate of the face update (above).
+- `sphereTranslation3D`: a sphere (R = 0.15) carried by U = (1 0 0) over
+  one unit (3.3 diameters) in the 2 x 1 x 1 box at Courant 0.5, N = 32, 64,
+  128 cells across the height; rows isoAdvection + davof on the
+  `initDavofFields` state (quadraticFaces, detrixheAslam), + plicRDF and
+  + isoAlpha on the setAlphaField state; `areaFractionError` every step,
+  the reconstruction error at the end, `volumeFractionError` every step.
+  README there for the measured numbers: with the rules above the davof
+  loop (own normal from the transported face fractions, the plane
+  positioned by alpha, the plane's fluxes) is UNSTABLE on the sphere at
+  N = 32 and 64: the face-fraction error grows from 1.2e-2 after one step
+  to 0.4 within ten, alpha leaves [0, 1] at step 4, and the interface-cell
+  count explodes; plicRDF and isoAlpha on the same runs are healthy. The
+  deformation regression (`testsuite/advection/test-deformationSphere` at
+  32 x 32 x 64, davof quadraticFaces, serial) is unbounded as well
+  (Ebound 1.4 at t = 3, Emass 4e-3, Eshape 3.8e-2; plicRDF: 2e-8, 3e-16,
+  4.5e-3). The gate attributes the growth to the sliver interface cells
+  (the C2 mechanism); which rule of the loop changes is Tomislav's
+  decision (the proposal's Stage 1 projection, or a plane-setting threshold
+  above the interface-cell threshold).
 
 ## How leia finds it
 

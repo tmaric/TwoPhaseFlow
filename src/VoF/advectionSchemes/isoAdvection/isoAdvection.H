@@ -185,10 +185,8 @@ class isoAdvection
             label nAlphafFallback_;
             label nAlphafClipped_;
 
-            //- Faces beyond the downwind faces of the surface cells that
-            //  the sweeping plane crosses during the step (every swept
-            //  face carries the plane's flux dVf; the count tells how many
-            //  differ from the upwind flux by a swept part)
+            //- Faces beyond the downwind faces of the surface cells whose
+            //  flux dVf is the plane's (planeFlux)
             label nFluxSecondRing_;
 
             //- The plane of every surface cell of the step (x0, n0, Un0),
@@ -336,6 +334,21 @@ class isoAdvection
             //  a surface cell: swept by the neighbouring plane whose
             //  end-of-step position is closest to the face
             void sweepSecondRing(const scalar dt);
+
+            //- After a plane sweep of a face whose upwind cell is not a
+            //  surface cell: does the plane speak for the face? Yes for a
+            //  partial (sliver) upwind cell, and for a pure one when the
+            //  plane crosses the face during the step (faceSwept)
+            bool planeSpeaks(const label upCell) const;
+
+            //- The flux of such a face: the plane's where it speaks, else
+            //  the upwind flux
+            scalar planeFlux
+            (
+                const label upCell,
+                const scalar dVfPlane,
+                const scalar dVfUpwind
+            );
 
             //- Check if the face is on processor patch and append it to the
             //  list of surface cell faces on processor patches

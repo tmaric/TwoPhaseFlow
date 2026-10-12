@@ -1,0 +1,19 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # Run from this directory
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+restore0Dir
+runApplication blockMesh
+# SETALPHAMETHOD davof: alpha.water and the face fractions alphaf.water from
+# initDavofFields (DAVOFMETHOD); otherwise OpenFOAM's setAlphaField
+setAlpha=$(sed -n 's/^SETALPHAMETHOD[[:space:]]*\([^;]*\);.*/\1/p' system/simulationParameter)
+if [ "$setAlpha" = davof ]; then
+    runApplication initDavofFields
+else
+    runApplication setAlphaField
+fi
+runApplication advectorVoF
+# the error tables next to the case for getResults.py
+cp postProcessing/areaFractionError/0/areaFractionError.dat areaFractionError.dat
+cp postProcessing/reconstructionError/0/error.dat error.dat
+cp postProcessing/volumeFractionError/0/volumeFractionError.dat volumeFractionError.dat

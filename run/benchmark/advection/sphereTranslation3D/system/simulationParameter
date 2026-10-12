@@ -1,0 +1,44 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      simulationParameter;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Parameters of the sphere-translation advection benchmark, #included by
+// blockMeshDict, controlDict, fvSolution, initAlphaFieldDict and
+// setAlphaFieldDict; genCases.py rewrites the values line by line (KEY value;).
+//
+// A sphere of radius 0.15 at (0.5 0.5 0.5) in the 2 x 1 x 1 box, carried by
+// the uniform velocity (1 0 0) to x = 1.5 in the end time 1 (one diameter of
+// travel every 0.3). N cells across the unit height (2N along x), the time
+// step 0.5 h / |U| (Courant 0.5), fixed.
+N 32;
+DELTAT 0.015625;
+ENDTIME 1;
+R 0.15;
+CX 0.5;
+CY 0.5;
+CZ 0.5;
+UX 1;
+UY 0;
+UZ 0;
+// davof (isoAdvection stores the face fractions) | plicRDF | isoAlpha
+RECONSCHEME davof;
+// davof: alpha.water and alphaf.water from initDavofFields (DAVOFMETHOD);
+// setAlphaField: alpha.water from the case's setAlphaFieldDict
+SETALPHAMETHOD davof;
+DAVOFMETHOD quadraticFaces;
+WISPTOL 1e-3;
+
+// ************************************************************************* //
