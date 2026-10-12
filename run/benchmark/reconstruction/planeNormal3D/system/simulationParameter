@@ -1,0 +1,43 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      simulationParameter;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Parameters of the plane reconstruction gate, #included by blockMeshDict,
+// fvSolution and initAlphaFieldDict; genCases.py rewrites the values line by
+// line (KEY value;).
+//
+// A tilted plane through a 4 mm box: normal (0.3 0.5 0.8124) (normalised by
+// the implicit function), position (0.00213 0.00171 0.00197) as in leia's
+// cases/davof/planeNormal3D (off the box centre, which is a mesh VERTEX for
+// every even N: a vertex on the plane gives psi = 0 there, which the quadratic
+// face routine refuses). Every linear interpolant is exact for a plane, so
+// the davof normal and position must be at round-off for both states.
+N 20;
+L 0.004;
+PX 0.00213;
+PY 0.00171;
+PZ 0.00197;
+NX 0.3;
+NY 0.5;
+NZ 0.8124;
+RECONSCHEME davof;
+// cutCellIso | cutCellImpFunc (reconstructInterface sets alpha itself) | davof
+// (alpha AND the face fractions alphaf written by initDavofFields, DAVOFMETHOD)
+SETALPHAMETHOD davof;
+DAVOFMETHOD detrixheAslam;
+WISPTOL 1e-6;
+
+// ************************************************************************* //

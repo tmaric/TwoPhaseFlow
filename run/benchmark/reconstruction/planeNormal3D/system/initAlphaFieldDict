@@ -1,0 +1,30 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      initAlphaFieldDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "simulationParameter"
+
+field   "alpha1";
+type    plane;
+origin  ($PX $PY $PZ);
+normal  ($NX $NY $NZ);
+
+// initDavofFields (SETALPHAMETHOD davof): the DAVOF state construction and
+// the interface-cell threshold |m_c| > wispTol V^(2/3)
+davofMethod $DAVOFMETHOD;
+wispTol     $WISPTOL;
+
+// ************************************************************************* //

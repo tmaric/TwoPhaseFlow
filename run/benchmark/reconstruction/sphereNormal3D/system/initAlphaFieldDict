@@ -22,4 +22,9 @@ type    sphere;
 radius  $R;
 origin  ($CX $CY $CZ);
 
+// initDavofFields (SETALPHAMETHOD davof): the DAVOF state construction and
+// the interface-cell threshold |m_c| > wispTol V^(2/3)
+davofMethod $DAVOFMETHOD;
+wispTol     $WISPTOL;
+
 // ************************************************************************* //

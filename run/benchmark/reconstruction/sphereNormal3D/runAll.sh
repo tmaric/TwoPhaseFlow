@@ -1,5 +1,5 @@
 #!/bin/bash
-# The sphere-normal reconstruction ladder end to end: generate, run, collect.
+# The reconstruction ladder of this benchmark end to end: generate, run, collect.
 #     source $HOME/OpenFOAM/OpenFOAM-v2606/etc/bashrc && . <repo>/etc/davof-env.sh
 #     ./runAll.sh [genCases.py arguments]
 # Cases run coarse to fine (an alphabetical glob would start with N160, the

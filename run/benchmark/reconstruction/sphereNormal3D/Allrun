@@ -4,6 +4,12 @@ cd ${0%/*} || exit 1    # Run from this directory
 
 restore0Dir
 runApplication blockMesh
+# SETALPHAMETHOD davof: alpha1 and the face fractions alphaf come from
+# initDavofFields (DAVOFMETHOD); reconstructInterface then reads both.
+setAlpha=$(sed -n 's/^SETALPHAMETHOD[[:space:]]*\([^;]*\);.*/\1/p' system/simulationParameter)
+if [ "$setAlpha" = davof ]; then
+    runApplication initDavofFields
+fi
 runApplication reconstructInterface
 # the error table next to the case for the pytest fixture and getResults.py
 cp postProcessing/reconstructionError/0/error.dat error.dat

@@ -29,4 +29,8 @@ CX 0.0020692;
 CY 0.0021172;
 CZ 0.0019548;
 RECONSCHEME plicRDF;
+// cutCellIso | cutCellImpFunc (reconstructInterface sets alpha itself) | davof
+// (alpha AND the face fractions alphaf written by initDavofFields, DAVOFMETHOD)
 SETALPHAMETHOD cutCellIso;
+DAVOFMETHOD detrixheAslam;
+WISPTOL 1e-6;

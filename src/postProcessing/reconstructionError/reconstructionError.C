@@ -26,6 +26,7 @@ License
 #include "reconstructionSchemes.H"
 #include "implicitFunction.H"
 #include "mathematicalConstants.H"
+#include "davofInit.H"
 
 
 
@@ -54,6 +55,10 @@ void Foam::reconstructionError::writeFileHeader(Ostream& os) const
     writeTabbed(os, "areaSum");
     writeTabbed(os, "areaExact");
     writeTabbed(os, "nInterface");
+    // appended (davof, 2026-10-12): the position error of centre()
+    writeTabbed(os, "LCentreDiff1");
+    writeTabbed(os, "LCentreDiff2");
+    writeTabbed(os, "LCentreDiffInf");
     os  << endl;
 }
 
@@ -84,7 +89,10 @@ Foam::reconstructionError::reconstructionError
     LNormalDiffInf_(0),
     areaSum_(0),
     areaExact_(0),
-    nInterface_(0)
+    nInterface_(0),
+    LCentreDiff1_(0),
+    LCentreDiff2_(0),
+    LCentreDiffInf_(0)
 {
 
 
@@ -140,10 +148,31 @@ void Foam::reconstructionError::calcError
     {
         exactCurv = 1/(readScalar(dict.lookup("radius")));
     }
+    else if(type == "plane")
+    {
+        exactCurv = 0;
+    }
     else
     {
-        notImplemented("only sphere and disc are supported")
+        notImplemented("only sphere, cylinder and plane are supported")
     }
+
+    // The position error (davof): the exact distance for the sphere, the
+    // Newton-projected distance to the implicit surface otherwise.
+    const bool isSphere = (type == "sphere");
+    const point sphereOrigin =
+        isSphere ? dict.get<point>("origin") : point(Zero);
+    const scalar sphereRadius =
+        isSphere ? dict.get<scalar>("radius") : scalar(0);
+    auto positionError = [&](const point& x) -> scalar
+    {
+        if (isSphere)
+        {
+            return mag(sphereRadius - mag(x - sphereOrigin));
+        }
+        point foot;
+        return davofInit::projectedDistance(func(), x, foot);
+    };
 
 
 
@@ -153,6 +182,7 @@ void Foam::reconstructionError::calcError
 
     // appended (davof): |n - n_exact| moments, total area, interface count
     scalar sumD = 0, sumD2 = 0, maxD = 0, areaLocal = 0;
+    scalar sumP = 0, sumP2 = 0, maxP = 0;
     label nLocal = 0;
 
     forAll(normal,cellI)
@@ -176,6 +206,11 @@ void Foam::reconstructionError::calcError
            maxD = max(maxD, diff);
            areaLocal += mag(normal[cellI]);
            ++nLocal;
+
+           const scalar dp = positionError(centreCellI);
+           sumP += dp;
+           sumP2 += dp*dp;
+           maxP = max(maxP, dp);
         }
     }
 
@@ -186,6 +221,11 @@ void Foam::reconstructionError::calcError
     LNormalDiff2_ = Foam::sqrt(sumD2g/max(nInterface_, label(1)));
     LNormalDiffInf_ = returnReduce(maxD, maxOp<scalar>());
     areaSum_ = returnReduce(areaLocal, sumOp<scalar>());
+    const scalar sumPg = returnReduce(sumP, sumOp<scalar>());
+    const scalar sumP2g = returnReduce(sumP2, sumOp<scalar>());
+    LCentreDiff1_ = sumPg/max(nInterface_, label(1));
+    LCentreDiff2_ = Foam::sqrt(sumP2g/max(nInterface_, label(1)));
+    LCentreDiffInf_ = returnReduce(maxP, maxOp<scalar>());
     if (type == "sphere")
     {
         const scalar R = readScalar(dict.lookup("radius"));
@@ -265,6 +305,9 @@ void Foam::reconstructionError::write(const scalar k1, const scalar k2)
             << token::TAB << areaSum_
             << token::TAB << areaExact_
             << token::TAB << nInterface_
+            << token::TAB << LCentreDiff1_
+            << token::TAB << LCentreDiff2_
+            << token::TAB << LCentreDiffInf_
             << endl;
     }
 
@@ -298,6 +341,9 @@ void Foam::reconstructionError::write()
             << token::TAB << areaSum_
             << token::TAB << areaExact_
             << token::TAB << nInterface_
+            << token::TAB << LCentreDiff1_
+            << token::TAB << LCentreDiff2_
+            << token::TAB << LCentreDiffInf_
             << endl;
     }
 

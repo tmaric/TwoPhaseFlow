@@ -28,11 +28,12 @@ surfCellTol         1e-8;
 isoFaceTol          1e-8;
 vof2IsoTol          1e-8;
 writeVTK            false;
+wispTol             $WISPTOL;          // davof: interface cell |m_c| > wispTol V^(2/3)
 
 reconstruction
 {
     nIter           1;
-    setAlphaMethod  $SETALPHAMETHOD;   // cutCellIso | cutCellImpFunc
+    setAlphaMethod  $SETALPHAMETHOD;   // cutCellIso | cutCellImpFunc | davof
 }
 
 PIMPLE

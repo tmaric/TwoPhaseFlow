@@ -187,9 +187,23 @@ int main(int argc, char *argv[])
     // lookup of relevevant parameters
     label nIter = reconDict.get<label>("nIter");
     word setAlphaMethod = reconDict.get<word>("setAlphaMethod");
-    if (setAlphaMethod != "cutCellImpFunc" && setAlphaMethod != "cutCellIso")
+    if
+    (
+        setAlphaMethod != "cutCellImpFunc"
+     && setAlphaMethod != "cutCellIso"
+     && setAlphaMethod != "davof"
+    )
     {
-        FatalError  << "valid choice are only cutCellImpFunc or cutCellIso"
+        FatalError  << "valid choices are cutCellImpFunc, cutCellIso or davof"
+                    << abort(FatalError);
+    }
+    // davof: alpha1 (and the face fractions alphaf) are the DAVOF state
+    // written by initDavofFields into the time directory; nothing is set
+    // here, and the random centres of nIter > 1 make no sense.
+    if (setAlphaMethod == "davof" && nIter != 1)
+    {
+        FatalError  << "setAlphaMethod davof reads alpha1 and alphaf from the"
+                    << " time directory (initDavofFields): nIter must be 1"
                     << abort(FatalError);
     }
 
@@ -246,10 +260,15 @@ int main(int argc, char *argv[])
                 cutCellImpFunc cutCell(mesh,f,func.ref());
                 setAlpha(cutCell,mesh,initAlphaFieldDict,alpha1);
             }
-            else
+            else if (setAlphaMethod == "cutCellIso")
             {
                 cutCellIso cutCell(mesh,f);
                 setAlpha(cutCell,mesh,initAlphaFieldDict,alpha1);
+            }
+            else
+            {
+                Info<< "setAlphaMethod davof: alpha1 as read from "
+                    << runTime.timeName() << endl;
             }
 
             mesh.time().cpuTimeIncrement();

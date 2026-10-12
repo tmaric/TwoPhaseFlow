@@ -89,6 +89,14 @@ class reconstructionError
         scalar areaExact_;
         label nInterface_;
 
+        // Appended columns (davof, 2026-10-12): the position error, the
+        // distance of centre() from the implicit surface (exact |R - |x - o||
+        // for the sphere, the Newton-projected distance otherwise), over the
+        // interface cells as mean (1), root mean square (2) and maximum (Inf).
+        scalar LCentreDiff1_;
+        scalar LCentreDiff2_;
+        scalar LCentreDiffInf_;
+
     // Protected Member Functions
 
         //- File header information
