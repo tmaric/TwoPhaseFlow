@@ -399,26 +399,67 @@ a factor that falls with wispTol, a C2 finding).
 
 - `planeTranslation3D`: the exact-solution gate of the face update (above).
 - `sphereTranslation3D`: a sphere (R = 0.15) carried by U = (1 0 0) over
-  one unit (3.3 diameters) in the 2 x 1 x 1 box at Courant 0.5, N = 32, 64,
-  128 cells across the height; rows isoAdvection + davof on the
-  `initDavofFields` state (quadraticFaces, detrixheAslam), + plicRDF and
-  + isoAlpha on the setAlphaField state; `areaFractionError` every step,
-  the reconstruction error at the end, `volumeFractionError` every step.
-  README there for the measured numbers (the paragraph below predates the
-  phantom-plane fix and the normal models of 2026-10-13; the laptop
-  numbers after them are in "Normal models" above): with the rules
-  above the davof loop (own normal from the transported face fractions,
-  the plane positioned by alpha, the plane's fluxes) is UNSTABLE on the sphere at
-  N = 32 and 64: the face-fraction error grows from 1.2e-2 after one step
-  to 0.4 within ten, alpha leaves [0, 1] at step 4, and the interface-cell
-  count explodes; plicRDF and isoAlpha on the same runs are healthy. The
-  deformation regression (`testsuite/advection/test-deformationSphere` at
-  32 x 32 x 64, davof quadraticFaces, serial) is unbounded as well
-  (Ebound 1.4 at t = 3, Emass 4e-3, Eshape 3.8e-2; plicRDF: 2e-8, 3e-16,
-  4.5e-3). The gate attributes the growth to the sliver interface cells
-  (the C2 mechanism); which rule of the loop changes is Tomislav's
-  decision (the proposal's Stage 1 projection, or a plane-setting threshold
-  above the interface-cell threshold).
+  one unit (3.3 diameters) in the 2 x 1 x 1 box at Courant 0.2 (the
+  default of `genCases.py --Co`; the cluster CSVs of 2026-10-13 are at
+  0.5), N = 32, 64, 128 cells across the height; rows isoAdvection + davof
+  on the `initDavofFields` state (quadraticFaces, detrixheAslam) with the
+  normal-model rows, + plicRDF and + isoAlpha on the setAlphaField state;
+  `areaFractionError` every step, the reconstruction error at the end,
+  `volumeFractionError` every step. README there for the measured
+  numbers. With the phantom-plane fix every row stays bounded; the own
+  normal (cellLocal) is bounded but loses the state on the sphere (the
+  interface-cell count 416 to 4910 over the 160 steps at N = 32, the
+  face-fraction error 0.21 at the end), while `ringArea` closes the loop
+  (see "Normal models" above for the numbers; the earlier unbounded
+  history of 2026-10-13, min(alpha) at -Co within a few steps, was the
+  phantom-plane defect). The deformation regression
+  (`testsuite/advection/test-deformationSphere` at 32 x 32 x 64, davof
+  quadraticFaces, serial) predates the fix as well (Ebound 1.4 at t = 3,
+  Emass 4e-3, Eshape 3.8e-2; plicRDF: 2e-8, 3e-16, 4.5e-3) and is to be
+  repeated.
+
+### Abort guard
+
+`advectorVoF` stops a diverging run on request (keys of the top-level
+`isoAdvector` dictionary of `system/fvSolution`, the one `period` and
+`reverseTime` are read from; all off by default, so the testsuite is
+unchanged):
+
+```
+isoAdvector
+{
+    abortEnabled              true;   // default false
+    abortMinAlpha             -0.5;   // abort when min(alpha) < abortMinAlpha
+    abortMaxAlpha             1.5;    // abort when max(alpha) > abortMaxAlpha
+    abortInterfaceCellFactor  10;     // abort when the interface-cell count of
+                                      // the reconstruction scheme exceeds this
+                                      // factor times its count at the first
+                                      // step; 0 disables this criterion
+}
+```
+
+After every step's `t = ..., sum(alpha*V) ...` line the count of
+`surf().interfaceLabels()` is reduced over the processors and the three
+criteria are checked in that order. On a violation the solver prints one
+line,
+
+```
+advectorVoF: ABORT at step <timeIndex>, t = <t>: <reason> (min(alpha) = <aMin>, max(alpha) = <aMax>, interface cells <n> of initial <n0>)
+```
+
+with `<reason>` one of `min(alpha) below abortMinAlpha`, `max(alpha) above
+abortMaxAlpha`, `interface cells above abortInterfaceCellFactor times the
+initial count`, writes the fields (`writeNow`) and ends with the normal
+`End` and exit code 0 on purpose: leia's log classifier then reads the run
+as COMPLETED and the workflow's converter records `diverged` from the
+ABORT line. Measured on the sphere at N = 32, Co 0.2, row
+davof-quadraticFaces (the own normal, 416 interface cells at the first
+step; laptop, 2026-10-13): the factor 10 fires at step 111 (t = 0.69375,
+4171 interface cells after 4141 at step 110; min(alpha) -6.25e-10,
+max(alpha) 1), the run ends with "End" and the fields of t = 0.69375
+written; the plane case without the keys (N = 20, normal arm,
+davof-detrixheAslam-exact) is unchanged (max L1(alphaf) 2.61e-15 over
+the ten steps, no ABORT line).
 
 ## How leia finds it
 

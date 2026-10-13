@@ -42,6 +42,7 @@ Author
 #include "immiscibleIncompressibleTwoPhaseMixture.H"
 #include "markInterfaceRegion.H"
 #include "setFlow.H"
+#include "Switch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -172,6 +173,53 @@ int main(int argc, char *argv[])
              << ",\t dev = " << 100*(1.0-V/V0) << "%"
              << ",\t 1-max(alpha1) = " << 1-aMax << " at cell " << lMax
              << ",\t min(alpha1) = " << aMin << " at cell " << lMin << endl;
+
+        // The abort guard (createFields.H): the interface-cell count of the
+        // reconstruction scheme after this step's advection, its value at
+        // the first step as the reference. On a violation the fields are
+        // written and the run ends with the normal "End" on purpose: the
+        // log classifier of the leia workflow then reads COMPLETED and its
+        // converter records "diverged" from the ABORT line.
+        label nInterface = advector->surf().interfaceLabels().size();
+        reduce(nInterface, sumOp<label>());
+        if (nInterface0 < 0)
+        {
+            nInterface0 = nInterface;
+        }
+        if (abortEnabled)
+        {
+            string reason;
+            if (aMin < abortMinAlpha)
+            {
+                reason = "min(alpha) below abortMinAlpha";
+            }
+            else if (aMax > abortMaxAlpha)
+            {
+                reason = "max(alpha) above abortMaxAlpha";
+            }
+            else if
+            (
+                abortInterfaceCellFactor > 0
+             && nInterface0 > 0
+             && nInterface > abortInterfaceCellFactor*nInterface0
+            )
+            {
+                reason =
+                    "interface cells above abortInterfaceCellFactor times "
+                    "the initial count";
+            }
+            if (!reason.empty())
+            {
+                Info<< "advectorVoF: ABORT at step " << runTime.timeIndex()
+                    << ", t = " << runTime.time().value() << ": "
+                    << reason.c_str() << " (min(alpha) = " << aMin << ", max(alpha) = " << aMax
+                    << ", interface cells " << nInterface
+                    << " of initial " << nInterface0 << ")" << endl;
+                runTime.writeNow();
+                Info<< "End\n" << endl;
+                return 0;
+            }
+        }
 
         runTime.write();
 

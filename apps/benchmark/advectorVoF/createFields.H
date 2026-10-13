@@ -63,6 +63,22 @@ const scalar period = isoAdvectorDict.lookupOrDefault<scalar>("period", 0.0);
 scalar reverseTime = isoAdvectorDict.lookupOrDefault<scalar>("reverseTime", 0.0);
 scalar spirallingFlow = isoAdvectorDict.lookupOrDefault<scalar>("spirallingFlow", 0.0);
 
+// The abort guard of the time loop (keys of the same isoAdvector dictionary;
+// off by default, so that the testsuite is unchanged): the run stops with a
+// normal "End" after an ABORT line when alpha leaves [abortMinAlpha,
+// abortMaxAlpha] or the interface-cell count of the reconstruction scheme
+// exceeds abortInterfaceCellFactor times its count at the first step
+// (factor 0 disables that criterion).
+const bool abortEnabled =
+    isoAdvectorDict.lookupOrDefault<Switch>("abortEnabled", false);
+const scalar abortMinAlpha =
+    isoAdvectorDict.lookupOrDefault<scalar>("abortMinAlpha", -0.5);
+const scalar abortMaxAlpha =
+    isoAdvectorDict.lookupOrDefault<scalar>("abortMaxAlpha", 1.5);
+const scalar abortInterfaceCellFactor =
+    isoAdvectorDict.lookupOrDefault<scalar>("abortInterfaceCellFactor", 10);
+label nInterface0 = -1;
+
 //Copies of initial U and phi for use when flow is periodic
 surfaceScalarField phi0 = phi;
 volVectorField U0 = U;
