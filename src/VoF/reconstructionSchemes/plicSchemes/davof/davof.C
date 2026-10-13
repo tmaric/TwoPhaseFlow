@@ -91,7 +91,15 @@ bool Foam::reconstruction::davof::positionPlane
     const vector& n
 )
 {
-    sIterPLIC_.vofCutCell
+    // The RETURNED status: vofCutCell returns -1 (alpha below the
+    // tolerance) or 1 (above 1 - tolerance) before it cuts anything, and
+    // cellStatus() then still holds the previous cell's cut (surfaceArea
+    // and surfaceCentre with it). An interface cell is selected here by its
+    // face fractions, so its alpha can be at 0 or 1; reading cellStatus()
+    // gave such a cell the plane of the previously positioned cell (a
+    // phantom surface cell whose plane sits elsewhere, which isoAdvection
+    // then fluxed; found on the sphere 2026-10-13).
+    const label status = sIterPLIC_.vofCutCell
     (
         celli,
         alpha1_[celli],
@@ -100,7 +108,7 @@ bool Foam::reconstruction::davof::positionPlane
         n
     );
 
-    if (sIterPLIC_.cellStatus() == 0)
+    if (status == 0)
     {
         normal_[celli] = sIterPLIC_.surfaceArea();
         centre_[celli] = sIterPLIC_.surfaceCentre();
