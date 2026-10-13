@@ -13,14 +13,13 @@
 # GENARGS the genCases.py arguments (default: the benchmark's cluster list),
 # CASES a case-list file for runAll.sh --cases (then genCases.py is skipped).
 # The cases are serial; the sphere at N = 128 holds 4.2e6 cells (a few GB
-# each, eight of them in the cluster list), hence the whole node's memory.
+# each, eight of them in the cluster list), hence 24 x 3600 MB (Lichtenberg's job_submit plugin refuses --mem; --mem-per-cpu is the only form).
 #SBATCH -J davof-advection
 #SBATCH -A special00004
 #SBATCH --nodes=1
 #SBATCH --ntasks=24
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=0
-#SBATCH --exclusive
+#SBATCH --mem-per-cpu=3600
 #SBATCH -t 04:00:00
 #SBATCH -o %x-%j.out
 #SBATCH -e %x-%j.err
