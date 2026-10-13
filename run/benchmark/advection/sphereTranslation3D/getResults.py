@@ -98,7 +98,7 @@ def read_slivers(path):
         if line.startswith("Time = "):
             expect = True
             continue
-        m = re.match(r"^davof: (\d+) interface cells .*?, (\d+) slivers", line)
+        m = re.match(r"^davof: (\d+) interface cells .*?: (\d+) slivers, (\d+) replaced", line)
         if m and expect:
             out.append((int(m.group(1)), int(m.group(2))))
             expect = False
@@ -218,9 +218,9 @@ def main():
             o[f"{m}_values"] = " ".join(f"{v:.3e}" for v in vals)
             pw = []
             for k in range(len(recs) - 1):
-                a, b = vals[k], vals[k + 1]
+                e0, e1 = vals[k], vals[k + 1]
                 hk, hk1 = recs[k]["h"], recs[k + 1]["h"]
-                pw.append(math.log(a/b)/math.log(hk/hk1) if (a > 0 and b > 0) else float("nan"))
+                pw.append(math.log(e0/e1)/math.log(hk/hk1) if (e0 > 0 and e1 > 0) else float("nan"))
             o[f"p_{m}"] = " ".join(f"{p:.2f}" for p in pw)
         orders.append(o)
     write("orders", orders)
@@ -231,8 +231,8 @@ def main():
             def pk(m):
                 if k == 0:
                     return "  -- "
-                a, b = recs[k - 1][m], r[m]
-                return f"{math.log(a/b)/math.log(recs[k-1]['h']/r['h']):5.2f}" if (a > 0 and b > 0) else "  -- "
+                e0, e1 = recs[k - 1][m], r[m]
+                return f"{math.log(e0/e1)/math.log(recs[k-1]['h']/r['h']):5.2f}" if (e0 > 0 and e1 > 0) else "  -- "
             print(f"[getResults] {row:36s} {r['N']:<4} {r['L1']:.3e} {pk('L1')} {r['LNormalDiff1']:.3e} {pk('LNormalDiff1')} "
                   f"{r['LNormalDiff2']:.3e} {pk('LNormalDiff2')} {r['LCentreDiff1']:.3e} {pk('LCentreDiff1')} "
                   f"{r['LCentreDiff2']:.3e} {pk('LCentreDiff2')} {r['E1']:.3e} {pk('E1')} {r['Emass']:.1e} "

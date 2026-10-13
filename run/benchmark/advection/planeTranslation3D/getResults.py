@@ -82,7 +82,7 @@ def read_slivers(path):
         if line.startswith("Time = "):
             expect = True
             continue
-        m = re.match(r"^davof: (\d+) interface cells .*?, (\d+) slivers", line)
+        m = re.match(r"^davof: (\d+) interface cells .*?: (\d+) slivers, (\d+) replaced", line)
         if m and expect:
             out.append((int(m.group(1)), int(m.group(2))))
             expect = False

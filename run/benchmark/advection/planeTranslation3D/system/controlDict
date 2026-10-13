@@ -36,7 +36,7 @@ timePrecision   10;
 graphFormat     raw;
 runTimeModifiable no;
 
-// fixed time step: 0.5 h / |U| (simulationParameter)
+// fixed time step: Co h / |U| (simulationParameter, genCases.py --Co, default 0.2)
 adjustTimeStep  no;
 maxCo           1e6;
 maxAlphaCo      1e6;
