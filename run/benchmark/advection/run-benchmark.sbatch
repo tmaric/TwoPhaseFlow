@@ -23,15 +23,16 @@
 #SBATCH -t 04:00:00
 #SBATCH -o %x-%j.out
 #SBATCH -e %x-%j.err
-set -u
 : "${REPO:?set REPO=<TwoPhaseFlow clone> with --export}"
 : "${BENCH:?set BENCH=<benchmark directory> with --export}"
 JOBS="${JOBS:-${SLURM_NTASKS:-24}}"
 
+# OpenFOAM's etc/bashrc reads unset variables, so set -u only after the environment is sourced.
 module purge
 module load gcc/11.5.0-z7mc openmpi/4.1.8-6xzv
 source "$HOME/OpenFOAM/OpenFOAM-v2606/etc/bashrc"
 source "$REPO/etc/davof-env.sh" || exit 1
+set -u
 
 echo "run-benchmark: $(date) on $(hostname), REPO=$REPO, BENCH=$BENCH, JOBS=$JOBS"
 echo "run-benchmark: $(cd "$REPO" && git rev-parse --short HEAD) $(cd "$REPO" && git branch --show-current)"
