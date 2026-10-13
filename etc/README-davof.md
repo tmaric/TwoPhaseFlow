@@ -115,6 +115,57 @@ step):
 7. A sweep that cannot set the face (`subFaceAreaEnd() < 0`) keeps the
    default and is counted as a fallback; values outside [0, 1] by more
    than 1e-12 are counted as clips and clamped.
+8. The content bound (2026-10-13, `boundCellContent`, key `contentBound`,
+   default true): for every non-surface cell W with faces whose flux a
+   plane set (rules 3 and 5, `planeFlux`), the liquid leaving W through
+   its faces may not exceed alpha_W V_W plus the liquid entering it in
+   the step, nor the gas (1 - alpha_W) V_W plus the entering gas; when
+   violated, the plane-set fluxes of W (its outflow faces) are moved
+   towards their upwind values by one factor lambda in [0, 1] chosen so
+   that the bound holds with equality (the upwind fluxes satisfy it for
+   cell Courant numbers below one); the bounded faces and cells are
+   counted in the Info line ("content bound on F faces of C cells").
+   Tolerance 1e-12 V_W, so that an exactly translating plane never
+   triggers it (the plane rows at N = 20 and 40, Co 0.2 and 0.5: 0 faces).
+9. The conservative bounding of `limitFluxes` is extended by a second
+   layer of cells when the face fractions are stored (key
+   `boundSecondLayer`, default true): the second-ring sweep sets plane
+   fluxes on faces whose other cell lies beyond the first layer
+   (surface cells plus one), which `boundFlux` otherwise never visits;
+   the cells beyond the first layer it corrects are counted ("bounding
+   extended by a second layer: K cells corrected beyond the first
+   layer"). `debugCell <label>` with `DebugSwitches { isoAdvection 1; }`
+   prints the content bound of one cell.
+
+The unbounded sphere of the cluster runs of 2026-10-13 (every davof row,
+the exact-normal control included, min(alpha) at -Co within a few steps)
+was NOT a flux rule but a reconstruction defect: `davof::positionPlane`
+read `surfaceIteratorPLIC::cellStatus()` after `vofCutCell`, which
+returns -1 or 1 for alpha below `isoFaceTol` or above 1 - `isoFaceTol`
+BEFORE it cuts anything, so `cellStatus()`, `surfaceArea()` and
+`surfaceCentre()` still held the previously positioned cell's plane. A
+davof interface cell is selected by its face fractions and can have
+alpha at 0 or 1 (a cell the interface has just left or entered); such a
+cell became a phantom surface cell carrying its predecessor's plane,
+which isoAdvection then fluxed (a full face of liquid out of an empty
+cell 1.5 h outside the sphere, found with `debugCell` on cell 42190 of
+the N = 32 case at step 6). Since 2026-10-13 `positionPlane` uses the
+returned status (plicRDF never saw this because it positions planes
+only in cells with surfCellTol < alpha < 1 - surfCellTol). Measured on
+the exact-normal row of the sphere at N = 32, Co 0.2 (160 steps): before
+the fix min(alpha) reaches -0.196 at step 5 and -1.83 by t = 0.5, with
+L1(alphaf) 2.8e-2 at step 4 and 0.13 at step 5; the second layer alone
+delays the event by one step (min -2e-25 at step 5, -0.095 at step 6,
+-0.2 at step 7, 4714 corrections per step at the end); the content bound
+on top keeps step 5 at round-off and still loses step 6 (-0.095, a cell
+inside the first layer that `boundFlux` cannot repair in three passes
+because its inflow came from a phantom plane). After the fix the row is
+bounded with both bounds OFF (min -7.8e-15 over 160 steps, L1(alphaf)
+4.4e-3, 7.6e-3, 5.7e-3, 6.0e-3, 6.0e-3 at steps 1-5, 1.04e-2 at t = 1,
+the normal error L1 1.8e-5 at the end) and with both on (min -8.7e-15,
+the content bound active on 19, 8, 25 faces at steps 2-4 and on none
+after step 9; L1(alphaf) identical to four digits). The plane rows at
+N = 20, Co 0.5, are bit-identical with and without the fix.
 
 Nothing changes for the other reconstruction schemes (plicRDF after ten
 steps of the deformation case is bit-identical with the build before this
@@ -122,7 +173,168 @@ change, alpha and interfaceNormal). Dictionary keys of the alpha solver:
 `storeAreaFractions` (default: the scheme is davof), the davof scheme's
 `wispTol` (default 1e-3 since this step, leia's value), `isoFaceTol`.
 
-### The mixed normal and the normal-source controls (2026-10-13)
+### Normal models (2026-10-13)
+
+The normal along which the `davof` scheme positions the plane of an
+interface cell is a run-time-selectable model (`src/VoF/davof/normalModels`,
+base `davofNormalModel`, keyword `normalModel` of the alpha solver
+dictionary, default `cellLocal`). `reconstruct()` forms m_c for every
+interface cell, positions every plane by alpha along m_c (as before), then
+calls the model, which returns the normal it proposes per interface cell,
+and re-positions the plane along the model normal in every cell whose
+normal changed (one code path for all models; the ring models need the
+positioned planes of the neighbours). Every model takes `applyTo`:
+
+- `all`: every interface cell with a model normal is replaced;
+- `check`: only the slivers, |m_c| < `sliverTol` V_c^(2/3) (default 0.1),
+  and the cells whose raw normal deviates from the model normal by more
+  than `maxAngle` degrees (default 15, plicRDF's residual rule).
+
+A cell wanted by the rule whose model normal is zero keeps m_c ("kept m").
+One Info line per reconstruction: `davof: N interface cells (wispTol c),
+normalModel X (applyTo a, sliverTol s[, maxAngle m]): S slivers, R
+replaced[, K kept m][, F fit fallbacks], explicit plane defects ...`.
+`sliverFlag.<group>` is written (1 in slivers). Models:
+
+- `cellLocal`: the raw m_c/|m_c|, nothing replaced (default applyTo all).
+- `youngs`: `fvc::grad(alpha)` (into alpha = 1 like m_c; default check).
+- `plicRDF`: the normal of a helper plicRDF reconstruction of the same
+  alpha, owned by the model and reconstructed whenever the davof scheme is
+  (its fields stay unregistered; default check).
+- `exact`: the control, the exact normal of the implicit function of the
+  `exactNormal` sub-dictionary translated by U0 t at the centroid of the
+  plane positioned by alpha along m_c (the cell centre when that plane does
+  not exist); the state-time logic as before (default all).
+- `ringArea` (new): n = sum_k m_k / |sum_k m_k| over the point-neighbour
+  ring of the cell (the cells sharing at least one point with it, the cell
+  included; zoneDistribute's stencil, across processor boundaries), only
+  the interface cells contributing. This is the DAVOF normal of the union
+  of the ring's cells: exact for a plane on any mesh, no division by a
+  small area (default all).
+- `ringFit` (new): a weighted least-squares quadric through the ring's
+  recovered planes: in the frame of the cell's raw normal with the origin
+  at the cell's own plane centroid, scaled by h_c, the Monge patch
+  z = a + b x + c y + d x^2 + e xy + f y^2 fitted to the ring cells' plane
+  centroids (one position equation each) and unit normals (two gradient
+  equations each, as leia's `quadricFit` with `normalsOnly`), weights
+  w_k = |m_k|/sum_j |m_j| (`weight area`) or alpha_k (1 - alpha_k)
+  normalised (`weight alpha`); the normal of the fitted surface at the
+  origin, (-b, -c, 1) rotated back. Ring cells with n_k.e3 <= `alignTol`
+  (0.2) are dropped; fewer than `minCells` (6) usable ring cells or a
+  singular system fall back to ringArea for that cell, counted as fit
+  fallbacks (default all).
+
+The deprecated keys `sliverNormal` (none | Youngs | plicRDF) and
+`normalSource` (davof | exact | plicRDF) are mapped onto the models when
+`normalModel` is absent, with a one-line Info note: sliverNormal Youngs ->
+youngs/check and sliverNormal plicRDF -> plicRDF/check, both with
+maxAngle 180 (the slivers-only rule they had), normalSource exact ->
+exact/all, normalSource plicRDF -> plicRDF/all. Gate of the refactor:
+the plane rows davof-detrixheAslam and davof-detrixheAslam-exact at
+N = 20, Co 0.5, both arms, are bit-identical with the build before it
+(`areaFractionError.dat`, `error.dat`, `volumeFractionError.dat` and the
+written fields), through the deprecated keys and through `normalModel
+cellLocal`; the plicRDF rows reproduce the cluster CSV to every digit
+(max L1(n) 0.1420372339066551 at N = 20, normal arm).
+
+Parallel check (2026-10-13): the plane case (normal arm, N = 20, Co 0.2)
+with `normalModel ringArea`, `ringFit` and `cellLocal` on two processors
+(`system/decomposeParDict`, simple (2 1 1), the cut through the interface
+cells; `decomposePar`, `mpirun -np 2 advectorVoF -parallel`) gives the
+same interface-cell counts per step as the serial run (193, 179, ..., 89)
+and L1(alphaf) at round-off (1.7e-15 to 2.9e-15 against 1.8e-15 to
+2.7e-15 serial), the normal error 0 to 2e-16: the ring stencil crosses
+the processor boundary correctly.
+
+Laptop measurements of 2026-10-13 (serial, Co 0.2, the new default of the
+benchmark generators; CSVs `*_laptopCo0.2.csv` next to the cluster CSVs
+of Co 0.5; the content bound and the second-layer bounding on, the
+positionPlane fix in):
+
+The plane (`planeTranslation3D`, ten steps, max over the steps of
+L1(alphaf), the geometric-mean growth per step, the gate at 1e-12):
+
+| row | arm | N | max L1(alphaf) | max L1(n) | growth (geo. mean) | gate |
+|---|---|---|---|---|---|---|
+| davof-detrixheAslam | normal | 20 | 3.37e-15 | 5.01e-14 | 1.07 | PASS |
+| davof-detrixheAslam | normal | 40 | 5.70e-15 | 3.59e-13 | 1.07 | PASS |
+| davof-detrixheAslam | oblique | 20 | 1.27e-14 | 6.41e-13 | 1.23 | PASS |
+| davof-detrixheAslam | oblique | 40 | 1.56e-14 | 4.70e-13 | 1.10 | PASS |
+| davof-detrixheAslam-exact | normal | 20 | 2.62e-15 | 1.97e-15 | 1.05 | PASS |
+| davof-detrixheAslam-exact | normal | 40 | 3.68e-15 | 3.76e-15 | 1.00 | PASS |
+| davof-detrixheAslam-exact | oblique | 20 | 8.08e-15 | 1.75e-15 | 1.06 | PASS |
+| davof-detrixheAslam-exact | oblique | 40 | 7.21e-15 | 3.63e-15 | 0.94 | PASS |
+| ringArea | normal | 20 | 2.72e-15 | 3.14e-15 | 1.05 | PASS |
+| ringArea | normal | 40 | 3.70e-15 | 4.77e-15 | 1.00 | PASS |
+| ringArea | oblique | 20 | 8.20e-15 | 1.02e-14 | 1.05 | PASS |
+| ringArea | oblique | 40 | 7.94e-15 | 1.11e-14 | 0.95 | PASS |
+| ringArea-check | normal | 20 | 3.43e-15 | 1.99e-14 | 1.07 | PASS |
+| ringArea-check | normal | 40 | 5.12e-15 | 3.03e-14 | 1.05 | PASS |
+| ringArea-check | oblique | 20 | 8.54e-15 | 3.26e-14 | 1.11 | PASS |
+| ringArea-check | oblique | 40 | 8.80e-15 | 4.64e-14 | 1.01 | PASS |
+| ringFit | normal | 20 | 2.70e-15 | 3.80e-15 | 1.05 | PASS |
+| ringFit | normal | 40 | 3.55e-15 | 5.08e-15 | 0.99 | PASS |
+| ringFit | oblique | 20 | 7.86e-15 | 1.43e-14 | 1.06 | PASS |
+| ringFit | oblique | 40 | 7.51e-15 | 1.05e-14 | 0.94 | PASS |
+| ringFit-check | normal | 20 | 3.32e-15 | 1.97e-14 | 1.06 | PASS |
+| ringFit-check | normal | 40 | 4.92e-15 | 2.97e-14 | 1.05 | PASS |
+| ringFit-check | oblique | 20 | 9.03e-15 | 3.33e-14 | 1.11 | PASS |
+| ringFit-check | oblique | 40 | 9.35e-15 | 4.96e-14 | 1.01 | PASS |
+
+Every row passes at Co 0.2, the own normal (cellLocal) included, whose
+normal arm failed at Co 0.5 on the cluster (growth 6.8 and 23 per step at
+N = 20 and 40) and still fails at Co 0.5 with this build (bit-identical:
+1.36e-7 after ten steps at N = 20): the sliver amplification of the
+normal arm is a Courant-number effect, absent at Co 0.2 over ten steps.
+The ring rows replace every interface cell (208 at N = 20) and ringFit
+falls back in 2 cells (the corner cells with fewer than six ring planes).
+
+The sphere (`sphereTranslation3D`, N = 32, R = 4.8 h, 160 steps to t = 1;
+L1(alphaf) after steps 1, 2, 3, 5, 10 and at the end; the end values of
+the normal error L1(n), the centre error L1(x) and E1; min(alpha) over
+the run):
+
+| row | L1(alphaf) 1 / 2 / 3 / 5 / 10 / end | L1(n) | L1(x) | E1 | min alpha | cells (end) |
+|---|---|---|---|---|---|---|
+| davof-quadraticFaces | 4.39e-3 / 5.50e-3 / 8.06e-3 / 1.60e-2 / 6.15e-2 / 2.08e-1 | 1.29 | 1.54e-1 | 5.93e-3 | -9.79e-9 | 4910 |
+| davof-quadraticFaces-exact | 4.38e-3 / 7.65e-3 / 5.71e-3 / 5.99e-3 / 6.65e-3 / 1.04e-2 | 3.64e-3 | 9.83e-4 | 2.76e-4 | -8.67e-15 | 426 |
+| ringArea | 5.17e-3 / 6.12e-3 / 5.97e-3 / 6.98e-3 / 7.68e-3 / 1.78e-2 | 4.06e-2 | 1.35e-3 | 3.85e-4 | -3.40e-21 | 424 |
+| ringArea-check | 4.43e-3 / 5.51e-3 / 6.28e-3 / 8.65e-3 / 1.15e-2 / 4.49e-2 | 1.32e-1 | 3.36e-3 | 8.13e-4 | -8.10e-15 | 487 |
+| ringFit | 4.38e-3 / 7.71e-3 / 5.77e-3 / 6.04e-3 / 6.69e-3 / 7.93e-2 | 2.05e-1 | 1.32e-2 | 1.15e-3 | -2.45e-13 | 687 |
+| ringFit-check | 4.39e-3 / 7.89e-3 / 8.48e-3 / 8.95e-3 / 1.17e-2 / 9.90e-2 | 3.01e-1 | 1.69e-2 | 1.23e-3 | -2.03e-9 | 765 |
+| plicRDF | - | 3.92e-2 | 2.05e-3 | 3.18e-4 | -1.65e-24 | - |
+| isoAlpha | - | 5.94e-2 | 2.17e-3 | 3.55e-4 | -3.31e-23 | - |
+
+With the phantom-plane fix every row stays bounded. The own normal
+(cellLocal) still loses the state on the sphere (L1(alphaf) 0.21, the
+interface-cell count 416 to 4910, the normal error 1.29 at the end,
+growth 1.2 per step over the first 20), as the plane gate at Co 0.5
+predicted for a curved interface. The ringArea normal (applyTo all)
+closes the loop: the interface-cell count stays at 416 to 428 over the
+160 steps, L1(alphaf) grows from 5.2e-3 to 1.8e-2 (the exact-normal
+control: 4.4e-3 to 1.0e-2), the normal error 4.1e-2 against plicRDF's
+3.9e-2 and isoAlpha's 5.9e-2, the centre error 1.35e-3 against 2.05e-3,
+E1 3.85e-4 against 3.18e-4, mass conserved to 3.5e-17. ringArea in check
+mode (slivers and 15-degree outliers only, 48 to 167 cells replaced per
+step) is three times worse in L1(n) and drifts; ringFit (all) matches
+ringArea for 80 steps (1.35e-2 at step 80) and then loses cells (176
+fit fallbacks and 672 interface cells at the end; the quadric fitted to
+the drifting planes of the ring is the less robust of the two); the
+check variants of both are worse than their all variants. The content
+bound was active on 1845 faces (ringArea) to 331700 (cellLocal) over the
+run. The N = 64 and 128 rungs and the orders are for the cluster.
+
+The benchmark generators compute the time step from `--Co` (default 0.2,
+Scheufler and Roenby 2019 demonstrate second order for CFL 0.2 and
+below; the cluster CSVs of 2026-10-13 are at 0.5), written into the case
+(`CO`) and the results CSV (`Co`). Rows (`advectionRows.py`): the old
+names map onto the models (`davof-<method>` cellLocal, `-Youngs<c>`
+youngs/check/maxAngle 180, `-sliverPlicRDF<c>`, `-exact`, `-plicRDF`),
+new `ringArea`, `ringArea-check`, `ringFit`, `ringFit-check` on the first
+state construction given. `getResults.py --cases DIR --suffix S` collects
+another case tree into sibling CSV names.
+
+### The mixed normal and the normal-source controls (2026-10-13, superseded by the normal models above)
 
 The closed loop (own normal from alphaf, the alpha-positioned plane, alphaf
 from the moved plane) amplifies through sliver interface cells (small
@@ -130,7 +342,8 @@ from the moved plane) amplifies through sliver interface cells (small
 normal's 1/A). Following Basilisk's mixed Youngs-centred scheme (Aulisa et
 al. 2007, `src/myc.h`) the `davof` scheme keeps the slivers as interface
 cells and gives them a stencil normal; keys of the alpha solver dictionary
-(`davof.H`):
+(`davof.H`; since the normal models these keys are deprecated and mapped,
+see above):
 
 - `sliverNormal` (`none` | `Youngs` | `plicRDF`, default `none`) and
   `sliverTol` (c, default 0.1): a cell is a sliver when
@@ -191,9 +404,11 @@ a factor that falls with wispTol, a C2 finding).
   `initDavofFields` state (quadraticFaces, detrixheAslam), + plicRDF and
   + isoAlpha on the setAlphaField state; `areaFractionError` every step,
   the reconstruction error at the end, `volumeFractionError` every step.
-  README there for the measured numbers: with the rules above the davof
-  loop (own normal from the transported face fractions, the plane
-  positioned by alpha, the plane's fluxes) is UNSTABLE on the sphere at
+  README there for the measured numbers (the paragraph below predates the
+  phantom-plane fix and the normal models of 2026-10-13; the laptop
+  numbers after them are in "Normal models" above): with the rules
+  above the davof loop (own normal from the transported face fractions,
+  the plane positioned by alpha, the plane's fluxes) is UNSTABLE on the sphere at
   N = 32 and 64: the face-fraction error grows from 1.2e-2 after one step
   to 0.4 within ten, alpha leaves [0, 1] at step 4, and the interface-cell
   count explodes; plicRDF and isoAlpha on the same runs are healthy. The

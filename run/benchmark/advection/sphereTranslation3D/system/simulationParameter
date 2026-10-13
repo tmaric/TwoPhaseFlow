@@ -22,9 +22,11 @@ FoamFile
 // A sphere of radius 0.15 at (0.5 0.5 0.5) in the 2 x 1 x 1 box, carried by
 // the uniform velocity (1 0 0) to x = 1.5 in the end time 1 (one diameter of
 // travel every 0.3). N cells across the unit height (2N along x), the time
-// step 0.5 h / |U| (Courant 0.5), fixed.
+// step Co h / |U| (Courant number CO, default 0.2; the cluster runs of
+// 2026-10-13 at 0.5), fixed.
 N 32;
-DELTAT 0.015625;
+CO 0.2;
+DELTAT 0.00625;
 ENDTIME 1;
 R 0.15;
 CX 0.5;
@@ -40,11 +42,13 @@ RECONSCHEME davof;
 SETALPHAMETHOD davof;
 DAVOFMETHOD quadraticFaces;
 WISPTOL 1e-3;
-// the davof scheme's normal controls (davof.H): the fallback normal of the
-// sliver cells |m_c| < SLIVERTOL h^2 (none | Youngs | plicRDF) and the
-// source of every interface cell's normal (davof | exact | plicRDF)
-SLIVERNORMAL none;
+// the davof scheme's normal model (davofNormalModel.H): cellLocal | youngs |
+// plicRDF | exact | ringArea | ringFit, applied to all interface cells or
+// in check mode to the slivers |m_c| < SLIVERTOL h^2 and the cells deviating
+// from the model normal by more than MAXANGLE degrees
+NORMALMODEL cellLocal;
+APPLYTO all;
 SLIVERTOL 0;
-NORMALSOURCE davof;
+MAXANGLE 15;
 
 // ************************************************************************* //

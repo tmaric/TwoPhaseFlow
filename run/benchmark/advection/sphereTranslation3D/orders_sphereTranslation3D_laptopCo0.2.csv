@@ -1,0 +1,9 @@
+row,N,L1_values,p_L1,L2_values,p_L2,LNormalDiff1_values,p_LNormalDiff1,LNormalDiff2_values,p_LNormalDiff2,LCentreDiff1_values,p_LCentreDiff1,LCentreDiff2_values,p_LCentreDiff2,E1_values,p_E1
+davof-quadraticFaces,32,2.080e-01,,4.063e-01,,1.291e+00,,1.361e+00,,1.540e-01,,2.269e-01,,5.929e-03,
+davof-quadraticFaces-exact,32,1.039e-02,,2.017e-02,,3.644e-03,,5.989e-03,,9.835e-04,,1.154e-03,,2.762e-04,
+isoAlpha,32,-1.000e+00,,-1.000e+00,,5.937e-02,,7.145e-02,,2.171e-03,,2.536e-03,,3.549e-04,
+plicRDF,32,-1.000e+00,,-1.000e+00,,3.916e-02,,4.604e-02,,2.047e-03,,2.399e-03,,3.178e-04,
+ringArea,32,1.783e-02,,3.627e-02,,4.065e-02,,4.665e-02,,1.346e-03,,1.694e-03,,3.848e-04,
+ringArea-check,32,4.489e-02,,1.113e-01,,1.324e-01,,1.522e-01,,3.358e-03,,5.711e-03,,8.130e-04,
+ringFit,32,7.935e-02,,1.981e-01,,2.052e-01,,4.077e-01,,1.324e-02,,3.274e-02,,1.150e-03,
+ringFit-check,32,9.901e-02,,2.254e-01,,3.013e-01,,4.642e-01,,1.689e-02,,3.438e-02,,1.234e-03,

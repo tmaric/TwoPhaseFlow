@@ -12,9 +12,9 @@ Emass, Ebound), plus the last "t = ..." line of log.advectorVoF (sum(alpha V),
 Writes next to this script:
 
     results_sphereTranslation3D.csv   one row per case: the row parameters
-                                      (scheme, davofMethod, sliverNormal,
-                                      sliverTol, normalSource) and the
-                                      end-of-run numbers
+                                      (scheme, davofMethod, normalModel,
+                                      applyTo, sliverTol, maxAngle, Co) and
+                                      the end-of-run numbers
     orders_sphereTranslation3D.csv    pairwise orders over N per row for
                                       L1(alphaf), LNormalDiff1/2, LCentreDiff1/2, E1
     history_sphereTranslation3D.csv   the per-step areaFractionError rows of
@@ -29,7 +29,11 @@ The prediction of the proposal (finding (v), the iterated regeneration): the
 quadratic initial state loses its second order within the first steps (the
 plane clipping is q = 1), so L1(alphaf) after one diameter of travel is first
 order, the normal first order, the centre second order.
+
+    python3 getResults.py                        # Cases/ -> results_/orders_/history_/growth_sphereTranslation3D.csv
+    python3 getResults.py --cases DIR --suffix _laptopCo0.2   # another case tree, sibling CSV names
 """
+import argparse
 import csv
 import glob
 import math
@@ -128,8 +132,15 @@ def growth_row(label, l1):
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--cases", default=os.path.join(HERE, "Cases"),
+                    help="the case tree <cases>/<row>/N<N> (default Cases/)")
+    ap.add_argument("--suffix", default="",
+                    help="suffix of the CSV names, results_<name><suffix>.csv (default none)")
+    a = ap.parse_args()
+
     results, history, growth = [], [], []
-    for case in sorted(glob.glob(os.path.join(HERE, "Cases", "*", "N*"))):
+    for case in sorted(glob.glob(os.path.join(a.cases, "*", "N*"))):
         par = read_param(os.path.join(case, "system", "simulationParameter"))
         af = read_dat(os.path.join(case, "areaFractionError.dat"))
         rec = read_dat(os.path.join(case, "error.dat"))
@@ -142,8 +153,9 @@ def main():
         n = int(par["N"])
         row = os.path.basename(os.path.dirname(case))
         label = {"row": row, "scheme": par["RECONSCHEME"], "davofMethod": par.get("DAVOFMETHOD", ""),
-                 "sliverNormal": par.get("SLIVERNORMAL", ""), "sliverTol": par.get("SLIVERTOL", ""),
-                 "normalSource": par.get("NORMALSOURCE", ""), "N": n, "h": 1.0/n,
+                 "normalModel": par.get("NORMALMODEL", ""), "applyTo": par.get("APPLYTO", ""),
+                 "sliverTol": par.get("SLIVERTOL", ""), "maxAngle": par.get("MAXANGLE", ""),
+                 "Co": par.get("CO", ""), "N": n, "h": 1.0/n,
                  "case": os.path.relpath(case, HERE)}
         r = dict(label)
         r["nSteps"] = len(af)
@@ -172,11 +184,11 @@ def main():
                 l1hist.append(fnum(s, "L1"))
             growth.append(growth_row(label, l1hist))
     if not results:
-        print("[getResults] nothing found under Cases/")
+        print(f"[getResults] nothing found under {a.cases}")
         return 1
 
     def write(name, rows):
-        path = os.path.join(HERE, f"{name}_{NAME}.csv")
+        path = os.path.join(HERE, f"{name}_{NAME}{a.suffix}.csv")
         fields = []
         for rr in rows:
             for k in rr:

@@ -3,20 +3,25 @@
 
 Cases/<row>/N<N>/ is a copy of this directory (the base case) with
 system/simulationParameter rewritten. The rows (../advectionRows.py): the
-davof scheme on the initDavofFields state with its normal controls
+davof scheme on the initDavofFields state with its normal model
 (davof-<method>, davof-<method>-Youngs<c>, davof-<method>-exact,
-davof-<method>-plicRDF, optionally davof-<method>-sliverPlicRDF<c>) and
-the comparators plicRDF and isoAlpha on the setAlphaField state.
+davof-<method>-plicRDF, optionally davof-<method>-sliverPlicRDF<c>), the
+ring rows (ringArea, ringArea-check, ringFit, ringFit-check) and the
+comparators plicRDF and isoAlpha on the setAlphaField state.
 
 N = 32, 64, 128 cells across the unit height (2N along x); the time step is
-0.5 h / |U| (Courant 0.5, |U| = 1), fixed, the end time 1.
+Co h / |U| (--Co, default 0.2, |U| = 1; Scheufler and Roenby 2019
+demonstrate second order for CFL 0.2 and below), fixed, the end time 1; Co
+is written into the case (CO) and the results CSV.
 
 Default: the cluster list, the state quadraticFaces, rows davof, Youngs
-0.01 / 0.1 / 1, exact, plicRDF, plus the comparators: 8 rows x 3 N.
+0.01 / 0.1 / 1, exact, plicRDF, the four ring rows, plus the comparators:
+12 rows x 3 N.
 
     python3 genCases.py                                   # the cluster list
     python3 genCases.py --N 32 64 --rows davof-quadraticFaces plicRDF
     python3 genCases.py --davofMethod detrixheAslam --noComparators
+    python3 genCases.py --Co 0.5                          # the time step of the 2026-10-13 cluster runs
     python3 genCases.py --list                            # print the case list only
 """
 import argparse
@@ -61,6 +66,8 @@ def main():
                     help="sliverTol values of the sliver-plicRDF rows (none by default)")
     ap.add_argument("--rows", nargs="+", default=None,
                     help="row names to generate (default: every row of the list)")
+    ap.add_argument("--Co", type=float, default=0.2,
+                    help="Courant number of the fixed time step Co h / |U| (default 0.2)")
     ap.add_argument("--noComparators", action="store_true")
     ap.add_argument("--list", action="store_true", help="print the case list, generate nothing")
     ap.add_argument("--out", default=os.path.join(HERE, "Cases"))
@@ -84,8 +91,8 @@ def main():
             if os.path.isdir(dest):
                 shutil.rmtree(dest)
             shutil.copytree(HERE, dest, ignore=IGNORE)
-            dt = 0.5*(1.0/n)/UMAG
-            p = {"N": n, "DELTAT": f"{dt:.10g}", "ENDTIME": f"{ENDTIME:g}"}
+            dt = a.Co*(1.0/n)/UMAG
+            p = {"N": n, "CO": f"{a.Co:g}", "DELTAT": f"{dt:.10g}", "ENDTIME": f"{ENDTIME:g}"}
             p.update(advectionRows.complete(vals))
             set_param(os.path.join(dest, "system", "simulationParameter"), p)
             for s in ("Allrun", "Allclean"):

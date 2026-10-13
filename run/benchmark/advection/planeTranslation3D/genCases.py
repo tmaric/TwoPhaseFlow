@@ -4,17 +4,21 @@
 Cases/<velocity>/<row>/N<N>/ is a copy of this directory (the base case)
 with system/simulationParameter rewritten: the velocity (normal: U = n, the
 plane's unit normal; oblique: U = (1 0 0)), the row (../advectionRows.py:
-the davof scheme on the initDavofFields state with its normal controls
-sliverNormal/sliverTol/normalSource, and the comparators plicRDF and
-isoAlpha on the setAlphaField state) and N. The time step is 0.5 h / |U|
-(|U| = 1 for both velocities) and the end time ten steps.
+the davof scheme on the initDavofFields state with its normal model
+normalModel/applyTo/sliverTol/maxAngle, the ring rows, and the comparators
+plicRDF and isoAlpha on the setAlphaField state) and N. The time step is
+Co h / |U| (--Co, default 0.2; |U| = 1 for both velocities; Scheufler and
+Roenby 2019 demonstrate second order for CFL 0.2 and below) and the end
+time ten steps; Co is written into the case (CO) and the results CSV.
 
 Default: the cluster list, velocity normal (the arm that grew), N = 20 and
 40, the state detrixheAslam (quadraticFaces is identical for a plane), rows
-davof, Youngs 0.01 / 0.1 / 1, exact, plicRDF, and the comparators.
+davof, Youngs 0.01 / 0.1 / 1, exact, plicRDF, the ring rows ringArea,
+ringArea-check, ringFit, ringFit-check, and the comparators.
 
     python3 genCases.py                                   # the cluster list
     python3 genCases.py --N 20 --velocity normal oblique --rows davof-detrixheAslam
+    python3 genCases.py --Co 0.5                          # the time step of the 2026-10-13 cluster runs
     python3 genCases.py --list                            # print the case list only
 """
 import argparse
@@ -68,6 +72,8 @@ def main():
                     help="sliverTol values of the sliver-plicRDF rows (none by default)")
     ap.add_argument("--rows", nargs="+", default=None,
                     help="row names to generate (default: every row of the list)")
+    ap.add_argument("--Co", type=float, default=0.2,
+                    help="Courant number of the fixed time step Co h / |U| (default 0.2)")
     ap.add_argument("--noComparators", action="store_true")
     ap.add_argument("--list", action="store_true", help="print the case list, generate nothing")
     ap.add_argument("--out", default=os.path.join(HERE, "Cases"))
@@ -96,8 +102,8 @@ def main():
                 if os.path.isdir(dest):
                     shutil.rmtree(dest)
                 shutil.copytree(HERE, dest, ignore=IGNORE)
-                dt = 0.5*(L/n)/umag
-                p = {"N": n, "VELOCITY": vel, "UX": ux, "UY": uy, "UZ": uz,
+                dt = a.Co*(L/n)/umag
+                p = {"N": n, "VELOCITY": vel, "UX": ux, "UY": uy, "UZ": uz, "CO": f"{a.Co:g}",
                      "DELTAT": f"{dt:.10g}", "ENDTIME": f"{NSTEPS*dt:.10g}"}
                 p.update(advectionRows.complete(vals))
                 set_param(os.path.join(dest, "system", "simulationParameter"), p)

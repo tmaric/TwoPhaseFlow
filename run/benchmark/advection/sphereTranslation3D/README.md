@@ -4,7 +4,9 @@ A sphere of radius 0.15 at (0.5, 0.5, 0.5) in the 2 x 1 x 1 box is carried
 by the uniform velocity (1, 0, 0) to x = 1.5 in the end time 1 (one diameter
 of travel every 0.3; inlet at x = 0 with alpha 0, outlet at x = 2, the lateral
 boundaries carry no flux). N cells across the unit height (2N along x,
-N = 32, 64, 128; the time step 0.5 h / |U|, Courant 0.5, fixed). Rows
+N = 32, 64, 128; the time step Co h / |U|, `genCases.py --Co`, default
+0.2 since 2026-10-13, the cluster CSVs in this directory at 0.5, fixed;
+Co is written into the case and the results CSV). Rows
 (`genCases.py`): `isoAdvection` with the `davof` reconstruction on the DAVOF
 state of `initDavofFields` (`davof-quadraticFaces`, `davof-detrixheAslam`),
 and with `plicRDF` and `isoAlpha` on the `setAlphaField` state. Function
@@ -22,23 +24,53 @@ boundedness error). The runs end at the end time whatever the state does.
 ./runAll.sh --jobs 24          # the cluster list, 24 cases at a time (../run-benchmark.sbatch)
 ./runAll.sh --case Cases/davof-quadraticFaces-exact/N32   # one case, no generation
 python3 genCases.py --list     # the case list without generating
+python3 genCases.py --Co 0.5   # the time step of the cluster runs of 2026-10-13
 python3 getResults.py          # results_/orders_/history_/growth_sphereTranslation3D.csv
+python3 getResults.py --cases DIR --suffix _laptopCo0.2   # another case tree into sibling CSV names
 ```
 
 Rows since 2026-10-13 (`../advectionRows.py`; a row is scheme, davofMethod,
-sliverNormal, sliverTol, normalSource in `system/simulationParameter`):
-`davof-<method>` (every interface cell the DAVOF normal),
+normalModel, applyTo, sliverTol, maxAngle in `system/simulationParameter`,
+the davof scheme's normal model of `etc/README-davof.md`):
+`davof-<method>` (every interface cell the DAVOF normal, `cellLocal`),
 `davof-<method>-Youngs<c>` (the mixed normal after Basilisk's
-Youngs-centred scheme: slivers |m_c| < c h^2 take `fvc::grad(alpha)`),
-`davof-<method>-exact` (control: every interface cell the exact normal of
-the translated sphere at the plane centroid, alphaf still transported by
-the moved plane), `davof-<method>-plicRDF` (control: every normal from
-plicRDF), optionally `davof-<method>-sliverPlicRDF<c>`, and the comparators
-`plicRDF` and `isoAlpha`. The cluster list is the state quadraticFaces,
-c = 0.01, 0.1, 1, both controls and the comparators at N = 32, 64, 128 (24
-cases, one node, `sbatch --export=ALL,REPO=...,BENCH=$PWD
-../run-benchmark.sbatch`); `--davofMethod detrixheAslam` gives the same
-rows on the Detrixhe-Aslam state. `growth_sphereTranslation3D.csv` holds
+Youngs-centred scheme: slivers |m_c| < c h^2 take `fvc::grad(alpha)`;
+`youngs`, check, maxAngle 180), `davof-<method>-exact` (control: every
+interface cell the exact normal of the translated sphere at the plane
+centroid, alphaf still transported by the moved plane),
+`davof-<method>-plicRDF` (control: every normal from plicRDF), optionally
+`davof-<method>-sliverPlicRDF<c>`, the ring rows `ringArea` (the
+area-weighted ring normal in every interface cell), `ringArea-check` (in
+the slivers |m_c| < 0.1 h^2 and the cells deviating by more than 15
+degrees), `ringFit` and `ringFit-check` (the ring quadric fit), and the
+comparators `plicRDF` and `isoAlpha`. The cluster list is the state
+quadraticFaces, c = 0.01, 0.1, 1, both controls, the four ring rows and
+the comparators at N = 32, 64, 128 (36 cases, one node, `sbatch
+--export=ALL,REPO=...,BENCH=$PWD ../run-benchmark.sbatch`);
+`--davofMethod detrixheAslam` gives the same rows on the Detrixhe-Aslam
+state.
+
+## Measured 2026-10-13 on the laptop at N = 32, Co 0.2 (`*_laptopCo0.2.csv`)
+
+After the normal models, the phantom-plane fix of `davof::positionPlane`
+(the cause of the unbounded cluster runs of the same day: a face-fraction
+interface cell with alpha at 0 or 1 inherited the previously positioned
+cell's plane) and the two flux bounds (`etc/README-davof.md`, which has
+the full table): every row is bounded (min alpha -9.8e-9 for the own
+normal, round-off otherwise). End values at t = 1 (L1(alphaf), the normal
+error L1(n), the centre error L1(x), E1, interface cells):
+`davof-quadraticFaces` 2.08e-1, 1.29, 1.54e-1, 5.93e-3, 4910 (the own
+normal still loses the state, L1(alphaf) 4.4e-3, 5.5e-3, 8.1e-3, 1.6e-2,
+6.1e-2 at steps 1, 2, 3, 5, 10); `davof-quadraticFaces-exact` 1.04e-2,
+3.64e-3, 9.83e-4, 2.76e-4, 426 (4.4e-3, 7.6e-3, 5.7e-3, 6.0e-3, 6.7e-3);
+`ringArea` 1.78e-2, 4.06e-2, 1.35e-3, 3.85e-4, 424 (5.2e-3, 6.1e-3,
+6.0e-3, 7.0e-3, 7.7e-3: the loop closed, the interface-cell count
+constant); `ringArea-check` 4.49e-2, 1.32e-1, 3.36e-3, 8.13e-4, 487;
+`ringFit` 7.93e-2, 2.05e-1, 1.32e-2, 1.15e-3, 687 (matches ringArea to
+step 80, then 176 fit fallbacks); `ringFit-check` 9.90e-2, 3.01e-1,
+1.69e-2, 1.23e-3, 765; `plicRDF` -, 3.92e-2, 2.05e-3, 3.18e-4; `isoAlpha`
+-, 5.94e-2, 2.17e-3, 3.55e-4. The ladder (N = 64, 128) and the orders
+are for the cluster. `growth_sphereTranslation3D.csv` holds
 per davof case L1(alphaf) of the first 20 steps and the growth factors
 L1(k)/L1(k-1); `history_...csv` the sliver count of the advection step's
 reconstruction per step. If the `exact` row is stable and first order the

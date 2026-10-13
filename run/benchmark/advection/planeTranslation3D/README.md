@@ -17,8 +17,10 @@ plane's. Two velocities (`VELOCITY` in `system/simulationParameter`):
 - `normal`: U = n, the plane moves 0.5 h along its normal per step;
 - `oblique`: U = (1 0 0), the plane moves 0.5 h along x, 0.15 h along n.
 
-N = 20 by default (also run at 40), ten steps of 0.5 h / |U| (Courant 0.5,
-fixed), both DAVOF state constructions (`detrixheAslam`, `quadraticFaces`:
+N = 20 by default (also run at 40), ten steps of Co h / |U| (`genCases.py
+--Co`, default 0.2 since 2026-10-13; the cluster CSVs in this directory
+are at Co 0.5; Co is written into the case and the results CSV), both
+DAVOF state constructions (`detrixheAslam`, `quadraticFaces`:
 both exact for a plane), `isoFaceTol 1e-14` and `wispTol 1e-3` (leia's
 threshold |m_c| > wispTol V^(2/3)). The function object `areaFractionError`
 writes per step the error of `alphaf` against the exact face fractions of
@@ -36,25 +38,46 @@ writes E1 = sum |alpha - alpha_exact| V.
 ./runAll.sh --N 20 --velocity normal oblique --rows davof-detrixheAslam   # the 2026-10-12 gate
 ./runAll.sh --case Cases/normal/davof-detrixheAslam-exact/N20             # one case, no generation
 python3 genCases.py --list     # the case list without generating
+python3 genCases.py --Co 0.5   # the time step of the cluster runs of 2026-10-13
 python3 getResults.py          # results_/history_/growth_planeTranslation3D.csv and the gate
+python3 getResults.py --cases DIR --suffix _laptopCo0.2   # another case tree into sibling CSV names
 ```
 
 Rows since 2026-10-13 (`../advectionRows.py`; a row is scheme, davofMethod,
-sliverNormal, sliverTol, normalSource in `system/simulationParameter`;
+normalModel, applyTo, sliverTol, maxAngle in `system/simulationParameter`,
+the davof scheme's normal model of `etc/README-davof.md`;
 `Cases/<velocity>/<row>/N<N>`): `davof-<method>` (every interface cell the
-DAVOF normal), `davof-<method>-Youngs<c>` (the mixed normal: slivers
-|m_c| < c h^2 take `fvc::grad(alpha)`), `davof-<method>-exact` (control:
-every interface cell the exact normal of the translated plane, alphaf still
-transported by the moved plane), `davof-<method>-plicRDF` (control: every
-normal from plicRDF), optionally `davof-<method>-sliverPlicRDF<c>`, and the
+DAVOF normal, `cellLocal`), `davof-<method>-Youngs<c>` (the mixed normal:
+slivers |m_c| < c h^2 take `fvc::grad(alpha)`; `youngs`, check, maxAngle
+180), `davof-<method>-exact` (control: every interface cell the exact
+normal of the translated plane, alphaf still transported by the moved
+plane), `davof-<method>-plicRDF` (control: every normal from plicRDF),
+optionally `davof-<method>-sliverPlicRDF<c>`, the ring rows `ringArea`
+(the area-weighted ring normal in every interface cell), `ringArea-check`
+(in the slivers |m_c| < 0.1 h^2 and the cells deviating by more than 15
+degrees), `ringFit` and `ringFit-check` (the ring quadric fit), and the
 comparators `plicRDF` and `isoAlpha` on the `setAlphaField` state (no face
 fractions: L1(alphaf) is -1, the normal and centre errors are reported, no
 gate). The cluster list is velocity normal, N = 20 and 40, the state
-detrixheAslam, c = 0.01, 0.1, 1, both controls and the comparators (16
-cases; `../run-benchmark.sbatch`). `growth_planeTranslation3D.csv` holds
-per davof case L1(alphaf) of the first 20 steps and the growth factors
-L1(k)/L1(k-1), `history_...csv` the sliver count of the advection step's
-reconstruction per step.
+detrixheAslam, c = 0.01, 0.1, 1, both controls, the four ring rows and the
+comparators (24 cases; `../run-benchmark.sbatch`).
+`growth_planeTranslation3D.csv` holds per davof case L1(alphaf) of the
+first 20 steps and the growth factors L1(k)/L1(k-1), `history_...csv` the
+sliver count of the advection step's reconstruction per step.
+`system/decomposeParDict` (two subdomains along x) serves the parallel
+check of the normal models.
+
+## Measured 2026-10-13 on the laptop at Co 0.2 (`*_laptopCo0.2.csv`)
+
+After the normal models, the phantom-plane fix of `davof::positionPlane`
+and the two flux bounds (`etc/README-davof.md`): EVERY row passes the
+1e-12 gate at N = 20 and 40 on both arms, the own normal included (max
+L1(alphaf) 2.6e-15 to 1.6e-14, max L1(n) 1.8e-15 to 6.4e-13, growth per
+step 0.94 to 1.23 geometric mean; the table with every row is in
+`etc/README-davof.md`). The own normal's normal arm, which grows 6.8 and
+23 per step at Co 0.5 (the cluster CSVs; bit-identical with this build
+at Co 0.5), is exact at Co 0.2 over ten steps: the sliver amplification
+is a Courant-number effect. The bounds never act on the plane (0 faces).
 
 Sanity of 2026-10-13 (N = 20, normal velocity, ten steps; L1(alphaf) per
 step): `davof-detrixheAslam` reproduces the history below (1.4e-7 at step

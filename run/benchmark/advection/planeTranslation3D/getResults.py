@@ -11,9 +11,9 @@ LCentreDiff1/2/Inf against the translated plane), volumeFractionError.dat
 log.advectorVoF, and writes
 
     results_planeTranslation3D.csv   one row per case: the row parameters
-                                     (scheme, davofMethod, sliverNormal,
-                                     sliverTol, normalSource), the maxima
-                                     over the steps and the last step
+                                     (scheme, davofMethod, normalModel,
+                                     applyTo, sliverTol, maxAngle, Co), the
+                                     maxima over the steps and the last step
     history_planeTranslation3D.csv   one row per case and step
     growth_planeTranslation3D.csv    one row per case: L1(alphaf) of the
                                      first 20 steps (L1_1 ... L1_20), the
@@ -24,7 +24,11 @@ log.advectorVoF, and writes
 Gate (the davof rows): max over the steps of L1(alphaf) < GATE and of
 LNormalDiff1 < GATE (1e-12); the maxima (Linf) are reported; the script
 exits non-zero on a failure. The comparator rows are reported, not gated.
+
+    python3 getResults.py                        # Cases/ -> results_/history_/growth_planeTranslation3D.csv
+    python3 getResults.py --cases DIR --suffix _laptopCo0.2   # another case tree, sibling CSV names
 """
+import argparse
 import csv
 import glob
 import math
@@ -36,7 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 NAME = os.path.basename(HERE)
 GATE = 1e-12
 NHIST = 20
-PARAMS = ["RECONSCHEME", "DAVOFMETHOD", "SLIVERNORMAL", "SLIVERTOL", "NORMALSOURCE"]
+PARAMS = ["RECONSCHEME", "DAVOFMETHOD", "NORMALMODEL", "APPLYTO", "SLIVERTOL", "MAXANGLE", "CO"]
 
 
 def read_param(path):
@@ -105,8 +109,15 @@ def growth_row(label, l1):
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--cases", default=os.path.join(HERE, "Cases"),
+                    help="the case tree <cases>/<velocity>/<row>/N<N> (default Cases/)")
+    ap.add_argument("--suffix", default="",
+                    help="suffix of the CSV names, results_<name><suffix>.csv (default none)")
+    a = ap.parse_args()
+
     results, history, growth = [], [], []
-    for case in sorted(glob.glob(os.path.join(HERE, "Cases", "*", "*", "N*"))):
+    for case in sorted(glob.glob(os.path.join(a.cases, "*", "*", "N*"))):
         par = read_param(os.path.join(case, "system", "simulationParameter"))
         af = read_dat(os.path.join(case, "areaFractionError.dat"))
         rec = read_dat(os.path.join(case, "error.dat"))
@@ -122,8 +133,9 @@ def main():
         vol_by_t = {r["Time"]: r for r in vol}
         label = {"velocity": par["VELOCITY"], "row": os.path.basename(os.path.dirname(case)),
                  "scheme": par["RECONSCHEME"], "davofMethod": par.get("DAVOFMETHOD", ""),
-                 "sliverNormal": par.get("SLIVERNORMAL", ""), "sliverTol": par.get("SLIVERTOL", ""),
-                 "normalSource": par.get("NORMALSOURCE", ""), "N": n, "h": h,
+                 "normalModel": par.get("NORMALMODEL", ""), "applyTo": par.get("APPLYTO", ""),
+                 "sliverTol": par.get("SLIVERTOL", ""), "maxAngle": par.get("MAXANGLE", ""),
+                 "Co": par.get("CO", ""), "N": n, "h": h,
                  "case": os.path.relpath(case, HERE)}
         maxima = {"L1": 0.0, "L2": 0.0, "Linf": 0.0, "consistency": 0.0,
                   "LNormalDiff1": 0.0, "LNormalDiffInf": 0.0, "LCentreDiff2_over_h": 0.0,
@@ -163,13 +175,13 @@ def main():
         if davof:
             growth.append(growth_row(label, l1hist))
     if not results:
-        print("[getResults] nothing found under Cases/")
+        print(f"[getResults] nothing found under {a.cases}")
         return 1
 
     for name, rows in (("results", results), ("history", history), ("growth", growth)):
         if not rows:
             continue
-        path = os.path.join(HERE, f"{name}_{NAME}.csv")
+        path = os.path.join(HERE, f"{name}_{NAME}{a.suffix}.csv")
         with open(path, "w", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0]))
             w.writeheader()

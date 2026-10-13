@@ -30,12 +30,14 @@ solvers
         wispTol         $WISPTOL;
         isoFaceTol      1e-14;
         surfCellTol     1e-8;
-        // davof: the mixed normal (the fallback normal of the sliver cells
-        // |m_c| < sliverTol h^2) and the source of every interface cell's
-        // normal; exactNormal is the translated plane of the exact control
-        sliverNormal    $SLIVERNORMAL;
+        // davof: the normal model (davofNormalModel.H) and where it replaces
+        // m_c (applyTo all, or check: the slivers |m_c| < sliverTol h^2 and
+        // the cells deviating by more than maxAngle degrees); exactNormal
+        // is the translated plane of the exact control
+        normalModel     $NORMALMODEL;
+        applyTo         $APPLYTO;
         sliverTol       $SLIVERTOL;
-        normalSource    $NORMALSOURCE;
+        maxAngle        $MAXANGLE;
         exactNormal
         {
             functionType plane;

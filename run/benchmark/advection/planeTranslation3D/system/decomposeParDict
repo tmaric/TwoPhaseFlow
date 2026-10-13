@@ -1,0 +1,30 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | www.openfoam.com                                |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      decomposeParDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// The parallel check of the davof normal models (etc/README-davof.md,
+// "Normal models"): decomposePar, mpirun -np 2 advectorVoF -parallel,
+// reconstructPar; the box is split along x, through the interface cells.
+numberOfSubdomains 2;
+
+method          simple;
+
+coeffs
+{
+    n           (2 1 1);
+}
+
+// ************************************************************************* //

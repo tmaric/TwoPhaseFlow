@@ -24,9 +24,10 @@ FoamFile
 // (origin (0.8 L, 0.9 L, 0.7878 L)): the plane meets only the x = L, y = L
 // and z = L boundaries, which are outflow (or zero-flux) boundaries for both
 // velocities, so no cut cell has an inflow boundary face (whose flux is the
-// boundary condition's, not the plane's). Ten steps of 0.5 h / |U| move the
-// plane by 2.5 h along U: n.x from 1.33 L to 1.58 L (VELOCITY normal, U = n)
-// or to 1.405 L (VELOCITY oblique, U = (1 0 0)), inside the corner
+// boundary condition's, not the plane's). Ten steps of Co h / |U| move the
+// plane by 10 Co h along U (Co 0.2: 2 h; the cluster runs of 2026-10-13 at
+// Co 0.5: 2.5 h): n.x from 1.33 L towards 1.58 L (VELOCITY normal, U = n)
+// or 1.405 L (VELOCITY oblique, U = (1 0 0)), inside the corner
 // (n.x < 1.6124 L).
 N 20;
 L 0.004;
@@ -40,19 +41,23 @@ VELOCITY normal;
 UX 0.3;
 UY 0.5;
 UZ 0.8124;
-DELTAT 1e-4;
-ENDTIME 1e-3;
+// the Courant number Co of the fixed time step DELTAT = Co h / |U|
+CO 0.2;
+DELTAT 4e-5;
+ENDTIME 4e-4;
 RECONSCHEME davof;
 // davof: alpha.water and alphaf.water from initDavofFields (DAVOFMETHOD);
 // setAlphaField: alpha.water from the case's setAlphaFieldDict (comparators)
 SETALPHAMETHOD davof;
 DAVOFMETHOD detrixheAslam;
 WISPTOL 1e-3;
-// the davof scheme's normal controls (davof.H): the fallback normal of the
-// sliver cells |m_c| < SLIVERTOL h^2 (none | Youngs | plicRDF) and the
-// source of every interface cell's normal (davof | exact | plicRDF)
-SLIVERNORMAL none;
+// the davof scheme's normal model (davofNormalModel.H): cellLocal | youngs |
+// plicRDF | exact | ringArea | ringFit, applied to all interface cells or
+// in check mode to the slivers |m_c| < SLIVERTOL h^2 and the cells deviating
+// from the model normal by more than MAXANGLE degrees
+NORMALMODEL cellLocal;
+APPLYTO all;
 SLIVERTOL 0;
-NORMALSOURCE davof;
+MAXANGLE 15;
 
 // ************************************************************************* //
