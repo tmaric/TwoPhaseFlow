@@ -124,6 +124,14 @@ Foam::advection::isoAdvection::isoAdvection
     nAlphafFallback_(0),
     nAlphafClipped_(0),
     nFluxSecondRing_(0),
+    boundSecondLayer_(modelDict().getOrDefault<bool>("boundSecondLayer", true)),
+    nBoundedBeyondRing_(0),
+    contentBound_(modelDict().getOrDefault<bool>("contentBound", true)),
+    planeFluxUpCell_(0),
+    dVfUpwindPlaneFace_(0),
+    nContentBoundFaces_(0),
+    nContentBoundCells_(0),
+    debugCell_(modelDict().getOrDefault<label>("debugCell", -1)),
     surfX0_(0),
     surfN0_(0),
     surfUn0_(0),
@@ -251,6 +259,12 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
         nAlphafFallback_ = 0;
         nAlphafClipped_ = 0;
         nFluxSecondRing_ = 0;
+        planeFluxUpCell_.resize(mesh_.nFaces());
+        planeFluxUpCell_ = -1;
+        dVfUpwindPlaneFace_.resize(mesh_.nFaces());
+        dVfUpwindPlaneFace_ = 0;
+        nContentBoundFaces_ = 0;
+        nContentBoundCells_ = 0;
         surfX0_.clear();
         surfN0_.clear();
         surfUn0_.clear();
@@ -383,7 +397,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                             // The flux is the plane's where the plane can
                             // speak for the upwind cell (planeFlux)
                             dVfIn[facei] =
-                                planeFlux(upCell, dVfPlane, dVfIn[facei]);
+                                planeFlux(facei, upCell, dVfPlane, dVfIn[facei]);
                         }
                     }
 
@@ -478,6 +492,12 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     if (storeAf)
     {
         sweepSecondRing(dt);
+
+        // The content bound of the cells the planes set fluxes for
+        if (contentBound_)
+        {
+            boundCellContent(dt);
+        }
     }
 
     // Synchronize processor patches
@@ -497,7 +517,16 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             << returnReduce(nAlphafFallback_, sumOp<label>())
             << " fallbacks, "
             << returnReduce(nAlphafClipped_, sumOp<label>())
-            << " clips" << endl;
+            << " clips";
+        if (contentBound_)
+        {
+            Info<< "; content bound on "
+                << returnReduce(nContentBoundFaces_, sumOp<label>())
+                << " faces of "
+                << returnReduce(nContentBoundCells_, sumOp<label>())
+                << " cells";
+        }
+        Info<< endl;
     }
 }
 
@@ -685,12 +714,125 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
         const label upCell = (internal && phif < 0) ? nei[f] : own[f];
         if (internal)
         {
-            dVfIn[f] = planeFlux(upCell, dVf, dVfIn[f]);
+            dVfIn[f] = planeFlux(f, upCell, dVf, dVfIn[f]);
         }
         else if (phif >= 0)
         {
-            setFaceValue(dVf_, f, planeFlux(upCell, dVf, faceValue(dVf_, f)));
+            setFaceValue(dVf_, f, planeFlux(f, upCell, dVf, faceValue(dVf_, f)));
             checkIfOnProcPatch(f);
+        }
+    }
+}
+
+
+void Foam::advection::isoAdvection::boundCellContent(const scalar dt)
+{
+    const cellList& cellFaces = mesh_.cells();
+    const labelList& own = mesh_.faceOwner();
+    const scalarField& V = mesh_.V();
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const surfaceScalarField::Boundary& phib = phi_.boundaryField();
+
+    // The cells with plane-set fluxes (planeFlux: their outflow faces)
+    bitSet marked(mesh_.nCells());
+    forAll(planeFluxUpCell_, facei)
+    {
+        if (planeFluxUpCell_[facei] >= 0)
+        {
+            marked.set(planeFluxUpCell_[facei]);
+        }
+    }
+
+    for (const label celli : marked)
+    {
+        const scalar Vc = V[celli];
+        const scalar aTol = 1e-12*Vc;
+        const scalar alphaW = alpha1In_[celli];
+
+        // The liquid and gas volumes leaving the cell with the current
+        // fluxes (1) and with the plane-set faces at upwind (0), and the
+        // volumes entering it
+        scalar outL0 = 0, outL1 = 0, inL = 0;
+        scalar outG0 = 0, outG1 = 0, inG = 0;
+
+        for (const label facei : cellFaces[celli])
+        {
+            scalar phif;
+            if (mesh_.isInternalFace(facei))
+            {
+                phif = phi_.primitiveField()[facei];
+            }
+            else
+            {
+                const label patchi = pbm.patchID()[facei - mesh_.nInternalFaces()];
+                if (!phib[patchi].size()) continue;   // empty patch
+                phif = phib[patchi][facei - pbm[patchi].start()];
+            }
+            const bool outflow = (own[facei] == celli) ? (phif >= 0) : (phif < 0);
+            const scalar magPhiDt = mag(phif)*dt;
+            const scalar l1 = mag(faceValue(dVf_, facei));
+
+            if (outflow)
+            {
+                const scalar l0 =
+                    (planeFluxUpCell_[facei] == celli)
+                  ? mag(dVfUpwindPlaneFace_[facei])
+                  : l1;
+                outL0 += l0; outL1 += l1;
+                outG0 += magPhiDt - l0; outG1 += magPhiDt - l1;
+            }
+            else
+            {
+                inL += l1;
+                inG += magPhiDt - l1;
+            }
+        }
+
+        // g(lambda) = out(lambda) - in - content <= 0, linear in lambda
+        const scalar gL0 = outL0 - inL - alphaW*Vc;
+        const scalar gL1 = outL1 - inL - alphaW*Vc;
+        const scalar gG0 = outG0 - inG - (1 - alphaW)*Vc;
+        const scalar gG1 = outG1 - inG - (1 - alphaW)*Vc;
+
+        scalar lambda = 1;
+        if (gL1 > aTol && gL1 > gL0)
+        {
+            lambda = min(lambda, max(-gL0/(gL1 - gL0), scalar(0)));
+        }
+        if (gG1 > aTol && gG1 > gG0)
+        {
+            lambda = min(lambda, max(-gG0/(gG1 - gG0), scalar(0)));
+        }
+
+        if (debug && celli == debugCell_)
+        {
+            Pout<< "boundCellContent: cell " << celli << " alpha " << alphaW
+                << " V " << Vc << " outL0 " << outL0 << " outL1 " << outL1
+                << " inL " << inL << " outG0 " << outG0 << " outG1 " << outG1
+                << " inG " << inG << " lambda " << lambda << nl;
+            for (const label facei : cellFaces[celli])
+            {
+                Pout<< "    face " << facei << " planeSetFor "
+                    << planeFluxUpCell_[facei] << " dVf "
+                    << faceValue(dVf_, facei) << " upwind "
+                    << dVfUpwindPlaneFace_[facei] << " phi dt "
+                    << faceValue(phi_, facei)*dt << nl;
+            }
+        }
+
+        if (lambda >= 1)
+        {
+            continue;
+        }
+
+        ++nContentBoundCells_;
+        for (const label facei : cellFaces[celli])
+        {
+            if (planeFluxUpCell_[facei] != celli) continue;
+            const scalar up = dVfUpwindPlaneFace_[facei];
+            const scalar cur = faceValue(dVf_, facei);
+            setFaceValue(dVf_, facei, up + lambda*(cur - up));
+            ++nContentBoundFaces_;
         }
     }
 }
@@ -714,6 +856,7 @@ bool Foam::advection::isoAdvection::planeSpeaks(const label upCell) const
 
 Foam::scalar Foam::advection::isoAdvection::planeFlux
 (
+    const label facei,
     const label upCell,
     const scalar dVfPlane,
     const scalar dVfUpwind
@@ -724,6 +867,8 @@ Foam::scalar Foam::advection::isoAdvection::planeFlux
         return dVfUpwind;
     }
     ++nFluxSecondRing_;
+    planeFluxUpCell_[facei] = upCell;
+    dVfUpwindPlaneFace_[facei] = dVfUpwind;
     return dVfPlane;
 }
 

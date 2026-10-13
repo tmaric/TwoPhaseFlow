@@ -140,12 +140,45 @@ void Foam::advection::isoAdvection::limitFluxes
 
     extendMarkedCells(needBounding);
 
+    // DAVOF: the second-ring sweep (timeIntegratedFlux) sets plane fluxes
+    // on the faces of the cells that share a face with a surface cell,
+    // i.e. on faces whose other cell lies one layer further out, and the
+    // extended plane of a curved interface can flux a full face out of
+    // such a cell although it holds no liquid. Extend the bounding by one
+    // more layer so that boundFlux corrects those cells too, and count
+    // the cells beyond the first layer it corrects.
+    const bool extendBounding =
+        (storeAreaFractions_ && alphafPtr_ && boundSecondLayer_);
+    bitSet firstLayer;
+    nBoundedBeyondRing_ = 0;
+    if (extendBounding)
+    {
+        firstLayer = needBounding;
+        extendMarkedCells(needBounding);
+    }
+
     // Loop number of bounding steps
     for (label n = 0; n < nAlphaBounds_; n++)
     {
         if (maxAlphaMinus1 > aTol || minAlpha < -aTol) // Note: tolerances
         {
             DebugInfo << "boundAlpha... " << endl;
+
+            if (extendBounding)
+            {
+                const scalar bTol = 10*SMALL;   // boundFlux's tolerance
+                for (const label celli : needBounding)
+                {
+                    if
+                    (
+                        !firstLayer.test(celli)
+                     && (alpha1_[celli] < -bTol || alpha1_[celli] > 1 + bTol)
+                    )
+                    {
+                        ++nBoundedBeyondRing_;
+                    }
+                }
+            }
 
             DynamicList<label> correctedFaces(3*nOvershoots);
             dVfcorrectionValues = dimensionedScalar("0",dimVolume,0.0);
@@ -211,6 +244,12 @@ void Foam::advection::isoAdvection::limitFluxes
 
     alpha1_.correctBoundaryConditions();
 
+    if (extendBounding)
+    {
+        Info<< "isoAdvection: bounding extended by a second layer: "
+            << returnReduce(nBoundedBeyondRing_, sumOp<label>())
+            << " cells corrected beyond the first layer" << endl;
+    }
 }
 
 

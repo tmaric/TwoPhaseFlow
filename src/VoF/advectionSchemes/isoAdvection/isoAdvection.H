@@ -189,6 +189,35 @@ class isoAdvection
             //  flux dVf is the plane's (planeFlux)
             label nFluxSecondRing_;
 
+            //- Extend the conservative bounding (limitFluxes) by a second
+            //  layer of cells when the face fractions are stored: the
+            //  second-ring sweep sets plane fluxes on faces whose other
+            //  cell lies beyond the first layer (dictionary key
+            //  boundSecondLayer, default true)
+            bool boundSecondLayer_;
+
+            //- Cells beyond the first layer the extended bounding corrected
+            //  in the step (summed over the bounding passes)
+            label nBoundedBeyondRing_;
+
+            //- The per-cell content bound of the plane-set fluxes
+            //  (boundCellContent; dictionary key contentBound, default true)
+            bool contentBound_;
+
+            //- Per face: the non-surface upwind cell for which planeFlux
+            //  set the plane's flux in this step (-1 otherwise), and the
+            //  upwind flux it replaced
+            labelList planeFluxUpCell_;
+            scalarField dVfUpwindPlaneFace_;
+
+            //- Faces and cells the content bound moved in the step
+            label nContentBoundFaces_;
+            label nContentBoundCells_;
+
+            //- The cell whose content bound is printed when debug is on
+            //  (dictionary key debugCell, default -1)
+            label debugCell_;
+
             //- The plane of every surface cell of the step (x0, n0, Un0),
             //  indexed as surfCells_; cellToSurf_ maps a cell to that index
             //  (-1: not a surface cell)
@@ -342,13 +371,25 @@ class isoAdvection
             bool planeSpeaks(const label upCell) const;
 
             //- The flux of such a face: the plane's where it speaks, else
-            //  the upwind flux
+            //  the upwind flux; records the face as plane-set for upCell
             scalar planeFlux
             (
+                const label facei,
                 const label upCell,
                 const scalar dVfPlane,
                 const scalar dVfUpwind
             );
+
+            //- The content bound: for every non-surface cell W with faces
+            //  whose flux a plane set (planeFlux), the liquid leaving W
+            //  through its faces may not exceed alpha_W V_W plus the liquid
+            //  entering it in this step, nor the gas (1 - alpha_W) V_W plus
+            //  the entering gas; when violated, the plane-set fluxes of W
+            //  are moved towards their upwind values by one factor
+            //  lambda in [0, 1] chosen so that the bound holds with
+            //  equality (the upwind fluxes satisfy it for cell Courant
+            //  numbers below one). Counts the bounded faces and cells.
+            void boundCellContent(const scalar dt);
 
             //- Check if the face is on processor patch and append it to the
             //  list of surface cell faces on processor patches
