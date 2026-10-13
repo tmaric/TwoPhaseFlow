@@ -1,0 +1,91 @@
+#!/bin/sh
+# Multidirectional PML studies; see README.md.
+#   A  accuracy: s/h = 2, 4, 8, monolithic, PML and enlarged-domain runs
+#   B  long-time scan to 50 ms: monolithic and segregated, Co 0.5/2/8,
+#      sigmaMax for R_c = 1e-2/1e-4/1e-8; monolithic also with L = 0.012 m
+# Tables: $OUT/studyA.csv, $OUT/studyB.csv (summarize_pml_study.py).
+# Usage: ./runStudy [A|B|all]     (outputs in ${STUDY_DIR:-studies})
+# Runs are independent and serial; ${JOBS:-8} of them run at once
+# (each uses up to about two cores). DRYRUN=1 lists the runs only.
+set -e
+cd "${0%/*}" || exit 1
+
+OUT=${STUDY_DIR:-studies}
+
+if [ "$1" = "--one" ]
+then
+    # Internal: run one variant, $2 its name, then VAR=value overrides.
+    name=$2
+    shift 2
+    dir=$OUT/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system caseParams.sh prepareCase prepare_pml.py \
+        postprocess_pml.py Allrun Allclean "$dir"/
+    if (cd "$dir" && env "$@" ./Allrun > run.out 2>&1)
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/run.out)"
+    fi
+    exit 0
+fi
+
+STUDY=${1:-all}
+LIST=$(mktemp)
+trap 'rm -f "$LIST"' EXIT
+
+add()
+{
+    echo "$*" >> "$LIST"
+}
+
+studyA()
+{
+    # Enlarged grids share the cell centres of the PML grids:
+    # (0.115 - 0.075)/h is an integer for all three h.
+    for h in 2e-3 1e-3 5e-4
+    do
+        common="CELL_SIZE=$h END_TIME=4e-4 SAMPLE_INTERVAL=1e-5 DOMAIN_PROBES=0"
+        add "A/pml_h$h $common"
+        add "A/enlarged_h$h $common ENLARGED=1"
+    done
+}
+
+studyB()
+{
+    common="CELL_SIZE=2e-3 END_TIME=0.05 SAMPLE_INTERVAL=1e-4 DOMAIN_PROBES=1"
+    for co in 0.5 2 8
+    do
+        for sigma in 1.26e5 2.53e5 5.05e5
+        do
+            for method in blockCoupled thetaNewmark
+            do
+                add "B/${method}_Co${co}_sigma$sigma $common COURANT=$co" \
+                    "SIGMA_MAX=$sigma TIME_METHOD=$method"
+            done
+            add "B/blockCoupled_L0.012_Co${co}_sigma$sigma $common" \
+                "COURANT=$co SIGMA_MAX=$sigma PML_THICKNESS=0.012"
+        done
+    done
+}
+
+case "$STUDY" in
+    A) studyA ;;
+    B) studyB ;;
+    all) studyA; studyB ;;
+    *) echo "Usage: $0 [A|B|all]" >&2; exit 1 ;;
+esac
+
+# Longest runs first (study B at Co 0.5, then the finest study A meshes).
+awk '/Co0.5_/ { print 0, $0; next } /h5e-4/ { print 1, $0; next }
+    { print 2, $0 }' "$LIST" | sort -s -k1,1n | cut -d' ' -f2- > "$LIST.order"
+mv "$LIST.order" "$LIST"
+if [ -n "$DRYRUN" ]
+then
+    cat "$LIST"
+    exit 0
+fi
+xargs -L1 -P "${JOBS:-8}" ./runStudy --one < "$LIST"
+
+python3 summarize_pml_study.py "$OUT"
