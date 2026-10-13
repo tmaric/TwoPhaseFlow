@@ -21,7 +21,7 @@ kl              #eval{1.0/($rhol*$cl*$cl)};
 
 // Mode frequency; also sets the radiation averaging window.
 f               __DRIVE_F__;
-radiationAveragePeriods 1;
+radiationAveragePeriods __RADIATION_PERIODS__;
 
 timeIntegrationMethod __TIME_METHOD__;
 timeIntegrationTheta  __THETA__;

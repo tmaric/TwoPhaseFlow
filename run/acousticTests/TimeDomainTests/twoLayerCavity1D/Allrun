@@ -22,3 +22,8 @@ fi
 
 python3 postprocess_two_layer.py > log.postprocess 2>&1
 tail -n 25 log.postprocess
+if [ "$RADIATION_CHECK" = 1 ]
+then
+    python3 postprocess_radiation.py > log.radiation 2>&1
+    tail -n 20 log.radiation
+fi

@@ -58,6 +58,7 @@ def main():
         "F": repr(freq), "TIME_METHOD": os.environ["TIME_METHOD"],
         "THETA": os.environ["THETA"],
         "BLOCK_SOLVER": os.environ["BLOCK_SOLVER"],
+        "RADIATION_PERIODS": os.environ["RADIATION_PERIODS"],
     })
     fill("system/blockMeshDict.in", "system/blockMeshDict", {
         "L": repr(length), "HALF_H": repr(0.5 * h), "NX": nx,
@@ -106,7 +107,7 @@ def main():
         "stepsPerPeriod": steps_per_period, "nPeriods": env("N_PERIODS", int),
         "probeStride": stride, "method": os.environ["TIME_METHOD"],
         "theta": env("THETA"), "blockSolver": os.environ["BLOCK_SOLVER"],
-        "nProcs": nprocs,
+        "nProcs": nprocs, "radiationPeriods": env("RADIATION_PERIODS"),
     }
     (CASE / "caseSetup.json").write_text(json.dumps(setup, indent=2) + "\n")
     print(f"mode {setup['mode']}: f = {freq:.6f} Hz, nx = {nx}, "

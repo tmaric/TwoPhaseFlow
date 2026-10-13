@@ -1,0 +1,40 @@
+#!/bin/sh
+# Radiation-average study C on the two-layer cavity (wavePML, radiation
+# averages): both hybrid modes, interface on a face, spatial
+# refinement with N_T = 80 CELLS_PER_UNIT and a five-period window.
+# Usage: ./runRadiationStudy       (outputs in ${STUDY_DIR:-studies}/radiation)
+set -e
+cd "${0%/*}" || exit 1
+
+OUT=${STUDY_DIR:-studies}/radiation
+
+variant()
+{
+    name=$1
+    shift
+    dir=$OUT/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system caseParams.sh prepareCase \
+        prepare_two_layer.py twoLayerModes.py postprocess_two_layer.py \
+        postprocess_radiation.py Allrun Allclean "$dir"/
+    if (cd "$dir" && env "$@" RADIATION_CHECK=1 ./Allrun > run.out 2>&1)
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/run.out)"
+        return 1
+    fi
+}
+
+for mode in lower upper
+do
+    for cpu in 1 2 4 8
+    do
+        variant "C/${mode}_CPU$cpu" MODE=$mode CELLS_PER_UNIT=$cpu \
+            STEPS_PER_PERIOD=$((80*cpu)) N_PERIODS=10 \
+            PROBE_SAMPLES_PER_PERIOD=16 RADIATION_PERIODS=5
+    done
+done
+
+python3 summarize_radiation_study.py "$OUT"

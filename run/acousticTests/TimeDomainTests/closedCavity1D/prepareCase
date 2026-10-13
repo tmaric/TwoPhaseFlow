@@ -32,6 +32,12 @@ K=$(calc "$MODE_N*$PI/$CAVITY_L")
 H=$(calc "$CAVITY_L/$NX")
 HALF_H=$(calc "0.5*$H")
 N_STEPS=$(calc "$STEPS_PER_PERIOD*$N_PERIODS")
+case "$N_STEPS" in
+    ''|*[!0-9]*)
+        echo "STEPS_PER_PERIOD*N_PERIODS = $N_STEPS is not an integer" >&2
+        exit 1
+        ;;
+esac
 DELTA_T=$(calc "1/($DRIVE_F*$STEPS_PER_PERIOD)")
 END_TIME=$(calc "$N_STEPS*$DELTA_T")
 
@@ -42,6 +48,7 @@ sed \
   -e "s|__TIME_METHOD__|${TIME_METHOD}|g" \
   -e "s|__THETA__|${THETA}|g" \
   -e "s|__BLOCK_SOLVER__|${BLOCK_SOLVER}|g" \
+  -e "s|__RADIATION_PERIODS__|${RADIATION_PERIODS}|g" \
   constant/transportProperties.in > constant/transportProperties
 
 sed \
@@ -89,6 +96,7 @@ cat > caseSetup.json <<EOF
   "probeStride": ${PROBE_STRIDE},
   "method": "${TIME_METHOD}",
   "theta": ${THETA},
-  "blockSolver": "${BLOCK_SOLVER}"
+  "blockSolver": "${BLOCK_SOLVER}",
+  "radiationPeriods": ${RADIATION_PERIODS}
 }
 EOF

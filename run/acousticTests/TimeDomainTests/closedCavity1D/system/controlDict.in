@@ -40,7 +40,7 @@ functions
         writeControl    timeStep;
         writeInterval   __PROBE_STRIDE__;
         writePrecision  16;
-        fields          (p pDot U);
+        fields          (p pDot U pr momFlux);
         #include        "probeLocations"
     }
 }

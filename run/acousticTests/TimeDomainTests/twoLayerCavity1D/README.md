@@ -68,3 +68,14 @@ energy. Results: `postProcessing/twoLayerVerification/`.
 `summarize_two_layer_study.py` writes `studies/study*.csv`;
 `plot_two_layer_results.py studies FIGURE.pdf TABLES.tex` writes the
 frequency-convergence figure and LaTeX table rows.
+
+## Radiation averages
+
+`pr` and `momFlux` are probed with the fields. With `RADIATION_CHECK=1`
+(serial, interface on a face), `postprocess_radiation.py` compares the
+running averages over `RADIATION_PERIODS` periods with the fully discrete
+solution, expanded in all discrete modes of the assembled operator, the
+exact mode averaged over the same window, and the exact means, separately
+for the gas and liquid interiors and the two cells next to the interface.
+`./runRadiationStudy` refines both hybrid modes (8 runs) and writes
+`studies/radiation/studyC.csv`.

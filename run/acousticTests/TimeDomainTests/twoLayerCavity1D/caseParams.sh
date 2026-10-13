@@ -44,3 +44,9 @@
 # 1: serial. 2: two ranks split at the interface; with an offset the
 # interface cell is the first cell of rank 1, next to the processor face.
 : "${NPROCS:=1}"
+
+# Radiation averages: window length in periods of the mode (the solver
+# rounds it to an integer number of steps). RADIATION_CHECK=1 runs
+# postprocess_radiation.py (serial runs with the interface on a face).
+: "${RADIATION_PERIODS:=1}"
+: "${RADIATION_CHECK:=0}"

@@ -1,0 +1,58 @@
+#!/bin/sh
+# Radiation-average studies on the cavity mode (wavePML, radiation
+# averages); see README.md.
+#   A  window length M0, integer and non-integer 2 M0
+#   B  spatial refinement with N_T = 10 N_lambda and M0 = 5
+# Usage: ./runRadiationStudy [A|B|all]  (outputs in ${STUDY_DIR:-studies})
+set -e
+cd "${0%/*}" || exit 1
+
+STUDY=${1:-all}
+OUT=${STUDY_DIR:-studies}/radiation
+
+variant()
+{
+    name=$1
+    shift
+    dir=$OUT/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system caseParams.sh prepareCase Allrun Allclean \
+        postprocess_cavity.py postprocess_radiation.py "$dir"/
+    if (cd "$dir" && env "$@" RADIATION_CHECK=1 ./Allrun > run.out 2>&1)
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/run.out)"
+        return 1
+    fi
+}
+
+studyA()
+{
+    for m in 0.5 1 2 5 10 20 0.7 1.3 2.3 5.3 10.3 20.3
+    do
+        variant "A/M$m" CELLS_PER_WAVELENGTH=40 STEPS_PER_PERIOD=40 \
+            PROBE_SAMPLES_PER_PERIOD=40 RADIATION_PERIODS=$m \
+            N_PERIODS=$(awk "BEGIN { print $m + 5 }")
+    done
+}
+
+studyB()
+{
+    for nl in 10 20 40 80 160
+    do
+        variant "B/NL$nl" CELLS_PER_WAVELENGTH=$nl \
+            STEPS_PER_PERIOD=$((10*nl)) PROBE_SAMPLES_PER_PERIOD=$((10*nl)) \
+            RADIATION_PERIODS=5 N_PERIODS=10
+    done
+}
+
+case "$STUDY" in
+    A) studyA ;;
+    B) studyB ;;
+    all) studyA; studyB ;;
+    *) echo "Usage: $0 [A|B|all]" >&2; exit 1 ;;
+esac
+
+python3 summarize_radiation_study.py "$OUT"

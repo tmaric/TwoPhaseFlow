@@ -29,3 +29,9 @@
 : "${THETA:=0.5}"
 # blockCoupled only: direct | iterative
 : "${BLOCK_SOLVER:=direct}"
+
+# Radiation averages: window length in periods of the continuous mode (the
+# solver rounds it to an integer number of steps). RADIATION_CHECK=1 runs
+# postprocess_radiation.py, which needs every step probed.
+: "${RADIATION_PERIODS:=1}"
+: "${RADIATION_CHECK:=0}"

@@ -68,3 +68,20 @@ writes the tables `studies/study*.csv` with observed orders.
 `plot_cavity_results.py studies FIGURE.pdf TABLES.tex` writes the study-A
 figure (modal amplitude and discrete-energy drift) and LaTeX table rows for
 all three studies.
+
+## Radiation averages
+
+`pr` and `momFlux` are probed with the fields. With `RADIATION_CHECK=1`
+(every step probed, theta rule), `postprocess_radiation.py` compares the
+running averages over `RADIATION_PERIODS` periods with the fully discrete
+mode, the exact mode averaged over the same window, and the exact means
+`pr = beta PA^2/4 cos(2 k x)`, `R_xx = beta PA^2/2 sin^2(k x)`. It also
+re-averages the probed `p` and `U` to isolate the averaging. Results:
+`postProcessing/radiationVerification/summary.json`.
+
+```bash
+./runRadiationStudy A   # window length, integer and non-integer (12 runs)
+./runRadiationStudy B   # spatial refinement, five-period window (5 runs)
+```
+
+Outputs and `studyA.csv`, `studyB.csv` are written to `studies/radiation/`.
