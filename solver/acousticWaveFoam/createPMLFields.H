@@ -98,7 +98,8 @@ volVectorField u
         "u",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        // Read when present, e.g. to start from a prescribed state.
+        IOobject::READ_IF_PRESENT,
         IOobject::AUTO_WRITE
     ),
     mesh,
@@ -202,7 +203,8 @@ volScalarField v
         "v",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        // Read when present, e.g. to start from a prescribed state.
+        IOobject::READ_IF_PRESENT,
         IOobject::AUTO_WRITE
     ),
     mesh,

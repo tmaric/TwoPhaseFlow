@@ -169,6 +169,20 @@ if (timeIntegrationTheta < 0.5 || timeIntegrationTheta > 1)
 
 Info<< "Time-integration theta = " << timeIntegrationTheta << endl;
 
+// Diagnostic option of the segregated update: damp the PML auxiliary
+// field with a backward Euler step instead of the explicit damping term.
+const bool segregatedImplicitPMLDamping =
+    transportProperties.getOrDefault<bool>
+    (
+        "segregatedImplicitPMLDamping",
+        false
+    );
+
+if (segregatedImplicitPMLDamping)
+{
+    Info<< "Segregated PML damping = implicit (diagnostic)" << endl;
+}
+
 scalar MaxCo =
     max(mesh.surfaceInterpolation::deltaCoeffs()*cg).value()
    *runTime.deltaT().value();

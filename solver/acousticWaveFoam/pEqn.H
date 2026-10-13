@@ -13,14 +13,33 @@ while (pimple.correctNonOrthogonal())
         );
         vEqn.solve();
 
-        fvVectorMatrix uEqn
-        (
-            fvm::ddt(u)
-          + (TC0 & u)
-          + (T1 & fvc::grad(p))
-          - (T2 & fvc::grad(v))
-        );
-        uEqn.solve();
+        if (segregatedImplicitPMLDamping)
+        {
+            // u has no spatial operator, so the damping is applied cellwise:
+            // (I + dt TC0) u^{n+1} = u^n - dt (T1 grad p - T2 grad v).
+            fvVectorMatrix uEqn
+            (
+                fvm::ddt(u)
+              + (T1 & fvc::grad(p))
+              - (T2 & fvc::grad(v))
+            );
+            uEqn.solve();
+            u.primitiveFieldRef() =
+                inv(tensor::I + deltaT.value()*TC0.primitiveField())
+              & u.primitiveField();
+            u.correctBoundaryConditions();
+        }
+        else
+        {
+            fvVectorMatrix uEqn
+            (
+                fvm::ddt(u)
+              + (TC0 & u)
+              + (T1 & fvc::grad(p))
+              - (T2 & fvc::grad(v))
+            );
+            uEqn.solve();
+        }
 
         fvScalarMatrix pEqn
         (
