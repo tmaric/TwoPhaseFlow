@@ -15,6 +15,7 @@
 # The cases are serial; the sphere at N = 128 holds 4.2e6 cells (a few GB
 # each, eight of them in the cluster list), hence the whole node's memory.
 #SBATCH -J davof-advection
+#SBATCH -A special00004
 #SBATCH --nodes=1
 #SBATCH --ntasks=24
 #SBATCH --cpus-per-task=1
