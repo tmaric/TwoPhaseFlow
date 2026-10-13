@@ -1,17 +1,10 @@
 #!/bin/bash
-# The sphere-translation ladder end to end: generate, run (coarse to fine, one
-# case at a time, timed), collect.
+# The sphere-translation ladder end to end: generate, run, collect (the shared
+# runner ../runAll-common.sh: --jobs K, --cases FILE, --case DIR, --gen, the
+# rest to genCases.py).
 #     source $HOME/OpenFOAM/OpenFOAM-v2606/etc/bashrc && . <repo>/etc/davof-env.sh
-#     ./runAll.sh --N 32 64              # the local ladder
-#     ./runAll.sh                        # N = 32, 64, 128 (128: 4.2e6 cells)
+#     ./runAll.sh --N 32 64                     # the local ladder, one case at a time
+#     ./runAll.sh --jobs 24                     # the cluster list (24 cases: 8 rows x 3 N)
+#     ./runAll.sh --case Cases/davof-quadraticFaces-exact/N32
 cd "${0%/*}" || exit 1
-python3 genCases.py "$@" || exit 1
-for n in $(ls -d Cases/*/N* | sed 's:.*/N::' | sort -n | uniq); do
-    for c in Cases/*/N$n/; do
-        t0=$(date +%s)
-        (cd "$c" && ./Allrun > log.Allrun 2>&1)
-        rc=$?
-        echo "$c rc=$rc  $(( $(date +%s) - t0 )) s"
-    done
-done
-python3 getResults.py
+BENCH_GLOB='Cases/*/N*' exec bash ../runAll-common.sh "$@"

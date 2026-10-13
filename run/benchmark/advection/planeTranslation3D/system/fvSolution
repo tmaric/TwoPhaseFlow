@@ -30,6 +30,19 @@ solvers
         wispTol         $WISPTOL;
         isoFaceTol      1e-14;
         surfCellTol     1e-8;
+        // davof: the mixed normal (the fallback normal of the sliver cells
+        // |m_c| < sliverTol h^2) and the source of every interface cell's
+        // normal; exactNormal is the translated plane of the exact control
+        sliverNormal    $SLIVERNORMAL;
+        sliverTol       $SLIVERTOL;
+        normalSource    $NORMALSOURCE;
+        exactNormal
+        {
+            functionType plane;
+            origin      ($PX $PY $PZ);
+            normal      ($NX $NY $NZ);
+            U0          ($UX $UY $UZ);
+        }
         vof2IsoTol      1e-8;
         writeVTK        false;
         snapTol         0;

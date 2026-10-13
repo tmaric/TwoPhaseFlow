@@ -19,8 +19,31 @@ boundedness error). The runs end at the end time whatever the state does.
 
 ```
 ./runAll.sh --N 32 64          # the local ladder (N = 128: 4.2e6 cells)
-python3 getResults.py          # results_/orders_/history_sphereTranslation3D.csv
+./runAll.sh --jobs 24          # the cluster list, 24 cases at a time (../run-benchmark.sbatch)
+./runAll.sh --case Cases/davof-quadraticFaces-exact/N32   # one case, no generation
+python3 genCases.py --list     # the case list without generating
+python3 getResults.py          # results_/orders_/history_/growth_sphereTranslation3D.csv
 ```
+
+Rows since 2026-10-13 (`../advectionRows.py`; a row is scheme, davofMethod,
+sliverNormal, sliverTol, normalSource in `system/simulationParameter`):
+`davof-<method>` (every interface cell the DAVOF normal),
+`davof-<method>-Youngs<c>` (the mixed normal after Basilisk's
+Youngs-centred scheme: slivers |m_c| < c h^2 take `fvc::grad(alpha)`),
+`davof-<method>-exact` (control: every interface cell the exact normal of
+the translated sphere at the plane centroid, alphaf still transported by
+the moved plane), `davof-<method>-plicRDF` (control: every normal from
+plicRDF), optionally `davof-<method>-sliverPlicRDF<c>`, and the comparators
+`plicRDF` and `isoAlpha`. The cluster list is the state quadraticFaces,
+c = 0.01, 0.1, 1, both controls and the comparators at N = 32, 64, 128 (24
+cases, one node, `sbatch --export=ALL,REPO=...,BENCH=$PWD
+../run-benchmark.sbatch`); `--davofMethod detrixheAslam` gives the same
+rows on the Detrixhe-Aslam state. `growth_sphereTranslation3D.csv` holds
+per davof case L1(alphaf) of the first 20 steps and the growth factors
+L1(k)/L1(k-1); `history_...csv` the sliver count of the advection step's
+reconstruction per step. If the `exact` row is stable and first order the
+face update is sound and the own-normal feedback is the culprit (the plane
+gate says so at N = 20, `../planeTranslation3D/README.md`).
 
 `getResults.py` prints per row and N the final L1(alphaf), the normal error
 (L1, L2), the centre error (L1, L2), E1 with the pairwise orders over N, the

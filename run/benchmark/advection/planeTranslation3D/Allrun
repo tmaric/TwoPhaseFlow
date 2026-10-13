@@ -4,8 +4,15 @@ cd ${0%/*} || exit 1    # Run from this directory
 
 restore0Dir
 runApplication blockMesh
-# the DAVOF state (alpha.water and the face fractions alphaf.water)
-runApplication initDavofFields
+# SETALPHAMETHOD davof: the DAVOF state (alpha.water and the face fractions
+# alphaf.water) from initDavofFields (DAVOFMETHOD); otherwise OpenFOAM's
+# setAlphaField (the comparator rows plicRDF and isoAlpha)
+setAlpha=$(sed -n 's/^SETALPHAMETHOD[[:space:]]*\([^;]*\);.*/\1/p' system/simulationParameter)
+if [ "$setAlpha" = davof ]; then
+    runApplication initDavofFields
+else
+    runApplication setAlphaField
+fi
 runApplication advectorVoF
 # the error tables next to the case for getResults.py
 cp postProcessing/areaFractionError/0/areaFractionError.dat areaFractionError.dat

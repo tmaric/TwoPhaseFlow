@@ -40,5 +40,11 @@ RECONSCHEME davof;
 SETALPHAMETHOD davof;
 DAVOFMETHOD quadraticFaces;
 WISPTOL 1e-3;
+// the davof scheme's normal controls (davof.H): the fallback normal of the
+// sliver cells |m_c| < SLIVERTOL h^2 (none | Youngs | plicRDF) and the
+// source of every interface cell's normal (davof | exact | plicRDF)
+SLIVERNORMAL none;
+SLIVERTOL 0;
+NORMALSOURCE davof;
 
 // ************************************************************************* //

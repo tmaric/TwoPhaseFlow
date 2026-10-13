@@ -122,6 +122,53 @@ change, alpha and interfaceNormal). Dictionary keys of the alpha solver:
 `storeAreaFractions` (default: the scheme is davof), the davof scheme's
 `wispTol` (default 1e-3 since this step, leia's value), `isoFaceTol`.
 
+### The mixed normal and the normal-source controls (2026-10-13)
+
+The closed loop (own normal from alphaf, the alpha-positioned plane, alphaf
+from the moved plane) amplifies through sliver interface cells (small
+|m_c| compared with h^2: the positioned plane's sensitivity h/A, the own
+normal's 1/A). Following Basilisk's mixed Youngs-centred scheme (Aulisa et
+al. 2007, `src/myc.h`) the `davof` scheme keeps the slivers as interface
+cells and gives them a stencil normal; keys of the alpha solver dictionary
+(`davof.H`):
+
+- `sliverNormal` (`none` | `Youngs` | `plicRDF`, default `none`) and
+  `sliverTol` (c, default 0.1): a cell is a sliver when
+  |m_c| < c V_c^(2/3). For the slivers the plane is positioned by alpha
+  along the fallback normal: `Youngs` = `fvc::grad(alpha)` (points into
+  alpha = 1 like m_c and `normal_`; gradAlpha's convention), `plicRDF` =
+  the normal of a helper plicRDF scheme owned by the davof scheme,
+  reconstructed on the same alpha whenever the davof scheme is (its
+  `interfaceNormal`/`interfaceCentre` fields and its `reconstructionScheme`
+  dictionary are refused by the registry, which keeps the davof scheme's).
+  A sliver whose fallback normal is zero keeps m_c and is counted ("kept
+  m"). The non-slivers keep the DAVOF normal. The Info line prints the
+  sliver count per reconstruction; `sliverFlag.<group>` is written (1 in
+  slivers).
+- `normalSource` (`davof` | `exact` | `plicRDF`, default `davof`): the
+  controls. `exact`: EVERY interface cell takes the exact normal of the
+  implicit function of the `exactNormal` sub-dictionary (`functionType`,
+  `origin` at t = 0, `U0`, the function's keys, as in `areaFractionError`)
+  translated by U0 t, i.e. grad value at the centroid of the plane
+  positioned by alpha along m_c (the cell centre when that plane does not
+  exist), alphaf still transported by the moved plane; `plicRDF`: every
+  normal from the helper plicRDF. The state time of `exact`: the first
+  reconstruction of a time index is the advection step's and describes the
+  state at t - dt, every later one in the same index (the function objects
+  at the end of the step) the state at t, the constructor's the state at
+  the start time; the time used is printed. The explicit position and the
+  two plane defects are always formed from m_c.
+
+Sanity on the plane (normal velocity, N = 20, ten steps, 2026-10-13;
+`run/benchmark/advection/planeTranslation3D`): `exact` stays at round-off
+for all ten steps (max L1(alphaf) 7.5e-15, max L1(n) 4.7e-15: the face
+update is sound, the growth is the own-normal feedback); `davof` reproduces
+the earlier history (1.4e-7 after ten steps); `Youngs 0.1` marks 38 of 208
+cells and starts at 2.9e-4 (the Youngs normal of a plane is not exact) and
+grows by about 2 per step to 0.19; the `plicRDF` normal starts at 4.7e-5
+and ends at 2.2e-2. The sphere ladder on the cluster decides
+(`run/benchmark/advection/run-benchmark.sbatch`).
+
 The function object `areaFractionError` (`src/postProcessing`) measures the
 transported face fractions against the exact DAVOF state of an implicit
 function translated by `U0 t` (davofInit: `exactSphere`, `quadraticFaces`

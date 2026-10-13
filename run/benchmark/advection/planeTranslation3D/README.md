@@ -31,10 +31,44 @@ normal and centre errors of the reconstructed plane per step
 writes E1 = sum |alpha - alpha_exact| V.
 
 ```
-./runAll.sh                    # genCases.py (N = 20, both velocities, both states) -> Cases/ -> getResults.py
-./runAll.sh --N 40
-python3 getResults.py          # results_/history_planeTranslation3D.csv and the gate
+./runAll.sh                    # genCases.py (the cluster list: velocity normal, N = 20 40, the rows below) -> Cases/ -> getResults.py
+./runAll.sh --jobs 8 --N 20    # eight cases at a time
+./runAll.sh --N 20 --velocity normal oblique --rows davof-detrixheAslam   # the 2026-10-12 gate
+./runAll.sh --case Cases/normal/davof-detrixheAslam-exact/N20             # one case, no generation
+python3 genCases.py --list     # the case list without generating
+python3 getResults.py          # results_/history_/growth_planeTranslation3D.csv and the gate
 ```
+
+Rows since 2026-10-13 (`../advectionRows.py`; a row is scheme, davofMethod,
+sliverNormal, sliverTol, normalSource in `system/simulationParameter`;
+`Cases/<velocity>/<row>/N<N>`): `davof-<method>` (every interface cell the
+DAVOF normal), `davof-<method>-Youngs<c>` (the mixed normal: slivers
+|m_c| < c h^2 take `fvc::grad(alpha)`), `davof-<method>-exact` (control:
+every interface cell the exact normal of the translated plane, alphaf still
+transported by the moved plane), `davof-<method>-plicRDF` (control: every
+normal from plicRDF), optionally `davof-<method>-sliverPlicRDF<c>`, and the
+comparators `plicRDF` and `isoAlpha` on the `setAlphaField` state (no face
+fractions: L1(alphaf) is -1, the normal and centre errors are reported, no
+gate). The cluster list is velocity normal, N = 20 and 40, the state
+detrixheAslam, c = 0.01, 0.1, 1, both controls and the comparators (16
+cases; `../run-benchmark.sbatch`). `growth_planeTranslation3D.csv` holds
+per davof case L1(alphaf) of the first 20 steps and the growth factors
+L1(k)/L1(k-1), `history_...csv` the sliver count of the advection step's
+reconstruction per step.
+
+Sanity of 2026-10-13 (N = 20, normal velocity, ten steps; L1(alphaf) per
+step): `davof-detrixheAslam` reproduces the history below (1.4e-7 at step
+10); `davof-detrixheAslam-exact` stays at round-off, 3.7e-15, 3.5e-15,
+3.1e-15, 4.2e-15, 4.6e-15, 4.2e-15, 4.7e-15, 7.5e-15, 4.8e-15, 3.4e-15
+(max L1(n) 4.7e-15, PASS: the face update is sound, the growth is the
+own-normal feedback); `davof-detrixheAslam-Youngs0.1` marks 38 of 208
+interface cells as slivers at t = 0 and reads 2.9e-4, 8.6e-4, 2.3e-3,
+4.3e-3, 7.4e-3, 1.0e-2, 2.4e-2, 1.3e-1, 9.9e-2, 1.9e-1 (the Youngs normal
+of a plane is not exact, so the gate is no longer at round-off by
+construction; growth about 2 per step); `davof-detrixheAslam-plicRDF` reads
+4.7e-5, 6.3e-4, 3.5e-3, 6.5e-3, 1.1e-2, 1.5e-2, 1.2e-2, 2.2e-2, 2.2e-2,
+2.2e-2 (plicRDF's normal at the box corner). The N = 40 rows and the sphere
+ladder run on the cluster.
 
 Gate (`getResults.py`, pre-registered): max over the ten steps of L1(alphaf)
 below 1e-12 and of the mean normal error L1(n) below 1e-12 for every case;

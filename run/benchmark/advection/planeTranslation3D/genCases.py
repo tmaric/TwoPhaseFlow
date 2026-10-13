@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
 """Generate the plane-translation gate cases under Cases/.
 
-Cases/<velocity>/<davofMethod>/N<N>/ is a copy of this directory (the base
-case) with system/simulationParameter rewritten: the velocity (normal: U = n,
-the plane's unit normal; oblique: U = (1 0 0)), the DAVOF state construction
-(detrixheAslam, quadraticFaces: both exact for a plane) and N. The time step
-is 0.5 h / |U| (|U| = 1 for both velocities) and the end time ten steps.
+Cases/<velocity>/<row>/N<N>/ is a copy of this directory (the base case)
+with system/simulationParameter rewritten: the velocity (normal: U = n, the
+plane's unit normal; oblique: U = (1 0 0)), the row (../advectionRows.py:
+the davof scheme on the initDavofFields state with its normal controls
+sliverNormal/sliverTol/normalSource, and the comparators plicRDF and
+isoAlpha on the setAlphaField state) and N. The time step is 0.5 h / |U|
+(|U| = 1 for both velocities) and the end time ten steps.
 
-    python3 genCases.py
-    python3 genCases.py --N 20 40 --velocity normal --davofMethod quadraticFaces
+Default: the cluster list, velocity normal (the arm that grew), N = 20 and
+40, the state detrixheAslam (quadraticFaces is identical for a plane), rows
+davof, Youngs 0.01 / 0.1 / 1, exact, plicRDF, and the comparators.
+
+    python3 genCases.py                                   # the cluster list
+    python3 genCases.py --N 20 --velocity normal oblique --rows davof-detrixheAslam
+    python3 genCases.py --list                            # print the case list only
 """
 import argparse
 import os
 import re
 import shutil
 import stat
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(HERE))
+import advectionRows  # noqa: E402
+
 VELOCITIES = {"normal": (0.3, 0.5, 0.8124), "oblique": (1.0, 0.0, 0.0)}
 METHODS = ["detrixheAslam", "quadraticFaces"]
 NSTEPS = 10
@@ -48,11 +59,27 @@ def set_param(path, values):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--N", nargs="+", type=int, default=[20])
-    ap.add_argument("--velocity", nargs="+", default=list(VELOCITIES))
-    ap.add_argument("--davofMethod", nargs="+", default=METHODS)
+    ap.add_argument("--N", nargs="+", type=int, default=[20, 40])
+    ap.add_argument("--velocity", nargs="+", default=["normal"], choices=list(VELOCITIES))
+    ap.add_argument("--davofMethod", nargs="+", default=["detrixheAslam"], choices=METHODS)
+    ap.add_argument("--youngsTol", nargs="*", type=float, default=advectionRows.DEFAULT_YOUNGS_TOLS,
+                    help="sliverTol values of the Youngs rows")
+    ap.add_argument("--sliverPlicRDFTol", nargs="*", type=float, default=[],
+                    help="sliverTol values of the sliver-plicRDF rows (none by default)")
+    ap.add_argument("--rows", nargs="+", default=None,
+                    help="row names to generate (default: every row of the list)")
+    ap.add_argument("--noComparators", action="store_true")
+    ap.add_argument("--list", action="store_true", help="print the case list, generate nothing")
     ap.add_argument("--out", default=os.path.join(HERE, "Cases"))
     a = ap.parse_args()
+
+    rows = advectionRows.all_rows(a.davofMethod, a.youngsTol, a.sliverPlicRDFTol,
+                                  comparators=not a.noComparators)
+    if a.rows:
+        unknown = [r for r in a.rows if r not in rows]
+        if unknown:
+            sys.exit(f"[genCases] unknown rows {unknown}; known: {list(rows)}")
+        rows = {r: rows[r] for r in a.rows}
 
     base = read_param(os.path.join(HERE, "system", "simulationParameter"))
     L = float(base["L"])
@@ -60,21 +87,26 @@ def main():
     for vel in a.velocity:
         ux, uy, uz = VELOCITIES[vel]
         umag = (ux*ux + uy*uy + uz*uz)**0.5
-        for method in a.davofMethod:
+        for row, vals in rows.items():
             for n in a.N:
-                dest = os.path.join(a.out, vel, method, f"N{n}")
+                dest = os.path.join(a.out, vel, row, f"N{n}")
+                if a.list:
+                    print(os.path.relpath(dest, HERE))
+                    continue
                 if os.path.isdir(dest):
                     shutil.rmtree(dest)
                 shutil.copytree(HERE, dest, ignore=IGNORE)
                 dt = 0.5*(L/n)/umag
-                set_param(os.path.join(dest, "system", "simulationParameter"),
-                          {"N": n, "VELOCITY": vel, "UX": ux, "UY": uy, "UZ": uz,
-                           "DELTAT": f"{dt:.10g}", "ENDTIME": f"{NSTEPS*dt:.10g}",
-                           "DAVOFMETHOD": method})
+                p = {"N": n, "VELOCITY": vel, "UX": ux, "UY": uy, "UZ": uz,
+                     "DELTAT": f"{dt:.10g}", "ENDTIME": f"{NSTEPS*dt:.10g}"}
+                p.update(advectionRows.complete(vals))
+                set_param(os.path.join(dest, "system", "simulationParameter"), p)
                 for s in ("Allrun", "Allclean"):
-                    p = os.path.join(dest, s)
-                    os.chmod(p, os.stat(p).st_mode | stat.S_IXUSR | stat.S_IXGRP)
+                    sp = os.path.join(dest, s)
+                    os.chmod(sp, os.stat(sp).st_mode | stat.S_IXUSR | stat.S_IXGRP)
                 made.append(dest)
+    if a.list:
+        return
     print(f"[genCases] {len(made)} cases under {a.out}")
     for d in made:
         print("  ", os.path.relpath(d, HERE))

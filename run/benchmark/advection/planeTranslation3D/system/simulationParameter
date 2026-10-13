@@ -43,7 +43,16 @@ UZ 0.8124;
 DELTAT 1e-4;
 ENDTIME 1e-3;
 RECONSCHEME davof;
+// davof: alpha.water and alphaf.water from initDavofFields (DAVOFMETHOD);
+// setAlphaField: alpha.water from the case's setAlphaFieldDict (comparators)
+SETALPHAMETHOD davof;
 DAVOFMETHOD detrixheAslam;
 WISPTOL 1e-3;
+// the davof scheme's normal controls (davof.H): the fallback normal of the
+// sliver cells |m_c| < SLIVERTOL h^2 (none | Youngs | plicRDF) and the
+// source of every interface cell's normal (davof | exact | plicRDF)
+SLIVERNORMAL none;
+SLIVERTOL 0;
+NORMALSOURCE davof;
 
 // ************************************************************************* //
