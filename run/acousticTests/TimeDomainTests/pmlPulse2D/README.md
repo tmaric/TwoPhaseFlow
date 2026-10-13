@@ -57,3 +57,24 @@ and aborts the solver at exit.
 - `maxima.csv`: the maxima of `|p|`, `|psi|`, `|w|` over the whole domain;
 - growth rates over the last quarter of the run, each classified as
   decaying, bounded or growing (factor outside `[1/1.05, 1.05]`).
+
+## Amplification matrices (study C)
+
+Both time updates are linear one-step maps of the cell states. With `p`,
+`p_0`, `pDot`, `v` and `u` read from the start time, `amplification.py`
+forms the matrix `G` column by column: one solver step from `e_j + r`
+minus one step from `r`, for a fixed random state `r` (unit states can
+break down the iterative pressure solve). The state is (p, pDot, psi, w)
+per cell and, for the segregated update, whose PML pressure equation uses
+three time levels, also p^{n-1}. A step from a random state checks
+linearity. `analyse_amplification.py` reports the spectral radius, the
+eigenvalues outside the unit circle, the Jordan structure at g = 1 on the
+active state (w in cells without PML stays zero and is removed), the norms
+of G^n up to n = 2^20, the semidiscrete spectrum of the monolithic update,
+and the explicit-damping radius |1 - sigma dt| of the outermost PML cell.
+`SEGREGATED_IMPLICIT_DAMPING=1` selects the diagnostic segregated variant
+that damps w implicitly.
+
+```bash
+./runSpectralStudy     # 34 matrices on the 16 x 16 mesh, studies/C/studyC.csv
+```

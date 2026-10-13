@@ -90,6 +90,7 @@ radiationAveragePeriods 0.1;
 timeIntegrationMethod {os.environ['TIME_METHOD']};
 timeIntegrationTheta  {os.environ['THETA']};
 timeBlockLinearSolver {os.environ['BLOCK_SOLVER']};
+segregatedImplicitPMLDamping {'true' if env('SEGREGATED_IMPLICIT_DAMPING', int) else 'false'};
 acousticDampingRate   0;
 
 // Cartesian PML of thickness L inside the box, read by setPMLFields.
@@ -190,6 +191,7 @@ functions
         "method": os.environ["TIME_METHOD"], "theta": env("THETA"),
         "blockSolver": os.environ["BLOCK_SOLVER"],
         "domainProbes": env("DOMAIN_PROBES", int) == 1,
+        "segregatedImplicitDamping": env("SEGREGATED_IMPLICIT_DAMPING", int) == 1,
     }
     write("caseSetup.json", json.dumps(setup, indent=2) + "\n")
     print(f"{dim}D {'enlarged' if enlarged else 'PML'}: {n}^{dim} cells, "

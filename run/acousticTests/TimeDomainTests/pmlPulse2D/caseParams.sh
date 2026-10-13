@@ -44,3 +44,6 @@
 : "${TIME_METHOD:=blockCoupled}"
 : "${THETA:=0.5}"
 : "${BLOCK_SOLVER:=direct}"
+# Segregated only, diagnostic: 1 damps w with a backward Euler step instead
+# of the explicit damping term.
+: "${SEGREGATED_IMPLICIT_DAMPING:=0}"

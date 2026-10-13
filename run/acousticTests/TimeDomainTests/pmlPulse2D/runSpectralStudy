@@ -1,0 +1,56 @@
+#!/bin/sh
+# Multidirectional PML study C: amplification matrices on a 16 x 16 mesh
+# (8 physical cells and 4 PML cells per side, h = 2 mm); see README.md.
+#   validation  monolithic, zero PML rates (closed-cavity eigenvalues)
+#   main        Co 0.5/2/8 x sigmaMax 1.26/2.53/5.05e5 for the monolithic,
+#               segregated and diagnostic segregated (implicit damping)
+#               updates
+#   scan        segregated, Co 2, sigma dt of the outermost PML cell
+#               1.6 ... 2.5 across the explicit-damping limit 2
+# Usage: ./runSpectralStudy        (outputs in ${STUDY_DIR:-studies}/C)
+# Each matrix runs ${JOBS:-24} one-step solver runs at once.
+set -e
+cd "${0%/*}" || exit 1
+
+OUT=${STUDY_DIR:-studies}/C
+REDUCED="HALF_WIDTH=0.008 PML_THICKNESS=0.008 CELL_SIZE=0.002"
+
+matrix()
+{
+    name=$1
+    shift
+    dir=$OUT/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    if env $REDUCED "$@" python3 amplification.py "$dir" > "$dir/log.amplification" 2>&1 \
+        && python3 analyse_amplification.py "$dir" > "$dir/log.analysis" 2>&1
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/log.*)"
+    fi
+}
+
+matrix validation_sigma0 TIME_METHOD=blockCoupled COURANT=2 SIGMA_MAX=0
+
+for co in 0.5 2 8
+do
+    for sigma in 1.26e5 2.53e5 5.05e5
+    do
+        set -- COURANT=$co SIGMA_MAX=$sigma
+        matrix "monolithic_Co${co}_sigma$sigma" "$@" TIME_METHOD=blockCoupled
+        matrix "segregated_Co${co}_sigma$sigma" "$@" TIME_METHOD=thetaNewmark
+        matrix "segregatedImplicit_Co${co}_sigma$sigma" "$@" \
+            TIME_METHOD=thetaNewmark SEGREGATED_IMPLICIT_DAMPING=1
+    done
+done
+
+# Outermost cell: sigma = sigmaMax (7/8)^3; Co 2 gives dt = 4 mm/c.
+for target in 1.6 1.8 1.9 2.1 2.2 2.5
+do
+    sigma=$(awk "BEGIN { printf \"%.6g\", $target/((7/8)^3*2*0.002/343) }")
+    matrix "scan_sigmaDt$target" TIME_METHOD=thetaNewmark COURANT=2 \
+        SIGMA_MAX=$sigma
+done
+
+python3 summarize_spectral_study.py "$OUT"
