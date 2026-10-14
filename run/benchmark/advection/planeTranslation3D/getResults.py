@@ -40,7 +40,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 NAME = os.path.basename(HERE)
 GATE = 1e-12
 NHIST = 20
-PARAMS = ["RECONSCHEME", "DAVOFMETHOD", "NORMALMODEL", "APPLYTO", "SLIVERTOL", "MAXANGLE", "CO"]
+PARAMS = ["RECONSCHEME", "DAVOFMETHOD", "NORMALMODEL", "APPLYTO", "SLIVERTOL", "MAXANGLE",
+          "NONORMALFALLBACK", "CO"]
 
 
 def read_param(path):
@@ -135,6 +136,7 @@ def main():
                  "scheme": par["RECONSCHEME"], "davofMethod": par.get("DAVOFMETHOD", ""),
                  "normalModel": par.get("NORMALMODEL", ""), "applyTo": par.get("APPLYTO", ""),
                  "sliverTol": par.get("SLIVERTOL", ""), "maxAngle": par.get("MAXANGLE", ""),
+                 "noNormalFallback": par.get("NONORMALFALLBACK", "keep"),
                  "Co": par.get("CO", ""), "N": n, "h": h,
                  "case": os.path.relpath(case, HERE)}
         maxima = {"L1": 0.0, "L2": 0.0, "Linf": 0.0, "consistency": 0.0,

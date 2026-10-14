@@ -74,12 +74,16 @@ def main():
     a = ap.parse_args()
 
     rows = advectionRows.all_rows(a.davofMethod, a.youngsTol, a.sliverPlicRDFTol,
-                                  comparators=not a.noComparators)
+                                  comparators=not a.noComparators,
+                                  extras=tuple(advectionRows.CONTROL_ROWS))
     if a.rows:
         unknown = [r for r in a.rows if r not in rows]
         if unknown:
             sys.exit(f"[genCases] unknown rows {unknown}; known: {list(rows)}")
         rows = {r: rows[r] for r in a.rows}
+    else:
+        # the named controls (davof-plicRDFnormal-ring) only on request
+        rows = {r: v for r, v in rows.items() if r not in advectionRows.CONTROL_ROWS}
 
     made = []
     for row, vals in rows.items():

@@ -38,6 +38,8 @@ solvers
         applyTo         $APPLYTO;
         sliverTol       $SLIVERTOL;
         maxAngle        $MAXANGLE;
+        // a wanted cell without a model normal: keep m_c | ringArea
+        noNormalFallback $NONORMALFALLBACK;
         exactNormal
         {
             functionType plane;

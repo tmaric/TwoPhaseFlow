@@ -59,5 +59,8 @@ NORMALMODEL cellLocal;
 APPLYTO all;
 SLIVERTOL 0;
 MAXANGLE 15;
+// what a cell without a model normal gets: keep (m_c) | ringArea (the ring
+// normal of the cell)
+NONORMALFALLBACK keep;
 
 // ************************************************************************* //

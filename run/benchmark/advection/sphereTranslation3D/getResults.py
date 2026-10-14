@@ -155,6 +155,7 @@ def main():
         label = {"row": row, "scheme": par["RECONSCHEME"], "davofMethod": par.get("DAVOFMETHOD", ""),
                  "normalModel": par.get("NORMALMODEL", ""), "applyTo": par.get("APPLYTO", ""),
                  "sliverTol": par.get("SLIVERTOL", ""), "maxAngle": par.get("MAXANGLE", ""),
+                 "noNormalFallback": par.get("NONORMALFALLBACK", "keep"),
                  "Co": par.get("CO", ""), "N": n, "h": 1.0/n,
                  "case": os.path.relpath(case, HERE)}
         r = dict(label)
