@@ -190,11 +190,25 @@ positioned planes of the neighbours). Every model takes `applyTo`:
   and the cells whose raw normal deviates from the model normal by more
   than `maxAngle` degrees (default 15, plicRDF's residual rule).
 
-A cell wanted by the rule whose model normal is zero keeps m_c ("kept m").
-One Info line per reconstruction: `davof: N interface cells (wispTol c),
-normalModel X (applyTo a, sliverTol s[, maxAngle m]): S slivers, R
-replaced[, K kept m][, F fit fallbacks], explicit plane defects ...`.
-`sliverFlag.<group>` is written (1 in slivers). Models:
+A cell wanted by the rule whose model normal is zero gets what the keyword
+`noNormalFallback` says (base class, every model; since 2026-10-14):
+`keep` (the default) keeps m_c, counted "kept m"; `ringArea` gives it the
+ring normal of the cell, the sum of m_j over the point-neighbour ring
+including the cell (the ringArea model's computation,
+`davofNormalModel::ringAreaNormals()`, one implementation shared by the
+model and the fallback; the exchange is collective and runs once per
+reconstruction when the fallback is on), counted "ring fallbacks"; a cell
+whose ring sum is zero as well keeps m_c. It matters for `plicRDF` (the
+helper marks only the cells with alpha strictly inside (surfCellTol,
+1 - surfCellTol), the davof scheme its interface cells by the face
+fractions) and `youngs` (grad(alpha) can vanish); `exact` always has a
+normal and the ring models' own normal is the ring sum. One Info line per
+reconstruction: `davof: N interface cells (wispTol c), normalModel X
+(applyTo a, sliverTol s[, maxAngle m][, noNormalFallback f]): S slivers, R
+replaced[, K kept m][, F fit fallbacks][, G ring fallbacks], explicit plane
+defects ...` (the keyword is printed only when it is not `keep`, so the
+logs of every existing row are unchanged). `sliverFlag.<group>` is written
+(1 in slivers). Models:
 
 - `cellLocal`: the raw m_c/|m_c|, nothing replaced (default applyTo all).
 - `youngs`: `fvc::grad(alpha)` (into alpha = 1 like m_c; default check).
@@ -324,15 +338,47 @@ check variants of both are worse than their all variants. The content
 bound was active on 1845 faces (ringArea) to 331700 (cellLocal) over the
 run. The N = 64 and 128 rungs and the orders are for the cluster.
 
+The ring fallback of the plicRDF-normal control (2026-10-14, laptop,
+sphere, Co 0.2; cases under `_laptop/sphere_fallback`). The control
+`davof-<method>-plicRDF` (leia's `davof-plicRDFnormal`) does not converge
+on the translated sphere in leia's hex study although plicRDF alone does
+on the same alpha, and its Info line shows "kept m" cells (8 to 22 of
+about 420 at N = 32, up to 42 of 1800 at N = 64, growing along the run):
+the cells the davof scheme marks by their face fractions and the helper
+plicRDF does not. The row `davof-plicRDFnormal-ring` (plicRDF, all,
+`noNormalFallback ringArea`) gives those cells the ring normal. RESULT:
+the row reproduces the keep control TO EVERY DIGIT, at N = 32 (L1(alphaf)
+2.069546793547e-02, L1(n) 4.032040426541e-02, L1(x) 1.581827656378e-03,
+Eshape 4.308063062444e-04, min alpha -3.83e-22; the keep control re-run
+the same day gives the same digits and matches leia's committed hex
+study) and at N = 64 (1.166392329698e-02 / 3.319389543382e-02 /
+4.684655316210e-04 / 1.154731269617e-04, min alpha -9.99e-15, the
+committed cluster values of the keep control), with the fallback taken in
+exactly the former "kept m" cells (N = 32: 8 ring fallbacks at step 2, 22
+at most; N = 64: 8 / 28 / 34 at steps 2 / 100 / 320, 42 at most). The
+mechanism: the helper's criterion is alpha strictly inside (surfCellTol,
+1 - surfCellTol), so a cell without a helper normal has alpha at 0 or 1
+within 1e-8 while carrying face fractions above wispTol; `positionPlane()`
+calls `vofCutCell`, which returns -1 or 1 for such an alpha before cutting
+anything, so the cell gets no plane whatever normal it is handed. The
+normal of a "kept m" cell never enters the transport; the fallback is
+inert by construction, and the control's non-convergence has another
+cause (open). Gate of the keyword: `ringArea` at N = 32 with the default
+`keep` is bit-identical to the committed `_laptop/sphere_Co0.2` case
+(`areaFractionError.dat`, `error.dat`, `volumeFractionError.dat`).
+
 The benchmark generators compute the time step from `--Co` (default 0.2,
 Scheufler and Roenby 2019 demonstrate second order for CFL 0.2 and
 below; the cluster CSVs of 2026-10-13 are at 0.5), written into the case
 (`CO`) and the results CSV (`Co`). Rows (`advectionRows.py`): the old
 names map onto the models (`davof-<method>` cellLocal, `-Youngs<c>`
 youngs/check/maxAngle 180, `-sliverPlicRDF<c>`, `-exact`, `-plicRDF`),
-new `ringArea`, `ringArea-check`, `ringFit`, `ringFit-check` on the first
-state construction given. `getResults.py --cases DIR --suffix S` collects
-another case tree into sibling CSV names.
+new `ringArea`, `ringArea-check`, `ringFit`, `ringFit-check` and, on
+request (`--rows`), the control `davof-plicRDFnormal-ring` on the first
+state construction given; every row carries `NONORMALFALLBACK` (default
+`keep`) in `system/simulationParameter`, rendered as `noNormalFallback`
+in `fvSolution` and reported in the results CSV. `getResults.py --cases
+DIR --suffix S` collects another case tree into sibling CSV names.
 
 ### The mixed normal and the normal-source controls (2026-10-13, superseded by the normal models above)
 

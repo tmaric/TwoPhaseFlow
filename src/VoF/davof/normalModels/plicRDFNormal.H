@@ -34,6 +34,14 @@ Description
     registered: objectRegistry::checkIn refuses the duplicates and the
     registry keeps the davof scheme's objects. Default applyTo check.
 
+    The helper marks only the cells with alpha strictly inside
+    (surfCellTol, 1 - surfCellTol); the davof scheme marks its interface
+    cells by their face fractions (|m_c| > wispTol V^(2/3)), so the cells at
+    the edge of the band that the scheme marks and the helper does not have
+    no model normal. What they get is the base class's noNormalFallback
+    (keep: m_c, counted "kept m"; ringArea: the ring normal, counted "ring
+    fallbacks").
+
 SourceFiles
     plicRDFNormal.C
 

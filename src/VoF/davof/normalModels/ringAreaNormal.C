@@ -27,7 +27,6 @@ License
 
 #include "ringAreaNormal.H"
 #include "davof.H"
-#include "zoneDistribute.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -75,15 +74,7 @@ Foam::davofNormalModels::ringArea::ringArea
 
 void Foam::davofNormalModels::ringArea::fillInterfaceNormals()
 {
-    const vectorField& m = scheme_.areaNormal().primitiveField();
-    const DynamicField<label>& labels = scheme_.interfaceLabels();
-
-    vectorField& mI = mInterface_.primitiveFieldRef();
-    mI = Zero;
-    forAll(labels, i)
-    {
-        mI[labels[i]] = m[labels[i]];
-    }
+    davofNormalModel::fillInterfaceNormals(scheme_, mInterface_);
 }
 
 
@@ -95,29 +86,9 @@ void Foam::davofNormalModels::ringArea::modelNormals
     vectorField& n
 )
 {
-    fillInterfaceNormals();
-
-    zoneDistribute& exchange = zoneDistribute::New(mesh_);
-    const boolList& zone = scheme_.interfaceCell();
-    exchange.setUpCommforZone(zone, true);
-
-    const Map<vector> mapM
-    (
-        exchange.getDatafromOtherProc(zone, mInterface_)
-    );
-    const labelListList& stencil = exchange.getStencil();
-    const DynamicField<label>& labels = scheme_.interfaceLabels();
-
-    forAll(labels, i)
-    {
-        const label celli = labels[i];
-        vector sum(Zero);
-        for (const label gblIdx : stencil[celli])
-        {
-            sum += exchange.getValue(mInterface_, mapM, gblIdx);
-        }
-        n[i] = sum;
-    }
+    // The one implementation shared with the noNormalFallback ringArea
+    // rule of the base class
+    ringAreaNormals(scheme_, mInterface_, n);
 }
 
 

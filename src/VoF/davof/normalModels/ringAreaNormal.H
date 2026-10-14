@@ -36,7 +36,9 @@ Description
     across processor boundaries), where only the interface cells
     contribute (m_k = 0 otherwise). This is the DAVOF normal of the union
     of the ring's cells: exact for a plane on any mesh, no division by a
-    small area. Default applyTo all.
+    small area. Default applyTo all. The computation is the base class's
+    davofNormalModel::ringAreaNormals(), shared with the noNormalFallback
+    ringArea rule of the other models.
 
 SourceFiles
     ringAreaNormal.C

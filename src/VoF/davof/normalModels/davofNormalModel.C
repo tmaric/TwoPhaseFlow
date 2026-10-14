@@ -27,6 +27,7 @@ License
 
 #include "davofNormalModel.H"
 #include "davof.H"
+#include "zoneDistribute.H"
 #include "unitConversion.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -57,17 +58,27 @@ Foam::davofNormalModel::davofNormalModel
     sliverTol_(dict.getOrDefault<scalar>("sliverTol", 0.1)),
     maxAngle_(dict.getOrDefault<scalar>("maxAngle", 15)),
     cosMaxAngle_(Foam::cos(degToRad(maxAngle_))),
+    noNormalFallback_(dict.getOrDefault<word>("noNormalFallback", "keep")),
+    mRingPtr_(nullptr),
     nInterface_(0),
     nSliver_(0),
     nReplaced_(0),
     nKept_(0),
-    nFallback_(0)
+    nFallback_(0),
+    nRingFallback_(0)
 {
     if (applyTo_ != "all" && applyTo_ != "check")
     {
         FatalIOErrorInFunction(dict)
             << "normalModel " << type << ": unknown applyTo '" << applyTo_
             << "'. Valid: all, check." << exit(FatalIOError);
+    }
+    if (noNormalFallback_ != "keep" && noNormalFallback_ != "ringArea")
+    {
+        FatalIOErrorInFunction(dict)
+            << "normalModel " << type << ": unknown noNormalFallback '"
+            << noNormalFallback_ << "'. Valid: keep, ringArea."
+            << exit(FatalIOError);
     }
 }
 
@@ -188,6 +199,59 @@ bool Foam::davofNormalModel::isSliver
 }
 
 
+void Foam::davofNormalModel::fillInterfaceNormals
+(
+    const reconstruction::davof& scheme,
+    volVectorField& mInterface
+)
+{
+    const vectorField& m = scheme.areaNormal().primitiveField();
+    const DynamicField<label>& labels = scheme.interfaceLabels();
+
+    vectorField& mI = mInterface.primitiveFieldRef();
+    mI = Zero;
+    forAll(labels, i)
+    {
+        mI[labels[i]] = m[labels[i]];
+    }
+}
+
+
+void Foam::davofNormalModel::ringAreaNormals
+(
+    const reconstruction::davof& scheme,
+    volVectorField& mInterface,
+    vectorField& n
+)
+{
+    fillInterfaceNormals(scheme, mInterface);
+
+    const fvMesh& mesh = scheme.mesh();
+    zoneDistribute& exchange = zoneDistribute::New(mesh);
+    const boolList& zone = scheme.interfaceCell();
+    exchange.setUpCommforZone(zone, true);
+
+    const Map<vector> mapM
+    (
+        exchange.getDatafromOtherProc(zone, mInterface)
+    );
+    const labelListList& stencil = exchange.getStencil();
+    const DynamicField<label>& labels = scheme.interfaceLabels();
+
+    n.resize(labels.size());
+    forAll(labels, i)
+    {
+        const label celli = labels[i];
+        vector sum(Zero);
+        for (const label gblIdx : stencil[celli])
+        {
+            sum += exchange.getValue(mInterface, mapM, gblIdx);
+        }
+        n[i] = sum;
+    }
+}
+
+
 void Foam::davofNormalModel::select
 (
     const scalar tState,
@@ -205,11 +269,46 @@ void Foam::davofNormalModel::select
     nReplaced_ = 0;
     nKept_ = 0;
     nFallback_ = 0;
+    nRingFallback_ = 0;
 
     vectorField nModel(labels.size(), Zero);
     if (replaces())
     {
         modelNormals(tState, nModel);
+    }
+
+    // The ring normals of the fallback, computed up front (the exchange is
+    // collective: every processor takes part whether or not it has a cell
+    // without a model normal)
+    const bool ringFallback = (noNormalFallback_ == "ringArea");
+    vectorField nRing;
+    if (replaces() && ringFallback)
+    {
+        if (!mRingPtr_)
+        {
+            mRingPtr_.reset
+            (
+                new volVectorField
+                (
+                    IOobject
+                    (
+                        IOobject::groupName
+                        (
+                            "davofRingFallback",
+                            scheme_.alpha1().group()
+                        ),
+                        mesh_.time().timeName(),
+                        mesh_,
+                        IOobject::NO_READ,
+                        IOobject::NO_WRITE,
+                        IOobject::NO_REGISTER
+                    ),
+                    mesh_,
+                    dimensionedVector(dimArea, Zero)
+                )
+            );
+        }
+        ringAreaNormals(scheme_, *mRingPtr_, nRing);
     }
 
     const bool all = (applyTo_ == "all");
@@ -252,11 +351,23 @@ void Foam::davofNormalModel::select
             nUse[i] = g;
             changed[i] = true;
             ++nReplaced_;
+            continue;
         }
-        else
+
+        // No model normal: the ring normal of the cell, or m_c
+        if (ringFallback)
         {
-            ++nKept_;
+            const vector& r = nRing[i];
+            const scalar rMag = mag(r);
+            if (rMag > 0 && rMag < ROOTVGREAT)
+            {
+                nUse[i] = r;
+                changed[i] = true;
+                ++nRingFallback_;
+                continue;
+            }
         }
+        ++nKept_;
     }
 
     nInterface_ = returnReduce(nInterface_, sumOp<label>());
@@ -264,6 +375,7 @@ void Foam::davofNormalModel::select
     nReplaced_ = returnReduce(nReplaced_, sumOp<label>());
     nKept_ = returnReduce(nKept_, sumOp<label>());
     nFallback_ = returnReduce(nFallback_, sumOp<label>());
+    nRingFallback_ = returnReduce(nRingFallback_, sumOp<label>());
 }
 
 
@@ -275,6 +387,10 @@ void Foam::davofNormalModel::report(Ostream& os) const
     {
         os  << ", maxAngle " << maxAngle_;
     }
+    if (noNormalFallback_ != "keep")
+    {
+        os  << ", noNormalFallback " << noNormalFallback_;
+    }
     os  << "): " << nSliver_ << " slivers, " << nReplaced_ << " replaced";
     if (nKept_)
     {
@@ -283,6 +399,10 @@ void Foam::davofNormalModel::report(Ostream& os) const
     if (nFallback_)
     {
         os  << ", " << nFallback_ << " fit fallbacks";
+    }
+    if (nRingFallback_)
+    {
+        os  << ", " << nRingFallback_ << " ring fallbacks";
     }
 }
 

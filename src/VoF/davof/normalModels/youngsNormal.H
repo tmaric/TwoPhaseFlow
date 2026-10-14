@@ -30,7 +30,9 @@ Description
     The Youngs normal fvc::grad(alpha) (into alpha = 1 like m_c; gradAlpha's
     convention). Default applyTo check: the slivers and the cells deviating
     by more than maxAngle (Basilisk's mixed Youngs-centred scheme, Aulisa et
-    al. 2007, replaces the slivers).
+    al. 2007, replaces the slivers). A wanted cell where grad(alpha)
+    vanishes has no model normal and gets the base class's noNormalFallback
+    (keep: m_c; ringArea: the ring normal).
 
 SourceFiles
     youngsNormal.C
