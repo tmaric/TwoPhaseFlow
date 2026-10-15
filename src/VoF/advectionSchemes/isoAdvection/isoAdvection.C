@@ -104,6 +104,7 @@ Foam::advection::isoAdvection::isoAdvection
     bsx0_(bsFaces_.size()),
     bsn0_(bsFaces_.size()),
     bsUn0_(bsFaces_.size()),
+    bsU0_(0),
 
     // Parallel run data
     procPatchLabels_(mesh_.boundary().size()),
@@ -147,7 +148,10 @@ Foam::advection::isoAdvection::isoAdvection
     surfX0_(0),
     surfN0_(0),
     surfUn0_(0),
+    surfU0_(0),
     cellToSurf_(0),
+    faceClippingPtr_(nullptr),
+    clipCorrects_(false),
     planeFluxFaces_(0),
     secondRingFaces_(0),
     secondRingBest_(0),
@@ -160,6 +164,22 @@ Foam::advection::isoAdvection::isoAdvection
     if (storeAreaFractions_ && alphafPtr_ && isA<reconstruction::davof>(*surf_))
     {
         davofPtr_ = &refCast<reconstruction::davof>(*surf_);
+
+        // The face-clipping model (default plane: nothing changes)
+        faceClippingPtr_ = davofFaceClipping::New(modelDict(), *davofPtr_);
+        clipCorrects_ = faceClippingPtr_->corrects();
+        if (clipCorrects_)
+        {
+            advectFace_.keepChord(true);
+        }
+        Info<< "isoAdvection: faceClipping " << faceClippingPtr_->type()
+            << endl;
+    }
+    else if (modelDict().getOrDefault<word>("faceClipping", "plane") != "plane")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "faceClipping other than plane needs the davof reconstruction"
+            << " scheme with stored face fractions" << exit(FatalIOError);
     }
 
     // Prepare lists used in parallel runs
@@ -300,6 +320,11 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
         surfX0_.clear();
         surfN0_.clear();
         surfUn0_.clear();
+        surfU0_.clear();
+        if (clipCorrects_)
+        {
+            faceClippingPtr_->resetCounters();
+        }
 
         // The per-face and per-cell records: allocated and filled on the
         // first call or a changed mesh; otherwise they were reset at the
@@ -348,8 +373,10 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             n0 /= (mag(n0));
 
             // Get the speed of the isoface by interpolating velocity and
-            // dotting it with isoface unit normal
-            const scalar Un0 = UInterp.interpolate(x0, celli) & n0;
+            // dotting it with isoface unit normal (the velocity itself is
+            // kept for the face-clipping models: the same dot product)
+            const vector U0 = UInterp.interpolate(x0, celli);
+            const scalar Un0 = U0 & n0;
 
             DebugInfo
                 << "calcIsoFace gives initial surface: \nx0 = " << x0
@@ -362,6 +389,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 surfX0_.append(x0);
                 surfN0_.append(n0);
                 surfUn0_.append(Un0);
+                surfU0_.append(U0);
             }
 
             // Estimate time integrated flux through each downwind face
@@ -411,7 +439,8 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                             (
                                 facei,
                                 advectFace_.subFaceAreaEnd(),
-                                false
+                                false,
+                                celli, x0, n0, U0, dt
                             );
                         }
                     }
@@ -440,7 +469,8 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                             (
                                 facei,
                                 advectFace_.subFaceAreaEnd(),
-                                false
+                                false,
+                                celli, x0, n0, U0, dt
                             );
                             // The flux is the plane's where the plane can
                             // speak for the upwind cell (planeFlux)
@@ -456,6 +486,10 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                     bsx0_.append(x0);
                     bsn0_.append(n0);
                     bsUn0_.append(Un0);
+                    if (storeAf)
+                    {
+                        bsU0_.append(U0);
+                    }
 
                     // Note: we must not check if the face is on the
                     // processor patch here.
@@ -509,7 +543,8 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                     (
                         facei,
                         advectFace_.subFaceAreaEnd(),
-                        false
+                        false,
+                        own[facei], bsx0_[i], bsn0_[i], bsU0_[i], dt
                     );
                 }
             }
@@ -530,7 +565,13 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                     phiP,
                     magSf
                 );
-                storeAreaFraction(facei, advectFace_.subFaceAreaEnd(), false);
+                storeAreaFraction
+                (
+                    facei,
+                    advectFace_.subFaceAreaEnd(),
+                    false,
+                    own[facei], bsx0_[i], bsn0_[i], bsU0_[i], dt
+                );
             }
         }
     }
@@ -588,6 +629,11 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 << " faces of "
                 << returnReduce(nContentBoundCells_, sumOp<label>())
                 << " cells";
+        }
+        if (clipCorrects_)
+        {
+            Info<< "; ";
+            faceClippingPtr_->report(Info);
         }
         Info<< endl;
     }
@@ -789,11 +835,16 @@ void Foam::advection::isoAdvection::publishWetFaces()
 void Foam::advection::isoAdvection::storeAreaFraction
 (
     const label facei,
-    const scalar areaEnd,
-    const bool secondRing
+    const scalar areaEndPlane,
+    const bool secondRing,
+    const label planeCell,
+    const point& x0,
+    const vector& n0,
+    const vector& U0,
+    const scalar dt
 )
 {
-    if (areaEnd < 0)
+    if (areaEndPlane < 0)
     {
         // The default the former pass before the sweep had written: the
         // upwind cell's alpha at the start of the step (alpha1_ is
@@ -804,6 +855,25 @@ void Foam::advection::isoAdvection::storeAreaFraction
         setDefaultAreaFraction(facei, alpha1_.primitiveField());
         alphafFallbackFaces_.append(facei);
         return;
+    }
+
+    // The face-clipping model: the plane-clipped area corrected (plane:
+    // never called, the branch is the only addition to the sweep). n0
+    // points OUT of the liquid (isoAdvector's convention, n0 =
+    // -normal/|normal|), the model takes the normal INTO the liquid; the
+    // plane's centroid at the end of the step is x0 + U0 dt
+    scalar areaEnd = areaEndPlane;
+    if (clipCorrects_)
+    {
+        areaEnd = faceClippingPtr_->correct
+        (
+            facei,
+            planeCell,
+            -n0,
+            x0 + U0*dt,
+            advectFace_.chordEnd(),
+            areaEndPlane
+        );
     }
 
     scalar af = areaEnd/mag(mesh_.faceAreas()[facei]);
@@ -931,7 +1001,13 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
         // side value; the upwind default re-evaluated with the new alpha
         // would hand the cell fraction of a cell the plane has entered to
         // all its faces)
-        storeAreaFraction(f, advectFace_.subFaceAreaEnd(), true);
+        storeAreaFraction
+        (
+            f,
+            advectFace_.subFaceAreaEnd(),
+            true,
+            surfCells_[si], surfX0_[si], surfN0_[si], surfU0_[si], dt
+        );
 
         // The flux is the plane's where the plane can speak for the
         // upwind cell (planeFlux); inflow boundary faces keep the boundary

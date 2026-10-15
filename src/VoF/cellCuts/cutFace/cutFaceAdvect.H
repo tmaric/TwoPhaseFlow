@@ -121,8 +121,32 @@ class cutFaceAdvect
         //- The plane cut the face at some time in [0, dt] of the last sweep
         bool faceSwept_;
 
+        //- Keep the chord of the last sweep in chordEnd_ (off by default:
+        //  the sweep is then unchanged; isoAdvection switches it on for
+        //  the face-clipping models that correct the plane-clipped area)
+        bool keepChord_;
+
+        //- The end points of the plane's trace on the face at t = dt of
+        //  the last sweep (the chord): the intersections of the plane at
+        //  dt with the face's edges; empty when the face lies on one side
+        //  of the plane at dt, when the sweep could not set the face, or
+        //  when keepChord_ is off. On a non-planar face (the fan) they
+        //  are the crossings of the plane with the face polygon's edges,
+        //  an approximation (the fan triangles are what is swept).
+        DynamicList<point> chordEnd_;
+
 
     // Private Member Functions
+
+        //- The crossings of the plane at time f0 with the face's edges
+        //  (pTimes_ at the vertices), appended to pts; cutPoints without
+        //  its warning (a non-planar face can have more than two)
+        void edgeCrossings
+        (
+            const label faceI,
+            const scalar f0,
+            DynamicList<point>& pts
+        ) const;
 
         //- Write faces to vtk files
         void isoFacesToFile
@@ -261,6 +285,19 @@ class cutFaceAdvect
         bool faceSwept() const
         {
             return faceSwept_;
+        }
+
+        //- Keep the chord of every sweep (chordEnd())
+        void keepChord(const bool on)
+        {
+            keepChord_ = on;
+        }
+
+        //- The end points of the plane's trace on the face at t = dt of
+        //  the last sweep (empty: no chord, or keepChord off)
+        const DynamicList<point>& chordEnd() const
+        {
+            return chordEnd_;
         }
 
         //- Returns the cut edge of the cutted face

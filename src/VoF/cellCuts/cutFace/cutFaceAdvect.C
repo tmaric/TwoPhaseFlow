@@ -50,7 +50,9 @@ Foam::cutFaceAdvect::cutFaceAdvect
     pTimes_(10),
     faceStatus_(-1),
     subFaceAreaEnd_(-1),
-    faceSwept_(false)
+    faceSwept_(false),
+    keepChord_(false),
+    chordEnd_(2)
 {
     clearStorage();
 }
@@ -307,6 +309,14 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedFaceFlux
             // The fraction over the fan, as an area of the face
             subFaceAreaEnd_ = (area > VSMALL) ? magSf*wetAreaEnd/area : -1;
             faceSwept_ = anySwept;
+            if (keepChord_)
+            {
+                // The chord of a non-planar face: the plane's crossings
+                // with the face polygon's edges at dt (approximate: the
+                // fan triangles are what is swept)
+                chordEnd_.clear();
+                edgeCrossings(faceI, dt, chordEnd_);
+            }
         }
         else
         {
@@ -331,6 +341,11 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedFaceFlux
         const scalar alphaf = mag(subFaceArea() / magSf);
         subFaceAreaEnd_ = mag(subFaceArea());
         faceSwept_ = (status == 0);
+        if (keepChord_ && status == 0)
+        {
+            // The stationary plane's trace: the cut points of calcSubFace
+            chordEnd_ = surfacePoints_;
+        }
 
         if (debug)
         {
@@ -798,6 +813,11 @@ Foam::scalar Foam::cutFaceAdvect::timeIntegratedArea
           * (initialArea + sign(Un0) * (alpha / 3.0 + 0.5 * beta));
         // The submerged area at t = dt: the last quadrilateral added
         subFaceAreaEnd_ = initialArea + sign(Un0)*(alpha + beta);
+        if (keepChord_)
+        {
+            // The plane's trace on the face at dt: the chord
+            chordEnd_ = newFIIL;
+        }
     }
     else
     {
@@ -968,6 +988,52 @@ void Foam::cutFaceAdvect::cutPoints
 }
 
 
+void Foam::cutFaceAdvect::edgeCrossings
+(
+    const label faceI,
+    const scalar f0,
+    DynamicList<point>& pts
+) const
+{
+    // cutPoints(faceI, f0, ...) without its warning: the plane at time f0
+    // against the face's edges, the vertex times pTimes_ of the sweep
+    const face& f = mesh_.faces()[faceI];
+    const label nPoints = f.size();
+    scalar f1(pTimes_[0]);
+
+    if (mag(f1 - f0) < 10 * SMALL)
+    {
+        f1 = f0;
+    }
+
+    forAll(f, pi)
+    {
+        const label pi2 = (pi + 1) % nPoints;
+        scalar f2 = pTimes_[pi2];
+
+        if (mag(f2 - f0) < 10 * SMALL)
+        {
+            f2 = f0;
+        }
+
+        if ((f1 < f0 && f2 > f0) || (f1 > f0 && f2 < f0))
+        {
+            const scalar s = (f0 - f1) / (f2 - f1);
+            pts.append
+            (
+                mesh_.points()[f[pi]]
+              + s*(mesh_.points()[f[pi2]] - mesh_.points()[f[pi]])
+            );
+        }
+        else if (f1 == f0)
+        {
+            pts.append(mesh_.points()[f[pi]]);
+        }
+        f1 = f2;
+    }
+}
+
+
 void Foam::cutFaceAdvect::cutPoints
 (
     const pointField& pts,
@@ -1054,6 +1120,7 @@ void Foam::cutFaceAdvect::clearStorage()
     faceStatus_ = -1;
     subFaceAreaEnd_ = -1;
     faceSwept_ = false;
+    chordEnd_.clear();
 }
 
 

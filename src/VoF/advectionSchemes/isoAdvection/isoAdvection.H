@@ -65,6 +65,7 @@ SourceFiles
 #include "className.H"
 #include "reconstructionSchemes.H"
 #include "cutFaceAdvect.H"
+#include "davofFaceClipping.H"
 #include "bitSet.H"
 #include "zeroField.H"
 
@@ -151,6 +152,11 @@ class isoAdvection
 
             //- Storage for boundary surface iso face speed
             DynamicScalarList bsUn0_;
+
+            //- Storage for the velocity at the boundary surface iso face
+            //  centre (the face-clipping models: the centroid at the end
+            //  of the step); filled when the face fractions are stored
+            DynamicVectorList bsU0_;
 
 
 
@@ -258,13 +264,24 @@ class isoAdvection
             //  (dictionary key debugCell, default -1)
             label debugCell_;
 
-            //- The plane of every surface cell of the step (x0, n0, Un0),
-            //  indexed as surfCells_; cellToSurf_ maps a cell to that index
-            //  (-1: not a surface cell)
+            //- The plane of every surface cell of the step (x0, n0, Un0)
+            //  and the velocity U0 at x0 (Un0 = U0.n0), indexed as
+            //  surfCells_; cellToSurf_ maps a cell to that index (-1: not
+            //  a surface cell)
             DynamicVectorList surfX0_;
             DynamicVectorList surfN0_;
             DynamicScalarList surfUn0_;
+            DynamicVectorList surfU0_;
             labelList cellToSurf_;
+
+            //- The face-clipping model (davofFaceClipping, keyword
+            //  faceClipping, default plane): what is stored on a face a
+            //  plane sets, given the plane-clipped area; constructed when
+            //  the reconstruction scheme is davof. clipCorrects_ is its
+            //  corrects(): false for plane, and then nothing of the
+            //  sweep changes (no chord is kept, correct() is not called)
+            autoPtr<davofFaceClipping> faceClippingPtr_;
+            bool clipCorrects_;
 
             //- The faces planeFlux set in the step (planeFluxUpCell_ is
             //  >= 0 exactly there); planeFluxUpCell_, dVfUpwindPlaneFace_
@@ -353,7 +370,7 @@ class isoAdvection
                 bsx0_.clear();
                 bsn0_.clear();
                 bsUn0_.clear();
-
+                bsU0_.clear();
             }
 
         // Face value functions needed for random face access where the face
@@ -422,12 +439,20 @@ class isoAdvection
             //- Store the end area of the last sweep on facei as the face
             //  fraction (clipped to [0, 1]); a negative end area writes
             //  the default (the upwind cell's alpha at the start of the
-            //  step) and counts as a fallback
+            //  step) and counts as a fallback. The plane that swept the
+            //  face (its cell planeCell, x0, n0, U0 at x0) and dt are
+            //  handed to the face-clipping model when it corrects the
+            //  plane-clipped area (clipCorrects_); otherwise unread
             void storeAreaFraction
             (
                 const label facei,
                 const scalar areaEnd,
-                const bool secondRing
+                const bool secondRing,
+                const label planeCell,
+                const point& x0,
+                const vector& n0,
+                const vector& U0,
+                const scalar dt
             );
 
             //- The faces not set by any plane whose cell shares a face with

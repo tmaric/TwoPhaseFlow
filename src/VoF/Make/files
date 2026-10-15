@@ -25,6 +25,8 @@ davof/normalModels/plicRDFNormal.C
 davof/normalModels/exactNormal.C
 davof/normalModels/ringAreaNormal.C
 davof/normalModels/ringFitNormal.C
+davof/faceClipping/davofFaceClipping.C
+davof/faceClipping/planeClipping.C
 
 /* Run-time selectable implicitFunctions */
 reconstructionSchemes/reconstructionSchemesNew.C
