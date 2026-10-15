@@ -449,6 +449,34 @@ exact-solution gate is `run/benchmark/advection/planeTranslation3D`
 exact per step and amplifies round-off through sliver interface cells by
 a factor that falls with wispTol, a C2 finding).
 
+### The cost of the DAVOF rows (2026-10-15)
+
+The davof rows of the sphere study cost 1.16 times plicRDF per run
+(leia `davof_advection_sphereTranslation3D_hex.csv`, N = 128, Co 0.2:
+3797 s ringArea against 3283 s plicRDF) although the method's own work
+(one closed-form sum per interface cell, one positioning) is below
+plicRDF's iteration. The overhead sat in full-mesh passes repeated at
+every reconstruction and every step, and in the diagnostic function
+object. Removed without changing a floating-point result (every change
+is argued for bit identity in the commit message; the cluster repetition
+of the hex study against the committed tables is the check):
+
+1. `davof::reconstruct()` positions each interface cell's plane ONCE,
+   along the selected normal (above, "Normal models"); the exact and
+   ringFit models keep the two passes because they read the planes
+   positioned along m_c.
+2. `davofInit::areaNormal` skips the faces with alpha_f = 0 (0 S_f adds
+   +-0, which changes no sum, the sums start at +0 and +0 +- (+-0) = +0);
+   m_c is formed in `areaNormalDavof` itself instead of a copy; the
+   all-dry cells (m exactly +0, never touched) skip the all-equal test;
+   the face moment of the explicit position is summed over the faces of
+   the interface cells only, in ascending face order (the order of the
+   former pass over all faces; `primitiveMesh::cells()` lists the owned
+   faces first, so the cell's list is sorted first); the face-value mask
+   is built once per mesh; the planes and the per-cell diagnostics are
+   reset at the previous interface cells only (zero elsewhere by
+   construction) instead of over the mesh.
+
 ## The advection benchmarks (run/benchmark/advection)
 
 - `planeTranslation3D`: the exact-solution gate of the face update (above).

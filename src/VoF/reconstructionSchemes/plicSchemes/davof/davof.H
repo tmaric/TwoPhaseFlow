@@ -186,6 +186,15 @@ class davof
         //- The face fractions alphaf.<group> (registered)
         surfaceScalarField& alphaf_;
 
+        //- Faces that carry a face-fraction value (the internal faces and
+        //  the faces of patches whose fvsPatchField has the patch size);
+        //  built once per mesh (updateHasValue)
+        boolList hasValue_;
+
+        //- The face fractions per polyMesh face of the last reconstruction
+        //  (davofInit::areaNormal fills it; kept to avoid reallocation)
+        scalarField alphafAll_;
+
         //- m_c = sum_f alpha_f S_f^out [m^2]
         volVectorField areaNormal_;
 
@@ -221,6 +230,9 @@ class davof
         //- Position the plane of celli by alpha along n; sets normal_ and
         //  centre_ (zero when the cut fails). Returns the success.
         bool positionPlane(const label celli, const vector& n);
+
+        //- Build hasValue_ when the mesh (its face count) changed
+        void updateHasValue();
 
         //- The time the current state belongs to (see Description)
         scalar stateTime();

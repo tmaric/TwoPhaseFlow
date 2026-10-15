@@ -124,6 +124,36 @@ bool Foam::reconstruction::davof::positionPlane
 }
 
 
+void Foam::reconstruction::davof::updateHasValue()
+{
+    if (hasValue_.size() == mesh_.nFaces() && !mesh_.topoChanging())
+    {
+        return;
+    }
+
+    // Faces that carry a value: the internal faces and those of patches
+    // whose fvsPatchField has the patch size (empty patches have none).
+    hasValue_.resize(mesh_.nFaces());
+    hasValue_ = false;
+    for (label facei = 0; facei < mesh_.nInternalFaces(); ++facei)
+    {
+        hasValue_[facei] = true;
+    }
+    const surfaceScalarField::Boundary& bf = alphaf_.boundaryField();
+    forAll(bf, patchi)
+    {
+        const polyPatch& pp = mesh_.boundaryMesh()[patchi];
+        if (bf[patchi].size() == pp.size())
+        {
+            forAll(pp, i)
+            {
+                hasValue_[pp.start() + i] = true;
+            }
+        }
+    }
+}
+
+
 Foam::scalar Foam::reconstruction::davof::stateTime()
 {
     const Time& runTime = mesh_.time();
@@ -186,6 +216,8 @@ Foam::reconstruction::davof::davof
             IOobject::groupName("alphaf", alpha1.group())
         )
     ),
+    hasValue_(),
+    alphafAll_(),
     areaNormal_
     (
         IOobject
@@ -285,6 +317,12 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
             interfaceCell_.resize(mesh_.nCells());
         }
     }
+
+    // The interface cells of the previous reconstruction: the planes and
+    // the per-cell diagnostics are set in interface cells only and are
+    // zero everywhere else (zero at construction), so they are reset
+    // there instead of over the whole mesh.
+    const labelList prevLabels(interfaceLabels_);
     interfaceCell_ = false;
     interfaceLabels_.clear();
 
@@ -295,62 +333,47 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     const vectorField& C = mesh_.cellCentres();
     const scalarField& V = mesh_.V();
     const labelUList& own = mesh_.faceOwner();
-    const labelUList& nei = mesh_.faceNeighbour();
-    const label nInt = mesh_.nInternalFaces();
     const cellList& cells = mesh_.cells();
 
-    // m_c = sum_f alpha_f S_f^out and the per-polyMesh-face values.
-    vectorField m;
-    scalarField alphafAll;
-    davofInit::areaNormal(mesh_, alphaf_, m, alphafAll);
+    updateHasValue();
 
-    // Faces that carry a value: the internal faces and those of patches
-    // whose fvsPatchField has the patch size (empty patches have none).
-    boolList hasValue(mesh_.nFaces(), false);
-    for (label facei = 0; facei < nInt; ++facei)
-    {
-        hasValue[facei] = true;
-    }
-    const surfaceScalarField::Boundary& bf = alphaf_.boundaryField();
-    forAll(bf, patchi)
-    {
-        const polyPatch& pp = mesh_.boundaryMesh()[patchi];
-        if (bf[patchi].size() == pp.size())
-        {
-            forAll(pp, i)
-            {
-                hasValue[pp.start() + i] = true;
-            }
-        }
-    }
+    // m_c = sum_f alpha_f S_f^out, formed in areaNormal_ itself, and the
+    // per-polyMesh-face values; areaNormal zeroes m first and skips the
+    // dry faces (bit-identical, see davofInit::areaNormal).
+    vectorField& m = areaNormal_.primitiveFieldRef();
+    davofInit::areaNormal(mesh_, alphaf_, m, alphafAll_);
 
-    // The face moment sum_f alpha_f (x_f - x_c).S_f^out of the explicit
-    // position.
-    scalarField faceMoment(mesh_.nCells(), Zero);
-    forAll(Sf, facei)
+    for (const label celli : prevLabels)
     {
-        if (!hasValue[facei]) continue;
-        const scalar af = alphafAll[facei];
-        if (af == 0) continue;
-        faceMoment[own[facei]] += af*((Cf[facei] - C[own[facei]]) & Sf[facei]);
-        if (facei < nInt)
-        {
-            faceMoment[nei[facei]] -=
-                af*((Cf[facei] - C[nei[facei]]) & Sf[facei]);
-        }
+        normal_[celli] = Zero;
+        centre_[celli] = Zero;
+        sliverFlag_[celli] = 0;
+        pPlane_[celli] = 0;
+        planeVolDefect_[celli] = 0;
+        planeAreaDefect_[celli] = 0;
     }
+    maxPlaneVolDefect_ = 0;
+    maxPlaneAreaDefect_ = 0;
 
     // A cell whose face fractions are all equal holds no interface (all
     // wet, all dry): its sum_f S_f vanishes only to round-off. Zero it.
+    // A cell no wet face touched has m exactly +0 (areaNormal starts at
+    // +0 and skips the dry faces): all dry, or an exact cancellation, in
+    // either case not an interface cell and m already what the rule
+    // below would leave (the former full sum of 0 S_f terms gave +0 as
+    // well, and the all-dry rule assigned +0), so it is skipped without
+    // reading its faces.
     forAll(cells, celli)
     {
+        if (m[celli] == vector::zero) continue;
+
         const labelList& cf = cells[celli];
         scalar lo = GREAT, hi = -GREAT;
         forAll(cf, i)
         {
-            if (!hasValue[cf[i]]) continue;
-            lo = min(lo, alphafAll[cf[i]]);
-            hi = max(hi, alphafAll[cf[i]]);
+            if (!hasValue_[cf[i]]) continue;
+            lo = min(lo, alphafAll_[cf[i]]);
+            hi = max(hi, alphafAll_[cf[i]]);
         }
         if (lo == hi)
         {
@@ -363,15 +386,11 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
         }
     }
 
-    areaNormal_.primitiveFieldRef() = m;
-    normal_.primitiveFieldRef() = Zero;
-    centre_.primitiveFieldRef() = Zero;
-    sliverFlag_.primitiveFieldRef() = Zero;
-    pPlane_.primitiveFieldRef() = Zero;
-    planeVolDefect_.primitiveFieldRef() = Zero;
-    planeAreaDefect_.primitiveFieldRef() = Zero;
-    maxPlaneVolDefect_ = 0;
-    maxPlaneAreaDefect_ = 0;
+    // The faces of one cell in ascending order: primitiveMesh::cells()
+    // lists the owned faces first, then the faces the cell neighbours,
+    // while the face moment used to be accumulated by one pass over all
+    // faces in face order; the same order keeps its partial sums.
+    DynamicList<label> sortedFaces(16);
 
     // The sliver flag, the explicit position and the realizability defects
     // of the explicit plane (always from m_c; cutCell_ cuts the explicit
@@ -402,7 +421,30 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
             positionPlane(celli, m[celli]);
         }
 
-        const scalar p = (faceMoment[celli] - 3.0*alpha1_[celli]*V[celli])/mMag;
+        // The face moment sum_f alpha_f (x_f - x_c).S_f^out of the explicit
+        // position, over this cell's faces only (it is read for interface
+        // cells only), in face order with the per-face terms of the former
+        // pass over all faces
+        sortedFaces.clear();
+        sortedFaces.append(cells[celli]);
+        Foam::sort(sortedFaces);
+        scalar faceMoment = 0;
+        for (const label facei : sortedFaces)
+        {
+            if (!hasValue_[facei]) continue;
+            const scalar af = alphafAll_[facei];
+            if (af == 0) continue;
+            if (own[facei] == celli)
+            {
+                faceMoment += af*((Cf[facei] - C[celli]) & Sf[facei]);
+            }
+            else
+            {
+                faceMoment -= af*((Cf[facei] - C[celli]) & Sf[facei]);
+            }
+        }
+
+        const scalar p = (faceMoment - 3.0*alpha1_[celli]*V[celli])/mMag;
         pPlane_[celli] = p;
 
         const label status = cutCell_.calcSubCell(celli, p, n);

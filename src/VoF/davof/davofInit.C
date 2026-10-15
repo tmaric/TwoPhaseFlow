@@ -508,10 +508,16 @@ void Foam::davofInit::areaNormal
     alphafAll.setSize(mesh.nFaces());
     alphafAll = 0;
 
+    // A dry face (alpha_f = 0, the bulk of the gas) contributes 0 S_f =
+    // (+-0, +-0, +-0), and x + (+-0) = x, x - (+-0) = x for every x
+    // including +0 (the sum starts at +0, and +0 + -0 = +0, +0 - +0 = +0):
+    // skipping it leaves every m bit-identical and saves the three
+    // products and the six scattered additions on most faces.
     for (label facei = 0; facei < nInt; ++facei)
     {
         const scalar af = alphaf[facei];
         alphafAll[facei] = af;
+        if (af == 0) continue;
         const vector contrib = af*Sf[facei];
         m[own[facei]] += contrib;
         m[nei[facei]] -= contrib;
@@ -525,6 +531,7 @@ void Foam::davofInit::areaNormal
         {
             const label facei = pp.start() + i;
             alphafAll[facei] = pf[i];
+            if (pf[i] == 0) continue;
             m[own[facei]] += pf[i]*Sf[facei];
         }
     }

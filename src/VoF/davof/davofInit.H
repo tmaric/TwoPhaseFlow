@@ -230,7 +230,11 @@ public:
         );
 
         //- m_c = sum_f alpha_f S_f^out per cell (into the liquid), from the
-        //  face field; alphafAll receives the per-polyMesh-face values
+        //  face field; alphafAll receives the per-polyMesh-face values.
+        //  m is zeroed first; the faces with alpha_f = 0 are skipped (their
+        //  term 0 S_f = (+-0, +-0, +-0) changes no sum: x +- (+-0) = x, and
+        //  the +0 the sum starts from stays +0), so a cell no wet face
+        //  touches holds exactly +0
         static void areaNormal
         (
             const fvMesh& mesh,
