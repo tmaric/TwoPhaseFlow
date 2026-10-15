@@ -72,6 +72,14 @@ SourceFiles
 
 namespace Foam
 {
+inline namespace twoPhaseFlow
+{
+namespace reconstruction
+{
+    class davof;
+}
+}
+
 namespace advection
 {
 
@@ -196,6 +204,17 @@ class isoAdvection
             //  re-scanned)
             bitSet phiPos_;
             label phiEventNo_;
+
+            //- The faces whose fraction is not 0 (kept at every write of
+            //  a face value), and their list in ascending face order at
+            //  the end of the step, handed to the davof scheme, which
+            //  sums the area normal over them in that order
+            bitSet wetFace_;
+            labelList wetFaces_;
+
+            //- The davof scheme when the reconstruction is one (nullptr
+            //  otherwise)
+            reconstruction::davof* davofPtr_;
 
             //- Counters of the step: faces set by their own cell's plane,
             //  faces set by a neighbouring cell's plane (second ring),
@@ -395,6 +414,10 @@ class isoAdvection
             //  alphaDefault_, the faces whose upwind direction changed);
             //  on every face when defaultsValid_ is false
             void defaultAreaFractions();
+
+            //- The list of the wet faces from wetFace_ (bitSet::toc(),
+            //  ascending), handed to the davof scheme
+            void publishWetFaces();
 
             //- Store the end area of the last sweep on facei as the face
             //  fraction (clipped to [0, 1]); a negative end area writes

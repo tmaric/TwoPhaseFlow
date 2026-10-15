@@ -40,6 +40,7 @@ License
 #include "OBJstream.H"
 #include "syncTools.H"
 #include "profiling.H"
+#include "davof.H"
 #include <cstring>
 
 #include "addToRunTimeSelectionTable.H"
@@ -127,6 +128,9 @@ Foam::advection::isoAdvection::isoAdvection
     alphaDefault_(0),
     phiPos_(),
     phiEventNo_(-1),
+    wetFace_(),
+    wetFaces_(0),
+    davofPtr_(nullptr),
     nAlphafFromPlane_(0),
     nAlphafSecondRing_(0),
     nAlphafFallback_(0),
@@ -152,6 +156,11 @@ Foam::advection::isoAdvection::isoAdvection
    cutFaceAdvect::debug = debug;
 
     initAreaFractions();
+
+    if (storeAreaFractions_ && alphafPtr_ && isA<reconstruction::davof>(*surf_))
+    {
+        davofPtr_ = &refCast<reconstruction::davof>(*surf_);
+    }
 
     // Prepare lists used in parallel runs
     if (Pstream::parRun())
@@ -274,9 +283,11 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             mesh_.topoChanging()
          || alphaDefault_.size() != mesh_.nCells()
          || phiPos_.size() != mesh_.nInternalFaces()
+         || wetFace_.size() != mesh_.nFaces()
         )
         {
             defaultsValid_ = false;
+            wetFace_.resize(mesh_.nFaces());
         }
         nAlphafFromPlane_ = 0;
         nAlphafSecondRing_ = 0;
@@ -625,8 +636,10 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
     if (mesh_.isInternalFace(facei))
     {
         const scalar phif = phi_.primitiveField()[facei];
-        alphafPtr_->primitiveFieldRef()[facei] =
+        const scalar af =
             (phif >= 0) ? alpha[own[facei]] : alpha[mesh_.faceNeighbour()[facei]];
+        alphafPtr_->primitiveFieldRef()[facei] = af;
+        wetFace_.set(facei, (af != 0) ? 1u : 0u);
         return;
     }
 
@@ -635,7 +648,9 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
     fvsPatchScalarField& pf = alphafPtr_->boundaryFieldRef()[patchi];
     if (pf.size())
     {
-        pf[facei - pbm[patchi].start()] = alpha[own[facei]];
+        const scalar af = alpha[own[facei]];
+        pf[facei - pbm[patchi].start()] = af;
+        wetFace_.set(facei, (af != 0) ? 1u : 0u);
     }
 }
 
@@ -682,6 +697,25 @@ void Foam::advection::isoAdvection::defaultAreaFractions()
         }
         phiEventNo_ = phi_.eventNo();
         alphaDefault_ = alphaIn;
+
+        // The wet faces from the final values (the set faces included)
+        wetFace_.resize(nFaces);
+        wetFace_.reset();
+        const scalarField& afIn = alphafPtr_->primitiveField();
+        for (label facei = 0; facei < nInt; ++facei)
+        {
+            if (afIn[facei] != 0) wetFace_.set(facei);
+        }
+        const surfaceScalarField::Boundary& bf = alphafPtr_->boundaryField();
+        forAll(bf, patchi)
+        {
+            const label start = mesh_.boundaryMesh()[patchi].start();
+            const fvsPatchScalarField& pf = bf[patchi];
+            forAll(pf, i)
+            {
+                if (pf[i] != 0) wetFace_.set(start + i);
+            }
+        }
         defaultsValid_ = true;
         return;
     }
@@ -741,6 +775,16 @@ void Foam::advection::isoAdvection::defaultAreaFractions()
 }
 
 
+void Foam::advection::isoAdvection::publishWetFaces()
+{
+    wetFaces_ = wetFace_.toc();
+    if (davofPtr_)
+    {
+        davofPtr_->setWetFaces(wetFaces_);
+    }
+}
+
+
 void Foam::advection::isoAdvection::storeAreaFraction
 (
     const label facei,
@@ -769,6 +813,7 @@ void Foam::advection::isoAdvection::storeAreaFraction
     af = min(max(af, scalar(0)), scalar(1));
 
     setFaceValue(*alphafPtr_, facei, af);
+    wetFace_.set(facei, (af != 0) ? 1u : 0u);
     if (!alphafSetFace_.test(facei))
     {
         alphafSetFaces_.append(facei);
@@ -1232,6 +1277,7 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
                     // The upwind side's face fraction, no sign change
                     alphaf->boundaryFieldRef()[patchi][facei] = nbrAf[i];
                     const label meshFacei = procPatch.start() + facei;
+                    wetFace_.set(meshFacei, (nbrAf[i] != 0) ? 1u : 0u);
                     if (!alphafSetFace_.test(meshFacei))
                     {
                         alphafSetFaces_.append(meshFacei);

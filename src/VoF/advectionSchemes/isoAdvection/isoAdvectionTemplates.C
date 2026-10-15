@@ -485,6 +485,10 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         // The faces set in this step are the previous ones of the next
         alphafPrevSetFaces_.swap(alphafSetFaces_);
         alphafSetFaces_.clear();
+
+        // The faces with a non-zero fraction, ascending, for the davof
+        // scheme's area sums
+        publishWetFaces();
     }
 
     advectionTime_ += (mesh_.time().elapsedCpuTime() - advectionStartTime);

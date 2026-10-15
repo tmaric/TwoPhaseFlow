@@ -191,9 +191,18 @@ class davof
         //  built once per mesh (updateHasValue)
         boolList hasValue_;
 
-        //- The face fractions per polyMesh face of the last reconstruction
-        //  (davofInit::areaNormal fills it; kept to avoid reallocation)
-        scalarField alphafAll_;
+        //- The faces with alpha_f != 0 after the last transport step, in
+        //  ascending face order (isoAdvection keeps the list and hands it
+        //  over, setWetFaces); nullptr, or built for another face count,
+        //  or a changing topology: the area normal is summed over every
+        //  face
+        const labelUList* wetFacesPtr_;
+        label wetFacesNFaces_;
+
+        //- The cells the area normal was summed into in the last
+        //  reconstruction (every other cell holds exactly +0): zeroed
+        //  before the next sum, visited by the interface-cell selection
+        bitSet touchedCell_;
 
         //- m_c = sum_f alpha_f S_f^out [m^2]
         volVectorField areaNormal_;
@@ -234,6 +243,16 @@ class davof
         //- Build hasValue_ when the mesh (its face count) changed
         void updateHasValue();
 
+        //- The face fraction of a polyMesh face that carries a value
+        //  (hasValue_): the internal value or the patch value
+        inline scalar faceFraction(const label facei) const;
+
+        //- m_c = sum_f alpha_f S_f^out into areaNormal_, over the wet
+        //  faces in ascending order when the list is valid, else over
+        //  every face (davofInit::areaNormal's loop); the cells the sum
+        //  touched in touchedCell_
+        void formAreaNormal();
+
         //- The time the current state belongs to (see Description)
         scalar stateTime();
 
@@ -268,6 +287,15 @@ public:
 
         //- Reconstruct interface
         virtual void reconstruct(bool forceUpdate = true);
+
+        //- The faces with alpha_f != 0, ascending, valid for the current
+        //  face fractions (isoAdvection, at the end of every step); the
+        //  list object must outlive the next reconstruction
+        void setWetFaces(const labelUList& faces)
+        {
+            wetFacesPtr_ = &faces;
+            wetFacesNFaces_ = mesh_.nFaces();
+        }
 
         //- The mesh
         const fvMesh& mesh() const noexcept
@@ -372,6 +400,23 @@ public:
 } // End namespace reconstruction
 } // End inline namespace twoPhaseFlow
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+inline Foam::scalar Foam::reconstruction::davof::faceFraction
+(
+    const label facei
+) const
+{
+    const label nInt = mesh_.nInternalFaces();
+    if (facei < nInt)
+    {
+        return alphaf_.primitiveField()[facei];
+    }
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label patchi = pbm.patchID()[facei - nInt];
+    return alphaf_.boundaryField()[patchi][facei - pbm[patchi].start()];
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

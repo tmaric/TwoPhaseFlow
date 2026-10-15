@@ -154,6 +154,91 @@ void Foam::reconstruction::davof::updateHasValue()
 }
 
 
+void Foam::reconstruction::davof::formAreaNormal()
+{
+    addProfilingInFunction(geometricVoF);
+    const vectorField& Sf = mesh_.faceAreas();
+    const labelUList& own = mesh_.faceOwner();
+    const labelUList& nei = mesh_.faceNeighbour();
+    const label nInt = mesh_.nInternalFaces();
+    const label nCells = mesh_.nCells();
+
+    vectorField& m = areaNormal_.primitiveFieldRef();
+
+    // The per-cell sums of a pass over every face in face order, the
+    // dry faces (alpha_f = 0) skipped (davofInit::areaNormal: 0 S_f adds
+    // +-0, which changes no sum, and the sums start at +0). The wet list
+    // holds exactly the faces with alpha_f != 0, ascending (the internal
+    // faces, then the patch faces in patch order, as the full pass
+    // visits them), so every cell receives the same terms in the same
+    // order. A cell no wet face touches keeps the +0 it holds: the cells
+    // of the previous sum are zeroed, every other cell was never written
+    // since the last full zeroing.
+    const bool useList =
+    (
+        wetFacesPtr_
+     && wetFacesNFaces_ == mesh_.nFaces()
+     && !mesh_.topoChanging()
+     && touchedCell_.size() == nCells
+     && m.size() == nCells
+    );
+
+    if (useList)
+    {
+        for (const label celli : touchedCell_)
+        {
+            m[celli] = Zero;
+        }
+        touchedCell_.reset();
+
+        const scalarField& afIn = alphaf_.primitiveField();
+        for (const label facei : *wetFacesPtr_)
+        {
+            const scalar af = (facei < nInt) ? afIn[facei] : faceFraction(facei);
+            if (af == 0) continue;
+            const vector contrib = af*Sf[facei];
+            m[own[facei]] += contrib;
+            touchedCell_.set(own[facei]);
+            if (facei < nInt)
+            {
+                m[nei[facei]] -= contrib;
+                touchedCell_.set(nei[facei]);
+            }
+        }
+        return;
+    }
+
+    m = Zero;
+    touchedCell_.resize(nCells);
+    touchedCell_.reset();
+
+    const scalarField& afIn = alphaf_.primitiveField();
+    for (label facei = 0; facei < nInt; ++facei)
+    {
+        const scalar af = afIn[facei];
+        if (af == 0) continue;
+        const vector contrib = af*Sf[facei];
+        m[own[facei]] += contrib;
+        m[nei[facei]] -= contrib;
+        touchedCell_.set(own[facei]);
+        touchedCell_.set(nei[facei]);
+    }
+    const surfaceScalarField::Boundary& bf = alphaf_.boundaryField();
+    forAll(bf, patchi)
+    {
+        const polyPatch& pp = mesh_.boundaryMesh()[patchi];
+        const fvsPatchScalarField& pf = bf[patchi];
+        forAll(pf, i)
+        {
+            const label facei = pp.start() + i;
+            if (pf[i] == 0) continue;
+            m[own[facei]] += pf[i]*Sf[facei];
+            touchedCell_.set(own[facei]);
+        }
+    }
+}
+
+
 Foam::scalar Foam::reconstruction::davof::stateTime()
 {
     const Time& runTime = mesh_.time();
@@ -217,7 +302,9 @@ Foam::reconstruction::davof::davof
         )
     ),
     hasValue_(),
-    alphafAll_(),
+    wetFacesPtr_(nullptr),
+    wetFacesNFaces_(-1),
+    touchedCell_(),
     areaNormal_
     (
         IOobject
@@ -337,11 +424,10 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
 
     updateHasValue();
 
-    // m_c = sum_f alpha_f S_f^out, formed in areaNormal_ itself, and the
-    // per-polyMesh-face values; areaNormal zeroes m first and skips the
-    // dry faces (bit-identical, see davofInit::areaNormal).
+    // m_c = sum_f alpha_f S_f^out, formed in areaNormal_ itself over the
+    // wet faces (the list isoAdvection keeps) or over every face
+    formAreaNormal();
     vectorField& m = areaNormal_.primitiveFieldRef();
-    davofInit::areaNormal(mesh_, alphaf_, m, alphafAll_);
 
     for (const label celli : prevLabels)
     {
@@ -357,13 +443,14 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
 
     // A cell whose face fractions are all equal holds no interface (all
     // wet, all dry): its sum_f S_f vanishes only to round-off. Zero it.
-    // A cell no wet face touched has m exactly +0 (areaNormal starts at
-    // +0 and skips the dry faces): all dry, or an exact cancellation, in
+    // A cell no wet face touched has m exactly +0 (the sums start at +0
+    // and skip the dry faces): all dry, or an exact cancellation, in
     // either case not an interface cell and m already what the rule
     // below would leave (the former full sum of 0 S_f terms gave +0 as
     // well, and the all-dry rule assigned +0), so it is skipped without
-    // reading its faces.
-    forAll(cells, celli)
+    // reading its faces: the cells the sum touched are visited, in cell
+    // order (the bitSet iterates ascending), the others hold +0.
+    for (const label celli : touchedCell_)
     {
         if (m[celli] == vector::zero) continue;
 
@@ -372,8 +459,9 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
         forAll(cf, i)
         {
             if (!hasValue_[cf[i]]) continue;
-            lo = min(lo, alphafAll_[cf[i]]);
-            hi = max(hi, alphafAll_[cf[i]]);
+            const scalar af = faceFraction(cf[i]);
+            lo = min(lo, af);
+            hi = max(hi, af);
         }
         if (lo == hi)
         {
@@ -432,7 +520,7 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
         for (const label facei : sortedFaces)
         {
             if (!hasValue_[facei]) continue;
-            const scalar af = alphafAll_[facei];
+            const scalar af = faceFraction(facei);
             if (af == 0) continue;
             if (own[facei] == celli)
             {
