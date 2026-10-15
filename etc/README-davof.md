@@ -393,6 +393,150 @@ state construction given; every row carries `NONORMALFALLBACK` (default
 in `fvSolution` and reported in the results CSV. `getResults.py --cases
 DIR --suffix S` collects another case tree into sibling CSV names.
 
+### Face clipping models (2026-10-15)
+
+What the face update stores on a face a plane has set is a
+run-time-selectable model (`src/VoF/davof/faceClipping`, base
+`davofFaceClipping`, keyword `faceClipping` of the alpha solver
+dictionary, default `plane`; constructed by isoAdvection when the
+reconstruction scheme is `davof`). `isoAdvection::storeAreaFraction`
+hands the model, for every face a plane sets (the downwind faces of a
+surface cell, the upwind faces its plane sweeps, the boundary faces, the
+second ring; the processor sync exchanges the final values), the plane's
+cell, the unit normal INTO the liquid, the plane's centroid translated to
+the end of the step, the chord (the plane's trace on the face at the end
+of the step, `cutFaceAdvect::chordEnd()`) and the plane-clipped area
+(`subFaceAreaEnd()`), and stores what the model returns as the fraction.
+
+- `plane`: the plane-clipped area itself, the face update as it was. Its
+  `corrects()` is false, so isoAdvection keeps no chords and never calls
+  the model: every existing row is bit-identical with the build before
+  the models, by construction. The only additions on the path of a
+  plane-set face are one tested bool (`clipCorrects_`, false), the split
+  of `Un0 = UInterp.interpolate(x0, celli) & n0` into the vector `U0`
+  and the same dot product `U0 & n0`, and the appends of `U0` to the
+  per-plane lists; `cutFaceAdvect` fills `chordEnd_` only after
+  `keepChord(true)`; the scheme's `usedNormal_` is a separate array; the
+  tensor fields are allocated on request only. No floating-point
+  operation of the sweep, the bounding or the reconstruction changes and
+  no counter changes. The check on the cluster is the plane gate
+  (`planeTranslation3D_hexCheck`-style, every value to all digits) and
+  the hex sphere study's end values.
+- `planeSagitta`: the sagitta correction, below.
+
+The geometry and the sign convention (verified in the code's
+conventions): the davof scheme's `normal_` and `m_c` point INTO the
+liquid (alpha = 1; cutCell's `(p - base).n > 0` is liquid); isoAdvector's
+plane normal `n0 = -normal/|normal|` points OUT of the liquid (its
+`Un0 > 0` means "the cell fills"), so `storeAreaFraction` passes `-n0` to
+the model. The curvature tensor `B` is the Hessian of the Monge patch
+`z = z_0 + (1/2) x.B.x` of the interface over the positioned plane, `z`
+along the normal `n` into the liquid, `x` in the plane from the plane's
+centroid, in the frame of `davofNormalModel::mongeFit` (the ringFit
+model's fit, factored out and shared; `e3 = n`, and for the ringFit model
+`e3 = m_c/|m_c|` as before): for a liquid sphere the ring's plane
+centroids lie on the liquid side of the tangent plane, `z = (x^2 + y^2)
+/(2R)`, so the fitted `d, f` are positive and `B = I_t/R` is positive
+definite, `tr B = 2/R`: "the surface bends toward the liquid" is
+`t.B.t > 0`. `B` is stored as a symmetric tensor in the global frame
+(`curvatureTensorDavof.<group>`, `t.B.t` for any in-plane `t`), with the
+offset `z_0 = -(1/2) B : M` (`curvatureOffsetDavof.<group>`, `M` the cut
+polygon's second moments about its centroid): the plane is positioned by
+the cell's volume, so it is a SECANT of the surface over the cell and the
+paraboloid's vertex sits at `z_0` (below the plane, `z_0 < 0`, for a
+convex liquid region). Both fields are zero outside the interface cells
+and in the fallback cells (fewer than `tensorMinCells` (6) usable ring
+planes, `n_k.e3 <= tensorAlignTol` (0.2), a singular system; counted
+"tensor fallbacks"); they are allocated on the first update, written with
+`writeCurvatureTensor true` (default false). The tensor of the
+start-of-step reconstruction serves the whole step (`advect` fits it right
+after `reconstruct`; a translation does not change the curvature). The
+scheme also exposes `usedNormals()`, the unit normal every interface
+cell's plane was positioned along.
+
+The correction. On a face with unit normal `n_f`, chord end points `p1,
+p2` (length `L`, direction `t`), the surface's trace is displaced from the
+chord in the face plane, along the chord's in-plane normal into the
+liquid, by `w/cos(phi)`, where `w(l) = z_0 + (1/2) x(l).B.x(l)` is the
+surface's offset from the plane along `n` at the chord point `x(l) = a +
+l t`, `a = p1 - c'`, `c' = x0 + U0 dt` the centroid at the end of the
+step, and `cos(phi) = |n - (n.n_f) n_f|` (Meusnier: the trace's curvature
+is the normal curvature over `cos(phi)`). Where `w > 0` the surface lies
+on the liquid side of the plane and the true liquid area is smaller than
+the plane's:
+
+    dA = -(1/cos(phi)) int_0^L w(l) dl
+       = -(1/cos(phi)) [ z_0 L + (1/2)( a.B.a L + a.B.t L^2 + t.B.t L^3/3 ) ]
+
+exact to O(h^4) in the area for a second-order normal and a first-order
+`B` (the end triangles where chord and arc meet the face's edges are
+O(h^4); an O(h) error of `B` moves the area by O(h^4)), so the stored
+fraction is second order where the plane clipping is first order
+(`sagittaForm full`, the default). The original formulation, the
+parabolic segment between the chord and the arc through its end points,
+`dA = +(2/3) L s / cos(phi)` with the sagitta `s = t.B.t L^2/8`, i.e.
+`t.B.t L^3/(12 cos(phi))`, is kept as `sagittaForm segment`: it assumes the
+chord's end points ON the arc, which the volume-positioned plane does not
+give, and drops the offset and the `a`-terms, which are of the same
+order. The check on a cube of side `h` cut through its centre by a plane
+normal to `e3` with `B = diag(B11, B22)`: `M = diag(h^2/12, h^2/12)`,
+`z_0 = -(B11 + B22) h^2/24`; on the face `x = h/2` (`L = h`, `t = e2`,
+`a = (h/2, -h/2)`) the full form gives `int w = B11 h^3/12`, `dA = -B11
+h^3/12`: the plane OVERESTIMATES the wetted area of every side face of a
+convex liquid region (the surface's trace lies on the liquid side of the
+secant's trace), while the segment form gives `+B22 h^3/12`, the opposite
+sign and the curvature of the other direction. Guards (keywords, with
+their defaults): no correction without a chord (the face on one side of
+the plane at the end of the step: a corner triangle of O(h^4) at most)
+or in a tensor-fallback cell; `sagittaMinCos 0.2` (`cos(phi)` below it:
+the interface nearly parallel to the face, the trace ill-conditioned;
+"skipped (cos)"); `sagittaMinChord 0.05` (`L` below it times
+`sqrt(|S_f|)`: the plane grazes a corner; "skipped (chord)");
+`sagittaMaxFraction 0.25` (`|dA|` capped at it times `|S_f|`; "capped");
+the stored area clamped to `[0, |S_f|]` ("clamped"); `tensorSource ring`
+(the ring Monge fit, the only source in this round). Planar faces: the
+chord is the plane's trace at `t = dt` on the face's edges (the cut
+points of the last quadrilateral of `timeIntegratedArea`, the cut points
+of `calcSubFace` for a stationary plane); on a non-planar face (the fan)
+the crossings of the plane with the face polygon's edges and the face's
+mean normal are used, an approximation (the perturbed-mesh transport is
+a separate matter). Configuration (the alpha solver dictionary; the old
+configuration without the keyword is the default):
+
+```
+faceClipping        planeSagitta;   // plane (default) | planeSagitta
+sagittaMinCos       0.2;
+sagittaMinChord     0.05;
+sagittaMaxFraction  0.25;
+sagittaForm         full;           // full | segment
+tensorSource        ring;
+tensorAlignTol      0.2;            // the scheme's fit (davof keys)
+tensorMinCells      6;
+writeCurvatureTensor false;
+```
+
+Info lines: the scheme prints `davof: curvature tensor on N cells, F
+tensor fallbacks` after the start-of-step reconstruction, and the face
+update's line gains `; sagitta corrected F faces, C capped, K clamped, S
+skipped (cos), M skipped (chord)` (only when the model is not `plane`;
+leia's `tpf_advection_metrics.py` parses both).
+
+Expected on the plane test (`planeTranslation3D`): the ring's planes of
+an exact plane state have centroids on the plane and exact normals to
+round-off, so the fitted quadratic coefficients are round-off (`d, e, f`
+about 1e-15 in the scaled units, `B` about 1e-15/h, 5e-12 1/m at N = 20
+of the 4 mm box) and `|dA|/|S_f|` about `B h/12` ~ 1e-16 per face, the
+offset term `z_0 L/|S_f|` ~ `B h/24` as small: the plane gate at 1e-12
+must hold for the sagitta rows as for the plane rows (a tensor of the
+order of 1e-13 1/m moves a fraction by 1e-13 h/12, far below the gate at
+every N). Expected on the sphere: the face-fraction error second order
+with the exact normal (the clipping law's q = 1 was the plane's, the
+corrected fraction is O(h^2)), the own normal recovered at second order
+where the slivers take the ring normal; the ring normal's first-order
+bias on a curved interface limits its row (the slope error O(h) enters
+`w` at O(h^2)). The sphere's `z_0`: the plane positioned by alpha in a
+cube cut through its centre, `z_0 = -h^2/(12 R)`, 1.7e-3 h at R = 4.8 h.
+
 ### The mixed normal and the normal-source controls (2026-10-13, superseded by the normal models above)
 
 The closed loop (own normal from alphaf, the alpha-positioned plane, alphaf
