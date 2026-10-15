@@ -82,6 +82,7 @@ Foam::functionObjects::areaFractionError::areaFractionError
     U0FromField_(true),
     davofMethod_("quadraticFaces"),
     wispTol_(1e-3),
+    consistency_(true),
     reconstructionError_(true),
     reconstructionErrorEveryStep_(false),
     recErrPtr_(nullptr)
@@ -106,6 +107,7 @@ bool Foam::functionObjects::areaFractionError::read(const dictionary& dict)
     U0_ = dict.getOrDefault<vector>("U0", vector::zero);
     davofMethod_ = dict.getOrDefault<word>("davofMethod", "quadraticFaces");
     wispTol_ = dict.getOrDefault<scalar>("wispTol", 1e-3);
+    consistency_ = dict.getOrDefault<Switch>("consistency", Switch(true));
     reconstructionError_ = dict.getOrDefault<bool>("reconstructionError", true);
     reconstructionErrorEveryStep_ =
         dict.getOrDefault<bool>("reconstructionErrorEveryStep", false);
@@ -121,6 +123,9 @@ bool Foam::functionObjects::areaFractionError::read(const dictionary& dict)
 
 bool Foam::functionObjects::areaFractionError::execute()
 {
+    // Nothing: the exact state, the error and the extra reconstructions
+    // are built in write() only, so a write control that fires at the end
+    // (onEnd) computes nothing before it
     return true;
 }
 
@@ -282,8 +287,9 @@ bool Foam::functionObjects::areaFractionError::write()
         Linf = returnReduce(worst, maxOp<scalar>());
 
         // The consistency of the transported state with the plane the
-        // davof scheme positions in it
-        if (advPtr && advPtr->surf().type() == "davof")
+        // davof scheme positions in it (one extra reconstruction; -1 when
+        // switched off)
+        if (consistency_ && advPtr && advPtr->surf().type() == "davof")
         {
             reconstructionSchemes& surf = advPtr->surf();
             surf.reconstruct(true);

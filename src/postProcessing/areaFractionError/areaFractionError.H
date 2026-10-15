@@ -40,11 +40,25 @@ Description
     either state (a cell is an interface cell when |m_c| > wispTol V^(2/3)
     with m_c = sum_f alphaf S_f^out, in the current or the exact state):
     mean (L1), root mean square (L2), maximum (Linf), the face count and the
-    interface-cell count. With the davof scheme the consistency of the
-    transported state is written as max |m_c - A_c n_c| / V_c^(2/3) over the
-    interface cells, A_c n_c the area vector of the plane positioned by
-    alpha_c along m_c (the scheme reconstructed from the end-of-step state).
-    Without alphaf the face columns are -1.
+    interface-cell count. With the davof scheme and consistency true (the
+    default) the consistency of the transported state is written as
+    max |m_c - A_c n_c| / V_c^(2/3) over the interface cells, A_c n_c the
+    area vector of the plane the scheme positions in it, which costs one
+    extra reconstruction of the scheme per write; consistency false skips
+    that reconstruction and writes -1. Without alphaf the face columns
+    are -1.
+
+    Nothing is computed outside write(): execute() does nothing, and the
+    exact state, the error sums and the extra reconstructions are built
+    in write() only, so writeControl onEnd (or timeStep with a
+    writeInterval that the end step meets) costs nothing before the write.
+    A timeStep interval the end step does not divide writes NOTHING (the
+    function object has no end() of its own): for the end only use
+    writeControl onEnd. The skipped consistency reconstruction leaves the
+    transport bit-identical for the models that reconstruct from alphaf
+    and alpha alone (cellLocal, youngs, exact, ringArea, ringFit) and
+    changes the plicRDF model's path (its helper starts its iteration from
+    the previous normals, see reconstructionErrorEveryStep below).
 
     The reconstruction error (reconstructionError, the columns of the
     reconstruction benchmarks: LNormalDiff1/2/Inf, LCentreDiff1/2/Inf, ...)
@@ -64,9 +78,10 @@ Description
         U0          (1 0 0);            // default: U when uniform
         davofMethod exactSphere;        // exactSphere | quadraticFaces | detrixheAslam
         wispTol     1e-3;
+        consistency true;               // the extra reconstruction per write; false writes -1
         reconstructionError true;
         reconstructionErrorEveryStep false;
-        writeControl timeStep;
+        writeControl timeStep;          // onEnd: the end step only
         writeInterval 1;
 
     Output columns (postProcessing/<name>/<time>/areaFractionError.dat):
@@ -83,6 +98,7 @@ SourceFiles
 #include "fvMeshFunctionObject.H"
 #include "writeFile.H"
 #include "volFieldsFwd.H"
+#include "Switch.H"
 #include "reconstructionError.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -121,6 +137,9 @@ class areaFractionError
         word davofMethod_;
 
         scalar wispTol_;
+
+        //- The consistency measure (one extra reconstruction per write)
+        Switch consistency_;
 
         bool reconstructionError_;
 

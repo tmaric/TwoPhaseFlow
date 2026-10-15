@@ -443,7 +443,23 @@ or `detrixheAslam`), over the faces of the interface cells of either state
 (L1, L2, Linf as fractions, the counts, the consistency
 max |m_c - A n|/V^(2/3) of the transported state with the plane the scheme
 positions in it), and writes the reconstruction error (normal, centre)
-against the translated function at the end time (or every step). The
+against the translated function at the end time (or every step). Its cost
+is a diagnostic's (2026-10-15): the exact state is built over the whole
+mesh at every write (exactSphere: every face against the ball, every cell
+box), two area sums follow, and the consistency column costs one EXTRA
+reconstruction of the scheme per write. The switch `consistency` (default
+true) turns that reconstruction off (the column reads -1); everything is
+computed in `write()` only (`execute()` does nothing), so `writeControl
+onEnd` measures the end state at no cost during the run, while
+`writeControl timeStep` with an interval the end step does not divide
+writes NOTHING (no `end()` of its own). The skipped reconstruction leaves
+the transport bit-identical for the models that reconstruct from alphaf
+and alpha alone (cellLocal, youngs, exact, ringArea, ringFit: the next
+step's reconstruction is the first of its time index whatever happened
+before, and the exact model's state time follows the index, not the
+count); it CHANGES the path of the plicRDF model (the helper starts its
+iteration from the previous normals), as `reconstructionErrorEveryStep`
+does for the plicRDF comparator. The
 exact-solution gate is `run/benchmark/advection/planeTranslation3D`
 (README there: the oblique arm passes at round-off; the normal arm is
 exact per step and amplifies round-off through sliver interface cells by
