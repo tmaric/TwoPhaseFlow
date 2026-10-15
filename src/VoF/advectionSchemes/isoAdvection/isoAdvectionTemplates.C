@@ -30,6 +30,7 @@ License
 #include "isoAdvection.H"
 #include "fvcSurfaceIntegrate.H"
 #include "upwind.H"
+#include "davof.H"
 
 // ************************************************************************* //
 
@@ -429,6 +430,14 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
 
     // reconstruct the interface
     surf_->reconstruct();
+
+    // DAVOF: the curvature tensor of the start-of-step planes for the
+    // face-clipping model that corrects the plane clipping (planeSagitta);
+    // it serves the whole step
+    if (davofPtr_ && faceClippingPtr_ && faceClippingPtr_->needsCurvatureTensor())
+    {
+        davofPtr_->updateCurvatureTensor();
+    }
 
     if(timeIndex_ < mesh_.time().timeIndex())
     {

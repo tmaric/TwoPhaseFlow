@@ -284,6 +284,46 @@ public:
             vectorField& n
         );
 
+        //- Orthonormal frame with e3 given (unit): e1 the coordinate axis
+        //  least aligned with e3 made orthogonal to it, e2 = e3 ^ e1
+        static void frameOf(const vector& e3, vector& e1, vector& e2);
+
+        //- In-place Cholesky solve of the SPD system A x = b (row-major
+        //  n x n), b overwritten with x; false when not positive-definite
+        static bool choleskySolve(scalar* A, scalar* b, const label n);
+
+        //- The weighted least-squares Monge patch through ring planes: in
+        //  the frame (e1, e2, e3) of frameOf(e3) with the origin o, scaled
+        //  by h, the quadric
+        //
+        //      z = c0 + c1 x + c2 y + c3 x^2 + c4 x y + c5 y^2
+        //
+        //  (x, y, z in units of h) fitted to the positions xs (one
+        //  equation each) and the unit normals ns (two slope equations
+        //  each, dz/dx = -(n.e1)/(n.e3), dz/dy = -(n.e2)/(n.e3)) with
+        //  the weights ws/wSum; a plane whose n.e3 <= alignTol is
+        //  dropped. False with fewer than minCells usable planes or a
+        //  singular system. The ringFit model's fit (its normal is
+        //  (-c1, -c2, 1) rotated back) and the curvature tensor of the
+        //  davof scheme (the Hessian [[2 c3, c4], [c4, 2 c5]]/h in the
+        //  frame (e1, e2), with e3 INTO the liquid: positive definite for
+        //  a liquid sphere) share it.
+        static bool mongeFit
+        (
+            const vector& e3,
+            const point& o,
+            const scalar h,
+            const UList<vector>& xs,
+            const UList<vector>& ns,
+            const UList<scalar>& ws,
+            const scalar wSum,
+            const scalar alignTol,
+            const label minCells,
+            scalar coeffs[6],
+            vector& e1,
+            vector& e2
+        );
+
         //- For every interface cell (indexed as interfaceLabels) the normal
         //  the scheme positions its plane along (nUse) and whether it
         //  differs from m_c (changed); m the raw area normal per cell

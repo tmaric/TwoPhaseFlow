@@ -44,7 +44,9 @@ Description
     normal makes n.e3 <= alignTol with the frame are dropped. Fewer than
     minCells usable ring cells (default 6) or a singular system: the
     ringArea normal of the cell, counted as a fit fallback. Default applyTo
-    all.
+    all. The fit itself is davofNormalModel::mongeFit (since 2026-10-15
+    shared with the curvature tensor of the davof scheme; the same
+    arithmetic in the same order, bit-identical).
 
         normalModel ringFit;
         weight      area;     // area | alpha
@@ -88,16 +90,6 @@ class ringFit
 
         //- Fewer usable ring cells: fallback
         label minCells_;
-
-
-    // Private Member Functions
-
-        //- Orthonormal frame with e3 given
-        static void frameOf(const vector& e3, vector& e1, vector& e2);
-
-        //- In-place Cholesky solve of the SPD system A x = b (row-major
-        //  n x n), b overwritten with x; false when not positive-definite
-        static bool choleskySolve(scalar* A, scalar* b, const label n);
 
 
 public:

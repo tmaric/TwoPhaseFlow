@@ -27,6 +27,7 @@ License
 
 #include "davof.H"
 #include "davofInit.H"
+#include "zoneDistribute.H"
 #include "addToRunTimeSelectionTable.H"
 #include "profiling.H"
 
@@ -372,7 +373,23 @@ Foam::reconstruction::davof::davof
     ),
     maxPlaneVolDefect_(0),
     maxPlaneAreaDefect_(0),
-    normalModel_(nullptr)
+    normalModel_(nullptr),
+    usedNormal_(0),
+    tensorRequested_(false),
+    tensorAlignTol_(modelDict().getOrDefault<scalar>("tensorAlignTol", 0.2)),
+    tensorMinCells_(modelDict().getOrDefault<label>("tensorMinCells", 6)),
+    writeCurvatureTensor_
+    (
+        modelDict().getOrDefault<bool>("writeCurvatureTensor", false)
+    ),
+    polyMoment_(0),
+    curvatureTensorPtr_(nullptr),
+    curvatureOffsetPtr_(nullptr),
+    mRingPtr_(nullptr),
+    mRingFilled_(),
+    tensorCells_(),
+    nTensorCells_(0),
+    nTensorFallback_(0)
 {
     normalModel_ = davofNormalModel::New(modelDict(), *this);
 
@@ -493,6 +510,14 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     // first pass's plane along m_c was only overwritten).
     const bool twoPass = normalModel_->needsPositionedPlanes();
 
+    // The curvature tensor's per-cell records (requested by the face
+    // update's model only; otherwise untouched)
+    usedNormal_.resize(interfaceLabels_.size());
+    if (tensorRequested_)
+    {
+        polyMoment_.resize(interfaceLabels_.size());
+    }
+
     forAll(interfaceLabels_, i)
     {
         const label celli = interfaceLabels_[i];
@@ -506,7 +531,11 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
 
         if (twoPass)
         {
-            positionPlane(celli, m[celli]);
+            const bool ok = positionPlane(celli, m[celli]);
+            if (tensorRequested_)
+            {
+                polyMoment_[i] = ok ? cutPolygonMoments() : symmTensor(Zero);
+            }
         }
 
         // The face moment sum_f alpha_f (x_f - x_c).S_f^out of the explicit
@@ -566,8 +595,14 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     {
         if (!twoPass || changed[i])
         {
-            positionPlane(interfaceLabels_[i], nUse[i]);
+            const bool ok = positionPlane(interfaceLabels_[i], nUse[i]);
+            if (tensorRequested_)
+            {
+                polyMoment_[i] = ok ? cutPolygonMoments() : symmTensor(Zero);
+            }
         }
+        const scalar nMag = mag(nUse[i]);
+        usedNormal_[i] = (nMag > 0) ? nUse[i]/nMag : vector(Zero);
     }
 
     maxPlaneVolDefect_ = returnReduce(maxPlaneVolDefect_, maxOp<scalar>());
@@ -592,6 +627,212 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     Info<< ", explicit plane defects max |alpha_plane - alpha| = "
         << maxPlaneVolDefect_ << ", max |A n - m|/V^(2/3) = "
         << maxPlaneAreaDefect_ << endl;
+}
+
+
+Foam::symmTensor Foam::reconstruction::davof::cutPolygonMoments()
+{
+    // The second moments (1/A) int (x - c)(x - c)^T dA of the cut polygon
+    // about its centroid c, by the fan of triangles (c, p_i, p_{i+1}): for
+    // a triangle with the vertices 0, v1, v2 the integral of x x^T is
+    // (A_t/12)(2 v1 v1^T + 2 v2 v2^T + v1 v2^T + v2 v1^T)
+    const DynamicList<point>& pts = sIterPLIC_.facePoints();
+    const point& c = sIterPLIC_.surfaceCentre();
+    const label n = pts.size();
+
+    symmTensor M(Zero);
+    scalar A = 0;
+    for (label i = 0; i < n; ++i)
+    {
+        const vector v1 = pts[i] - c;
+        const vector v2 = pts[(i + 1) % n] - c;
+        const scalar At = 0.5*mag(v1 ^ v2);
+        M += (At/6.0)*(sqr(v1) + sqr(v2) + symm(v1*v2));
+        A += At;
+    }
+    if (A > 0)
+    {
+        return M/A;
+    }
+    return symmTensor(Zero);
+}
+
+
+void Foam::reconstruction::davof::updateCurvatureTensor()
+{
+    addProfilingInFunction(geometricVoF);
+
+    if (!tensorRequested_ || polyMoment_.size() != interfaceLabels_.size())
+    {
+        FatalErrorInFunction
+            << "The curvature tensor was not requested before the"
+            << " reconstruction (requestCurvatureTensor(true))."
+            << exit(FatalError);
+    }
+
+    if (!curvatureTensorPtr_)
+    {
+        const IOobject::writeOption wo =
+            writeCurvatureTensor_ ? IOobject::AUTO_WRITE : IOobject::NO_WRITE;
+        curvatureTensorPtr_.reset
+        (
+            new volSymmTensorField
+            (
+                IOobject
+                (
+                    IOobject::groupName("curvatureTensorDavof", alpha1_.group()),
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    wo
+                ),
+                mesh_,
+                dimensionedSymmTensor(inv(dimLength), Zero)
+            )
+        );
+        curvatureOffsetPtr_.reset
+        (
+            new volScalarField
+            (
+                IOobject
+                (
+                    IOobject::groupName("curvatureOffsetDavof", alpha1_.group()),
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    wo
+                ),
+                mesh_,
+                dimensionedScalar(dimLength, Zero)
+            )
+        );
+        mRingPtr_.reset
+        (
+            new volVectorField
+            (
+                IOobject
+                (
+                    IOobject::groupName("davofRingTensor", alpha1_.group()),
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE,
+                    IOobject::NO_REGISTER
+                ),
+                mesh_,
+                dimensionedVector(dimArea, Zero)
+            )
+        );
+    }
+
+    volSymmTensorField& Bf = *curvatureTensorPtr_;
+    volScalarField& z0f = *curvatureOffsetPtr_;
+    symmTensorField& B = Bf.primitiveFieldRef();
+    scalarField& z0 = z0f.primitiveFieldRef();
+
+    // Zero at the cells of the previous update (zero elsewhere)
+    for (const label celli : tensorCells_)
+    {
+        B[celli] = Zero;
+        z0[celli] = 0;
+    }
+    tensorCells_ = interfaceLabels_;
+
+    // The ring exchange (as the ring models): m_c, the plane centroids and
+    // normals of the interface cells across the processors
+    davofNormalModel::fillInterfaceNormals(*this, *mRingPtr_, mRingFilled_);
+    zoneDistribute& exchange = zoneDistribute::New(mesh_);
+    const boolList& zone = interfaceCell_;
+    exchange.setUpCommforZone(zone, true);
+
+    const Map<vector> mapM(exchange.getDatafromOtherProc(zone, *mRingPtr_));
+    const Map<vector> mapX(exchange.getDatafromOtherProc(zone, centre_));
+    const Map<vector> mapN(exchange.getDatafromOtherProc(zone, normal_));
+    const labelListList& stencil = exchange.getStencil();
+
+    const vectorField& m = areaNormal_.primitiveField();
+    const vectorField& C = mesh_.cellCentres();
+    const scalarField& V = mesh_.V();
+
+    DynamicList<vector> xs(32);
+    DynamicList<vector> ns(32);
+    DynamicList<scalar> ws(32);
+
+    nTensorCells_ = interfaceLabels_.size();
+    nTensorFallback_ = 0;
+
+    forAll(interfaceLabels_, i)
+    {
+        const label celli = interfaceLabels_[i];
+
+        // The ring's positioned planes, weighted by |m_k|
+        xs.clear(); ns.clear(); ws.clear();
+        scalar wSum = 0;
+        for (const label gblIdx : stencil[celli])
+        {
+            const vector mk = exchange.getValue(*mRingPtr_, mapM, gblIdx);
+            const scalar mkMag = mag(mk);
+            if (!(mkMag > 0)) continue;       // not an interface cell
+            const vector nk = exchange.getValue(normal_, mapN, gblIdx);
+            const scalar nkMag = mag(nk);
+            if (!(nkMag > 0)) continue;       // no positioned plane
+            const vector xk = exchange.getValue(centre_, mapX, gblIdx);
+            xs.append(xk);
+            ns.append(nk/nkMag);
+            ws.append(mkMag);
+            wSum += mkMag;
+        }
+
+        // The frame of the used normal (into the liquid) at the cell's
+        // plane centroid
+        vector e3 = usedNormal_[i];
+        if (!(mag(e3) > 0))
+        {
+            const scalar mMag = mag(m[celli]);
+            e3 = (mMag > 0) ? m[celli]/mMag : vector(Zero);
+        }
+        const point o = (mag(normal_[celli]) > 0) ? centre_[celli] : C[celli];
+        const scalar h = Foam::cbrt(V[celli]);
+
+        vector e1, e2;
+        scalar q[6];
+        if
+        (
+            !(mag(e3) > 0)
+         || xs.size() < tensorMinCells_
+         || !(wSum > 0)
+         || !davofNormalModel::mongeFit
+            (
+                e3, o, h, xs, ns, ws, wSum, tensorAlignTol_, tensorMinCells_,
+                q, e1, e2
+            )
+        )
+        {
+            ++nTensorFallback_;
+            continue;
+        }
+
+        // The Hessian of z = h (q0 + q1 x/h + ... + q3 x^2/h^2 + q4 x y/h^2
+        // + q5 y^2/h^2) in the frame (e1, e2): [[2 q3, q4], [q4, 2 q5]]/h,
+        // mapped to the global frame; the vertex offset from the volume
+        // match over the cut polygon
+        const scalar B11 = 2.0*q[3]/h;
+        const scalar B12 = q[4]/h;
+        const scalar B22 = 2.0*q[5]/h;
+        const symmTensor Bc =
+            B11*sqr(e1) + (2.0*B12)*symm(e1*e2) + B22*sqr(e2);
+        B[celli] = Bc;
+        z0[celli] = -0.5*(Bc && polyMoment_[i]);
+    }
+
+    nTensorCells_ = returnReduce(nTensorCells_, sumOp<label>());
+    nTensorFallback_ = returnReduce(nTensorFallback_, sumOp<label>());
+
+    Bf.correctBoundaryConditions();
+    z0f.correctBoundaryConditions();
+
+    Info<< "davof: curvature tensor on " << nTensorCells_
+        << " cells, " << nTensorFallback_ << " tensor fallbacks" << endl;
 }
 
 

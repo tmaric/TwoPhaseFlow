@@ -269,6 +269,154 @@ void Foam::davofNormalModel::ringAreaNormals
 }
 
 
+void Foam::davofNormalModel::frameOf
+(
+    const vector& e3,
+    vector& e1,
+    vector& e2
+)
+{
+    // The coordinate axis least aligned with e3, made orthogonal to it.
+    direction k = 0;
+    for (direction i = 1; i < 3; ++i)
+    {
+        if (mag(e3[i]) < mag(e3[k])) k = i;
+    }
+    vector a(Zero);
+    a[k] = 1;
+    e1 = a - (a & e3)*e3;
+    e1 /= max(mag(e1), VSMALL);
+    e2 = e3 ^ e1;
+}
+
+
+bool Foam::davofNormalModel::choleskySolve
+(
+    scalar* A,
+    scalar* b,
+    const label n
+)
+{
+    for (label j = 0; j < n; ++j)
+    {
+        scalar d = A[j*n + j];
+        for (label k = 0; k < j; ++k) { d -= A[j*n + k]*A[j*n + k]; }
+        if (d <= SMALL) { return false; }
+        d = Foam::sqrt(d);
+        A[j*n + j] = d;
+        for (label i = j + 1; i < n; ++i)
+        {
+            scalar s = A[i*n + j];
+            for (label k = 0; k < j; ++k) { s -= A[i*n + k]*A[j*n + k]; }
+            A[i*n + j] = s/d;
+        }
+    }
+    for (label i = 0; i < n; ++i)
+    {
+        scalar s = b[i];
+        for (label k = 0; k < i; ++k) { s -= A[i*n + k]*b[k]; }
+        b[i] = s/A[i*n + i];
+    }
+    for (label i = n - 1; i >= 0; --i)
+    {
+        scalar s = b[i];
+        for (label k = i + 1; k < n; ++k) { s -= A[k*n + i]*b[k]; }
+        b[i] = s/A[i*n + i];
+    }
+    return true;
+}
+
+
+bool Foam::davofNormalModel::mongeFit
+(
+    const vector& e3,
+    const point& o,
+    const scalar h,
+    const UList<vector>& xs,
+    const UList<vector>& ns,
+    const UList<scalar>& ws,
+    const scalar wSum,
+    const scalar alignTol,
+    const label minCells,
+    scalar coeffs[6],
+    vector& e1,
+    vector& e2
+)
+{
+    frameOf(e3, e1, e2);
+
+    // Normal equations A q = b over q = (a, b, c, d, e, f)
+    scalar A[36] = {0};
+    scalar* b = coeffs;
+    for (label p = 0; p < 6; ++p)
+    {
+        b[p] = 0;
+    }
+    label nUsable = 0;
+
+    forAll(xs, k)
+    {
+        const vector& nk = ns[k];
+        const scalar a3 = nk & e3;
+        if (a3 <= alignTol) continue;
+        ++nUsable;
+
+        const vector r = xs[k] - o;
+        const scalar U = (r & e1)/h;
+        const scalar Vv = (r & e2)/h;
+        const scalar W = (r & e3)/h;
+        const scalar w = ws[k]/wSum;
+        const scalar s1 = -(nk & e1)/a3;
+        const scalar s2 = -(nk & e2)/a3;
+
+        // position row: a + b U + c V + d U^2 + e U V + f V^2 = W
+        {
+            const scalar val[6] = {1, U, Vv, U*U, U*Vv, Vv*Vv};
+            for (label p = 0; p < 6; ++p)
+            {
+                b[p] += w*val[p]*W;
+                for (label q = 0; q < 6; ++q)
+                {
+                    A[p*6 + q] += w*val[p]*val[q];
+                }
+            }
+        }
+        // slope row 1: b + 2 d U + e V = s1
+        {
+            const label idx[3] = {1, 3, 4};
+            const scalar val[3] = {1, 2*U, Vv};
+            for (label p = 0; p < 3; ++p)
+            {
+                b[idx[p]] += w*val[p]*s1;
+                for (label q = 0; q < 3; ++q)
+                {
+                    A[idx[p]*6 + idx[q]] += w*val[p]*val[q];
+                }
+            }
+        }
+        // slope row 2: c + e U + 2 f V = s2
+        {
+            const label idx[3] = {2, 4, 5};
+            const scalar val[3] = {1, U, 2*Vv};
+            for (label p = 0; p < 3; ++p)
+            {
+                b[idx[p]] += w*val[p]*s2;
+                for (label q = 0; q < 3; ++q)
+                {
+                    A[idx[p]*6 + idx[q]] += w*val[p]*val[q];
+                }
+            }
+        }
+    }
+
+    if (nUsable < minCells)
+    {
+        return false;
+    }
+    return choleskySolve(A, b, 6);
+}
+
+
 void Foam::davofNormalModel::select
 (
     const scalar tState,

@@ -172,6 +172,13 @@ Foam::advection::isoAdvection::isoAdvection
         {
             advectFace_.keepChord(true);
         }
+        if (faceClippingPtr_->needsCurvatureTensor())
+        {
+            // The scheme keeps what the tensor needs from now on; the
+            // tensor itself is fitted after the reconstruction at the
+            // start of every step (advect)
+            davofPtr_->requestCurvatureTensor(true);
+        }
         Info<< "isoAdvection: faceClipping " << faceClippingPtr_->type()
             << endl;
     }

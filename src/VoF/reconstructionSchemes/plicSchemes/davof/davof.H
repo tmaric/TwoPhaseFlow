@@ -120,6 +120,41 @@ Description
     step) the state at t, the constructor's the state at the start time;
     the time used is printed in the Info line.
 
+    The curvature tensor (2026-10-15, for the face-clipping model
+    planeSagitta of isoAdvection): on request (requestCurvatureTensor,
+    called by isoAdvection when its model needs it) every reconstruction
+    keeps, per interface cell, the unit normal the plane was positioned
+    along (usedNormals()) and the second moments of the positioned
+    plane's cut polygon about its centroid; updateCurvatureTensor() then
+    fits, per interface cell, the Monge patch of davofNormalModel::
+    mongeFit through the ring's positioned planes (centroids and unit
+    normals, the point-neighbour ring across processors, the cell
+    included, weights |m_k|) in the frame of the cell's used normal n
+    (INTO the liquid) at its plane centroid, and stores
+
+        curvatureTensorDavof.<group>   B = the Hessian of the patch in the
+                                       tangent frame of n, as a symmetric
+                                       tensor in the global frame [1/m]:
+                                       t.B.t is the normal curvature in
+                                       the tangent direction t, positive
+                                       where the surface bends TOWARD the
+                                       liquid (a liquid sphere: B = I_t/R,
+                                       tr B = 2/R)
+        curvatureOffsetDavof.<group>   z_0 = -(1/2) B : M [m], the offset
+                                       of the paraboloid's vertex from the
+                                       positioned plane along n that makes
+                                       the paraboloid z = z_0 + (1/2) x.B.x
+                                       (x in the plane from the centroid)
+                                       cut the same volume as the plane,
+                                       M the cut polygon's second moments
+
+    both zero outside the interface cells and in the cells whose fit is
+    not possible (fewer than tensorMinCells usable ring planes, default
+    6, n.e3 <= tensorAlignTol, default 0.2, or a singular system),
+    counted as tensor fallbacks; written with writeCurvatureTensor true
+    (default false; the fields are allocated on request only). The
+    tensor of the start-of-step reconstruction serves the whole step.
+
 SourceFiles
     davof.C
 
@@ -227,8 +262,51 @@ class davof
         //  first reconstruction)
         autoPtr<davofNormalModel> normalModel_;
 
+        //- The unit normal every interface cell's plane was positioned
+        //  along (indexed as interfaceLabels_; zero when none)
+        vectorField usedNormal_;
+
+
+        // The curvature tensor (see Description)
+
+            //- Requested by isoAdvection's face-clipping model: the
+            //  reconstruction then keeps the cut polygons' second moments
+            bool tensorRequested_;
+
+            //- tensorAlignTol (0.2), tensorMinCells (6), writeCurvatureTensor
+            scalar tensorAlignTol_;
+            label tensorMinCells_;
+            bool writeCurvatureTensor_;
+
+            //- The second moments of the positioned plane's cut polygon
+            //  about its centroid, global frame (indexed as
+            //  interfaceLabels_; kept when tensorRequested_)
+            Field<symmTensor> polyMoment_;
+
+            //- The fields, allocated on the first update
+            autoPtr<volSymmTensorField> curvatureTensorPtr_;
+            autoPtr<volScalarField> curvatureOffsetPtr_;
+
+            //- The exchanged field of the ring fit (m_c in the interface
+            //  cells) and the cells it was last filled in
+            autoPtr<volVectorField> mRingPtr_;
+            labelList mRingFilled_;
+
+            //- The cells the tensor was last set in (zeroed before the
+            //  next update)
+            labelList tensorCells_;
+
+            //- Counts of the last update (reduced)
+            label nTensorCells_;
+            label nTensorFallback_;
+
 
     // Private Member Functions
+
+        //- The second moments about the centroid of the cut polygon of
+        //  the last positionPlane (sIterPLIC_), global frame, by the fan
+        //  of triangles from the centroid (the points are sorted by angle)
+        symmTensor cutPolygonMoments();
 
         //- Read alphaf.<group> from the time directory unless registered
         static autoPtr<surfaceScalarField> readAlphafIfAbsent
@@ -391,6 +469,54 @@ public:
         label nSliver() const
         {
             return normalModel_->nSliver();
+        }
+
+        //- The unit normal every interface cell's plane was positioned
+        //  along in the last reconstruction (indexed as interfaceLabels())
+        const vectorField& usedNormals() const noexcept
+        {
+            return usedNormal_;
+        }
+
+
+    // The curvature tensor
+
+        //- Keep what the tensor needs in every reconstruction from now on
+        void requestCurvatureTensor(const bool on)
+        {
+            tensorRequested_ = on;
+        }
+
+        bool curvatureTensorRequested() const noexcept
+        {
+            return tensorRequested_;
+        }
+
+        //- Fit the curvature tensor and the paraboloid offset of every
+        //  interface cell from the ring of the last reconstruction
+        //  (requestCurvatureTensor must have been on for it)
+        void updateCurvatureTensor();
+
+        //- The curvature tensor B [1/m] (allocated by the first update)
+        const volSymmTensorField& curvatureTensor() const
+        {
+            return *curvatureTensorPtr_;
+        }
+
+        //- The paraboloid offset z_0 [m] (allocated by the first update)
+        const volScalarField& curvatureOffset() const
+        {
+            return *curvatureOffsetPtr_;
+        }
+
+        label nTensorCells() const noexcept
+        {
+            return nTensorCells_;
+        }
+
+        label nTensorFallback() const noexcept
+        {
+            return nTensorFallback_;
         }
 };
 
