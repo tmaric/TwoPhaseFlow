@@ -60,6 +60,7 @@ Foam::davofNormalModel::davofNormalModel
     cosMaxAngle_(Foam::cos(degToRad(maxAngle_))),
     noNormalFallback_(dict.getOrDefault<word>("noNormalFallback", "keep")),
     mRingPtr_(nullptr),
+    mRingFilled_(),
     nInterface_(0),
     nSliver_(0),
     nReplaced_(0),
@@ -202,18 +203,23 @@ bool Foam::davofNormalModel::isSliver
 void Foam::davofNormalModel::fillInterfaceNormals
 (
     const reconstruction::davof& scheme,
-    volVectorField& mInterface
+    volVectorField& mInterface,
+    labelList& filled
 )
 {
     const vectorField& m = scheme.areaNormal().primitiveField();
     const DynamicField<label>& labels = scheme.interfaceLabels();
 
     vectorField& mI = mInterface.primitiveFieldRef();
-    mI = Zero;
+    for (const label celli : filled)
+    {
+        mI[celli] = Zero;
+    }
     forAll(labels, i)
     {
         mI[labels[i]] = m[labels[i]];
     }
+    filled = labels;
 }
 
 
@@ -221,11 +227,20 @@ void Foam::davofNormalModel::ringAreaNormals
 (
     const reconstruction::davof& scheme,
     volVectorField& mInterface,
+    labelList& filled,
     vectorField& n
 )
 {
-    fillInterfaceNormals(scheme, mInterface);
+    fillInterfaceNormals(scheme, mInterface, filled);
 
+    // The stencil and the exchange pattern are set up at every call:
+    // zoneCPCStencil keeps the point-neighbour stencil of every cell it
+    // has computed (uptodate_), so updateStencil costs one scan of the
+    // zone plus the new cells, and the pattern (one all-to-all in
+    // parallel) must follow the zone, which changes every step; it is
+    // not cached across calls because zoneDistribute is one object per
+    // mesh, shared with the helper plicRDF of the plicRDF model (its own
+    // setUpCommforZone, with its own zone, can run in between).
     const fvMesh& mesh = scheme.mesh();
     zoneDistribute& exchange = zoneDistribute::New(mesh);
     const boolList& zone = scheme.interfaceCell();
@@ -308,7 +323,7 @@ void Foam::davofNormalModel::select
                 )
             );
         }
-        ringAreaNormals(scheme_, *mRingPtr_, nRing);
+        ringAreaNormals(scheme_, *mRingPtr_, mRingFilled_, nRing);
     }
 
     const bool all = (applyTo_ == "all");

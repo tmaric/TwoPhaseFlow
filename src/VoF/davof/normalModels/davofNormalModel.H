@@ -153,8 +153,10 @@ protected:
         word noNormalFallback_;
 
         //- The exchanged field of the ring fallback (m_c in the interface
-        //  cells, zero elsewhere), allocated on first use
+        //  cells, zero elsewhere), allocated on first use, and the cells
+        //  it was last filled in
         autoPtr<volVectorField> mRingPtr_;
+        labelList mRingFilled_;
 
         //- Counts of the last select() (reduced): interface cells,
         //  slivers, normals replaced, cells wanted whose model normal was
@@ -256,23 +258,29 @@ public:
         bool isSliver(const label celli, const scalar mMag) const;
 
         //- Fill mInterface (a cell field, zero boundary values) with the
-        //  scheme's area normal m_c in the interface cells, zero elsewhere
+        //  scheme's area normal m_c in the interface cells, zero elsewhere.
+        //  filled holds the cells of the previous fill of THIS field and
+        //  receives the current ones: the field is zeroed there, not over
+        //  the mesh (it is zero at construction and set here only)
         static void fillInterfaceNormals
         (
             const reconstruction::davof& scheme,
-            volVectorField& mInterface
+            volVectorField& mInterface,
+            labelList& filled
         );
 
         //- The ring normal of every interface cell (indexed as the scheme's
         //  interfaceLabels): sum_j m_j over the point-neighbour ring of the
         //  cell, the cell included, only the interface cells contributing
         //  (zoneDistribute's stencil, across processor boundaries); fills
-        //  mInterface first. The one implementation shared by the ringArea
-        //  model and the noNormalFallback ringArea rule.
+        //  mInterface first (filled as in fillInterfaceNormals). The one
+        //  implementation shared by the ringArea model and the
+        //  noNormalFallback ringArea rule.
         static void ringAreaNormals
         (
             const reconstruction::davof& scheme,
             volVectorField& mInterface,
+            labelList& filled,
             vectorField& n
         );
 

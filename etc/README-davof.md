@@ -476,6 +476,19 @@ of the hex study against the committed tables is the check):
    is built once per mesh; the planes and the per-cell diagnostics are
    reset at the previous interface cells only (zero elsewhere by
    construction) instead of over the mesh.
+3. The ring models: the exchanged field (m_c in the interface cells) is
+   zeroed at the cells of the previous fill instead of over the mesh.
+   The stencil and exchange set-up (`zoneDistribute::setUpCommforZone`)
+   stays per call: `zoneCPCStencil` keeps every stencil it has computed
+   (`uptodate_`), so a call costs one scan of the zone, the boundary
+   points and the NEW interface cells only, plus in parallel one
+   all-to-all for the pattern, which must follow the zone (it changes
+   every step); caching it across the calls of one time index is unsafe
+   because `zoneDistribute` is one object per mesh, shared with the
+   helper plicRDF of the plicRDF model, whose own set-up with its own
+   zone can run in between (the ring fallback of `davof-plicRDFnormal-
+   ring`), and the gain would be one scan per extra reconstruction,
+   which the `consistency` switch below removes anyway.
 
 ## The advection benchmarks (run/benchmark/advection)
 

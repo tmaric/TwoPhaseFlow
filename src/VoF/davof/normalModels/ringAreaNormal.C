@@ -66,7 +66,8 @@ Foam::davofNormalModels::ringArea::ringArea
         ),
         mesh_,
         dimensionedVector(dimArea, Zero)
-    )
+    ),
+    filled_()
 {}
 
 
@@ -74,7 +75,7 @@ Foam::davofNormalModels::ringArea::ringArea
 
 void Foam::davofNormalModels::ringArea::fillInterfaceNormals()
 {
-    davofNormalModel::fillInterfaceNormals(scheme_, mInterface_);
+    davofNormalModel::fillInterfaceNormals(scheme_, mInterface_, filled_);
 }
 
 
@@ -88,7 +89,7 @@ void Foam::davofNormalModels::ringArea::modelNormals
 {
     // The one implementation shared with the noNormalFallback ringArea
     // rule of the base class
-    ringAreaNormals(scheme_, mInterface_, n);
+    ringAreaNormals(scheme_, mInterface_, filled_, n);
 }
 
 

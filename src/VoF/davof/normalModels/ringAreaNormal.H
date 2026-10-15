@@ -76,6 +76,10 @@ protected:
         //  faces in the stencil contribute nothing)
         volVectorField mInterface_;
 
+        //- The cells mInterface_ was last filled in (zeroed there before
+        //  the next fill; zero elsewhere)
+        labelList filled_;
+
 
     // Protected Member Functions
 
