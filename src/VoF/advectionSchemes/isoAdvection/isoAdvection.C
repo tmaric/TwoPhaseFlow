@@ -221,20 +221,21 @@ void Foam::advection::isoAdvection::extendMarkedCells
 
     syncTools::syncFaceList(mesh_, markedFace, orEqOp<unsigned int>());
 
-    // Update cells using any markedFace
-    for (label facei = 0; facei < mesh_.nInternalFaces(); ++facei)
+    // Update cells using any markedFace: the marked faces are visited
+    // (the bitSet iterates its set bits, skipping the zero words)
+    // instead of testing every face of the mesh; the resulting SET of
+    // cells is the same, and its consumers (boundFlux, the second-layer
+    // count) iterate the bitSet in cell order whatever the order the
+    // bits were set in
+    const label nInt = mesh_.nInternalFaces();
+    const labelList& own = mesh_.faceOwner();
+    const labelList& nei = mesh_.faceNeighbour();
+    for (const label facei : markedFace)
     {
-        if (markedFace.test(facei))
+        markedCell.set(own[facei]);
+        if (facei < nInt)
         {
-            markedCell.set(mesh_.faceOwner()[facei]);
-            markedCell.set(mesh_.faceNeighbour()[facei]);
-        }
-    }
-    for (label facei = mesh_.nInternalFaces(); facei < mesh_.nFaces(); ++facei)
-    {
-        if (markedFace.test(facei))
-        {
-            markedCell.set(mesh_.faceOwner()[facei]);
+            markedCell.set(nei[facei]);
         }
     }
 }
