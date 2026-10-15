@@ -489,6 +489,22 @@ of the hex study against the committed tables is the check):
    zone can run in between (the ring fallback of `davof-plicRDFnormal-
    ring`), and the gain would be one scan per extra reconstruction,
    which the `consistency` switch below removes anyway.
+4. `isoAdvection`: the second-ring sweep collected its candidates in two
+   arrays of the size of the mesh allocated and filled per step and
+   visited every face in a final pass; the arrays are now sized once,
+   the candidate faces are listed as they are first reached, visited in
+   face order (the order of the former pass) and reset afterwards. A
+   face reached again by the same plane (through a second second-ring
+   cell holding it) is skipped: its distance recomputes to the value it
+   holds and cannot beat itself under the strict comparison, so the
+   closest-plane choice is unchanged (same surface-cell order, the first
+   of equal distances wins). The per-face records of `planeFlux`
+   (`planeFluxUpCell_`, `dVfUpwindPlaneFace_`) and the cell-to-plane map
+   are sized once and reset at the entries the step set (a list kept by
+   `planeFlux`, `surfCells_`); `boundCellContent` marks its cells from
+   that list instead of scanning every face (the bitSet is visited in
+   cell order whatever the insertion order, so the sequential dependence
+   between neighbouring bounded cells is unchanged).
 
 ## The advection benchmarks (run/benchmark/advection)
 

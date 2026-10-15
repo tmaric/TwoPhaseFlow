@@ -135,7 +135,11 @@ Foam::advection::isoAdvection::isoAdvection
     surfX0_(0),
     surfN0_(0),
     surfUn0_(0),
-    cellToSurf_(0)
+    cellToSurf_(0),
+    planeFluxFaces_(0),
+    secondRingFaces_(0),
+    secondRingBest_(0),
+    secondRingDist_(0)
 {
    cutFaceAdvect::debug = debug;
 
@@ -259,17 +263,29 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
         nAlphafFallback_ = 0;
         nAlphafClipped_ = 0;
         nFluxSecondRing_ = 0;
-        planeFluxUpCell_.resize(mesh_.nFaces());
-        planeFluxUpCell_ = -1;
-        dVfUpwindPlaneFace_.resize(mesh_.nFaces());
-        dVfUpwindPlaneFace_ = 0;
         nContentBoundFaces_ = 0;
         nContentBoundCells_ = 0;
         surfX0_.clear();
         surfN0_.clear();
         surfUn0_.clear();
-        cellToSurf_.resize(mesh_.nCells());
-        cellToSurf_ = -1;
+
+        // The per-face and per-cell records: allocated and filled on the
+        // first call or a changed mesh; otherwise they were reset at the
+        // entries the previous step set (the end of this function), the
+        // same -1 / 0 everywhere as a fill
+        if (planeFluxUpCell_.size() != mesh_.nFaces())
+        {
+            planeFluxUpCell_.resize(mesh_.nFaces());
+            planeFluxUpCell_ = -1;
+            dVfUpwindPlaneFace_.resize(mesh_.nFaces());
+            dVfUpwindPlaneFace_ = 0;
+        }
+        planeFluxFaces_.clear();
+        if (cellToSurf_.size() != mesh_.nCells())
+        {
+            cellToSurf_.resize(mesh_.nCells());
+            cellToSurf_ = -1;
+        }
     }
 
 
@@ -503,6 +519,21 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     // Synchronize processor patches
     syncProcPatches(dVf_, phi_, false, storeAf ? alphafPtr_ : nullptr);
 
+    if (storeAf)
+    {
+        // The records of this step reset at the entries it set (they are
+        // read in this function only)
+        for (const label facei : planeFluxFaces_)
+        {
+            planeFluxUpCell_[facei] = -1;
+            dVfUpwindPlaneFace_[facei] = 0;
+        }
+        for (const label celli : surfCells_)
+        {
+            cellToSurf_[celli] = -1;
+        }
+    }
+
     DebugInfo << "Number of isoAdvector surface cells = "
         << returnReduce(nSurfaceCells, sumOp<label>()) << endl;
 
@@ -651,9 +682,28 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
     const vectorField& Sf = mesh_.faceAreas();
     const scalarField& phiIn = phi_.primitiveField();
 
-    labelList bestSurf(mesh_.nFaces(), -1);
-    scalarField bestDist(mesh_.nFaces(), GREAT);
+    // The per-face records are sized once and hold -1 / GREAT outside
+    // the candidates of the previous sweep, which were reset below
+    if (secondRingBest_.size() != mesh_.nFaces())
+    {
+        secondRingBest_.resize(mesh_.nFaces());
+        secondRingBest_ = -1;
+        secondRingDist_.resize(mesh_.nFaces());
+        secondRingDist_ = GREAT;
+    }
+    labelList& bestSurf = secondRingBest_;
+    scalarField& bestDist = secondRingDist_;
+    DynamicLabelList& candidates = secondRingFaces_;
+    candidates.clear();
 
+    // A face of a second-ring cell is reached once per surface cell the
+    // cell shares a face with (two cells share one face at most), and
+    // the same face is reached again by the SAME plane through another
+    // second-ring cell that holds it: that visit recomputes the distance
+    // it already holds, which cannot beat itself (strict comparison), so
+    // it is skipped. The choice among the planes is unchanged: the same
+    // surface-cell order, the same strict rule (the first of equal
+    // distances wins).
     forAll(surfCells_, si)
     {
         const label celli = surfCells_[si];
@@ -670,10 +720,15 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
             {
                 const label f = Df[dfi];
                 if (alphafSetFace_.test(f)) continue;
+                if (bestSurf[f] == si) continue;     // visited by this plane
                 const scalar d =
                     mag(((Cf[f] - surfX0_[si]) & surfN0_[si]) - surfUn0_[si]*dt);
                 if (d < bestDist[f])
                 {
+                    if (bestSurf[f] < 0)
+                    {
+                        candidates.append(f);
+                    }
                     bestDist[f] = d;
                     bestSurf[f] = si;
                 }
@@ -681,8 +736,13 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
         }
     }
 
+    // The candidate faces in face order, as the former pass over all
+    // faces visited them (the faces are independent of each other here;
+    // the order fixes the sequence of the proc-patch face list only)
+    Foam::sort(candidates);
+
     scalarField& dVfIn = dVf_.primitiveFieldRef();
-    forAll(bestSurf, f)
+    for (const label f : candidates)
     {
         const label si = bestSurf[f];
         if (si < 0) continue;
@@ -722,6 +782,13 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
             checkIfOnProcPatch(f);
         }
     }
+
+    // The records of this sweep reset at its candidates
+    for (const label f : candidates)
+    {
+        bestSurf[f] = -1;
+        bestDist[f] = GREAT;
+    }
 }
 
 
@@ -733,14 +800,13 @@ void Foam::advection::isoAdvection::boundCellContent(const scalar dt)
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
     const surfaceScalarField::Boundary& phib = phi_.boundaryField();
 
-    // The cells with plane-set fluxes (planeFlux: their outflow faces)
+    // The cells with plane-set fluxes (planeFlux: their outflow faces);
+    // planeFluxUpCell_ is >= 0 exactly on the faces planeFlux recorded,
+    // and the bitSet is visited in cell order whatever the insertion order
     bitSet marked(mesh_.nCells());
-    forAll(planeFluxUpCell_, facei)
+    for (const label facei : planeFluxFaces_)
     {
-        if (planeFluxUpCell_[facei] >= 0)
-        {
-            marked.set(planeFluxUpCell_[facei]);
-        }
+        marked.set(planeFluxUpCell_[facei]);
     }
 
     for (const label celli : marked)
@@ -869,6 +935,7 @@ Foam::scalar Foam::advection::isoAdvection::planeFlux
     ++nFluxSecondRing_;
     planeFluxUpCell_[facei] = upCell;
     dVfUpwindPlaneFace_[facei] = dVfUpwind;
+    planeFluxFaces_.append(facei);
     return dVfPlane;
 }
 

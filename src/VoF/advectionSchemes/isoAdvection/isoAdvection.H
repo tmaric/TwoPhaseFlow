@@ -226,6 +226,19 @@ class isoAdvection
             DynamicScalarList surfUn0_;
             labelList cellToSurf_;
 
+            //- The faces planeFlux set in the step (planeFluxUpCell_ is
+            //  >= 0 exactly there); planeFluxUpCell_, dVfUpwindPlaneFace_
+            //  and cellToSurf_ are sized once and reset through this list
+            //  and surfCells_ at the end of the step, not over the mesh
+            DynamicLabelList planeFluxFaces_;
+
+            //- The second-ring sweep's per-face closest plane (an index
+            //  into surfCells_) and its distance, sized once and reset at
+            //  the candidate faces after the sweep; the candidate faces
+            DynamicLabelList secondRingFaces_;
+            labelList secondRingBest_;
+            scalarField secondRingDist_;
+
 
     // Private Member Functions
 
