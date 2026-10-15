@@ -48,15 +48,20 @@ Description
 
     The normal model (davofNormalModel, keyword normalModel; the models
     cellLocal, youngs, plicRDF, exact, ringArea, ringFit, each with applyTo
-    all | check, sliverTol and maxAngle): after every plane has been
-    positioned by alpha along m_c, the model returns the normal it proposes
-    for every interface cell and the cells in which m_c is replaced (all of
-    them, or the slivers |m_c| < sliverTol V_c^(2/3) and the cells deviating
-    from the model normal by more than maxAngle degrees); the plane of every
-    such cell is re-positioned by alpha along the model normal. The ring
-    models need the positioned planes of the neighbours, hence the two
-    passes. The deprecated keys sliverNormal and normalSource are mapped
-    onto the models (davofNormalModel.H).
+    all | check, sliverTol and maxAngle): the model returns the normal it
+    proposes for every interface cell and the cells in which m_c is
+    replaced (all of them, or the slivers |m_c| < sliverTol V_c^(2/3) and
+    the cells deviating from the model normal by more than maxAngle
+    degrees); the plane of every interface cell is positioned by alpha
+    along the selected normal (the model normal where it replaces m_c, m_c
+    otherwise). The models that read the planes positioned along m_c
+    (needsPositionedPlanes(): exact, the centroid at which the exact normal
+    is taken; ringFit, the ring's planes) get them in a first pass over the
+    interface cells, and the cells whose normal changed are re-positioned
+    in a second one; every other model positions once (same plane: the
+    positioning starts from the cell's vertex values every time). The
+    deprecated keys sliverNormal and normalSource are mapped onto the
+    models (davofNormalModel.H).
 
     Diagnostics (AUTO_WRITE), per cell:
 

@@ -100,6 +100,13 @@ public:
 
         virtual void modelNormals(const scalar tState, vectorField& n);
 
+        //- The exact normal is taken at the centroid of the plane
+        //  positioned by alpha along m_c
+        virtual bool needsPositionedPlanes() const
+        {
+            return true;
+        }
+
         const word& functionType() const noexcept
         {
             return functionType_;

@@ -179,11 +179,19 @@ The normal along which the `davof` scheme positions the plane of an
 interface cell is a run-time-selectable model (`src/VoF/davof/normalModels`,
 base `davofNormalModel`, keyword `normalModel` of the alpha solver
 dictionary, default `cellLocal`). `reconstruct()` forms m_c for every
-interface cell, positions every plane by alpha along m_c (as before), then
-calls the model, which returns the normal it proposes per interface cell,
-and re-positions the plane along the model normal in every cell whose
-normal changed (one code path for all models; the ring models need the
-positioned planes of the neighbours). Every model takes `applyTo`:
+interface cell, calls the model, which returns the normal it proposes per
+interface cell, and positions the plane of every interface cell by alpha
+along the selected normal (the model normal where it replaces m_c, m_c
+otherwise). The models that read the planes positioned along m_c
+(`needsPositionedPlanes()`: `exact`, which takes the exact normal at the
+centroid of that plane, and `ringFit`, which fits the ring's planes) get
+them in a first pass, and the cells whose normal changed are re-positioned
+in a second one, as every model was until 2026-10-15; the other models
+position once. The plane is the same either way (`vofCutCell` starts from
+the cell's vertex values, nothing is carried over from an earlier cut), so
+the results are bit-identical; the single pass saves one positioning per
+interface cell for `cellLocal`, `youngs`, `plicRDF` and `ringArea`. Every
+model takes `applyTo`:
 
 - `all`: every interface cell with a model normal is replaced;
 - `check`: only the slivers, |m_c| < `sliverTol` V_c^(2/3) (default 0.1),

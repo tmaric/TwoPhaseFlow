@@ -373,8 +373,19 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     maxPlaneVolDefect_ = 0;
     maxPlaneAreaDefect_ = 0;
 
-    // First pass: the plane positioned by alpha_c along m_c, the explicit
-    // position and the realizability defects of its plane (always from m_c)
+    // The sliver flag, the explicit position and the realizability defects
+    // of the explicit plane (always from m_c; cutCell_ cuts the explicit
+    // plane, not the positioned one). The models that read the planes
+    // positioned by alpha along m_c (exact, ringFit) get them here, in a
+    // first pass; for the other models every plane is positioned once,
+    // below, along the normal the model selects. The final plane is the
+    // same either way: vofCutCell starts from the cell's vertex values
+    // and carries nothing over from an earlier cut, so positioning along
+    // the selected normal once gives the plane the former two passes
+    // ended with (the second pass re-positioned along that normal, the
+    // first pass's plane along m_c was only overwritten).
+    const bool twoPass = normalModel_->needsPositionedPlanes();
+
     forAll(interfaceLabels_, i)
     {
         const label celli = interfaceLabels_[i];
@@ -386,7 +397,10 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
             sliverFlag_[celli] = 1;
         }
 
-        positionPlane(celli, m[celli]);
+        if (twoPass)
+        {
+            positionPlane(celli, m[celli]);
+        }
 
         const scalar p = (faceMoment[celli] - 3.0*alpha1_[celli]*V[celli])/mMag;
         pPlane_[celli] = p;
@@ -403,19 +417,24 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
         maxPlaneAreaDefect_ = max(maxPlaneAreaDefect_, planeAreaDefect_[celli]);
     }
 
-    // The boundary values of the planes for the ring models' exchange
-    normal_.correctBoundaryConditions();
-    centre_.correctBoundaryConditions();
+    if (twoPass)
+    {
+        // The boundary values of the planes for the ring models' exchange
+        normal_.correctBoundaryConditions();
+        centre_.correctBoundaryConditions();
+    }
 
-    // Second pass: the model's normals, the planes re-positioned where the
-    // normal changed
+    // The model's normals; the plane of every interface cell positioned by
+    // alpha along the selected normal (nUse[i] is m_c itself where the
+    // model does not replace it), or, with two passes, re-positioned where
+    // the normal changed
     vectorField nUse;
     boolList changed;
     normalModel_->select(tState, m, nUse, changed);
 
     forAll(interfaceLabels_, i)
     {
-        if (changed[i])
+        if (!twoPass || changed[i])
         {
             positionPlane(interfaceLabels_[i], nUse[i]);
         }

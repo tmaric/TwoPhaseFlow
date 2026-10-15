@@ -121,6 +121,12 @@ public:
     // Member Functions
 
         virtual void modelNormals(const scalar tState, vectorField& n);
+
+        //- The fit reads the ring's planes positioned by alpha along m_c
+        virtual bool needsPositionedPlanes() const
+        {
+            return true;
+        }
 };
 
 

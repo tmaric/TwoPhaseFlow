@@ -240,6 +240,18 @@ public:
             return true;
         }
 
+        //- Whether modelNormals() reads the planes positioned by alpha
+        //  along m_c (normal(), centre() of the scheme): the scheme then
+        //  positions every plane along m_c first and re-positions the
+        //  cells whose normal the model changes (two passes); otherwise
+        //  every plane is positioned once, along the selected normal. The
+        //  exact model (the centroid at which the exact normal is taken)
+        //  and ringFit (the ring's planes) need the first pass.
+        virtual bool needsPositionedPlanes() const
+        {
+            return false;
+        }
+
         //- Whether a cell with |m_c| = mMag is a sliver
         bool isSliver(const label celli, const scalar mMag) const;
 
