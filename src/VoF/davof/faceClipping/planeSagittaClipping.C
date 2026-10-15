@@ -57,8 +57,35 @@ Foam::davofFaceClippingModels::planeSagitta::planeSagitta
     minChord_(dict.getOrDefault<scalar>("sagittaMinChord", 0.05)),
     maxFraction_(dict.getOrDefault<scalar>("sagittaMaxFraction", 0.25)),
     form_(dict.getOrDefault<word>("sagittaForm", "full")),
-    tensorSource_(dict.getOrDefault<word>("tensorSource", "ring"))
+    tensorSource_(dict.getOrDefault<word>("tensorSource", "ring")),
+    writeCorrection_(dict.getOrDefault<bool>("writeSagittaCorrection", false)),
+    corrPtr_(nullptr),
+    sumRel_(0),
+    sumAbsRel_(0)
 {
+    if (writeCorrection_)
+    {
+        corrPtr_.reset
+        (
+            new surfaceScalarField
+            (
+                IOobject
+                (
+                    IOobject::groupName
+                    (
+                        "sagittaCorrection", scheme.alpha1().group()
+                    ),
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE,
+                    IOobject::NO_REGISTER
+                ),
+                mesh_,
+                dimensionedScalar(dimless, Zero)
+            )
+        );
+    }
     if (form_ != "full" && form_ != "segment")
     {
         FatalIOErrorInFunction(dict)
@@ -180,6 +207,12 @@ Foam::scalar Foam::davofFaceClippingModels::planeSagitta::correct
         ++nCapped_;
     }
     ++nCorrected_;
+    sumRel_ += dA/magSf;
+    sumAbsRel_ += mag(dA)/magSf;
+    if (corrPtr_ && mesh_.isInternalFace(facei))
+    {
+        corrPtr_->primitiveFieldRef()[facei] = dA/magSf;
+    }
 
     scalar area = areaPlane + dA;
     if (area < 0 || area > magSf)
@@ -191,6 +224,33 @@ Foam::scalar Foam::davofFaceClippingModels::planeSagitta::correct
         area = min(max(area, scalar(0)), magSf);
     }
     return area;
+}
+
+
+void Foam::davofFaceClippingModels::planeSagitta::resetCounters()
+{
+    davofFaceClipping::resetCounters();
+    sumRel_ = 0;
+    sumAbsRel_ = 0;
+    if (corrPtr_)
+    {
+        corrPtr_->primitiveFieldRef() = Zero;
+    }
+}
+
+
+void Foam::davofFaceClippingModels::planeSagitta::report(Ostream& os) const
+{
+    davofFaceClipping::report(os);
+    const label n = returnReduce(nCorrected_, sumOp<label>());
+    const scalar s = returnReduce(sumRel_, sumOp<scalar>());
+    const scalar sa = returnReduce(sumAbsRel_, sumOp<scalar>());
+    os  << ", mean dA/|S_f| " << s/max(n, label(1))
+        << " (mean |dA|/|S_f| " << sa/max(n, label(1)) << ")";
+    if (corrPtr_ && mesh_.time().writeTime())
+    {
+        corrPtr_->write();
+    }
 }
 
 

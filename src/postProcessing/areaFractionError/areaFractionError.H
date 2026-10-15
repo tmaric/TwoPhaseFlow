@@ -145,6 +145,12 @@ class areaFractionError
 
         bool reconstructionErrorEveryStep_;
 
+        //- Write the signed per-face error alphaf - alphaf_exact on the
+        //  faces of the interface cells as the surface field
+        //  alphafError.<group> at every write of this object (diagnostic,
+        //  2026-10-16; default false)
+        bool writeFaceError_;
+
         autoPtr<Foam::reconstructionError> recErrPtr_;
 
 

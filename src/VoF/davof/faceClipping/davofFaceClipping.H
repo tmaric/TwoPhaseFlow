@@ -205,7 +205,7 @@ public:
         ) = 0;
 
         //- Reset the counters of a step
-        void resetCounters();
+        virtual void resetCounters();
 
         //- The counters of the step, reduced over the processors, as one
         //  clause of the face update's Info line

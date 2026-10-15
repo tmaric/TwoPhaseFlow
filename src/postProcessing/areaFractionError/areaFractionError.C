@@ -110,6 +110,7 @@ bool Foam::functionObjects::areaFractionError::read(const dictionary& dict)
     wispTol_ = dict.getOrDefault<scalar>("wispTol", 1e-3);
     consistency_ = dict.getOrDefault<Switch>("consistency", Switch(true));
     reconstructionError_ = dict.getOrDefault<bool>("reconstructionError", true);
+    writeFaceError_ = dict.getOrDefault<bool>("writeFaceError", false);
     reconstructionErrorEveryStep_ =
         dict.getOrDefault<bool>("reconstructionErrorEveryStep", false);
 
@@ -264,6 +265,30 @@ bool Foam::functionObjects::areaFractionError::write()
             }
         }
 
+        // The signed per-face error on the counted faces (written on request)
+        autoPtr<surfaceScalarField> errPtr;
+        if (writeFaceError_)
+        {
+            errPtr.reset
+            (
+                new surfaceScalarField
+                (
+                    IOobject
+                    (
+                        IOobject::groupName("alphafError", alpha.group()),
+                        runTime.timeName(),
+                        mesh_,
+                        IOobject::NO_READ,
+                        IOobject::NO_WRITE,
+                        false
+                    ),
+                    mesh_,
+                    dimensionedScalar(dimless, Zero),
+                    calculatedFvsPatchScalarField::typeName
+                )
+            );
+        }
+
         scalar sum = 0, sum2 = 0, worst = 0;
         label nLocal = 0;
         forAll(hasValue, facei)
@@ -278,6 +303,14 @@ bool Foam::functionObjects::areaFractionError::write()
             sum2 += e*e;
             worst = max(worst, e);
             ++nLocal;
+            if (errPtr && facei < nInt)
+            {
+                errPtr->primitiveFieldRef()[facei] = afCur[facei] - afEx[facei];
+            }
+        }
+        if (errPtr)
+        {
+            errPtr->write();
         }
 
         nFaces = returnReduce(nLocal, sumOp<label>());

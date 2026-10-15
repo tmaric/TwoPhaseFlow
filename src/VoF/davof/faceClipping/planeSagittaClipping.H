@@ -108,6 +108,7 @@ SourceFiles
 #define davofFaceClippingModels_planeSagitta_H
 
 #include "davofFaceClipping.H"
+#include "surfaceFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -142,6 +143,16 @@ class planeSagitta
 
         //- ring (the only source of the tensor in this round)
         word tensorSource_;
+
+        //- Diagnostic (2026-10-16): the signed correction dA/|S_f| per
+        //  internal face as the surface field sagittaCorrection.<group>,
+        //  written at the field writes (key writeSagittaCorrection, default
+        //  false); the sums of dA/|S_f| and |dA|/|S_f| over the corrected
+        //  faces of the step, reported as means
+        bool writeCorrection_;
+        autoPtr<surfaceScalarField> corrPtr_;
+        scalar sumRel_;
+        scalar sumAbsRel_;
 
 
 public:
@@ -183,6 +194,13 @@ public:
             const UList<point>& chord,
             const scalar areaPlane
         );
+
+        //- The counters and the diagnostic field of the step reset
+        virtual void resetCounters();
+
+        //- The counters plus the mean signed and absolute correction; the
+        //  diagnostic field written at a write time
+        virtual void report(Ostream& os) const;
 };
 
 
