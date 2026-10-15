@@ -480,7 +480,11 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // DAVOF: the faces no plane has set carry the upwind cell's new alpha
     if (storeAreaFractions_ && alphafPtr_)
     {
-        defaultAreaFractions(true);
+        defaultAreaFractions();
+
+        // The faces set in this step are the previous ones of the next
+        alphafPrevSetFaces_.swap(alphafSetFaces_);
+        alphafSetFaces_.clear();
     }
 
     advectionTime_ += (mesh_.time().elapsedCpuTime() - advectionStartTime);

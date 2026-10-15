@@ -40,6 +40,7 @@ License
 #include "OBJstream.H"
 #include "syncTools.H"
 #include "profiling.H"
+#include <cstring>
 
 #include "addToRunTimeSelectionTable.H"
 
@@ -119,6 +120,13 @@ Foam::advection::isoAdvection::isoAdvection
     alphafPtr_(nullptr),
     alphafOwnPtr_(nullptr),
     alphafSetFace_(),
+    alphafSetFaces_(0),
+    alphafPrevSetFaces_(0),
+    alphafFallbackFaces_(0),
+    defaultsValid_(false),
+    alphaDefault_(0),
+    phiPos_(),
+    phiEventNo_(-1),
     nAlphafFromPlane_(0),
     nAlphafSecondRing_(0),
     nAlphafFallback_(0),
@@ -250,14 +258,26 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     const volVectorField& normal = surf_->normal();
     const boolList& interfaceCell = surf_->interfaceCell();
 
-    // DAVOF: the default face fractions (the upwind cell's alpha) before
-    // the planes overwrite the faces they sweep
+    // DAVOF: the faces the planes sweep are set below; every other face
+    // keeps the value of the previous step until defaultAreaFractions()
+    // evaluates it after the bounding (a sweep that falls back writes
+    // the default itself; nothing reads an unset face in between)
     const bool storeAf = (storeAreaFractions_ && alphafPtr_);
     if (storeAf)
     {
-        defaultAreaFractions(false);
         alphafSetFace_.reset();
         alphafSetFace_.resize(mesh_.nFaces());
+        alphafSetFaces_.clear();
+        alphafFallbackFaces_.clear();
+        if
+        (
+            mesh_.topoChanging()
+         || alphaDefault_.size() != mesh_.nCells()
+         || phiPos_.size() != mesh_.nInternalFaces()
+        )
+        {
+            defaultsValid_ = false;
+        }
         nAlphafFromPlane_ = 0;
         nAlphafSecondRing_ = 0;
         nAlphafFallback_ = 0;
@@ -594,41 +614,128 @@ void Foam::advection::isoAdvection::initAreaFractions()
 }
 
 
-void Foam::advection::isoAdvection::defaultAreaFractions
+void Foam::advection::isoAdvection::setDefaultAreaFraction
 (
-    const bool untouchedOnly
+    const label facei,
+    const scalarField& alpha
 )
 {
+    const labelList& own = mesh_.faceOwner();
+
+    if (mesh_.isInternalFace(facei))
+    {
+        const scalar phif = phi_.primitiveField()[facei];
+        alphafPtr_->primitiveFieldRef()[facei] =
+            (phif >= 0) ? alpha[own[facei]] : alpha[mesh_.faceNeighbour()[facei]];
+        return;
+    }
+
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label patchi = pbm.patchID()[facei - mesh_.nInternalFaces()];
+    fvsPatchScalarField& pf = alphafPtr_->boundaryFieldRef()[patchi];
+    if (pf.size())
+    {
+        pf[facei - pbm[patchi].start()] = alpha[own[facei]];
+    }
+}
+
+
+void Foam::advection::isoAdvection::defaultAreaFractions()
+{
     addProfilingInFunction(geometricVoF);
-    surfaceScalarField& alphaf = *alphafPtr_;
     const scalarField& alphaIn = alpha1_.primitiveField();
     const scalarField& phiIn = phi_.primitiveField();
-    const labelList& own = mesh_.faceOwner();
-    const labelList& nei = mesh_.faceNeighbour();
+    const label nInt = mesh_.nInternalFaces();
+    const label nFaces = mesh_.nFaces();
 
-    scalarField& afIn = alphaf.primitiveFieldRef();
-    forAll(afIn, facei)
+    // The target of every face no plane set in this step is alpha of its
+    // upwind cell (boundary faces: the owner), with alpha AFTER the
+    // bounding. The invariant kept between the steps: such a face holds
+    // alphaDefault_ of that cell, alphaDefault_ being a copy of alpha at
+    // the last evaluation, as long as nothing has written the face since
+    // (a plane, the sync or a fallback writes a face in the step that
+    // marks or lists it). The stored value can then differ from the
+    // target only on (a) a face whose upwind direction changed, (b) a
+    // face set in the previous step, (c) a fallback of this step (it
+    // holds the entry alpha of its upwind cell), (d) a face of a cell
+    // whose alpha differs bitwise from alphaDefault_. Every other unset
+    // face already holds its target; evaluating a face always writes the
+    // target, so visiting a face twice is harmless.
+
+    if (!defaultsValid_)
     {
-        if (untouchedOnly && alphafSetFace_.test(facei))
+        for (label facei = 0; facei < nFaces; ++facei)
+        {
+            if (!alphafSetFace_.test(facei))
+            {
+                setDefaultAreaFraction(facei, alphaIn);
+            }
+        }
+        phiPos_.resize(nInt);
+        phiPos_.reset();
+        for (label facei = 0; facei < nInt; ++facei)
+        {
+            if (phiIn[facei] >= 0)
+            {
+                phiPos_.set(facei);
+            }
+        }
+        phiEventNo_ = phi_.eventNo();
+        alphaDefault_ = alphaIn;
+        defaultsValid_ = true;
+        return;
+    }
+
+    // (a) phi written since the last evaluation (its event number moved:
+    // every non-const access of a GeometricField records one): re-scan
+    // the upwind direction, the faces whose direction changed
+    if (phi_.eventNo() != phiEventNo_)
+    {
+        for (label facei = 0; facei < nInt; ++facei)
+        {
+            const bool pos = (phiIn[facei] >= 0);
+            if (pos == phiPos_.test(facei)) continue;
+            if (pos) phiPos_.set(facei); else phiPos_.unset(facei);
+            if (!alphafSetFace_.test(facei))
+            {
+                setDefaultAreaFraction(facei, alphaIn);
+            }
+        }
+        phiEventNo_ = phi_.eventNo();
+    }
+
+    // (b) the faces set in the previous step and (c) the fallbacks
+    for (const label facei : alphafPrevSetFaces_)
+    {
+        if (!alphafSetFace_.test(facei))
+        {
+            setDefaultAreaFraction(facei, alphaIn);
+        }
+    }
+    for (const label facei : alphafFallbackFaces_)
+    {
+        if (!alphafSetFace_.test(facei))
+        {
+            setDefaultAreaFraction(facei, alphaIn);
+        }
+    }
+
+    // (d) the faces of the cells whose alpha changed, compared bitwise
+    // (-0 and +0 differ in the written field; NaN never occurs here)
+    const cellList& cells = mesh_.cells();
+    forAll(alphaIn, celli)
+    {
+        if (std::memcmp(&alphaIn[celli], &alphaDefault_[celli], sizeof(scalar)) == 0)
         {
             continue;
         }
-        afIn[facei] = (phiIn[facei] >= 0) ? alphaIn[own[facei]] : alphaIn[nei[facei]];
-    }
-
-    surfaceScalarField::Boundary& bf = alphaf.boundaryFieldRef();
-    forAll(bf, patchi)
-    {
-        const label start = mesh_.boundaryMesh()[patchi].start();
-        fvsPatchScalarField& pf = bf[patchi];
-        forAll(pf, i)
+        alphaDefault_[celli] = alphaIn[celli];
+        for (const label facei : cells[celli])
         {
-            const label facei = start + i;
-            if (untouchedOnly && alphafSetFace_.test(facei))
+            if (!alphafSetFace_.test(facei))
             {
-                continue;
+                setDefaultAreaFraction(facei, alphaIn);
             }
-            pf[i] = alphaIn[own[facei]];
         }
     }
 }
@@ -643,7 +750,14 @@ void Foam::advection::isoAdvection::storeAreaFraction
 {
     if (areaEnd < 0)
     {
+        // The default the former pass before the sweep had written: the
+        // upwind cell's alpha at the start of the step (alpha1_ is
+        // updated after the sweep); the face stays unset and is
+        // re-evaluated with the new alpha after the bounding, or set by
+        // the second ring
         ++nAlphafFallback_;
+        setDefaultAreaFraction(facei, alpha1_.primitiveField());
+        alphafFallbackFaces_.append(facei);
         return;
     }
 
@@ -655,6 +769,10 @@ void Foam::advection::isoAdvection::storeAreaFraction
     af = min(max(af, scalar(0)), scalar(1));
 
     setFaceValue(*alphafPtr_, facei, af);
+    if (!alphafSetFace_.test(facei))
+    {
+        alphafSetFaces_.append(facei);
+    }
     alphafSetFace_.set(facei);
     if (secondRing)
     {
@@ -1113,7 +1231,12 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
                 {
                     // The upwind side's face fraction, no sign change
                     alphaf->boundaryFieldRef()[patchi][facei] = nbrAf[i];
-                    alphafSetFace_.set(procPatch.start() + facei);
+                    const label meshFacei = procPatch.start() + facei;
+                    if (!alphafSetFace_.test(meshFacei))
+                    {
+                        alphafSetFaces_.append(meshFacei);
+                    }
+                    alphafSetFace_.set(meshFacei);
                 }
                 if (debug && mag(localFlux[facei] + nbrdVfs[i]) > ROOTVSMALL)
                 {

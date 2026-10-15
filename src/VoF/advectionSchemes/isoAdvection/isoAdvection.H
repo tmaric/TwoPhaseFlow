@@ -176,6 +176,27 @@ class isoAdvection
             //- Faces set by a plane sweep in this step
             bitSet alphafSetFace_;
 
+            //- The faces alphafSetFace_ marks, as a list (set by a plane
+            //  or received in the sync), of this step and of the previous
+            //  one; the faces whose sweep fell back to the default
+            DynamicLabelList alphafSetFaces_;
+            DynamicLabelList alphafPrevSetFaces_;
+            DynamicLabelList alphafFallbackFaces_;
+
+            //- The alpha the default face fractions were last evaluated
+            //  with (a copy of alpha at the end of the previous step):
+            //  every face no plane set holds alphaDefault_ of its upwind
+            //  cell (boundary faces: its owner) as long as defaultsValid_
+            bool defaultsValid_;
+            scalarField alphaDefault_;
+
+            //- The upwind direction of every internal face at the last
+            //  evaluation (set: phi >= 0, the owner) and phi's event
+            //  number then (phi written since: the directions are
+            //  re-scanned)
+            bitSet phiPos_;
+            label phiEventNo_;
+
             //- Counters of the step: faces set by their own cell's plane,
             //  faces set by a neighbouring cell's plane (second ring),
             //  sweeps that could not set the face (default kept), values
@@ -357,14 +378,28 @@ class isoAdvection
             //  when storeAreaFractions_ and none is registered
             void initAreaFractions();
 
-            //- Every face (untouchedOnly false) or every face not set by a
-            //  plane in this step: the upwind cell's alpha, boundary faces
-            //  the owner's
-            void defaultAreaFractions(const bool untouchedOnly);
+            //- The default of one face from the alpha field given: the
+            //  upwind cell's value (phi >= 0: the owner), boundary faces
+            //  the owner's; faces of empty patches carry no value
+            void setDefaultAreaFraction
+            (
+                const label facei,
+                const scalarField& alpha
+            );
+
+            //- After the bounding: every face not set by a plane in this
+            //  step holds the upwind cell's new alpha. Evaluated on the
+            //  faces whose stored value can differ from it only (the
+            //  faces set in the previous step, the fallbacks of this one,
+            //  the faces of the cells whose alpha changed bitwise against
+            //  alphaDefault_, the faces whose upwind direction changed);
+            //  on every face when defaultsValid_ is false
+            void defaultAreaFractions();
 
             //- Store the end area of the last sweep on facei as the face
-            //  fraction (clipped to [0, 1]); a negative end area keeps the
-            //  default and counts as a fallback
+            //  fraction (clipped to [0, 1]); a negative end area writes
+            //  the default (the upwind cell's alpha at the start of the
+            //  step) and counts as a fallback
             void storeAreaFraction
             (
                 const label facei,
