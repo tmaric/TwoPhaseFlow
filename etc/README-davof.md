@@ -78,9 +78,12 @@ area and its piecewise-quadratic time integral, both at 4e-16).
 Rules of `isoAdvection::timeIntegratedFlux` (counts in one Info line per
 step):
 
-1. Before the sweep every face holds the upwind cell's alpha, boundary faces
-   the owner's (`defaultAreaFractions`); after the bounding the faces no
-   plane has set are re-evaluated with the new alpha.
+1. After the bounding every face no plane has set holds the upwind cell's
+   new alpha, boundary faces the owner's (`defaultAreaFractions`; since
+   2026-10-15 evaluated on the faces whose stored value can differ from
+   that, see "The cost of the DAVOF rows", item 7). A sweep that cannot
+   set its face (rule 7) writes the upwind cell's alpha at the start of
+   the step, the value the former pass before the sweep gave every face.
 2. The downwind faces of a surface cell: the cell's plane sets `alphaf` and,
    as before, `dVf`.
 3. An upwind face of a surface cell: the upwind cell's plane sets it when
@@ -112,9 +115,11 @@ step):
 6. Processor patches: `alphaf` is exchanged with `dVf` (the upwind side's
    value, no sign change); the second ring does not cross processor
    boundaries.
-7. A sweep that cannot set the face (`subFaceAreaEnd() < 0`) keeps the
-   default and is counted as a fallback; values outside [0, 1] by more
-   than 1e-12 are counted as clips and clamped.
+7. A sweep that cannot set the face (`subFaceAreaEnd() < 0`) writes the
+   default (the upwind cell's alpha at the start of the step), leaves
+   the face unset for the second ring and the re-evaluation of rule 1,
+   and is counted as a fallback; values outside [0, 1] by more than
+   1e-12 are counted as clips and clamped.
 8. The content bound (2026-10-13, `boundCellContent`, key `contentBound`,
    default true): for every non-surface cell W with faces whose flux a
    plane set (rules 3 and 5, `planeFlux`), the liquid leaving W through
@@ -540,6 +545,88 @@ of the hex study against the committed tables is the check):
    last write of the run holds the whole run. The leia timing study
    `config/davof/sphereTranslation3D_hexTiming.yaml` (token
    `TPF_PROFILING`) uses it.
+
+The profile of that study (sphere, N = 128, Co 0.2, 640 steps, serial,
+the ringArea row; totals over the run) after items 1-6: `advect` 431 s;
+`davof::reconstruct` 94 s, of which `areaNormal` 32 s (against
+plicRDF's `reconstruct` of 265 s); `timeIntegratedFlux` 61 s, of which
+`defaultAreaFractions` 17.6 s and the second-ring sweep 7.4 s; a second
+`defaultAreaFractions` call from `advect` 19.2 s; `limitFluxes` 66.6 s
+(plicRDF: 57 s). The second round (2026-10-15, commits c1b3995, 660d741
+and bfe0c00) removes the remaining full-mesh
+passes of the face update, each argued for bit identity (the cluster
+repetition of the hex study against the committed tables is the check):
+
+7. The default face fractions. The pass before the sweep (every face
+   the upwind cell's alpha) is gone: its value was read only through
+   the fallback of `storeAreaFraction` ("keeps the default", rule 7)
+   and, in parallel, through the sync of such a fallback face;
+   `sweepSecondRing` reads the mask alone, `planeSpeaks`, `planeFlux`
+   and `boundCellContent` read alpha and `dVf`, and the reconstruction
+   runs before the step. The fallback now writes that default itself
+   (alpha at the start of the step; `alpha1_` is updated after the
+   sweep), stays unset and is listed. The pass after the bounding is
+   restricted to the faces whose stored value can differ from the
+   target (alpha of the upwind cell after the bounding). INVARIANT
+   between the steps: an unset face holds `alphaDefault_` of its upwind
+   cell (boundary faces: the owner), `alphaDefault_` being a copy of
+   alpha at the last evaluation, as long as nothing has written the
+   face since; and every write of a face in a step (a plane, the sync,
+   a fallback) marks or lists it. Hence the target can differ only on
+   (a) the faces whose upwind direction changed, re-scanned when `phi`'s
+   event number moved since the last evaluation (every non-const access
+   of a GeometricField, `ref()`, `primitiveFieldRef()`,
+   `boundaryFieldRef()`, `operator=`, `correctBoundaryConditions()`,
+   records one; the translation cases of `advectorVoF` write `phi` at
+   most once, at a reversal, the periodic and spiralling ones every
+   step), (b) the faces set in the
+   previous step (listed), (c) the fallbacks of this step (listed), (d)
+   the faces of the cells whose alpha differs BITWISE from
+   `alphaDefault_` (one `memcmp` per cell; -0 and +0 are different
+   values in the written field, so `!=` would not do). Evaluating a
+   face always writes the target, so a face visited twice is unchanged.
+   The first evaluation, and the one after a topology change or a size
+   mismatch, is the full pass and records the copy and the directions.
+   What remains per step: one compare per cell and the faces of the
+   changed cells.
+8. The area normal. `isoAdvection` keeps a bitSet of the faces whose
+   fraction is not 0, updated at every write of a face value
+   (`setDefaultAreaFraction`, `storeAreaFraction`, the proc sync;
+   rebuilt from the field in the full evaluation), and hands its sorted
+   list (`bitSet::toc()`, ascending) to the `davof` scheme at the end
+   of every step (`publishWetFaces`, `davof::setWetFaces`).
+   `davof::reconstruct` (`formAreaNormal`) sums m_c over that list when
+   it is valid (present, built for the current face count, no changing
+   topology): the former pass over every face in face order skipped the
+   faces with alpha_f = 0 (item 2), and the list holds exactly the
+   faces with alpha_f != 0 in the same order (the internal faces, then
+   the patch faces in patch order), so every cell receives the same
+   terms in the same order; a face at 1 contributes 1 S_f as before,
+   and the all-equal rule still zeroes a cell whose faces are all 1.
+   The cells the sum touched are kept in a bitSet: they are zeroed
+   before the next sum (every other cell holds the +0 of the last full
+   zeroing, never written since), and they are the cells the
+   interface-cell selection visits, ascending as the former loop over
+   all cells, which skipped the cells with m = 0 (the untouched ones
+   hold exactly +0). Without a valid list (the constructor, the first
+   advection step, `reconstructInterface`, a topology change) the full
+   pass runs and records the touched cells. The per-face copy
+   `alphafAll_` is gone; the all-equal test and the face moment read
+   the face value through a patch lookup, the same double.
+   `davofInit::areaNormal` (the full pass with the per-face copy) is
+   unchanged: `maxConsistency` and `areaFractionError` use it for the
+   exact state and for the transported field.
+9. `extendMarkedCells` (the one-layer extension of `limitFluxes`, called
+   once by upstream and a second time for the second layer, rule 9):
+   the cells were marked by testing every face of the mesh against the
+   marked-face bitSet; now the set bits of that bitSet are visited (the
+   iterator skips the zero words). The resulting SET of cells is the
+   same, and its consumers (`boundFlux`, the second-layer count) iterate
+   the bitSet in cell order whatever the order the bits were set in.
+   This is where the extension's 10 s sat (a full face scan per step;
+   the `firstLayer` copy and the count are bitSet operations, and
+   `boundFlux` iterates the set bits), and the first call, which plicRDF
+   shares, loses the same scan.
 
 ## The advection benchmarks (run/benchmark/advection)
 
