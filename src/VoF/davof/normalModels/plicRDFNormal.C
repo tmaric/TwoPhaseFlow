@@ -28,6 +28,7 @@ License
 #include "plicRDFNormal.H"
 #include "davof.H"
 #include "addToRunTimeSelectionTable.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -77,6 +78,7 @@ void Foam::davofNormalModels::plicRDF::modelNormals
     vectorField& n
 )
 {
+    addProfilingInFunction(geometricVoF);
     helperPtr_->reconstruct(true);
     const volVectorField& normal = helperPtr_->normal();
     const DynamicField<label>& labels = scheme_.interfaceLabels();

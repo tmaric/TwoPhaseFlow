@@ -521,6 +521,25 @@ of the hex study against the committed tables is the check):
    that list instead of scanning every face (the bitSet is visited in
    cell order whatever the insertion order, so the sequential dependence
    between neighbouring bounded cells is unchanged).
+5. `areaFractionError`: the switch `consistency` and `writeControl onEnd`
+   (above).
+6. Profiling: OpenFOAM's markers (`addProfilingInFunction`, free when
+   profiling is off: the trigger constructor returns at once) sit in
+   `davof::reconstruct`, `davofNormalModel::select` and
+   `ringAreaNormals`, every model's `modelNormals` (one name per class:
+   the marker is the function's signature), `isoAdvection::advect`,
+   `timeIntegratedFlux`, `defaultAreaFractions`, `sweepSecondRing`,
+   `boundCellContent`, `limitFluxes`, `boundFlux`,
+   `applyBruteForceBounding`, `davofInit::areaNormal` and the three
+   state constructions, `areaFractionError::write` and
+   `volumeFractionError::write`, besides plicRDF's own. Switch them on
+   with `profiling { active true; }` in `system/controlDict` (Time reads
+   it; `cpuInfo true; sysInfo true;` are optional); the tree of
+   cumulative times per marker (calls, total and children time) is
+   written at every field write to `<time>/uniform/profiling`, so the
+   last write of the run holds the whole run. The leia timing study
+   `config/davof/sphereTranslation3D_hexTiming.yaml` (token
+   `TPF_PROFILING`) uses it.
 
 ## The advection benchmarks (run/benchmark/advection)
 

@@ -29,6 +29,7 @@ License
 #include "davof.H"
 #include "fvcGrad.H"
 #include "addToRunTimeSelectionTable.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -65,6 +66,7 @@ void Foam::davofNormalModels::youngs::modelNormals
     vectorField& n
 )
 {
+    addProfilingInFunction(geometricVoF);
     const tmp<volVectorField> tgradAlpha(fvc::grad(scheme_.alpha1()));
     const volVectorField& gradAlpha = tgradAlpha();
     const DynamicField<label>& labels = scheme_.interfaceLabels();

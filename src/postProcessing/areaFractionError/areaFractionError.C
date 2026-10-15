@@ -34,6 +34,7 @@ License
 #include "davofInit.H"
 #include "volFields.H"
 #include "surfaceFields.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -132,6 +133,7 @@ bool Foam::functionObjects::areaFractionError::execute()
 
 bool Foam::functionObjects::areaFractionError::write()
 {
+    addProfilingInFunction(geometricVoF);
     const Time& runTime = mesh_.time();
     const scalar t = runTime.value();
 

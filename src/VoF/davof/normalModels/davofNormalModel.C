@@ -29,6 +29,7 @@ License
 #include "davof.H"
 #include "zoneDistribute.H"
 #include "unitConversion.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -231,6 +232,7 @@ void Foam::davofNormalModel::ringAreaNormals
     vectorField& n
 )
 {
+    addProfilingInFunction(geometricVoF);
     fillInterfaceNormals(scheme, mInterface, filled);
 
     // The stencil and the exchange pattern are set up at every call:
@@ -275,6 +277,7 @@ void Foam::davofNormalModel::select
     boolList& changed
 )
 {
+    addProfilingInFunction(geometricVoF);
     const DynamicField<label>& labels = scheme_.interfaceLabels();
 
     nUse.resize(labels.size());

@@ -30,6 +30,7 @@ License
 #include "davofQuadraticFaceGeometry.H"
 #include "davofSphereGeometry.H"
 #include "boundBox.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -164,6 +165,7 @@ void Foam::davofInit::detrixheAslamState
     scalarField& psiP
 )
 {
+    addProfilingInFunction(geometricVoF);
     const vectorField& C = mesh_.cellCentres();
     const vectorField& Cf = mesh_.faceCentres();
     const pointField& P = mesh_.points();
@@ -255,6 +257,7 @@ void Foam::davofInit::quadraticFaces
     surfaceScalarField& alphaf
 )
 {
+    addProfilingInFunction(geometricVoF);
     scalarField alphafAll, psiF, psiP;
     detrixheAslamState(alpha, alphafAll, psiF, psiP);
 
@@ -316,6 +319,7 @@ void Foam::davofInit::exactSphere
     surfaceScalarField& alphaf
 )
 {
+    addProfilingInFunction(geometricVoF);
     // The Detrixhe-Aslam state first: the tet reference mTet_ (so that the
     // consistency check measures exact - chord, O(h) by construction) and
     // the fallbacks.
@@ -498,6 +502,7 @@ void Foam::davofInit::areaNormal
     scalarField& alphafAll
 )
 {
+    addProfilingInFunction(geometricVoF);
     const vectorField& Sf = mesh.faceAreas();
     const labelUList& own = mesh.faceOwner();
     const labelUList& nei = mesh.faceNeighbour();

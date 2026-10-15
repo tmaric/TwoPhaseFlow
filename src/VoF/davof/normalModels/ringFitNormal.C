@@ -29,6 +29,7 @@ License
 #include "davof.H"
 #include "zoneDistribute.H"
 #include "addToRunTimeSelectionTable.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -135,6 +136,7 @@ void Foam::davofNormalModels::ringFit::modelNormals
     vectorField& n
 )
 {
+    addProfilingInFunction(geometricVoF);
     fillInterfaceNormals();
 
     zoneDistribute& exchange = zoneDistribute::New(mesh_);

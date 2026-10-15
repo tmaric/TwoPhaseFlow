@@ -27,6 +27,7 @@ License
 
 #include "cellLocalNormal.H"
 #include "addToRunTimeSelectionTable.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -63,6 +64,7 @@ void Foam::davofNormalModels::cellLocal::modelNormals
     vectorField& n
 )
 {
+    addProfilingInFunction(geometricVoF);
     n = Zero;
 }
 

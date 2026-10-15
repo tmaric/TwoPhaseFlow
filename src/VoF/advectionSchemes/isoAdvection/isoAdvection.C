@@ -599,6 +599,7 @@ void Foam::advection::isoAdvection::defaultAreaFractions
     const bool untouchedOnly
 )
 {
+    addProfilingInFunction(geometricVoF);
     surfaceScalarField& alphaf = *alphafPtr_;
     const scalarField& alphaIn = alpha1_.primitiveField();
     const scalarField& phiIn = phi_.primitiveField();
@@ -675,6 +676,7 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
     // cell's plane, extended, gives the end-of-step fraction. Among several
     // candidates the plane closest to the face centre at t = dt is taken
     // (one and the same plane for a planar interface).
+    addProfilingInFunction(geometricVoF);
     const cellList& cellFaces = mesh_.cells();
     const labelList& own = mesh_.faceOwner();
     const labelList& nei = mesh_.faceNeighbour();
@@ -794,6 +796,7 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
 
 void Foam::advection::isoAdvection::boundCellContent(const scalar dt)
 {
+    addProfilingInFunction(geometricVoF);
     const cellList& cellFaces = mesh_.cells();
     const labelList& own = mesh_.faceOwner();
     const scalarField& V = mesh_.V();

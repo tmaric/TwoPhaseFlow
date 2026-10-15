@@ -28,6 +28,7 @@ License
 #include "ringAreaNormal.H"
 #include "davof.H"
 #include "addToRunTimeSelectionTable.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -87,6 +88,7 @@ void Foam::davofNormalModels::ringArea::modelNormals
     vectorField& n
 )
 {
+    addProfilingInFunction(geometricVoF);
     // The one implementation shared with the noNormalFallback ringArea
     // rule of the base class
     ringAreaNormals(scheme_, mInterface_, filled_, n);

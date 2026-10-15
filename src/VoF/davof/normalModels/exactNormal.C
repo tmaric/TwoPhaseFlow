@@ -29,6 +29,7 @@ License
 #include "davof.H"
 #include "implicitFunction.H"
 #include "addToRunTimeSelectionTable.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -72,6 +73,7 @@ void Foam::davofNormalModels::exact::modelNormals
     vectorField& n
 )
 {
+    addProfilingInFunction(geometricVoF);
     dictionary funcDict(exactNormalDict_);
     funcDict.set("type", functionType_);
     funcDict.set("origin", origin0_ + U0_*tState);

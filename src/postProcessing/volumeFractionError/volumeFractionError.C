@@ -26,6 +26,7 @@ License
 #include "advectionSchemes.H"
 #include "cutCellImpFunc.H"
 #include "cutCellIso.H"
+#include "profiling.H"
 
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -174,6 +175,7 @@ bool Foam::functionObjects::volumeFractionError::execute()
 
 bool Foam::functionObjects::volumeFractionError::write()
 {
+    addProfilingInFunction(geometricVoF);
 
     const volScalarField& alpha = lookupObject<volScalarField>(Field_);
 
