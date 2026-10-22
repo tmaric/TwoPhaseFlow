@@ -155,7 +155,36 @@ Foam::advection::isoAdvection::isoAdvection
     planeFluxFaces_(0),
     secondRingFaces_(0),
     secondRingBest_(0),
-    secondRingDist_(0)
+    secondRingDist_(0),
+    clippingSurface_(modelDict().getOrDefault<word>("clippingSurface", "none")),
+    curvedTolRel_(modelDict().getOrDefault<scalar>("curvedTolRel", 1e-10)),
+    curvedMaxDepth_(modelDict().getOrDefault<label>("curvedMaxDepth", 12)),
+    fitPriorWeight_(modelDict().getOrDefault<scalar>("fitPriorWeight", 1e-2)),
+    fitTol_(modelDict().getOrDefault<scalar>("fitTol", 1e-10)),
+    fitMaxIter_(modelDict().getOrDefault<label>("fitMaxIter", 50)),
+    defectLevels_(modelDict().getOrDefault<label>("defectLevels", 3)),
+    writeCurvedFields_(modelDict().getOrDefault<bool>("writeCurvedFields", false)),
+    cellSurfaces_(0),
+    hasSurface_(),
+    nCurvedFaces_(0),
+    nCurvedSecondRing_(0),
+    nCurvedBoundary_(0),
+    nCurvedSkipped_(0),
+    nCurvedFallback_(0),
+    nCurvedLeaves_(0),
+    nFitCells_(0),
+    nFitConverged_(0),
+    nFitStalled_(0),
+    nFitSingular_(0),
+    nFitNoBracket_(0),
+    nFitNoFrame_(0),
+    fitResMax_(0),
+    fitResSum_(0),
+    defectMax_(0),
+    defectSum_(0),
+    nDefectCells_(0),
+    fitResidualPtr_(nullptr),
+    paraboloidDefectPtr_(nullptr)
 {
    cutFaceAdvect::debug = debug;
 
@@ -181,6 +210,46 @@ Foam::advection::isoAdvection::isoAdvection
         }
         Info<< "isoAdvection: faceClipping " << faceClippingPtr_->type()
             << endl;
+
+        // The curved clipping surface: the dual advection with one surface
+        // per cell replaces the plane sweep (isoAdvectionCurved.C)
+        if (clippingSurface_ != "none")
+        {
+            if (clippingSurface_ != "exactSphere" && clippingSurface_ != "paraboloid")
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "clippingSurface '" << clippingSurface_
+                    << "' unknown. Valid: none, exactSphere, paraboloid."
+                    << exit(FatalIOError);
+            }
+            if (clipCorrects_)
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "clippingSurface " << clippingSurface_
+                    << " replaces the plane sweep; faceClipping must be plane"
+                    << exit(FatalIOError);
+            }
+            if (clippingSurface_ == "paraboloid")
+            {
+                davofPtr_->requestCurvatureTensor(true);
+            }
+            Info<< "isoAdvection: clippingSurface " << clippingSurface_
+                << " (the volume flux and the face update from one surface"
+                << " per cell; curvedTolRel " << curvedTolRel_
+                << ", curvedMaxDepth " << curvedMaxDepth_;
+            if (clippingSurface_ == "paraboloid")
+            {
+                Info<< ", fitPriorWeight " << fitPriorWeight_ << ", fitTol "
+                    << fitTol_ << ", fitMaxIter " << fitMaxIter_;
+            }
+            Info<< ", defectLevels " << defectLevels_ << ")" << endl;
+        }
+    }
+    else if (modelDict().getOrDefault<word>("clippingSurface", "none") != "none")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "clippingSurface needs the davof reconstruction scheme with"
+            << " stored face fractions" << exit(FatalIOError);
     }
     else if (modelDict().getOrDefault<word>("faceClipping", "plane") != "plane")
     {

@@ -331,9 +331,6 @@ class davof
         //  touched in touchedCell_
         void formAreaNormal();
 
-        //- The time the current state belongs to (see Description)
-        scalar stateTime();
-
         //- No copy construct
         davof(const davof&) = delete;
 
@@ -365,6 +362,10 @@ public:
 
         //- Reconstruct interface
         virtual void reconstruct(bool forceUpdate = true);
+
+        //- The time the current state belongs to (see Description); public
+        //  since 2026-10-23 for the curved clipping surface of isoAdvection
+        scalar stateTime();
 
         //- The faces with alpha_f != 0, ascending, valid for the current
         //  face fractions (isoAdvection, at the end of every step); the

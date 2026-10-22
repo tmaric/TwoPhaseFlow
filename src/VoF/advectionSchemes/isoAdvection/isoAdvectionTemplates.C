@@ -450,8 +450,17 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // i.e. phi[facei]*alpha1[upwindCell[facei]]*dt
     dVf_ = upwind<scalar>(mesh_, phi_).flux(alpha1_)*mesh_.time().deltaT();
 
-    // Do the isoAdvection on surface cells
-    timeIntegratedFlux();
+    // Do the isoAdvection on surface cells; DAVOF with a curved clipping
+    // surface: the dual advection with one surface per cell instead
+    if (davofPtr_ && clippingSurface_ != "none")
+    {
+        curvedFlux(mesh_.time().deltaTValue());
+        reportCurved();
+    }
+    else
+    {
+        timeIntegratedFlux();
+    }
 
     // Adjust alpha for mesh motion
     if (mesh_.moving())

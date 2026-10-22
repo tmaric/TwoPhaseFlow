@@ -66,6 +66,7 @@ SourceFiles
 #include "reconstructionSchemes.H"
 #include "cutFaceAdvect.H"
 #include "davofFaceClipping.H"
+#include "davofCurvedGeometry.H"
 #include "bitSet.H"
 #include "zeroField.H"
 
@@ -297,6 +298,62 @@ class isoAdvection
             scalarField secondRingDist_;
 
 
+        // DAVOF curved clipping surface (isoAdvectionCurved.C, 2026-10-23):
+        // the dual advection with ONE surface per cell for the volume flux
+        // and the face update, replacing the plane sweep when active
+
+            //- none (the plane sweep) | exactSphere | paraboloid (key
+            //  clippingSurface)
+            word clippingSurface_;
+
+            //- The prism quadrature: relative tolerance of the flux volume
+            //  and the maximum refinement depth (keys curvedTolRel,
+            //  curvedMaxDepth)
+            scalar curvedTolRel_;
+            label curvedMaxDepth_;
+
+            //- The six-coefficient fit: the prior weight of the ring
+            //  tensor, the face-residual tolerance, the iteration cap
+            //  (keys fitPriorWeight, fitTol, fitMaxIter)
+            scalar fitPriorWeight_;
+            scalar fitTol_;
+            label fitMaxIter_;
+
+            //- The refinement levels of the cell volume under the surface
+            //  for the surface defect (key defectLevels; -1 switches the
+            //  diagnostic off)
+            label defectLevels_;
+
+            //- Write the per-cell fit residual and surface defect fields
+            //  (key writeCurvedFields)
+            bool writeCurvedFields_;
+
+            //- The surface of every cell that has one (interface cells)
+            List<davof::cellSurface> cellSurfaces_;
+            bitSet hasSurface_;
+
+            //- Counters of the step
+            label nCurvedFaces_;
+            label nCurvedSecondRing_;
+            label nCurvedBoundary_;
+            label nCurvedSkipped_;
+            label nCurvedFallback_;
+            label nCurvedLeaves_;
+            label nFitCells_;
+            label nFitConverged_;
+            label nFitStalled_;
+            label nFitSingular_;
+            label nFitNoBracket_;
+            label nFitNoFrame_;
+            scalar fitResMax_;
+            scalar fitResSum_;
+            scalar defectMax_;
+            scalar defectSum_;
+            label nDefectCells_;
+            autoPtr<volScalarField> fitResidualPtr_;
+            autoPtr<volScalarField> paraboloidDefectPtr_;
+
+
     // Private Member Functions
 
         //- No copy construct
@@ -493,6 +550,24 @@ class isoAdvection
 
             //- Apply the bounding based on user inputs
             void applyBruteForceBounding();
+
+public:
+
+        // DAVOF curved clipping surface (isoAdvectionCurved.C)
+
+            //- The surface of every interface cell for the state at tState
+            //  (exactSphere: the translated sphere; paraboloid: the
+            //  six-coefficient fit to the cell's face fractions)
+            void buildCellSurfaces(const scalar tState);
+
+            //- The volume flux and the face fraction of every face of the
+            //  interface cells and their neighbours from the surface of the
+            //  upwind cell (second ring: the closest neighbouring surface)
+            void curvedFlux(const scalar dt);
+
+            //- The Info line of the step
+            void reportCurved() const;
+
 
 public:
 
