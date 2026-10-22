@@ -325,6 +325,13 @@ class isoAdvection
             //  alpha_k V, the feedback of the volume fraction into the
             //  surface; key fitAnchor)
             word fitAnchor_;
+
+            //- six (all six coefficients from the face fractions, the
+            //  Gauss-Newton), one (the offset alone from the total wetted
+            //  area, the ring tensor and zero slopes: leia's paraboloidFaces)
+            //  or none (the frame of the normal and the ring tensor only;
+            //  the offset from the volume anchor); key fitDof
+            word fitDof_;
             label nAnchorFail_;
             label nAnchorLeaves_;
             scalar anchorShiftMax_;

@@ -163,6 +163,7 @@ Foam::advection::isoAdvection::isoAdvection
     fitTol_(modelDict().getOrDefault<scalar>("fitTol", 1e-10)),
     fitMaxIter_(modelDict().getOrDefault<label>("fitMaxIter", 50)),
     fitAnchor_(modelDict().getOrDefault<word>("fitAnchor", "faces")),
+    fitDof_(modelDict().getOrDefault<word>("fitDof", "six")),
     nAnchorFail_(0),
     nAnchorLeaves_(0),
     anchorShiftMax_(0),
@@ -250,9 +251,21 @@ Foam::advection::isoAdvection::isoAdvection
                         << "fitAnchor '" << fitAnchor_
                         << "' unknown. Valid: faces, volume." << exit(FatalIOError);
                 }
+                if (fitDof_ != "six" && fitDof_ != "one" && fitDof_ != "none")
+                {
+                    FatalIOErrorInFunction(modelDict())
+                        << "fitDof '" << fitDof_
+                        << "' unknown. Valid: six, one, none." << exit(FatalIOError);
+                }
+                if (fitDof_ == "none" && fitAnchor_ != "volume")
+                {
+                    FatalIOErrorInFunction(modelDict())
+                        << "fitDof none needs fitAnchor volume (the offset"
+                        << " comes from nowhere else)" << exit(FatalIOError);
+                }
                 Info<< ", fitPriorWeight " << fitPriorWeight_ << ", fitTol "
                     << fitTol_ << ", fitMaxIter " << fitMaxIter_
-                    << ", fitAnchor " << fitAnchor_;
+                    << ", fitAnchor " << fitAnchor_ << ", fitDof " << fitDof_;
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
         }

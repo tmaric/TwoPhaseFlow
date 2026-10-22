@@ -192,7 +192,10 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         };
 
         // The start: the offset that reproduces the total wetted area with
-        // the ring tensor and zero slopes (leia's paraboloidFaces anchoring)
+        // the ring tensor and zero slopes (leia's paraboloidFaces anchoring);
+        // skipped when the offset comes from the volume alone (fitDof none
+        // with fitAnchor volume)
+        if (!(fitDof_ == "none" && fitAnchor_ == "volume"))
         {
             auto g = [&](const scalar cc) -> scalar
             {
@@ -217,20 +220,40 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             }
         }
 
-        // All six coefficients
+        // All six coefficients (fitDof six); fitDof one keeps the one-scalar
+        // anchoring, fitDof none the frame and the ring tensor only
         ++nFitCells_;
-        const davof::paraboloidFitResult res = davof::fitParaboloidFull
-        (
-            S, h, tF, wF, fractionsOf, fitPriorWeight_, fitTol_, fitMaxIter_
-        );
-        if (res.converged) ++nFitConverged_;
-        if (res.stalled) ++nFitStalled_;
-        if (res.singular) ++nFitSingular_;
-        fitResMax_ = max(fitResMax_, res.rmax);
-        fitResSum_ += res.rmax;
-        if (fitResidualPtr_)
+        if (fitDof_ == "six")
         {
-            fitResidualPtr_->primitiveFieldRef()[celli] = res.rmax;
+            const davof::paraboloidFitResult res = davof::fitParaboloidFull
+            (
+                S, h, tF, wF, fractionsOf, fitPriorWeight_, fitTol_, fitMaxIter_
+            );
+            if (res.converged) ++nFitConverged_;
+            if (res.stalled) ++nFitStalled_;
+            if (res.singular) ++nFitSingular_;
+            fitResMax_ = max(fitResMax_, res.rmax);
+            fitResSum_ += res.rmax;
+            if (fitResidualPtr_)
+            {
+                fitResidualPtr_->primitiveFieldRef()[celli] = res.rmax;
+            }
+        }
+        else
+        {
+            // the face residual of the surface as it stands (the one-scalar
+            // anchoring or the plane of the frame with the ring tensor)
+            scalarList aF;
+            fractionsOf(S, aF);
+            scalar rmax = 0;
+            forAll(aF, k) rmax = max(rmax, mag(aF[k] - tF[k]));
+            ++nFitConverged_;
+            fitResMax_ = max(fitResMax_, rmax);
+            fitResSum_ += rmax;
+            if (fitResidualPtr_)
+            {
+                fitResidualPtr_->primitiveFieldRef()[celli] = rmax;
+            }
         }
 
         // The volume anchor (fitAnchor volume): the offset c shifted so that
