@@ -72,6 +72,10 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
     nFitNoFrame_ = 0;
     fitResMax_ = 0;
     fitResSum_ = 0;
+    nAnchorFail_ = 0;
+    nAnchorLeaves_ = 0;
+    anchorShiftMax_ = 0;
+    anchorShiftSum_ = 0;
 
     const DynamicField<label>& interfaceLabels = surf_->interfaceLabels();
 
@@ -227,6 +231,54 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         if (fitResidualPtr_)
         {
             fitResidualPtr_->primitiveFieldRef()[celli] = res.rmax;
+        }
+
+        // The volume anchor (fitAnchor volume): the offset c shifted so that
+        // the volume under the surface equals alpha_k V, the slopes and the
+        // tensor from the face fit; the flux of the step is the volume under
+        // the same surface by the same quadrature, so alpha_k stays the
+        // volume under the surface and feeds back into it. Newton with the
+        // wetted area as the derivative of the volume in the offset.
+        if (fitAnchor_ == "volume")
+        {
+            const scalar Vc = V[celli];
+            const scalar target = alpha1In_[celli]*Vc;
+            const scalar mMag = max(mag(m[celli]), 1e-3*h*h);
+            label nLeaves = 0;
+            scalar cPrev = S.c;
+            scalar shift = 0;
+            bool okAnchor = false;
+            for (label it = 0; it < 12; ++it)
+            {
+                const scalar vol = davof::cellLiquidVolumeQuadric
+                (
+                    mesh_, celli, [&](const point& x) { return S.value(x); },
+                    curvedTolRel_, curvedMaxDepth_, nLeaves
+                );
+                const scalar r = vol - target;
+                if (mag(r) <= 10*curvedTolRel_*Vc)
+                {
+                    okAnchor = true;
+                    break;
+                }
+                // c larger: more liquid (e3 points out of the liquid, the
+                // liquid is w < c + ...): dV/dc = +area
+                scalar dc = -r/mMag;
+                const scalar dcMax = 0.5*h;
+                if (mag(dc) > dcMax) dc = sign(dc)*dcMax;
+                S.c += dc;
+                shift += dc;
+            }
+            if (!okAnchor) ++nAnchorFail_;
+            nAnchorLeaves_ += nLeaves;
+            // the face fractions the anchored surface cuts against the targets
+            scalarList aF;
+            fractionsOf(S, aF);
+            scalar dmax = 0;
+            forAll(aF, k) dmax = max(dmax, mag(aF[k] - tF[k]));
+            anchorShiftMax_ = max(anchorShiftMax_, dmax);
+            anchorShiftSum_ += dmax;
+            (void)cPrev;
         }
 
         cellSurfaces_[celli] = S;
@@ -454,9 +506,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             const label celli = interfaceLabels[i];
             if (!hasSurface_.test(celli)) continue;
             const davof::cellSurface& S = cellSurfaces_[celli];
-            const scalar vLiq = davof::cellLiquidVolumeRefined
+            // the same quadrature as the flux (defectLevels kept as the switch)
+            label nLeavesDefect = 0;
+            const scalar vLiq = davof::cellLiquidVolumeQuadric
             (
-                mesh_, celli, [&](const point& x) { return S.value(x); }, defectLevels_
+                mesh_, celli, [&](const point& x) { return S.value(x); },
+                curvedTolRel_, curvedMaxDepth_, nLeavesDefect
             );
             const scalar defect = alpha1In_[celli] - vLiq/V[celli];
             defectMax_ = max(defectMax_, mag(defect));
@@ -486,6 +541,13 @@ void Foam::advection::isoAdvection::reportCurved() const
             << ", no bracket " << nFitNoBracket_ << ", no frame " << nFitNoFrame_
             << ", residual max " << fitResMax_
             << " mean " << fitResSum_/max(nFitCells_, label(1));
+        if (fitAnchor_ == "volume")
+        {
+            Info<< "; volume anchor: failed " << nAnchorFail_
+                << ", face shift max " << anchorShiftMax_
+                << " mean " << anchorShiftSum_/max(nFitCells_, label(1))
+                << ", leaves " << nAnchorLeaves_;
+        }
     }
     if (nDefectCells_ > 0)
     {

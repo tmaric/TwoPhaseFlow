@@ -242,7 +242,7 @@ inline scalar faceCutDisplaced
         const point p1 = P[ip1] + d;
         const scalar triA = 0.5*mag((p0 - xf) ^ (p1 - xf));
         if (triA <= VSMALL) continue;
-        liqA += triLiquidArea(xf, p0, p1, phi, 3, nFallback);
+        liqA += triLiquidArea(xf, p0, p1, phi, 6, nFallback);
         totA += triA;
     }
     return (totA > VSMALL) ? liqA/totA : (phi(xf) < 0 ? scalar(1) : scalar(0));
@@ -368,6 +368,164 @@ inline scalar faceSweptLiquidVolume
     {
         const label ip1 = f.nextLabel(ip);
         v += prismLiquidVolume(xf, P[f[ip]], P[ip1], d, phi, tolAbs, maxDepth, nLeaves);
+    }
+    return v;
+}
+
+
+// * * * * * * * * * The cell volume by rays from the cell centre * * * * * //
+
+//- For the ray x(s) = apex + s (p - apex), s in [0, 1]: the integral of
+//  3 s^2 over the liquid part {phi(x(s)) <= 0}, i.e. sum (s_b^3 - s_a^3) over
+//  the liquid sub-intervals (exact: phi is quadratic in s). The volume of
+//  the pyramid (apex, face) under phi is the integral of this weight over
+//  the face times (1/3)|(p - apex) . n_f| dA, the cone volume element.
+template<class PhiAt>
+inline scalar rayLiquidCubicWeight(const point& apex, const point& p, PhiAt&& phi)
+{
+    const scalar f0 = phi(apex);
+    const scalar f1 = phi(p);
+    const scalar fm = phi(0.5*(apex + p));
+    const scalar C = 2*(f1 + f0 - 2*fm);
+    const scalar B = f1 - f0 - C;
+    const scalar scale = mag(f0) + mag(B) + mag(C);
+    auto q = [&](const scalar s) { return f0 + B*s + C*s*s; };
+    auto cubicLen = [&](const scalar s0, const scalar s1) -> scalar
+    {
+        const scalar sm = 0.5*(s0 + s1);
+        return (q(sm) <= 0) ? (s1*s1*s1 - s0*s0*s0) : 0;
+    };
+    if (scale <= VSMALL) return 1;
+    // the roots in (0, 1)
+    scalar r[2];
+    label nr = 0;
+    if (mag(C) <= 1e-14*scale)
+    {
+        if (mag(B) > 1e-14*scale)
+        {
+            const scalar s = -f0/B;
+            if (s > 0 && s < 1) r[nr++] = s;
+        }
+    }
+    else
+    {
+        const scalar disc = B*B - 4*C*f0;
+        if (disc > 0)
+        {
+            const scalar sq = Foam::sqrt(disc);
+            const scalar qq = -0.5*(B + sign(B)*sq);
+            scalar r1 = (qq != 0) ? f0/qq : -B/(2*C);
+            scalar r2 = (C != 0) ? qq/C : r1;
+            if (r1 > r2) Swap(r1, r2);
+            if (r1 > 0 && r1 < 1) r[nr++] = r1;
+            if (r2 > 0 && r2 < 1 && r2 != r1) r[nr++] = r2;
+        }
+    }
+    scalar s0 = 0, w = 0;
+    for (label k = 0; k < nr; ++k)
+    {
+        w += cubicLen(s0, r[k]);
+        s0 = r[k];
+    }
+    w += cubicLen(s0, 1);
+    return w;
+}
+
+
+//- The liquid volume of the pyramid (apex; a, b, c) under phi by the
+//  adaptive six-point rule over the base triangle (as prismLiquidVolume),
+//  the ray weights exact.
+template<class PhiAt>
+inline scalar pyramidLiquidVolume
+(
+    const point& apex,
+    const point& a, const point& b, const point& c,
+    PhiAt&& phi,
+    const scalar tolAbs,
+    const label maxDepth,
+    label& nLeaves
+)
+{
+    const vector S = 0.5*((b - a) ^ (c - a));
+    const scalar A = mag(S);
+    if (A <= VSMALL) return 0;
+    const vector nT = S/A;
+    const scalar height = mag((a - apex) & nT);
+    if (height <= VSMALL) return 0;
+    // (1/3) height * integral of the weight over the triangle (the height is
+    // the same for every point of the planar triangle)
+    auto gauss = [&](const point& p0, const point& p1, const point& p2) -> scalar
+    {
+        const scalar At = 0.5*mag((p1 - p0) ^ (p2 - p0));
+        scalar s = 0;
+        for (label k = 0; k < triGauss6::n; ++k)
+        {
+            scalar l0, l1, l2, w;
+            triGauss6::point(k, l0, l1, l2, w);
+            const point p = l0*p0 + l1*p1 + l2*p2;
+            s += w*rayLiquidCubicWeight(apex, p, phi);
+        }
+        return s*At;
+    };
+    std::function<scalar(const point&, const point&, const point&, scalar, scalar, label)> rec =
+        [&](const point& p0, const point& p1, const point& p2, scalar parent, scalar tol, label depth) -> scalar
+        {
+            const point m01 = 0.5*(p0 + p1), m12 = 0.5*(p1 + p2), m20 = 0.5*(p2 + p0);
+            const scalar c0 = gauss(p0, m01, m20);
+            const scalar c1 = gauss(m01, p1, m12);
+            const scalar c2 = gauss(m20, m12, p2);
+            const scalar c3 = gauss(m01, m12, m20);
+            const scalar children = c0 + c1 + c2 + c3;
+            if (mag(children - parent) <= tol || depth >= maxDepth)
+            {
+                nLeaves += 4;
+                return children;
+            }
+            const scalar tc = 0.25*tol;
+            return
+                rec(p0, m01, m20, c0, tc, depth + 1)
+              + rec(m01, p1, m12, c1, tc, depth + 1)
+              + rec(m20, m12, p2, c2, tc, depth + 1)
+              + rec(m01, m12, m20, c3, tc, depth + 1);
+        };
+    const scalar factor = height/3.0;
+    const scalar parent = gauss(a, b, c);
+    return factor*rec(a, b, c, parent, tolAbs/factor, 0);
+}
+
+
+//- The liquid volume of cellI under the quadric phi: the pyramids from the
+//  cell centre over the fan triangles of every face, by the same adaptive
+//  quadrature and tolerance (relative to the cell volume) as the flux
+//  prisms, so that the volume anchor and the flux are one quadrature.
+template<class PhiAt>
+inline scalar cellLiquidVolumeQuadric
+(
+    const fvMesh& mesh,
+    const label cellI,
+    PhiAt&& phi,
+    const scalar tolRel,
+    const label maxDepth,
+    label& nLeaves
+)
+{
+    const pointField& P = mesh.points();
+    const faceList& faces = mesh.faces();
+    const vectorField& Cf = mesh.faceCentres();
+    const point& xc = mesh.cellCentres()[cellI];
+    const labelList& cFaces = mesh.cells()[cellI];
+    const scalar tolAbs = tolRel*mesh.V()[cellI];
+    scalar v = 0;
+    forAll(cFaces, cf)
+    {
+        const label faceI = cFaces[cf];
+        const face& f = faces[faceI];
+        const point& xf = Cf[faceI];
+        forAll(f, ip)
+        {
+            const label ip1 = f.nextLabel(ip);
+            v += pyramidLiquidVolume(xc, xf, P[f[ip]], P[ip1], phi, tolAbs, maxDepth, nLeaves);
+        }
     }
     return v;
 }

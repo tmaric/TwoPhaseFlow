@@ -162,6 +162,11 @@ Foam::advection::isoAdvection::isoAdvection
     fitPriorWeight_(modelDict().getOrDefault<scalar>("fitPriorWeight", 1e-2)),
     fitTol_(modelDict().getOrDefault<scalar>("fitTol", 1e-10)),
     fitMaxIter_(modelDict().getOrDefault<label>("fitMaxIter", 50)),
+    fitAnchor_(modelDict().getOrDefault<word>("fitAnchor", "faces")),
+    nAnchorFail_(0),
+    nAnchorLeaves_(0),
+    anchorShiftMax_(0),
+    anchorShiftSum_(0),
     defectLevels_(modelDict().getOrDefault<label>("defectLevels", 3)),
     writeCurvedFields_(modelDict().getOrDefault<bool>("writeCurvedFields", false)),
     cellSurfaces_(0),
@@ -239,8 +244,15 @@ Foam::advection::isoAdvection::isoAdvection
                 << ", curvedMaxDepth " << curvedMaxDepth_;
             if (clippingSurface_ == "paraboloid")
             {
+                if (fitAnchor_ != "faces" && fitAnchor_ != "volume")
+                {
+                    FatalIOErrorInFunction(modelDict())
+                        << "fitAnchor '" << fitAnchor_
+                        << "' unknown. Valid: faces, volume." << exit(FatalIOError);
+                }
                 Info<< ", fitPriorWeight " << fitPriorWeight_ << ", fitTol "
-                    << fitTol_ << ", fitMaxIter " << fitMaxIter_;
+                    << fitTol_ << ", fitMaxIter " << fitMaxIter_
+                    << ", fitAnchor " << fitAnchor_;
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
         }

@@ -319,6 +319,17 @@ class isoAdvection
             scalar fitTol_;
             label fitMaxIter_;
 
+            //- faces (the six coefficients from the face fractions, the
+            //  surface interpolates them) or volume (the offset shifted
+            //  after the fit so that the volume under the surface is
+            //  alpha_k V, the feedback of the volume fraction into the
+            //  surface; key fitAnchor)
+            word fitAnchor_;
+            label nAnchorFail_;
+            label nAnchorLeaves_;
+            scalar anchorShiftMax_;
+            scalar anchorShiftSum_;
+
             //- The refinement levels of the cell volume under the surface
             //  for the surface defect (key defectLevels; -1 switches the
             //  diagnostic off)
