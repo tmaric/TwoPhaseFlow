@@ -117,6 +117,19 @@ PMLMin          ({-half!r} {-half!r} {-zbox!r});
     }}
 """
 
+    cell_probes = "" if env("PHYSICAL_PROBES", int) == 0 else f"""    // Physical-domain cells only; domainProbes covers the PML.
+    cellProbes
+    {{
+        type            probes;
+        libs            (sampling);
+        writeControl    timeStep;
+        writeInterval   {stride};
+        writePrecision  10;
+        fields          (p pDot U);
+        #include        "probeLocations"
+    }}
+"""
+
     write("system/controlDict", HEADER.format(object="controlDict") + f"""application     {os.environ['SOLVER']};
 startFrom       startTime;
 startTime       0;
@@ -136,18 +149,7 @@ adjustTimeStep  no;
 
 functions
 {{
-    // Physical-domain cells only; domainProbes covers the PML.
-    cellProbes
-    {{
-        type            probes;
-        libs            (sampling);
-        writeControl    timeStep;
-        writeInterval   {stride};
-        writePrecision  10;
-        fields          (p pDot U);
-        #include        "probeLocations"
-    }}
-{domain_probes}}}
+{cell_probes}{domain_probes}}}
 """)
 
     centre = (" + ".join(f"sqr(pos().{c}() - {x!r})"

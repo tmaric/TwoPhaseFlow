@@ -18,5 +18,8 @@ runApplication setPMLFields
 # A run that blows up is still post-processed up to its last finite sample.
 runApplication "${SOLVER}" || echo "${SOLVER} failed; see log.${SOLVER}"
 
-python3 postprocess_pml.py > log.postprocess 2>&1
-tail -n 15 log.postprocess
+if [ "$PHYSICAL_PROBES" = 1 ]
+then
+    python3 postprocess_pml.py > log.postprocess 2>&1
+    tail -n 15 log.postprocess
+fi

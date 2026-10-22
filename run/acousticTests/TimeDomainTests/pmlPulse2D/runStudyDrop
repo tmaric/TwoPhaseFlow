@@ -1,0 +1,28 @@
+#!/bin/sh
+# Multidirectional PML study E: centred water drop of radius 5 mm in the 2D
+# PML case; see README.md.
+#   accuracy  h = 2, 1, 0.5 mm, monolithic, Co 0.5, PML and enlarged-domain
+#             runs to 0.4 ms
+#   long      h = 1 mm, monolithic, Co 0.5 and 2, to 50 ms
+# Usage: ./runStudyDrop     (outputs in ${STUDY_DIR:-studies}/E)
+set -e
+cd "${0%/*}" || exit 1
+
+OUT=${STUDY_DIR:-studies}
+LIST=$(mktemp)
+trap 'rm -f "$LIST"' EXIT
+DROP="DROP_RADIUS=0.005 SIGMA_MAX=5.05e5 TIME_METHOD=blockCoupled"
+
+for h in 5e-4 1e-3 2e-3
+do
+    common="$DROP CELL_SIZE=$h COURANT=0.5 END_TIME=4e-4 SAMPLE_INTERVAL=1e-5 DOMAIN_PROBES=0"
+    echo "E/accuracy/enlarged_h$h $common ENLARGED=1" >> "$LIST"
+    echo "E/accuracy/pml_h$h $common" >> "$LIST"
+done
+for co in 0.5 2
+do
+    echo "E/long/monolithic_Co$co $DROP CELL_SIZE=1e-3 COURANT=$co END_TIME=0.05 SAMPLE_INTERVAL=1e-4 DOMAIN_PROBES=1" >> "$LIST"
+done
+
+xargs -L1 -P "${JOBS:-8}" ./runStudy --one < "$LIST"
+python3 summarize_drop_study.py "$OUT/E"

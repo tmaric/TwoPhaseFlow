@@ -1,0 +1,61 @@
+#!/bin/sh
+# Cost at matched accuracy (wavePML sec:cost), 2D PML pulse, homogeneous gas.
+#   h = 1 mm: monolithic direct and iterative, segregated and backward at
+#   Co = 4, 2, 1, 0.5, 0.25; reference monolithic direct at Co = 1/16.
+#   h = 0.5 mm: the four updates at Co = 2 and 0.5 (scaling with the mesh).
+# Time steps differ by powers of two, so all runs of a mesh share the
+# sample times (every step at Co 4). Runs are serial and run one at a time
+# so that the timings are not disturbed. Tables: summarize_cost_study.py.
+# Usage: ./runCostStudy [results|timing|all]  (outputs in ${STUDY_DIR:-studies}/cost)
+set -e
+cd "${0%/*}" || exit 1
+OUT=${STUDY_DIR:-studies}
+STUDY=${1:-all}
+
+one()
+{
+    # $1 h, $2 Co, $3 name, then VAR=value overrides
+    h=$1; co=$2; name=$3
+    shift 3
+    sample=$(awk "BEGIN { printf \"%.12g\", 4*$h/343 }")
+    end=$(awk "BEGIN { printf \"%.12g\", (0.4e-3*343/(4*$h) - (0.4e-3*343/(4*$h))%1)*4*$h/343 }")
+    ./runStudy --one "cost/h$h/$name" CELL_SIZE=$h COURANT=$co \
+        END_TIME=$end SAMPLE_INTERVAL=$sample DOMAIN_PROBES=0 "$@"
+}
+
+if [ "$STUDY" = results ] || [ "$STUDY" = all ]
+then
+    one 1e-3 0.0625 reference_Co0.0625 TIME_METHOD=blockCoupled
+    for co in 4 2 1 0.5 0.25
+    do
+        one 1e-3 $co direct_Co$co TIME_METHOD=blockCoupled BLOCK_SOLVER=direct
+        one 1e-3 $co iterative_Co$co TIME_METHOD=blockCoupled BLOCK_SOLVER=iterative
+        one 1e-3 $co segregated_Co$co TIME_METHOD=thetaNewmark
+        one 1e-3 $co backward_Co$co TIME_METHOD=fullyImplicit
+    done
+    for co in 2 0.5
+    do
+        one 5e-4 $co direct_Co$co TIME_METHOD=blockCoupled BLOCK_SOLVER=direct
+        one 5e-4 $co iterative_Co$co TIME_METHOD=blockCoupled BLOCK_SOLVER=iterative
+        one 5e-4 $co segregated_Co$co TIME_METHOD=thetaNewmark
+        one 5e-4 $co backward_Co$co TIME_METHOD=fullyImplicit
+    done
+fi
+
+# Timing without probes: the probes of the runs above write every cell of
+# the physical domain at every sample, which inflates the time per step at
+# large Co. These runs give the solver cost alone (no results).
+if [ "$STUDY" = timing ] || [ "$STUDY" = all ]
+then
+    for h in 1e-3 5e-4
+    do
+        for co in 2 0.5
+        do
+            one $h $co timing_direct_Co$co TIME_METHOD=blockCoupled BLOCK_SOLVER=direct PHYSICAL_PROBES=0
+            one $h $co timing_iterative_Co$co TIME_METHOD=blockCoupled BLOCK_SOLVER=iterative PHYSICAL_PROBES=0
+            one $h $co timing_segregated_Co$co TIME_METHOD=thetaNewmark PHYSICAL_PROBES=0
+            one $h $co timing_backward_Co$co TIME_METHOD=fullyImplicit PHYSICAL_PROBES=0
+        done
+    done
+fi
+python3 summarize_cost_study.py "$OUT/cost"

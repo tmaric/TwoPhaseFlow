@@ -39,6 +39,8 @@
 # 1: also probe p, psi (v) and w (u) at every cell, PML included, for the
 # long-time maxima; 0 for fine accuracy runs.
 : "${DOMAIN_PROBES:=1}"
+# 0: no probes at all, for timing runs (no post-processing results).
+: "${PHYSICAL_PROBES:=1}"
 
 # Time integration: blockCoupled (monolithic) | thetaNewmark (segregated)
 : "${TIME_METHOD:=blockCoupled}"
