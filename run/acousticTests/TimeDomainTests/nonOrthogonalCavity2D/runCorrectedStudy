@@ -1,0 +1,45 @@
+#!/bin/sh
+# Corrected Laplacian on the distorted cavity (after removing
+# setFluxRequired(p) from acousticWaveFoam); see README.md.
+#   S  spatial refinement CELLS 20..160, STEPS_PER_PERIOD 4 CELLS (Co 0.22),
+#      distortion 0.15, 0.3, 0.6, 10 periods: monolithic (lagged
+#      correction) and segregated with 3 non-orthogonal correctors
+#   T  temporal refinement, distortion 0.3, CELLS 80, STEPS_PER_PERIOD 40..640
+#      and a reference at 2560, both updates, 10 periods
+#   L  long time, distortion 0.3 and 0.6, CELLS 40, 200 periods, Co 0.22 and
+#      1.8, both updates
+# Usage: ./runCorrectedStudy     (outputs in ${STUDY_DIR:-studies}/corrected)
+set -e
+cd "${0%/*}" || exit 1
+LIST=$(mktemp)
+trap 'rm -f "$LIST"' EXIT
+MONO="LAPLACIAN=corrected TIME_METHOD=blockCoupled"
+SEG="LAPLACIAN=corrected TIME_METHOD=thetaNewmark NONORTH_CORRECTORS=3"
+
+for eps in 0.15 0.3 0.6
+do
+    for n in 160 80 40 20
+    do
+        common="DISTORTION=$eps CELLS=$n STEPS_PER_PERIOD=$((4*n)) N_PERIODS=10"
+        echo "corrected/S/monolithic_eps${eps}_N$n $common $MONO" >> "$LIST"
+        echo "corrected/S/segregated_eps${eps}_N$n $common $SEG" >> "$LIST"
+    done
+done
+for nt in 2560 640 320 160 80 40
+do
+    common="DISTORTION=0.3 CELLS=80 STEPS_PER_PERIOD=$nt N_PERIODS=10"
+    echo "corrected/T/monolithic_NT$nt $common $MONO" >> "$LIST"
+    echo "corrected/T/segregated_NT$nt $common $SEG" >> "$LIST"
+done
+for eps in 0.3 0.6
+do
+    for nt in 160 20
+    do
+        common="DISTORTION=$eps CELLS=40 STEPS_PER_PERIOD=$nt N_PERIODS=200 PROBE_SAMPLES_PER_PERIOD=$((nt % 8 == 0 ? 8 : 5))"
+        echo "corrected/L/monolithic_eps${eps}_NT$nt $common $MONO" >> "$LIST"
+        echo "corrected/L/segregated_eps${eps}_NT$nt $common $SEG" >> "$LIST"
+    done
+done
+
+xargs -L1 -P "${JOBS:-8}" ./runStudy --one < "$LIST"
+python3 summarize_corrected_study.py "${STUDY_DIR:-studies}/corrected"

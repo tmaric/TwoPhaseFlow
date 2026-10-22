@@ -1,0 +1,38 @@
+# nonOrthogonalCavity2D
+
+Free standing mode in a closed rigid square cavity on a smoothly distorted,
+non-orthogonal mesh, solved with `acousticWaveFoam`. No PML, no interface,
+no forcing and no added damping, so the case isolates the spatial operator
+on non-orthogonal faces.
+
+## Configuration
+
+- Air in the square `0 < x, y < CAVITY_L` (0.343 m), rigid walls.
+- Exact mode `p = PA cos(m pi x/L) cos(n pi y/L) cos(omega t)` with
+  `(MODE_M, MODE_N) = (2, 1)`, initialized at the cell centres; `pDot`, `U`
+  and the auxiliary fields start from zero.
+- `blockMesh` builds `CELLS x CELLS` cells; `prepareCase --distort` then
+  moves the points by
+  `x' = x + DISTORTION L/(2 pi) sin(pi x/L) sin(2 pi y/L)` and the analogous
+  `y'`. The walls stay straight. `DISTORTION = 0.15, 0.3, 0.6` give a maximum
+  non-orthogonality of 17, 33 and 62 degrees (average 7, 13 and 25) at
+  `CELLS = 40` (see `log.checkMesh`).
+- `LAPLACIAN` selects the Laplacian and surface-normal gradient schemes.
+  Only `orthogonal` runs at present: the solver scales the Laplacian matrix
+  by `rho`, and OpenFOAM refuses to scale a matrix that carries the explicit
+  non-orthogonal correction of `corrected` ("cannot scale a matrix containing
+  a faceFluxCorrection"), for all three time updates.
+
+## Run
+
+```bash
+./Allrun
+./runStudy            # A: refinement at four distortions; B: long time
+```
+
+`Allrun` writes the cell centres and volumes (`writeCellCentres`,
+`writeCellVolumes`), runs the solver with probes at every cell, and calls
+`postprocess_cavity2d.py`: E2 of pressure and velocity against the exact
+mode, the modal amplitude growth per period and frequency error, and the
+drift of the physical energy. `summarize_nonorth_study.py` writes
+`studies/studyA.csv` and `studies/studyB.csv`.

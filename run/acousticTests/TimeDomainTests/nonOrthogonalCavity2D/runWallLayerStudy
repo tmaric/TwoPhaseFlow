@@ -1,0 +1,24 @@
+#!/bin/sh
+# Distorted cavity with an orthogonal wall layer (WALL_LAYERS 1,
+# TRANSITION_FRACTION 0.15): spatial refinement CELLS 20..160 at
+# STEPS_PER_PERIOD 4 CELLS, distortion 0.15, 0.3, 0.6, 10 periods, for the
+# orthogonal scheme, the corrected scheme with the monolithic update
+# (lagged correction) and with the segregated update (3 correctors).
+# Usage: ./runWallLayerStudy     (outputs in ${STUDY_DIR:-studies}/wallLayer)
+set -e
+cd "${0%/*}" || exit 1
+LIST=$(mktemp)
+trap 'rm -f "$LIST"' EXIT
+WALL="WALL_LAYERS=1 TRANSITION_FRACTION=0.15"
+for eps in 0.15 0.3 0.6
+do
+    for n in 160 80 40 20
+    do
+        common="$WALL DISTORTION=$eps CELLS=$n STEPS_PER_PERIOD=$((4*n)) N_PERIODS=10"
+        echo "wallLayer/orthogonal_eps${eps}_N$n $common LAPLACIAN=orthogonal" >> "$LIST"
+        echo "wallLayer/monolithic_eps${eps}_N$n $common LAPLACIAN=corrected TIME_METHOD=blockCoupled" >> "$LIST"
+        echo "wallLayer/segregated_eps${eps}_N$n $common LAPLACIAN=corrected TIME_METHOD=thetaNewmark NONORTH_CORRECTORS=3" >> "$LIST"
+    done
+done
+xargs -L1 -P "${JOBS:-8}" ./runStudy --one < "$LIST"
+python3 summarize_wall_layer_study.py "${STUDY_DIR:-studies}/wallLayer"

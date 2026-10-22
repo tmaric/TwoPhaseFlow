@@ -1,0 +1,52 @@
+#!/bin/sh
+# Corrected Laplacian with converged non-orthogonal correction in both
+# updates: the monolithic update with block-solve defect correction, the
+# segregated update with its corrector loop (NONORTH_CORRECTORS each).
+# Orthogonal wall layer (WALL_LAYERS 1, TRANSITION_FRACTION 0.15).
+#   S  spatial refinement CELLS 20..160, STEPS_PER_PERIOD 4 CELLS, 10 periods,
+#      distortion 0.15, 0.3, 0.6
+#   T  temporal refinement, distortion 0.3, CELLS 80, STEPS_PER_PERIOD
+#      40..640 and a reference at 2560
+#   L  long time, distortion 0.3 and 0.6, CELLS 40, 200 periods, Co 0.22,
+#      1.8 and 7.2
+#   N  monolithic, distortion 0.6, CELLS 80: 1, 2, 3, 5 correctors
+# Usage: ./runDefectCorrectionStudy  (outputs in ${STUDY_DIR:-studies}/defect)
+set -e
+cd "${0%/*}" || exit 1
+LIST=$(mktemp)
+trap 'rm -f "$LIST"' EXIT
+WALL="WALL_LAYERS=1 TRANSITION_FRACTION=0.15 LAPLACIAN=corrected"
+MONO="TIME_METHOD=blockCoupled NONORTH_CORRECTORS=3"
+SEG="TIME_METHOD=thetaNewmark NONORTH_CORRECTORS=3"
+
+for eps in 0.15 0.3 0.6
+do
+    for n in 160 80 40 20
+    do
+        common="$WALL DISTORTION=$eps CELLS=$n STEPS_PER_PERIOD=$((4*n)) N_PERIODS=10"
+        echo "defect/S/monolithic_eps${eps}_N$n $common $MONO" >> "$LIST"
+        echo "defect/S/segregated_eps${eps}_N$n $common $SEG" >> "$LIST"
+    done
+done
+for nt in 2560 640 320 160 80 40
+do
+    common="$WALL DISTORTION=0.3 CELLS=80 STEPS_PER_PERIOD=$nt N_PERIODS=10"
+    echo "defect/T/monolithic_NT$nt $common $MONO" >> "$LIST"
+    echo "defect/T/segregated_NT$nt $common $SEG" >> "$LIST"
+done
+for eps in 0.3 0.6
+do
+    for nt in 160 20 5
+    do
+        common="$WALL DISTORTION=$eps CELLS=40 STEPS_PER_PERIOD=$nt N_PERIODS=200 PROBE_SAMPLES_PER_PERIOD=$((nt % 8 == 0 ? 8 : 5))"
+        echo "defect/L/monolithic_eps${eps}_NT$nt $common $MONO" >> "$LIST"
+        echo "defect/L/segregated_eps${eps}_NT$nt $common $SEG" >> "$LIST"
+    done
+done
+for k in 1 2 3 5
+do
+    echo "defect/N/monolithic_corr$k $WALL DISTORTION=0.6 CELLS=80 STEPS_PER_PERIOD=320 N_PERIODS=10 TIME_METHOD=blockCoupled NONORTH_CORRECTORS=$k" >> "$LIST"
+done
+
+xargs -L1 -P "${JOBS:-8}" ./runStudy --one < "$LIST"
+python3 summarize_corrected_study.py "${STUDY_DIR:-studies}/defect"

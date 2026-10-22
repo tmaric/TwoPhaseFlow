@@ -1,0 +1,57 @@
+#!/bin/sh
+# Non-orthogonal cavity studies; see README.md.
+#   A  refinement CELLS = 20..160 with STEPS_PER_PERIOD = 4 CELLS
+#      (Co about 0.22), distortion 0, 0.15, 0.3, 0.6, monolithic, 10 periods
+#   B  long time, distortion 0.6, CELLS 40, 200 periods: monolithic and
+#      segregated at Co 0.22 and 1.8, monolithic also at Co 7.2
+# Only the orthogonal Laplacian runs at present (see caseParams.sh).
+# Usage: ./runStudy [A|B|all]     (outputs in ${STUDY_DIR:-studies})
+set -e
+cd "${0%/*}" || exit 1
+
+if [ "$1" = "--one" ]
+then
+    name=$2
+    shift 2
+    dir=${STUDY_DIR:-studies}/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system caseParams.sh prepareCase prepare_cavity2d.py \
+        postprocess_cavity2d.py Allrun Allclean "$dir"/
+    if (cd "$dir" && env "$@" ./Allrun > run.out 2>&1)
+    then
+        echo "done    $name"
+    else
+        echo "FAILED  $name (see $dir/run.out)"
+    fi
+    exit 0
+fi
+
+STUDY=${1:-all}
+LIST=$(mktemp)
+trap 'rm -f "$LIST"' EXIT
+
+if [ "$STUDY" = A ] || [ "$STUDY" = all ]
+then
+    for eps in 0 0.15 0.3 0.6
+    do
+        for n in 160 80 40 20
+        do
+            echo "A/eps${eps}_N$n DISTORTION=$eps CELLS=$n STEPS_PER_PERIOD=$((4*n)) N_PERIODS=10" >> "$LIST"
+        done
+    done
+fi
+if [ "$STUDY" = B ] || [ "$STUDY" = all ]
+then
+    for method in blockCoupled thetaNewmark
+    do
+        for nt in 160 20
+        do
+            echo "B/${method}_NT$nt DISTORTION=0.6 CELLS=40 STEPS_PER_PERIOD=$nt N_PERIODS=200 PROBE_SAMPLES_PER_PERIOD=$((nt % 8 == 0 ? 8 : 5)) TIME_METHOD=$method" >> "$LIST"
+        done
+    done
+    echo "B/blockCoupled_NT5 DISTORTION=0.6 CELLS=40 STEPS_PER_PERIOD=5 N_PERIODS=200 PROBE_SAMPLES_PER_PERIOD=5 TIME_METHOD=blockCoupled" >> "$LIST"
+fi
+
+xargs -L1 -P "${JOBS:-6}" ./runStudy --one < "$LIST"
+python3 summarize_nonorth_study.py "${STUDY_DIR:-studies}"

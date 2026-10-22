@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit 1
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+. ./caseParams.sh
+
+./Allclean
+restore0Dir
+./prepareCase
+runApplication blockMesh
+./prepareCase --distort
+runApplication checkMesh -constant
+runApplication setExprFields
+runApplication -s cellCentres postProcess -func writeCellCentres -time 0
+runApplication -s cellVolumes postProcess -func writeCellVolumes -time 0
+# A run that blows up is still post-processed up to its last finite sample.
+runApplication "${SOLVER}" || echo "${SOLVER} failed; see log.${SOLVER}"
+
+python3 postprocess_cavity2d.py > log.postprocess 2>&1
+tail -n 12 log.postprocess
