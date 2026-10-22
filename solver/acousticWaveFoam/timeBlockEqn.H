@@ -422,4 +422,91 @@
         pmlUz,
         u
     );
+
+    // Non-orthogonal defect correction. The block matrix holds the
+    // orthogonal part of the pressure operator; a corrected Laplacian adds
+    // its non-orthogonal correction to the source of pressureSpatial, which
+    // was evaluated with the pressure of the previous step. Each corrector
+    // re-evaluates that source with the latest pressure and solves again
+    // with the same (factorized) matrix, so the new-level correction
+    // converges towards its implicit trapezoidal value. Without correctors,
+    // or on orthogonal meshes, the update is unchanged.
+    const label nNonOrthCorr = pimple.nNonOrthCorr();
+
+    if (nNonOrthCorr > 0)
+    {
+        const scalarField oldSource
+        (
+            timeBlockSourceWithBoundary(pressureSpatial)
+        );
+
+        for (label corr = 1; corr <= nNonOrthCorr; ++corr)
+        {
+            p.correctBoundaryConditions();
+
+            fvScalarMatrix pressureSpatialCorr
+            (
+                -rho*fvm::laplacian(invRhof, p, "laplacian(invRhof,p)")
+              + fvm::Sp(C1, p)
+            );
+            pressureSpatialCorr.boundaryManipulate(p.boundaryFieldRef());
+
+            const scalarField newSource
+            (
+                timeBlockSourceWithBoundary(pressureSpatialCorr)
+            );
+
+            scalarField qRhsCorr(qRhs);
+            forAll(qRhsCorr, celli)
+            {
+                qRhsCorr[celli] +=
+                    theta*(newSource[celli] - oldSource[celli]);
+            }
+
+            setTimeBlockRhs
+            (
+                timeBlockRhs,
+                pRhs,
+                qRhsCorr,
+                vRhs,
+                uxRhs,
+                uyRhs,
+                uzRhs
+            );
+            VecAssemblyBegin(timeBlockRhs);
+            VecAssemblyEnd(timeBlockRhs);
+
+            const scalarField pPrevious(p.primitiveField());
+
+            KSPSolve(timeBlockKsp, timeBlockRhs, timeBlockSolution);
+            KSPGetConvergedReason(timeBlockKsp, &reason);
+            if (reason < 0)
+            {
+                FatalErrorInFunction
+                    << "PETSc time-block solve diverged with reason "
+                    << reason << " in non-orthogonal corrector " << corr
+                    << exit(FatalError);
+            }
+
+            scatterTimeBlockSolution
+            (
+                timeBlockSolution,
+                globalCells,
+                p,
+                pDot,
+                v,
+                pmlUx,
+                pmlUy,
+                pmlUz,
+                u
+            );
+
+            const scalar change =
+                gMax(mag(p.primitiveField() - pPrevious))
+               /max(gMax(mag(p.primitiveField())), VSMALL);
+
+            Info<< "Non-orthogonal corrector " << corr
+                << ": relative pressure change = " << change << endl;
+        }
+    }
 }
