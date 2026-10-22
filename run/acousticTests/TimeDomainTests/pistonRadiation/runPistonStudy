@@ -1,0 +1,27 @@
+#!/bin/sh
+# Time-domain piston radiation, monolithic update: mesh refinement at
+# 20, 30 and 40 cells per wavelength (the meshes of the frequency case's
+# convergence study), 25 periods, dt = 1e-6 s (100 steps per period).
+# Usage: ./runPistonStudy      (outputs in ${STUDY_DIR:-studies})
+set -e
+cd "${0%/*}" || exit 1
+OUT=${STUDY_DIR:-studies}
+
+for n in 20 30 40
+do
+    dir=$OUT/monolithic_N$n
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r 0.orig constant system templates caseParams.sh prepareCase Allrun \
+        Allclean generate_verification_probes.py verify_piston_radiation.py \
+        "$dir"/
+    if (cd "$dir" && TIME_METHOD=blockCoupled MESH_CELLS_PER_LAMBDA=$n \
+        ./Allrun > run.out 2>&1)
+    then
+        echo "done    monolithic_N$n"
+    else
+        echo "FAILED  monolithic_N$n (see $dir/run.out)"
+    fi
+done
+
+python3 summarize_piston_study.py "$OUT"

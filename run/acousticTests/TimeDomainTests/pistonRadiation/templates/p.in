@@ -17,6 +17,8 @@ internalField   uniform 0;
 
 pistonFrequency __DRIVE_F__;
 pistonVelocity  __PISTON_U__;
+// dp/dn = rho dU/dt along the outward normal, as in the frequency case.
+pistonDensity   __RHOG__;
 
 boundaryField
 {
@@ -27,7 +29,7 @@ boundaryField
         uniformGradientCoeffs
         {
             frequency       constant $pistonFrequency;
-            scale           constant #eval{-$pistonVelocity*2*pi()*$pistonFrequency};
+            scale           constant #eval{-$pistonDensity*$pistonVelocity*2*pi()*$pistonFrequency};
             level           constant 0;
         }
         value               $internalField;

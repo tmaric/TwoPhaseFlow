@@ -55,6 +55,8 @@ render()
         -e "s|__N_PISTON__|$N_PISTON|g" \
         -e "s|__N_OUTER_RADIAL__|$N_OUTER_RADIAL|g" \
         -e "s|__END_TIME__|$END_TIME|g" \
+        -e "s|__TIME_METHOD__|$TIME_METHOD|g" \
+        -e "s|__BLOCK_SOLVER__|$BLOCK_SOLVER|g" \
         -e "s|__WRITE_INTERVAL__|$WRITE_INTERVAL|g" \
         -e "s|__PROBE_INTERVAL__|$PROBE_INTERVAL|g" \
         "$inFile" > "$outFile"

@@ -33,3 +33,19 @@ The run writes analytical comparison data directly from the parallel probe
 histories to `verification_axis.csv` and `verification_ring.csv`. Automatic
 field reconstruction is omitted because OpenFOAM's `reconstructPar` cannot
 clone the time-dependent piston boundary condition reliably.
+
+## Time integration and piston condition
+
+`TIME_METHOD` (default `thetaNewmark`, the solver's own default) selects the
+update; `TIME_METHOD=blockCoupled` runs the monolithic update. The piston
+boundary condition imposes `dp/dn = rho dU/dt` along the outward normal, the
+same as the frequency case (`dP/dn = -i omega rho U`); before 2026-10-21 the
+density factor was missing, which reduced the pressure by `1/rho`.
+
+## Refinement study
+
+`./runPistonStudy` runs the monolithic update at 20, 30 and 40 cells per
+wavelength for 25 periods and writes `studies/studyPiston.csv`. Only the
+on-axis comparison is meaningful: the ring comparison of
+`verify_piston_radiation.py` uses the far-field (Fraunhofer) formula on a
+ring inside the Rayleigh distance `a^2/lambda`, where it does not apply.

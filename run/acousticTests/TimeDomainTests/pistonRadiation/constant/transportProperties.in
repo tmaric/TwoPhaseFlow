@@ -27,6 +27,8 @@ cl              __CL__;
 kg              #eval{1.0/($rhog*$cg*$cg)};
 kl              #eval{1.0/($rhol*$cl*$cl)};
 laplacianCorrection 1.0;
+timeIntegrationMethod __TIME_METHOD__;
+timeBlockLinearSolver __BLOCK_SOLVER__;
 timeIntegrationTheta 0.5;
 
 pistonRadius    __PISTON_RADIUS__;
