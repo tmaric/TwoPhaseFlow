@@ -12,7 +12,10 @@ postProcessing/pmlVerification/{summary.json,energy.csv,maxima.csv}:
   of the physical domain, with energy weights V*beta and V*rho;
 - the maxima of |p|, |psi| and |w| over the whole domain, PML included;
 - growth rates over the last quarter of the run, classified as decaying,
-  bounded or growing.
+  bounded or growing;
+- the largest |p| in the physical domain after T_RESIDUAL, relative to P0.
+  In 3D the exact pressure has vanished there once the pulse has passed,
+  so this is PML reflection or a dispersive tail.
 The comparison with the enlarged-domain reference is made per study by
 summarize_pml_study.py, since it needs a second case.
 """
@@ -26,6 +29,7 @@ import numpy as np
 CASE = Path(__file__).resolve().parent
 OUT = CASE / "postProcessing" / "pmlVerification"
 T_OBS = 4e-4
+T_RESIDUAL = 3e-4
 # A quantity whose growth factor over the last quarter stays within
 # [1/BOUND, BOUND] is classified as bounded.
 BOUND = 1.05
@@ -204,6 +208,14 @@ def main():
         e2["samples"] = int(obs.sum())
         summary["E2exact"] = e2
 
+    late = (t >= T_RESIDUAL) & (t <= T_OBS * (1 + 1e-9))
+    summary["residual"] = {
+        "from": T_RESIDUAL, "to": T_OBS,
+        "maxAbsP": float(np.abs(p[late]).max() / s["p0"]) if late.any() else None,
+        "maxAbsPAfter": float(np.abs(p[t >= T_RESIDUAL]).max() / s["p0"])
+        if (t >= T_RESIDUAL).any() else None,
+    }
+
     energy0 = {"Eac": float(e_ac[0]), "Eh": float(e_h[0])}
     after = t >= T_OBS
     summary["energy"] = {
@@ -255,6 +267,10 @@ def main():
           f"U {e2.get('velocity', float('nan')):.3e}; "
           f"E_ac(end)/E_ac(0) {summary['energy']['final']['Eac']:.3e}, "
           f"E_h(end)/E_h(0) {summary['energy']['final']['Eh']:.3e}")
+    r = summary["residual"]
+    if r["maxAbsP"] is not None:
+        print(f"residual max|p|/P0 for {T_RESIDUAL:g} <= t <= {T_OBS:g}: "
+              f"{r['maxAbsP']:.3e}")
     for k, v in summary["lastQuarter"].items():
         if v["rate"] is not None:
             print(f"  {k:8s} {v['class']:9s} rate {v['rate']:.3e} 1/s, "

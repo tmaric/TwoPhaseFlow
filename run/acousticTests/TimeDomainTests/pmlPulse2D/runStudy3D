@@ -1,0 +1,76 @@
+#!/bin/sh
+# Multidirectional PML study D: cube with PML on six sides; see README.md.
+#   D1  accuracy, monolithic, Co 0.5: E2 against the 3D free-space pulse and
+#       the residual pressure after the pulse has passed
+#   D2  long-time behaviour to 50 ms, both updates, Co 0.5 and 2
+#   D3  amplification matrices on a 10^3 mesh (6 physical + 2 PML cells per
+#       side): monolithic at Co 0.5/2/8 x sigmaMax 1.26/2.53/5.05e5;
+#       segregated and implicit-damping segregated at sigmaMax 5.05e5
+# D1 and D2 run concurrently (one core each, up to 8 GB per monolithic
+# run); D3 runs alongside, one matrix at a time.
+# Usage: ./runStudy3D       (outputs in ${STUDY_DIR:-studies}/D)
+set -e
+cd "${0%/*}" || exit 1
+
+OUT=${STUDY_DIR:-studies}/D
+CUBE="DIM=3 HALF_WIDTH=0.03 PML_THICKNESS=0.015 CELL_SIZE=2.5e-3 SOURCE=0.015_0.01_0.005"
+mkdir -p "$OUT"
+
+runs()
+{
+    echo "D1/monolithic_Co0.5 $CUBE COURANT=0.5 END_TIME=4e-4 SAMPLE_INTERVAL=1e-5 DOMAIN_PROBES=0"
+    for co in 0.5 2
+    do
+        for method in blockCoupled thetaNewmark
+        do
+            echo "D2/${method}_Co$co $CUBE COURANT=$co END_TIME=0.05 SAMPLE_INTERVAL=1e-4 DOMAIN_PROBES=1 TIME_METHOD=$method"
+        done
+    done
+}
+
+# SOURCE contains spaces; it is passed with underscores and restored here.
+runs | sed 's/SOURCE=\([^ ]*\)_\([^ ]*\)_\([^ ]*\)/SOURCE=\1 \2 \3/' > "$OUT/runs.txt"
+(
+    while read -r name rest
+    do
+        src=$(echo "$rest" | sed -n 's/.*SOURCE=\([^ ]* [^ ]* [^ ]*\).*/\1/p')
+        args=$(echo "$rest" | sed 's/SOURCE=[^ ]* [^ ]* [^ ]*//')
+        # shellcheck disable=SC2086
+        STUDY_DIR=$OUT/.. ./runStudy --one "D/$name" SOURCE="$src" $args &
+    done < "$OUT/runs.txt"
+    wait
+) > "$OUT/runs.log" 2>&1 &
+runsPid=$!
+
+REDUCED="DIM=3 HALF_WIDTH=0.0075 PML_THICKNESS=0.005 CELL_SIZE=2.5e-3"
+matrix()
+{
+    name=$1
+    shift
+    dir=$OUT/D3/$name
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    if env $REDUCED "$@" python3 amplification.py "$dir" > "$dir/log.amplification" 2>&1 \
+        && python3 analyse_amplification.py "$dir" > "$dir/log.analysis" 2>&1
+    then
+        echo "done    D3/$name"
+    else
+        echo "FAILED  D3/$name (see $dir/log.*)"
+    fi
+}
+
+for co in 0.5 2 8
+do
+    matrix "segregated_Co${co}_sigma5.05e5" TIME_METHOD=thetaNewmark COURANT=$co SIGMA_MAX=5.05e5
+    matrix "segregatedImplicit_Co${co}_sigma5.05e5" TIME_METHOD=thetaNewmark COURANT=$co SIGMA_MAX=5.05e5 \
+        SEGREGATED_IMPLICIT_DAMPING=1
+    for sigma in 1.26e5 2.53e5 5.05e5
+    do
+        matrix "monolithic_Co${co}_sigma$sigma" TIME_METHOD=blockCoupled COURANT=$co SIGMA_MAX=$sigma
+    done
+done
+
+wait "$runsPid" || true
+cat "$OUT/runs.log"
+python3 summarize_pml_study.py "$OUT" || true
+python3 summarize_spectral_study.py "$OUT/D3" || true

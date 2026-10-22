@@ -5,8 +5,8 @@ Usage: localise_modes.py OUTDIR [N]
 
 For the N eigenvalues of largest modulus outside the unit circle, prints
 |g|, arg g, and the share of the scaled eigenvector in each state component
-and in the physical domain, the PML edges (one rate active) and the PML
-corners (two rates active).
+and in the physical domain and the PML cells with one, two or (in 3D)
+three active rates.
 """
 import json
 import sys
@@ -33,10 +33,13 @@ def main():
 
     centres = -s["domainHalfWidth"] + (np.arange(n) + 0.5) * h
     in_pml = np.abs(centres) > s["halfWidth"]
-    # blockMesh order: x fastest.
-    px, py = np.meshgrid(in_pml, in_pml, indexing="xy")
-    rates = (px.astype(int) + py.astype(int)).ravel()
-    region = {"physical": rates == 0, "edge": rates == 1, "corner": rates == 2}
+    # blockMesh order: x fastest; count the active rates of each cell.
+    grids = np.meshgrid(*[in_pml] * s["dim"], indexing="ij")
+    rates = sum(g.astype(int) for g in grids).T.ravel()
+    region = {"physical": rates == 0, "one rate": rates == 1,
+              "two rates": rates == 2}
+    if s["dim"] == 3:
+        region["three rates"] = rates == 3
 
     for i in order:
         v = np.abs(vectors[:, i]) ** 2

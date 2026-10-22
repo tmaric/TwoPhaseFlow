@@ -28,6 +28,26 @@ from pathlib import Path
 import numpy as np
 
 
+def norm2(a):
+    """Spectral norm; power iteration on a^T a for large matrices."""
+    if len(a) <= 2500:
+        return float(np.linalg.norm(a, 2))
+    peak = float(np.abs(a).max())
+    if peak == 0 or not np.isfinite(peak):
+        return peak
+    b = a / peak
+    x = np.random.default_rng(0).standard_normal(b.shape[1])
+    x /= np.linalg.norm(x)
+    value = 0.0
+    for _ in range(100):
+        y = b.T @ (b @ x)
+        value = float(np.linalg.norm(y))
+        if value == 0:
+            break
+        x = y / value
+    return peak * math.sqrt(value)
+
+
 def main():
     out = Path(sys.argv[1])
     data = np.load(out / "G.npz")
@@ -60,19 +80,21 @@ def main():
     null_dim = int(np.sum(sv < 1e-9 * sv.max()))
     norms = {}
     power = np.eye(len(gs))
-    for n in range(1, 65):
+    # Every n up to 64 for small matrices, up to 8 for large ones.
+    first = 64 if len(gs) <= 2500 else 8
+    for n in range(1, first + 1):
         power = gs @ power
-        norms[n] = float(np.linalg.norm(power, 2))
-    n = 64
+        norms[n] = norm2(power)
+    n = first
     # Stop squaring once the powers have grown beyond any bounded behaviour.
     while n < 2**20 and norms[n] < 1e100:
         power = power @ power
         n *= 2
-        norms[n] = float(np.linalg.norm(power, 2))
+        norms[n] = norm2(power)
     last = max(norms)
     worst = max(norms, key=norms.get)
     labels = np.concatenate([np.full(n_cells, i) for i in range(len(names))])[active]
-    blocks = {names[i]: float(np.linalg.norm(power[labels == i], 2))
+    blocks = {names[i]: norm2(power[labels == i])
               for i in range(len(names)) if (labels == i).any()}
 
     result = {
