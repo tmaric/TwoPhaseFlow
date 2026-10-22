@@ -278,9 +278,10 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     defectSum_ = 0;
     nDefectCells_ = 0;
 
-    // The surfaces of the state at t^n (the state's time, as the exact
-    // normal model takes it)
-    buildCellSurfaces(davofPtr_->stateTime());
+    // The surfaces of the state at t^n: the time has been advanced to
+    // t^{n+1} when the advection runs (the scheme's stateTime() counts its
+    // calls and cannot be asked again here)
+    buildCellSurfaces(mesh_.time().value() - dt);
 
     interpolationCellPoint<vector> UInterp(U_);
 
@@ -296,11 +297,14 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
 
     // The candidate cells: the interface cells and their face neighbours
-    // (the surface moves less than one cell per step)
+    // (the surface moves less than one cell per step); the interface cells
+    // are the surface cells of the bounding (limitFluxes marks the cells
+    // next to them from surfCells_)
     bitSet cand(mesh_.nCells());
     forAll(interfaceLabels, i)
     {
         const label celli = interfaceLabels[i];
+        surfCells_.append(celli);
         cand.set(celli);
         for (const label nb : cellCells[celli])
         {
