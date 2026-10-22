@@ -197,7 +197,9 @@ volTensorField momFlux
 
 #   include "createPhi.H"
 
-    mesh.setFluxRequired(p.name()); //mesh.schemesDict().setFluxRequired(p.name());
+    // p is not flux-required: the face fluxes are reconstructed from the
+    // operator coefficients, and a non-orthogonal correction must stay in the
+    // matrix source so that rho*fvm::laplacian(...) can be scaled.
 
 #include "createFvOptions.H"
 
