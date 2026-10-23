@@ -179,8 +179,8 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
                 quad(point(x0,y0,z0), point(x0,y1,z0), point(x0,y1,z1), point(x0,y0,z1));
                 quad(point(x1,y0,z0), point(x1,y1,z0), point(x1,y1,z1), point(x1,y0,z1));
                 scalar vKb = 0;
-                label nl = 0;
-                const bool ok = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*pv, vKb, nl);
+                label nLeavesKb = 0;
+                const bool ok = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*pv, vKb, nLeavesKb);
                 // the split quadrature: the prism of the face x = x1 displaced by -d
                 const vector d(dx, 0, 0);
                 const point fc(x1, 0.5*(y0 + y1), 0.5*(z0 + z1));
@@ -206,6 +206,85 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
                         Info<< "    face " << k << " n " << faces[k].n << " wet " << sums.lastArea
                             << " of " << faces[k].area() << " faceTerm " << sums.faceSum
                             << " line " << sums.lineSum << " arcs " << sums.nArcs << nl;
+                    }
+                }
+            }
+        }
+    }
+
+    // The second series: the frame tilted as at the sphere's equatorial cells
+    // (e3 with a small component along the thin direction x) and a
+    // non-diagonal tensor; no exact reference, so the split quadrature at a
+    // tightened tolerance and depth (1e-15 of the prism, depth 20) is the
+    // comparison next to the split quadrature at the run's settings
+    Info<< "kromerBothe self-test, tilted frame: e3 = (sin a, -cos a sin b, cos a cos b), b12 = 0.5" << nl;
+    for (const scalar aTilt : {0.0, 0.1, 0.3})
+    {
+        for (const scalar bTilt : {0.0, 0.33})
+        {
+            davof::cellSurface T;
+            T.paraboloid = true;
+            T.o = point::zero;
+            T.e3 = vector(std::sin(aTilt), -std::cos(aTilt)*std::sin(bTilt), std::cos(aTilt)*std::cos(bTilt));
+            davof::frameOf(T.e3, T.e1, T.e2);
+            T.b11 = b; T.b22 = b; T.b12 = 0.5; T.c = 0; T.a1 = 0; T.a2 = 0;
+            auto phiT = [&](const point& x) { return T.value(x); };
+            for (const scalar t1 : {0.0, 0.02})
+            {
+                for (const scalar zShift : {0.5, 0.2, 0.8})
+                {
+                    const scalar t2 = 0.03;
+                    // a point of the surface and the box about it
+                    const scalar hs = T.c + 0.5*(T.b11*t1*t1 + 2*T.b12*t1*t2 + T.b22*t2*t2);
+                    const point ps = T.o + t1*T.e1 + t2*T.e2 + hs*T.e3;
+                    const point xin = ps + (0.5 - zShift)*h*vector(0, 0, 1);
+                    const scalar x0 = xin.x() - 0.5*dx, x1 = xin.x() + 0.5*dx;
+                    const scalar y0 = xin.y() - 0.5*h, y1 = xin.y() + 0.5*h;
+                    const scalar z0 = xin.z() - 0.5*h, z1 = xin.z() + 0.5*h;
+                    const scalar pv = dx*h*h;
+                    DynamicList<davof::kbFace> faces(12);
+                    auto quad = [&](point a, point bq, point cq, point d) {
+                        List<point> poly(4); poly[0] = a; poly[1] = bq; poly[2] = cq; poly[3] = d;
+                        davof::kbFanFaces(poly, xin, faces);
+                    };
+                    quad(point(x0,y0,z0), point(x1,y0,z0), point(x1,y1,z0), point(x0,y1,z0));
+                    quad(point(x0,y0,z1), point(x1,y0,z1), point(x1,y1,z1), point(x0,y1,z1));
+                    quad(point(x0,y0,z0), point(x1,y0,z0), point(x1,y0,z1), point(x0,y0,z1));
+                    quad(point(x0,y1,z0), point(x1,y1,z0), point(x1,y1,z1), point(x0,y1,z1));
+                    quad(point(x0,y0,z0), point(x0,y1,z0), point(x0,y1,z1), point(x0,y0,z1));
+                    quad(point(x1,y0,z0), point(x1,y1,z0), point(x1,y1,z1), point(x1,y0,z1));
+                    scalar vKb = 0;
+                    label nLeavesKb = 0;
+                    const bool ok = davof::kbPolyhedronLiquidVolume(faces, T, tolRel*pv, vKb, nLeavesKb);
+                    const vector d(dx, 0, 0);
+                    const point fc(x1, 0.5*(y0 + y1), 0.5*(z0 + z1));
+                    const point q0(x1,y0,z0), q1(x1,y1,z0), q2(x1,y1,z1), q3(x1,y0,z1);
+                    auto splitAt = [&](const scalar tolA, const label depth) -> scalar {
+                        label nls = 0;
+                        scalar v = 0;
+                        v += davof::prismLiquidVolume(fc, q0, q1, d, phiT, tolA, depth, nls);
+                        v += davof::prismLiquidVolume(fc, q1, q2, d, phiT, tolA, depth, nls);
+                        v += davof::prismLiquidVolume(fc, q2, q3, d, phiT, tolA, depth, nls);
+                        v += davof::prismLiquidVolume(fc, q3, q0, d, phiT, tolA, depth, nls);
+                        return v;
+                    };
+                    const scalar vSplit = splitAt(tolRel*pv, maxDepth);
+                    const scalar vTight = splitAt(1e-15*pv, 20);
+                    Info<< "  tilt a " << aTilt << " b " << bTilt << " t1 " << t1 << " zShift " << zShift
+                        << ": kb " << vKb/pv << (ok ? "" : " (NOT RESOLVED)") << " split " << vSplit/pv
+                        << " splitTight " << vTight/pv
+                        << "  (kb - tight)/pv " << (vKb - vTight)/pv
+                        << "  (split - tight)/pv " << (vSplit - vTight)/pv << nl;
+                    if (mag(vKb - vTight) > 1e-9*pv)
+                    {
+                        forAll(faces, k)
+                        {
+                            davof::kbSums sums;
+                            davof::kbIntegrateFace(faces[k], T, 1e-16*pv, 1e-16*pv, true, sums);
+                            Info<< "    face " << k << " n " << faces[k].n << " wet " << sums.lastArea
+                                << " of " << faces[k].area() << " faceTerm " << sums.faceSum
+                                << " line " << sums.lineSum << " arcs " << sums.nArcs << nl;
+                        }
                     }
                 }
             }
