@@ -317,7 +317,37 @@ inline scalar triangleIntegralSplit
     const List<Pair<scalar>>& g = gl12();
     DynamicList<scalar> br(8);
 
-    // the inner integral int_0^1 W(p(t, s)) (1 - s) ds for one t
+    // the inner integral int_0^1 W(p(t, s)) (1 - s) ds for one t: a
+    // 12-point rule on every piece between the breakpoints, refined
+    // adaptively as well (the weight is smooth between the traces but can
+    // have a layer, e.g. the rays of a cell centre that lies within
+    // round-off of the surface cross it at s near zero on one side of the
+    // trace and not at all on the other, a transition of width |phi(apex)|
+    // that the breakpoints do not mark)
+    const scalar tolInner = 1e-12;
+    auto gaussS = [&](const point& P, const scalar s0, const scalar s1) -> scalar
+    {
+        scalar sum = 0;
+        for (const Pair<scalar>& gw : g)
+        {
+            const scalar s = s0 + gw.first()*(s1 - s0);
+            sum += gw.second()*(s1 - s0)*w(P + s*(c - P))*(1 - s);
+        }
+        return sum;
+    };
+    std::function<scalar(const point&, scalar, scalar, scalar, label)> recS =
+        [&](const point& P, scalar s0, scalar s1, scalar parent, label depth) -> scalar
+        {
+            const scalar sm = 0.5*(s0 + s1);
+            const scalar c0 = gaussS(P, s0, sm);
+            const scalar c1 = gaussS(P, sm, s1);
+            const scalar children = c0 + c1;
+            if (mag(children - parent) <= tolInner || depth >= 14)
+            {
+                return children;
+            }
+            return recS(P, s0, sm, c0, depth + 1) + recS(P, sm, s1, c1, depth + 1);
+        };
     auto inner = [&](const scalar t) -> scalar
     {
         const point P = a + t*(b - a);
@@ -334,11 +364,7 @@ inline scalar triangleIntegralSplit
             const scalar s1 = (k < br.size()) ? br[k] : scalar(1);
             if (s1 - s0 > 1e-14)
             {
-                for (const Pair<scalar>& gw : g)
-                {
-                    const scalar s = s0 + gw.first()*(s1 - s0);
-                    sum += gw.second()*(s1 - s0)*w(P + s*(c - P))*(1 - s);
-                }
+                sum += recS(P, s0, s1, gaussS(P, s0, s1), 0);
             }
             s0 = s1;
         }
