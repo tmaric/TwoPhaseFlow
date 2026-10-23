@@ -870,6 +870,7 @@ void Foam::advection::isoAdvection::reportCurved() const
     Info<< "; volume rule " << volumeRulePtr_->type()
         << " fallbacks " << nRuleFb;
     Info<< endl;
+    volumeRulePtr_->report();
 
     if (curvedDebug_ && debugCellR0_ >= 0)
     {

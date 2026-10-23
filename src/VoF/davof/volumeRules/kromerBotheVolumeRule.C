@@ -51,7 +51,9 @@ Foam::davofVolumeRules::kromerBothe::kromerBothe
 :
     davofVolumeRule(mesh, dict),
     debug_(dict.getOrDefault<bool>("volumeRuleDebug", false)),
-    nDebugPrinted_(0)
+    nDebugPrinted_(0),
+    dbgMaxPrism_(0), dbgSumPrism_(0), dbgMaxCell_(0), dbgSumCell_(0),
+    dbgNPrism_(0), dbgNCell_(0)
 {}
 
 
@@ -110,6 +112,14 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolume
      && v >= -1e-9*Vc && v <= (1 + 1e-9)*Vc
     )
     {
+        if (debug_)
+        {
+            const scalar vs = splitCellLiquidVolume(celli, S, tolRel);
+            const scalar rel = mag(v - vs)/Vc;
+            dbgMaxCell_ = max(dbgMaxCell_, rel);
+            dbgSumCell_ += rel;
+            ++dbgNCell_;
+        }
         return min(max(v, scalar(0)), Vc);
     }
     ++nFallback_;
@@ -146,10 +156,14 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     )
     {
         v = min(max(v, scalar(0)), prismVol);
-        if (debug_ && nDebugPrinted_ < 12)
+        if (debug_)
         {
             const scalar vs = splitPrismLiquidVolume(facei, d, S, tolRel);
-            if (mag(v - vs) > 1e-8*prismVol)
+            const scalar rel = mag(v - vs)/prismVol;
+            dbgMaxPrism_ = max(dbgMaxPrism_, rel);
+            dbgSumPrism_ += rel;
+            ++dbgNPrism_;
+            if (nDebugPrinted_ < 12 && mag(v - vs) > 1e-8*prismVol)
             {
                 ++nDebugPrinted_;
                 Pout<< "kromerBothe prism mismatch: face " << facei << " d " << d
@@ -162,6 +176,27 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     }
     ++nFallback_;
     return splitPrismLiquidVolume(facei, d, S, tolRel);
+}
+
+
+void Foam::davofVolumeRules::kromerBothe::report() const
+{
+    if (!debug_) return;
+    scalar mp = dbgMaxPrism_, sp = dbgSumPrism_, mc = dbgMaxCell_, sc = dbgSumCell_;
+    label np = dbgNPrism_, nc = dbgNCell_;
+    if (Pstream::parRun())
+    {
+        reduce(mp, maxOp<scalar>()); reduce(sp, sumOp<scalar>());
+        reduce(mc, maxOp<scalar>()); reduce(sc, sumOp<scalar>());
+        reduce(np, sumOp<label>()); reduce(nc, sumOp<label>());
+    }
+    Info<< "kromerBothe debug: |kb - split| over " << np << " prisms max "
+        << mp << " mean " << sp/max(np, label(1)) << " of the prism volume; over "
+        << nc << " cell volumes max " << mc << " mean " << sc/max(nc, label(1))
+        << " of the cell volume" << endl;
+    dbgMaxPrism_ = dbgSumPrism_ = dbgMaxCell_ = dbgSumCell_ = 0;
+    dbgNPrism_ = dbgNCell_ = 0;
+    nDebugPrinted_ = 0;
 }
 
 

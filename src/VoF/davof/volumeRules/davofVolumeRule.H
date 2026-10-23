@@ -207,6 +207,9 @@ public:
             label& nFallback
         ) const;
 
+        //- The rule's own line of the step report (nothing by default)
+        virtual void report() const {}
+
         //- The default tolerance of the rule
         scalar tolRel() const { return tolRel_; }
 

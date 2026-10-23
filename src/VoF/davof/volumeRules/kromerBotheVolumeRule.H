@@ -75,6 +75,11 @@ class kromerBothe
         const bool debug_;
         mutable label nDebugPrinted_;
 
+        //- The debug statistics of the step: |kb - split| relative to the
+        //  prism volume (prisms) and to the cell volume (cells)
+        mutable scalar dbgMaxPrism_, dbgSumPrism_, dbgMaxCell_, dbgSumCell_;
+        mutable label dbgNPrism_, dbgNCell_;
+
 
 public:
 
@@ -115,6 +120,9 @@ public:
             const davof::cellSurface& S,
             label& nFallback
         ) const;
+
+        //- The debug statistics of the step against the split quadrature
+        virtual void report() const;
 };
 
 
