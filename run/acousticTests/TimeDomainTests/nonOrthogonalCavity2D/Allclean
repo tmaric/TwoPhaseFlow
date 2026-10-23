@@ -7,4 +7,5 @@ cleanCase0
 
 rm -f constant/transportProperties system/blockMeshDict system/controlDict \
       system/fvSchemes system/setExprFieldsDict system/probeLocations \
-      caseSetup.json
+      system/decomposeParDict caseSetup.json
+rm -rf processor*

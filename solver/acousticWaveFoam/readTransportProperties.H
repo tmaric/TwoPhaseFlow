@@ -218,12 +218,7 @@ if (nonOrthogonalCorrection != "none")
             << "nonOrthogonalCorrection requires timeIntegrationMethod "
             << "blockCoupled" << exit(FatalIOError);
     }
-    if (Pstream::parRun())
-    {
-        FatalIOErrorInFunction(transportProperties)
-            << "nonOrthogonalCorrection is implemented for serial runs only"
-            << exit(FatalIOError);
-    }
+    nonOrthCheckPatches(mesh);
     // The correction vectors pair with the uncorrected face coefficient
     // 1/(n.d); the orthogonal scheme uses 1/|d| and would not match.
     OStringStream schemeStream;

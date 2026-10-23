@@ -14,7 +14,13 @@ runApplication setExprFields
 runApplication -s cellCentres postProcess -func writeCellCentres -time 0
 runApplication -s cellVolumes postProcess -func writeCellVolumes -time 0
 # A run that blows up is still post-processed up to its last finite sample.
-runApplication "${SOLVER}" || echo "${SOLVER} failed; see log.${SOLVER}"
+if [ "$NPROCS" -gt 1 ]
+then
+    runApplication decomposePar -force
+    runParallel "${SOLVER}" || echo "${SOLVER} failed; see log.${SOLVER}"
+else
+    runApplication "${SOLVER}" || echo "${SOLVER} failed; see log.${SOLVER}"
+fi
 
 python3 postprocess_cavity2d.py > log.postprocess 2>&1
 tail -n 12 log.postprocess

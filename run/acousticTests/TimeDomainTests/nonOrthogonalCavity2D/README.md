@@ -48,7 +48,8 @@ drift of the physical energy. `summarize_nonorth_study.py` writes
   time, but the corrected Laplacian is not symmetric: its complex
   eigenvalues make the lossless wave equation grow slowly on strongly
   distorted meshes (`amplification_cavity.py`).
-- `LAPLACIAN=uncorrected NONORTH_MODE=symmetric` (monolithic, serial) lets
+- `LAPLACIAN=uncorrected NONORTH_MODE=symmetric` (monolithic; serial or
+  parallel with processor patches, `NPROCS=2` or `4`) lets
   the solver apply the symmetrized correction `(C + C^T)/2`, which keeps the
   operator self-adjoint; `NONORTH_MODE=explicit` applies `C` itself and
   reproduces `corrected`.

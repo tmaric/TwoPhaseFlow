@@ -59,6 +59,7 @@ def setup():
         "nonOrthCorrectors": env("NONORTH_CORRECTORS", int),
         "nonOrthMode": os.environ["NONORTH_MODE"],
         "nonOrthTolerance": env("NONORTH_TOLERANCE"),
+        "nProcs": env("NPROCS", int),
         "wallLayers": env("WALL_LAYERS", int),
         "transitionFraction": env("TRANSITION_FRACTION"),
     }
@@ -164,6 +165,18 @@ expressions
         expression  #{{ {s['Pa']!r}*cos({s['modeM'] * math.pi / length!r}*pos().x())*cos({s['modeN'] * math.pi / length!r}*pos().y()) #}};
     }}
 );
+""")
+    n_procs = s["nProcs"]
+    if n_procs not in (1, 2, 4):
+        raise SystemExit("NPROCS must be 1, 2 or 4")
+    split = {1: "(1 1 1)", 2: "(2 1 1)", 4: "(2 2 1)"}[n_procs]
+    write("system/decomposeParDict", HEADER.format(cls="dictionary", obj="decomposeParDict") + f"""
+numberOfSubdomains {n_procs};
+method          simple;
+coeffs
+{{
+    n           {split};
+}}
 """)
     # Placeholder until the points are displaced (blockMesh reads controlDict).
     write("system/probeLocations", "probeLocations\n(\n);\n")

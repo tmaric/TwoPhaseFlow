@@ -38,6 +38,10 @@
 # all NONORTH_CORRECTORS).
 : "${NONORTH_TOLERANCE:=0}"
 
+# 1: serial; 2 or 4: simple decomposition (2 1 1) or (2 2 1), so that
+# processor patches cut the distorted interior.
+: "${NPROCS:=1}"
+
 # Time: STEPS_PER_PERIOD of the continuous mode, N_PERIODS periods,
 # PROBE_SAMPLES_PER_PERIOD samples per period.
 : "${STEPS_PER_PERIOD:=160}"

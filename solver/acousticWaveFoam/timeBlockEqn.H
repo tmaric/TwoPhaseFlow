@@ -365,12 +365,14 @@
 
     addTimeBlockOperatorSource(qRhs, pressureSpatial, theta);
 
-    // Solver-applied non-orthogonal correction (orthogonal scheme in the
-    // matrix): rho (C p) at both levels, the new level from the pressure of
-    // the previous step until the correctors below converge it.
+    // Solver-applied non-orthogonal correction (uncorrected scheme in the
+    // matrix): rho (C p) at the old level, captured with the old boundary
+    // values before the clock advanced, and at the new level, first from the
+    // pressure of the previous step with the new boundary values until the
+    // correctors below converge it.
     const bool solverNonOrthCorrection = nonOrthogonalCorrection != "none";
     surfaceScalarField gammaMagSf("gammaMagSf", invRhof*mesh.magSf());
-    scalarField nonOrthSourceOld(mesh.nCells(), Zero);
+    scalarField nonOrthSourceStart(mesh.nCells(), Zero);
     if (solverNonOrthCorrection)
     {
         static bool adjointTested = false;
@@ -380,10 +382,10 @@
                 << nonOrthAdjointTest(p, gammaMagSf) << endl;
             adjointTested = true;
         }
-        nonOrthSourceOld =
+        nonOrthSourceStart =
             rho.primitiveField()
            *nonOrthCorrection(p, gammaMagSf, nonOrthogonalCorrection);
-        qRhs += nonOrthSourceOld;
+        qRhs += oldWeight*previousNonOrthCorrection + theta*nonOrthSourceStart;
     }
     addTimeBlockOperatorSource(qRhs, divUx, 1.0, &qDivScaleX);
     addTimeBlockOperatorSource(qRhs, divUy, 1.0, &qDivScaleY);
@@ -494,7 +496,7 @@
                             gammaMagSf,
                             nonOrthogonalCorrection
                         )
-                      - nonOrthSourceOld
+                      - nonOrthSourceStart
                     );
             }
 

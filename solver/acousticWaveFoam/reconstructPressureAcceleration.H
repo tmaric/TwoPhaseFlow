@@ -17,7 +17,7 @@ Foam::tmp<Foam::volVectorField> reconstructPressureAcceleration
     const Foam::volScalarField& p,
     const Foam::surfaceScalarField& invRhof,
     const Foam::volScalarField& alpha1,
-    const Foam::scalarField* correctionFlux = nullptr
+    const Foam::surfaceScalarField* correctionFlux = nullptr
 )
 {
     using namespace Foam;
@@ -31,7 +31,7 @@ Foam::tmp<Foam::volVectorField> reconstructPressureAcceleration
     );
     if (correctionFlux)
     {
-        faceFlux.primitiveFieldRef() += *correctionFlux;
+        faceFlux += *correctionFlux;
     }
 
     const auto weight = [&](const label celli, const scalar faceInvRho)

@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
         {
             if (nonOrthogonalCorrection != "none")
             {
-                const scalarField correctionFlux
+                const tmp<surfaceScalarField> correctionFlux
                 (
                     nonOrthCorrectionFlux
                     (
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
                     pressure,
                     invRhof,
                     alpha1,
-                    &correctionFlux
+                    &correctionFlux()
                 );
             }
             return reconstructPressureAcceleration(pressure, invRhof, alpha1);
@@ -151,6 +151,7 @@ int main(int argc, char *argv[])
         tmp<volScalarField> previousPressureLaplacian;
         tmp<volVectorField> previousPressureGradient;
         tmp<volVectorField> previousPressureAcceleration;
+        scalarField previousNonOrthCorrection;
 
         if
         (
@@ -174,6 +175,24 @@ int main(int argc, char *argv[])
                         p,
                         "laplacian(invRhof,p)"
                     );
+
+                // The solver-applied non-orthogonal correction at the old
+                // level, with the old boundary values like the Laplacian.
+                if (nonOrthogonalCorrection != "none")
+                {
+                    previousNonOrthCorrection =
+                        rho.primitiveField()
+                       *nonOrthCorrection
+                        (
+                            p,
+                            surfaceScalarField
+                            (
+                                "gammaMagSf",
+                                invRhof*mesh.magSf()
+                            ),
+                            nonOrthogonalCorrection
+                        );
+                }
             }
             else
             {
