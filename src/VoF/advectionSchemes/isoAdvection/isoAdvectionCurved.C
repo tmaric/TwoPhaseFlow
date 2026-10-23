@@ -610,7 +610,19 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     if (!hasSurface_.test(nb)) continue;
                     const point& o = cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o;
                     const scalar dd = magSqr(xf - o);
-                    if (dd < dMin) { dMin = dd; best = nb; }
+                    // the same tie-break as the face's search below
+                    bool take = (best < 0 || dd < dMin*(1 - 1e-9));
+                    if (!take && dd <= dMin*(1 + 1e-9))
+                    {
+                        const point& ob = cellSurfaces_[best].o;
+                        const point& on = cellSurfaces_[nb].o;
+                        for (direction k = 0; k < 3; ++k)
+                        {
+                            if (on[k] < ob[k]) { take = true; break; }
+                            if (on[k] > ob[k]) break;
+                        }
+                    }
+                    if (take) { dMin = min(dMin, dd); best = nb; }
                 }
                 if (best >= 0)
                 {
@@ -663,9 +675,31 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         if (remoteHas) return remote;
         const davof::cellSurface* best = nullptr;
         scalar dMin = GREAT;
+        // the closest surface; ties (two surfaces at the same distance,
+        // common on a Cartesian mesh with a symmetric interface) are broken
+        // by the surface origin lexicographically, so that the choice does
+        // not depend on the order of consideration, which differs between
+        // the serial and the parallel scan and amplified round-off to 1e-3
+        // of L1(alphaf) in the four-processor check
+        auto lexLess = [](const point& a, const point& b) -> bool
+        {
+            for (direction k = 0; k < 3; ++k)
+            {
+                if (a[k] < b[k]) return true;
+                if (a[k] > b[k]) return false;
+            }
+            return false;
+        };
         auto considerD = [&](const davof::cellSurface& T, const scalar d)
         {
-            if (d < dMin) { dMin = d; best = &T; }
+            if (!best || d < dMin*(1 - 1e-9))
+            {
+                dMin = d; best = &T;
+            }
+            else if (d <= dMin*(1 + 1e-9) && lexLess(T.o, best->o))
+            {
+                dMin = min(dMin, d); best = &T;
+            }
         };
         auto consider = [&](const davof::cellSurface& T, const point& o)
         {
