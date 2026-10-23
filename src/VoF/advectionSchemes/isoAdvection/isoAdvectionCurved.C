@@ -281,34 +281,82 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
                     anchorTolRel_, curvedMaxDepth_, nLeaves
                 );
             };
-            // one Newton step with the wetted area as the derivative
-            // (c larger: more liquid, dV/dc = +area), then secant steps
+            // V(c) is non-decreasing in c (c larger: more liquid, dV/dc = the
+            // wetted area, zero where the surface has left the cell). A
+            // Newton guess with the wetted area, then a bracket of the root
+            // (the step doubled from h/4 until the residual changes sign;
+            // the volume is confined to [0, V], so a bracket exists within
+            // the cell's diagonal) and the Illinois rule inside it, to the
+            // tolerance or to a bracket of 1e-12 h; the secant alone failed
+            // in 3 to 50 cells per step where V(c) is flat or the start far.
+            const scalar tol = anchorTolRel_*Vc;
             scalar c0 = S.c;
             scalar r0 = volumeOf() - target;
-            if (mag(r0) <= anchorTolRel_*Vc)
+            if (mag(r0) <= tol)
             {
                 okAnchor = true;
             }
             else
             {
-                scalar dc = -r0/mMag;
-                const scalar dcMax = 0.5*h;
-                if (mag(dc) > dcMax) dc = sign(dc)*dcMax;
-                S.c = c0 + dc;
-                for (label it = 0; it < 10; ++it)
+                // the bracket [lo, hi] with r(lo) < 0 < r(hi)
+                scalar lo, hi, rlo, rhi;
+                scalar step = min(mag(r0)/mMag, 0.25*h);
+                step = max(step, 1e-3*h);
+                if (r0 < 0)
                 {
-                    const scalar r1 = volumeOf() - target;
-                    if (mag(r1) <= anchorTolRel_*Vc)
+                    lo = c0; rlo = r0; hi = c0; rhi = r0;
+                    for (label k = 0; k < 12 && rhi < 0; ++k)
                     {
-                        okAnchor = true;
-                        break;
+                        hi = lo + step; S.c = hi; rhi = volumeOf() - target;
+                        if (rhi < 0) { lo = hi; rlo = rhi; }
+                        step *= 2;
                     }
-                    const scalar c1 = S.c;
-                    const scalar dr = r1 - r0;
-                    scalar step = (mag(dr) > VSMALL) ? -r1*(c1 - c0)/dr : -r1/mMag;
-                    if (mag(step) > dcMax) step = sign(step)*dcMax;
-                    c0 = c1; r0 = r1;
-                    S.c = c1 + step;
+                }
+                else
+                {
+                    hi = c0; rhi = r0; lo = c0; rlo = r0;
+                    for (label k = 0; k < 12 && rlo > 0; ++k)
+                    {
+                        lo = hi - step; S.c = lo; rlo = volumeOf() - target;
+                        if (rlo > 0) { hi = lo; rhi = rlo; }
+                        step *= 2;
+                    }
+                }
+                if (rlo <= 0 && rhi >= 0)
+                {
+                    // Illinois (modified regula falsi)
+                    label side = 0;
+                    for (label it = 0; it < 60; ++it)
+                    {
+                        if (mag(rlo) <= tol) { S.c = lo; okAnchor = true; break; }
+                        if (mag(rhi) <= tol) { S.c = hi; okAnchor = true; break; }
+                        if (hi - lo <= 1e-12*h) { S.c = 0.5*(lo + hi); okAnchor = true; break; }
+                        scalar c1 = (rlo*hi - rhi*lo)/(rlo - rhi);
+                        // keep the iterate inside the bracket
+                        if (!(c1 > lo && c1 < hi)) c1 = 0.5*(lo + hi);
+                        S.c = c1;
+                        const scalar r1 = volumeOf() - target;
+                        if (mag(r1) <= tol) { okAnchor = true; break; }
+                        if (r1 < 0)
+                        {
+                            lo = c1; rlo = r1;
+                            if (side == -1) rhi *= 0.5;
+                            side = -1;
+                        }
+                        else
+                        {
+                            hi = c1; rhi = r1;
+                            if (side == 1) rlo *= 0.5;
+                            side = 1;
+                        }
+                    }
+                }
+                if (!okAnchor)
+                {
+                    // no bracket (a cell the surface cannot fill or empty
+                    // within the search) or no convergence: keep the better
+                    // bracket end
+                    S.c = (mag(rlo) < mag(rhi)) ? lo : hi;
                 }
             }
             if (!okAnchor) ++nAnchorFail_;
