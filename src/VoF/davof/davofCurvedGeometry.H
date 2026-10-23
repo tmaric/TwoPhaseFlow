@@ -249,6 +249,129 @@ inline scalar faceCutDisplaced
 }
 
 
+// * * * * * * * The triangle integral split at the quadric traces * * * * * //
+
+//- Gauss-Legendre nodes and weights on [0, 1], n = 12 (cached).
+inline const List<Pair<scalar>>& gl12()
+{
+    return gaussLegendre01(12);
+}
+
+
+//- The roots in (0, 1) of the quadric phi along the segment p0 -> p1
+//  (three evaluations: phi is quadratic in the parameter), appended to r.
+template<class PhiAt>
+inline void segmentRoots(const point& p0, const point& p1, PhiAt&& phi, DynamicList<scalar>& r)
+{
+    const scalar f0 = phi(p0);
+    const scalar f1 = phi(p1);
+    const scalar fm = phi(0.5*(p0 + p1));
+    const scalar C = 2*(f1 + f0 - 2*fm);
+    const scalar B = f1 - f0 - C;
+    const scalar scale = mag(f0) + mag(B) + mag(C);
+    if (scale <= VSMALL) return;
+    if (mag(C) <= 1e-14*scale)
+    {
+        if (mag(B) > 1e-14*scale)
+        {
+            const scalar s = -f0/B;
+            if (s > 0 && s < 1) r.append(s);
+        }
+        return;
+    }
+    const scalar disc = B*B - 4*C*f0;
+    if (disc <= 0) return;
+    const scalar sq = Foam::sqrt(disc);
+    const scalar qq = -0.5*(B + sign(B)*sq);
+    scalar r1 = (qq != 0) ? f0/qq : -B/(2*C);
+    scalar r2 = (C != 0) ? qq/C : r1;
+    if (r1 > r2) Swap(r1, r2);
+    if (r1 > 0 && r1 < 1) r.append(r1);
+    if (r2 > 0 && r2 < 1 && r2 != r1) r.append(r2);
+}
+
+
+//- The integral over the triangle (a, b, c) of a point weight W(p) whose
+//  kinks lie on the zero sets of up to two quadrics (the traces of the
+//  surfaces on the triangle): the triangle is swept by the segments from
+//  the points P(t) of the edge a -> b to the vertex c, p(t, s) = P(t) +
+//  s (c - P(t)), dA = 2 A (1 - s) dt ds; along every such segment the
+//  roots of the quadrics are exact and the s-integral is a 12-point Gauss
+//  rule on each piece between them (W smooth there); the t-integral is a
+//  12-point Gauss rule refined adaptively (a parent against its two halves)
+//  to tolAbs, at most maxDepth levels. The breakpoints functor fills the
+//  parameters s in (0, 1) at which the segment P -> c crosses a trace.
+template<class W, class Breaks>
+inline scalar triangleIntegralSplit
+(
+    const point& a, const point& b, const point& c,
+    W&& w,
+    Breaks&& breakpoints,
+    const scalar tolAbs,
+    const label maxDepth,
+    label& nLeaves
+)
+{
+    const scalar A2 = mag((b - a) ^ (c - a));      // 2 A
+    if (A2 <= VSMALL) return 0;
+    const List<Pair<scalar>>& g = gl12();
+    DynamicList<scalar> br(8);
+
+    // the inner integral int_0^1 W(p(t, s)) (1 - s) ds for one t
+    auto inner = [&](const scalar t) -> scalar
+    {
+        const point P = a + t*(b - a);
+        br.clear();
+        breakpoints(P, c, br);
+        // sort the breakpoints
+        for (label i = 1; i < br.size(); ++i)
+        {
+            for (label j = i; j > 0 && br[j] < br[j - 1]; --j) Swap(br[j], br[j - 1]);
+        }
+        scalar s0 = 0, sum = 0;
+        for (label k = 0; k <= br.size(); ++k)
+        {
+            const scalar s1 = (k < br.size()) ? br[k] : scalar(1);
+            if (s1 - s0 > 1e-14)
+            {
+                for (const Pair<scalar>& gw : g)
+                {
+                    const scalar s = s0 + gw.first()*(s1 - s0);
+                    sum += gw.second()*(s1 - s0)*w(P + s*(c - P))*(1 - s);
+                }
+            }
+            s0 = s1;
+        }
+        return sum;
+    };
+    auto gaussT = [&](const scalar t0, const scalar t1) -> scalar
+    {
+        scalar sum = 0;
+        for (const Pair<scalar>& gw : g)
+        {
+            sum += gw.second()*(t1 - t0)*inner(t0 + gw.first()*(t1 - t0));
+        }
+        return sum;
+    };
+    std::function<scalar(scalar, scalar, scalar, scalar, label)> rec =
+        [&](scalar t0, scalar t1, scalar parent, scalar tol, label depth) -> scalar
+        {
+            const scalar tm = 0.5*(t0 + t1);
+            const scalar c0 = gaussT(t0, tm);
+            const scalar c1 = gaussT(tm, t1);
+            const scalar children = c0 + c1;
+            if (mag(children - parent) <= tol || depth >= maxDepth)
+            {
+                nLeaves += 2;
+                return children;
+            }
+            return rec(t0, tm, c0, 0.5*tol, depth + 1) + rec(tm, t1, c1, 0.5*tol, depth + 1);
+        };
+    const scalar parent = gaussT(0, 1);
+    return A2*rec(0, 1, parent, tolAbs/A2, 0);
+}
+
+
 // * * * * * * * * * * * * * * The prism volume  * * * * * * * * * * * * * //
 
 //- The six-point degree-4 Gauss rule on the unit triangle (Strang and Fix):
@@ -297,48 +420,19 @@ inline scalar prismLiquidVolume
     const scalar A = mag(S);
     if (A <= VSMALL || thickness <= VSMALL) return 0;
 
-    // the integral of the segment fraction over a triangle by the six-point
-    // rule, as an area integral
-    auto gauss = [&](const point& p0, const point& p1, const point& p2) -> scalar
+    // the segment fraction's kinks: where the face trace or the pre-image's
+    // trace crosses the sweep line (both quadrics in the point)
+    auto breaks = [&](const point& P, const point& Q, DynamicList<scalar>& r)
     {
-        const scalar At = 0.5*mag((p1 - p0) ^ (p2 - p0));
-        scalar s = 0;
-        for (label k = 0; k < triGauss6::n; ++k)
-        {
-            scalar l0, l1, l2, w;
-            triGauss6::point(k, l0, l1, l2, w);
-            const point p = l0*p0 + l1*p1 + l2*p2;
-            s += w*segmentLiquidFraction(p - d, p, phi);
-        }
-        return s*At;
+        segmentRoots(P, Q, phi, r);
+        segmentRoots(P - d, Q - d, phi, r);
     };
-
-    std::function<scalar(const point&, const point&, const point&, scalar, scalar, label)> rec =
-        [&](const point& p0, const point& p1, const point& p2, scalar parent, scalar tol, label depth) -> scalar
-        {
-            const point m01 = 0.5*(p0 + p1), m12 = 0.5*(p1 + p2), m20 = 0.5*(p2 + p0);
-            const scalar c0 = gauss(p0, m01, m20);
-            const scalar c1 = gauss(m01, p1, m12);
-            const scalar c2 = gauss(m20, m12, p2);
-            const scalar c3 = gauss(m01, m12, m20);
-            const scalar children = c0 + c1 + c2 + c3;
-            if (mag(children - parent) <= tol || depth >= maxDepth)
-            {
-                nLeaves += 4;
-                return children;
-            }
-            const scalar tc = 0.25*tol;
-            return
-                rec(p0, m01, m20, c0, tc, depth + 1)
-              + rec(m01, p1, m12, c1, tc, depth + 1)
-              + rec(m20, m12, p2, c2, tc, depth + 1)
-              + rec(m01, m12, m20, c3, tc, depth + 1);
-        };
-
-    const scalar parent = gauss(a, b, c);
-    // tolAbs is a volume: convert to the area integral's tolerance
-    const scalar tolArea = tolAbs/thickness;
-    return thickness*rec(a, b, c, parent, tolArea, 0);
+    auto weight = [&](const point& p) -> scalar
+    {
+        return segmentLiquidFraction(p - d, p, phi);
+    };
+    // tolAbs is a volume: the area integral's tolerance
+    return thickness*triangleIntegralSplit(a, b, c, weight, breaks, tolAbs/thickness, maxDepth, nLeaves);
 }
 
 
@@ -452,45 +546,21 @@ inline scalar pyramidLiquidVolume
     const vector nT = S/A;
     const scalar height = mag((a - apex) & nT);
     if (height <= VSMALL) return 0;
-    // (1/3) height * integral of the weight over the triangle (the height is
-    // the same for every point of the planar triangle)
-    auto gauss = [&](const point& p0, const point& p1, const point& p2) -> scalar
+    // (1/3) height * integral of the ray weight over the triangle (the
+    // height is the same for every point of the planar triangle); the
+    // weight's kink is the surface's trace on the triangle (the ray crosses
+    // the surface at its end), the silhouette of the surface seen from the
+    // apex is left to the adaptive t-refinement
+    auto breaks = [&](const point& P, const point& Q, DynamicList<scalar>& r)
     {
-        const scalar At = 0.5*mag((p1 - p0) ^ (p2 - p0));
-        scalar s = 0;
-        for (label k = 0; k < triGauss6::n; ++k)
-        {
-            scalar l0, l1, l2, w;
-            triGauss6::point(k, l0, l1, l2, w);
-            const point p = l0*p0 + l1*p1 + l2*p2;
-            s += w*rayLiquidCubicWeight(apex, p, phi);
-        }
-        return s*At;
+        segmentRoots(P, Q, phi, r);
     };
-    std::function<scalar(const point&, const point&, const point&, scalar, scalar, label)> rec =
-        [&](const point& p0, const point& p1, const point& p2, scalar parent, scalar tol, label depth) -> scalar
-        {
-            const point m01 = 0.5*(p0 + p1), m12 = 0.5*(p1 + p2), m20 = 0.5*(p2 + p0);
-            const scalar c0 = gauss(p0, m01, m20);
-            const scalar c1 = gauss(m01, p1, m12);
-            const scalar c2 = gauss(m20, m12, p2);
-            const scalar c3 = gauss(m01, m12, m20);
-            const scalar children = c0 + c1 + c2 + c3;
-            if (mag(children - parent) <= tol || depth >= maxDepth)
-            {
-                nLeaves += 4;
-                return children;
-            }
-            const scalar tc = 0.25*tol;
-            return
-                rec(p0, m01, m20, c0, tc, depth + 1)
-              + rec(m01, p1, m12, c1, tc, depth + 1)
-              + rec(m20, m12, p2, c2, tc, depth + 1)
-              + rec(m01, m12, m20, c3, tc, depth + 1);
-        };
+    auto weight = [&](const point& p) -> scalar
+    {
+        return rayLiquidCubicWeight(apex, p, phi);
+    };
     const scalar factor = height/3.0;
-    const scalar parent = gauss(a, b, c);
-    return factor*rec(a, b, c, parent, tolAbs/factor, 0);
+    return factor*triangleIntegralSplit(a, b, c, weight, breaks, tolAbs/factor, maxDepth, nLeaves);
 }
 
 
