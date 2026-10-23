@@ -353,6 +353,11 @@ inline scalar triangleIntegralSplit
         }
         return sum;
     };
+    // the outer rule is refined at least minDepth times before the
+    // parent-against-halves test may accept: the inner integral is not
+    // smooth in t where a trace enters or leaves the sweep (a breakpoint
+    // appears), and a coarse agreement there is accidental
+    const label minDepth = 3;
     std::function<scalar(scalar, scalar, scalar, scalar, label)> rec =
         [&](scalar t0, scalar t1, scalar parent, scalar tol, label depth) -> scalar
         {
@@ -360,7 +365,7 @@ inline scalar triangleIntegralSplit
             const scalar c0 = gaussT(t0, tm);
             const scalar c1 = gaussT(tm, t1);
             const scalar children = c0 + c1;
-            if (mag(children - parent) <= tol || depth >= maxDepth)
+            if ((depth >= minDepth && mag(children - parent) <= tol) || depth >= maxDepth)
             {
                 nLeaves += 2;
                 return children;
