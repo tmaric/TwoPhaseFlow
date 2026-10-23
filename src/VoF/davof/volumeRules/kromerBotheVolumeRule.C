@@ -435,6 +435,37 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
                                 << "  line kb " << lineTot << " exact (int_S g) " << refLine
                                 << "  V kb " << (termTot + lineTot)/3 << " exact " << (refTerm + refLine)/3
                                 << " tight " << vTight << nl;
+                            // the split quadrature's integrand against the exact liquid
+                            // length of the segment [p - d, p] on a grid of the face
+                            scalar maxDiff = 0; point worst = point::zero;
+                            for (label i = 0; i < 60; ++i)
+                            {
+                                for (label j = 0; j < 60; ++j)
+                                {
+                                    const scalar y = y0 + (i + 0.5)/60*(y1 - y0), z = z0 + (j + 0.5)/60*(z1 - z0);
+                                    const point p(x1, y, z);
+                                    const scalar fSplit = davof::segmentLiquidFraction(p - d, p, phiT)*dx;
+                                    const scalar fExact = R.clampX(y, x0, x1, z, 1e30)/1e30*0 + R.clampX(y, x0, x1, z, h*1e-9)/(h*1e-9);
+                                    if (mag(fSplit - fExact) > maxDiff) { maxDiff = mag(fSplit - fExact); worst = p; }
+                                }
+                            }
+                            Info<< "    split integrand vs exact segment length on a 60x60 grid: max diff/dx "
+                                << maxDiff/dx << " at " << worst << nl;
+                            // the sweep direction of the split quadrature's triangles reversed
+                            label nlr = 0;
+                            scalar vRev = 0;
+                            vRev += davof::prismLiquidVolume(q0, q1, fc, d, phiT, 1e-15*pv, 20, nlr);
+                            vRev += davof::prismLiquidVolume(q1, q2, fc, d, phiT, 1e-15*pv, 20, nlr);
+                            vRev += davof::prismLiquidVolume(q2, q3, fc, d, phiT, 1e-15*pv, 20, nlr);
+                            vRev += davof::prismLiquidVolume(q3, q0, fc, d, phiT, 1e-15*pv, 20, nlr);
+                            // the split quadrature on the two triangles of the face's diagonal
+                            label nld = 0;
+                            scalar vDiag = 0;
+                            vDiag += davof::prismLiquidVolume(q0, q1, q2, d, phiT, 1e-15*pv, 20, nld);
+                            vDiag += davof::prismLiquidVolume(q0, q2, q3, d, phiT, 1e-15*pv, 20, nld);
+                            Info<< "    split tight: fan " << vTight/pv << " (sweep reversed " << vRev/pv
+                                << ", leaves " << nlr << "), diagonal triangles " << vDiag/pv
+                                << " (leaves " << nld << "), exact " << (refTerm + refLine)/3/pv << nl;
                         }
                         else
                         {
