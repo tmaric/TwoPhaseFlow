@@ -212,11 +212,122 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
         }
     }
 
+    // Exact per-face references for the axis-aligned frame (e3 = z, e1 = x,
+    // e2 = y) with the general tensor: the liquid is z < hz(x, y) = c + (b11
+    // x^2 + 2 b12 x y + b22 y^2)/2, a quadratic in x for fixed y and in y
+    // for fixed x, so the clamped heights integrate exactly between their
+    // roots along one direction and adaptively along the other
+    struct AxisRef
+    {
+        scalar c, b11, b12, b22;
+        scalar hz(scalar x, scalar y) const { return c + 0.5*(b11*x*x + 2*b12*x*y + b22*y*y); }
+        // int_{xa}^{xb} clamp(hz(x, y) - zlo, 0, H) dx, exact
+        scalar clampX(scalar y, scalar xa, scalar xb, scalar zlo, scalar H) const
+        {
+            // hz - zlo = A x^2 + B x + C
+            const scalar A = 0.5*b11, B = b12*y, C = c + 0.5*b22*y*y - zlo;
+            DynamicList<scalar> br(8);
+            br.append(xa); br.append(xb);
+            for (const scalar lvl : {scalar(0), H})
+            {
+                if (mag(A) > VSMALL)
+                {
+                    const scalar disc = B*B - 4*A*(C - lvl);
+                    if (disc > 0)
+                    {
+                        const scalar sq = std::sqrt(disc);
+                        for (const scalar r : {(-B - sq)/(2*A), (-B + sq)/(2*A)})
+                            if (r > xa && r < xb) br.append(r);
+                    }
+                }
+                else if (mag(B) > VSMALL)
+                {
+                    const scalar r = (lvl - C)/B;
+                    if (r > xa && r < xb) br.append(r);
+                }
+            }
+            for (label i = 1; i < br.size(); ++i)
+                for (label j = i; j > 0 && br[j] < br[j - 1]; --j) Swap(br[j], br[j - 1]);
+            scalar sum = 0;
+            for (label i = 0; i + 1 < br.size(); ++i)
+            {
+                const scalar p = br[i], q = br[i + 1];
+                if (!(q > p)) continue;
+                const scalar m = 0.5*(p + q);
+                const scalar gm = A*m*m + B*m + C;
+                if (gm >= H) sum += H*(q - p);
+                else if (gm > 0) sum += A*(q*q*q - p*p*p)/3 + B*(q*q - p*p)/2 + C*(q - p);
+            }
+            return sum;
+        }
+        // int_{xa}^{xb} 1[zlo < hz < zhi] w(x) dx with w(x) = c - (b11 x^2 + 2 b12 x y + b22 y^2)/2 (the patch integrand), exact
+        scalar bandX(scalar y, scalar xa, scalar xb, scalar zlo, scalar zhi) const
+        {
+            const scalar A = 0.5*b11, B = b12*y, C = c + 0.5*b22*y*y;
+            DynamicList<scalar> br(8);
+            br.append(xa); br.append(xb);
+            for (const scalar lvl : {zlo, zhi})
+            {
+                if (mag(A) > VSMALL)
+                {
+                    const scalar disc = B*B - 4*A*(C - lvl);
+                    if (disc > 0)
+                    {
+                        const scalar sq = std::sqrt(disc);
+                        for (const scalar r : {(-B - sq)/(2*A), (-B + sq)/(2*A)})
+                            if (r > xa && r < xb) br.append(r);
+                    }
+                }
+                else if (mag(B) > VSMALL)
+                {
+                    const scalar r = (lvl - C)/B;
+                    if (r > xa && r < xb) br.append(r);
+                }
+            }
+            for (label i = 1; i < br.size(); ++i)
+                for (label j = i; j > 0 && br[j] < br[j - 1]; --j) Swap(br[j], br[j - 1]);
+            scalar sum = 0;
+            for (label i = 0; i + 1 < br.size(); ++i)
+            {
+                const scalar p = br[i], q = br[i + 1];
+                if (!(q > p)) continue;
+                const scalar m = 0.5*(p + q);
+                const scalar hm = A*m*m + B*m + C;
+                if (hm > zlo && hm < zhi)
+                {
+                    // w = c - A x^2 - B x - (C - c) ... w = c - 0.5 b11 x^2 - b12 x y - 0.5 b22 y^2
+                    sum += c*(q - p) - A*(q*q*q - p*p*p)/3 - B*(q*q - p*p)/2 - 0.5*b22*y*y*(q - p);
+                }
+            }
+            return sum;
+        }
+        // the adaptive outer integral over y of a function f(y)
+        scalar outer(const std::function<scalar(scalar)>& f, scalar ya, scalar yb, scalar tol) const
+        {
+            const List<Pair<scalar>>& g = davof::gl12();
+            auto gauss = [&](scalar a, scalar bq) {
+                scalar s = 0;
+                for (const Pair<scalar>& gw : g) s += gw.second()*(bq - a)*f(a + gw.first()*(bq - a));
+                return s;
+            };
+            std::function<scalar(scalar, scalar, scalar, label)> rec =
+                [&](scalar a, scalar bq, scalar parent, label depth) -> scalar
+                {
+                    const scalar m = 0.5*(a + bq);
+                    const scalar c0 = gauss(a, m), c1 = gauss(m, bq);
+                    if ((depth >= 4 && mag(c0 + c1 - parent) <= tol) || depth >= 40) return c0 + c1;
+                    return rec(a, m, c0, depth + 1) + rec(m, bq, c1, depth + 1);
+                };
+            return rec(ya, yb, gauss(ya, yb), 0);
+        }
+    };
+
     // The second series: the frame tilted as at the sphere's equatorial cells
     // (e3 with a small component along the thin direction x) and a
-    // non-diagonal tensor; no exact reference, so the split quadrature at a
-    // tightened tolerance and depth (1e-15 of the prism, depth 20) is the
-    // comparison next to the split quadrature at the run's settings
+    // non-diagonal tensor; the split quadrature at a tightened tolerance and
+    // depth (1e-15 of the prism, depth 20) is the comparison next to the
+    // split quadrature at the run's settings, and for the axis-aligned frame
+    // (a = b = 0) the exact per-face references above
     Info<< "kromerBothe self-test, tilted frame: e3 = (sin a, -cos a sin b, cos a cos b), b12 = 0.5" << nl;
     for (const scalar aTilt : {0.0, 0.1, 0.3})
     {
@@ -277,13 +388,58 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
                         << "  (split - tight)/pv " << (vSplit - vTight)/pv << nl;
                     if (mag(vKb - vTight) > 1e-9*pv)
                     {
+                        // the Kromer-Bothe terms per box face (the fan
+                        // triangles summed): wetted area, face term, line
+                        scalar wetF[6] = {0, 0, 0, 0, 0, 0}, lineF[6] = {0, 0, 0, 0, 0, 0}, termF[6] = {0, 0, 0, 0, 0, 0};
                         forAll(faces, k)
                         {
                             davof::kbSums sums;
                             davof::kbIntegrateFace(faces[k], T, 1e-16*pv, 1e-16*pv, true, sums);
-                            Info<< "    face " << k << " n " << faces[k].n << " wet " << sums.lastArea
-                                << " of " << faces[k].area() << " faceTerm " << sums.faceSum
-                                << " line " << sums.lineSum << " arcs " << sums.nArcs << nl;
+                            const label bf = k/4;   // four fan triangles per box face, in the order quad() was called
+                            wetF[bf] += sums.lastArea; lineF[bf] += sums.lineSum; termF[bf] += sums.faceSum;
+                        }
+                        const char* names[6] = {"z0 (n -z)", "z1 (n +z)", "y0 (n -y)", "y1 (n +y)", "x0 (n -x)", "x1 (n +x)"};
+                        scalar lineTot = 0, termTot = 0;
+                        for (label bf = 0; bf < 6; ++bf) { lineTot += lineF[bf]; termTot += termF[bf]; }
+                        if (aTilt == 0 && bTilt == 0)
+                        {
+                            // exact references: e3 = z, e1 = x, e2 = y
+                            AxisRef R{T.c, T.b11, T.b12, T.b22};
+                            const scalar tolA = 1e-16*h*h;
+                            // z-faces: the area where hz > z_c, as the clamped height with a unit band
+                            auto areaZ = [&](scalar zc) {
+                                return R.outer([&](scalar y) {
+                                    // length of {x : hz(x, y) > zc} = clamp with H -> the indicator: use a thin band of height 1 scaled
+                                    const scalar eps = 1e-9*h;
+                                    return R.clampX(y, x0, x1, zc, eps)/eps;
+                                }, y0, y1, tolA);
+                            };
+                            const scalar refZ0 = areaZ(z0), refZ1 = areaZ(z1);
+                            const scalar refY0 = R.clampX(y0, x0, x1, z0, h), refY1 = R.clampX(y1, x0, x1, z0, h);
+                            // x-faces: clamp along y at fixed x (hz quadratic in y): reuse clampX with the roles swapped
+                            AxisRef Rs{T.c, T.b22, T.b12, T.b11};
+                            const scalar refX0 = Rs.clampX(x0, y0, y1, z0, h), refX1 = Rs.clampX(x1, y0, y1, z0, h);
+                            const scalar refLine = R.outer([&](scalar y) { return R.bandX(y, x0, x1, z0, z1); }, y0, y1, 1e-16*pv);
+                            const scalar refWet[6] = {refZ0, refZ1, refY0, refY1, refX0, refX1};
+                            // the face terms from the exact areas: (x_k - o).n_k A_k
+                            const scalar dist[6] = {-z0, z1, -y0, y1, -x0, x1};
+                            scalar refTerm = 0;
+                            for (label bf = 0; bf < 6; ++bf)
+                            {
+                                refTerm += dist[bf]*refWet[bf];
+                                Info<< "    " << names[bf] << ": wet kb " << wetF[bf] << " exact " << refWet[bf]
+                                    << " diff/area " << (wetF[bf] - refWet[bf])/(bf < 2 ? dx*h : (bf < 4 ? dx*h : h*h))
+                                    << "  line kb " << lineF[bf] << nl;
+                            }
+                            Info<< "    sums: faceTerm kb " << termTot << " exact " << refTerm
+                                << "  line kb " << lineTot << " exact (int_S g) " << refLine
+                                << "  V kb " << (termTot + lineTot)/3 << " exact " << (refTerm + refLine)/3
+                                << " tight " << vTight << nl;
+                        }
+                        else
+                        {
+                            for (label bf = 0; bf < 6; ++bf)
+                                Info<< "    " << names[bf] << ": wet kb " << wetF[bf] << " line kb " << lineF[bf] << nl;
                         }
                     }
                 }
