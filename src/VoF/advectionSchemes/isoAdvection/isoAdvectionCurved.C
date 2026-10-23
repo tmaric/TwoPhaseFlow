@@ -289,10 +289,17 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             // the cell's diagonal) and the Illinois rule inside it, to the
             // tolerance or to a bracket of 1e-12 h; the secant alone failed
             // in 3 to 50 cells per step where V(c) is flat or the start far.
-            const scalar tol = anchorTolRel_*Vc;
+            // The volume residual alone is no criterion for the OFFSET: a
+            // residual of tol V is an offset error of tol V / A_patch, large
+            // where the wetted patch is small (a corner cut), and the plane
+            // test showed exactly those faces off by 2e-4. The bracket of
+            // the offset is therefore closed to 1e-11 h; the residual
+            // criterion applies only where it is round-off.
+            const scalar tol = max(anchorTolRel_*Vc, 1e-14*Vc);
+            const scalar cTol = 1e-11*h;
             scalar c0 = S.c;
             scalar r0 = volumeOf() - target;
-            if (mag(r0) <= tol)
+            if (mag(r0) <= 1e-14*Vc)
             {
                 okAnchor = true;
             }
@@ -324,19 +331,20 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
                 }
                 if (rlo <= 0 && rhi >= 0)
                 {
-                    // Illinois (modified regula falsi)
+                    // Illinois (modified regula falsi), closed on the offset
                     label side = 0;
-                    for (label it = 0; it < 60; ++it)
+                    for (label it = 0; it < 80; ++it)
                     {
-                        if (mag(rlo) <= tol) { S.c = lo; okAnchor = true; break; }
-                        if (mag(rhi) <= tol) { S.c = hi; okAnchor = true; break; }
-                        if (hi - lo <= 1e-12*h) { S.c = 0.5*(lo + hi); okAnchor = true; break; }
+                        if (mag(rlo) <= 1e-14*Vc) { S.c = lo; okAnchor = true; break; }
+                        if (mag(rhi) <= 1e-14*Vc) { S.c = hi; okAnchor = true; break; }
+                        if (hi - lo <= cTol) { S.c = (rlo*hi - rhi*lo)/(rlo - rhi); if (!(S.c > lo && S.c < hi)) S.c = 0.5*(lo + hi); okAnchor = true; break; }
                         scalar c1 = (rlo*hi - rhi*lo)/(rlo - rhi);
                         // keep the iterate inside the bracket
                         if (!(c1 > lo && c1 < hi)) c1 = 0.5*(lo + hi);
                         S.c = c1;
                         const scalar r1 = volumeOf() - target;
-                        if (mag(r1) <= tol) { okAnchor = true; break; }
+                        if (mag(r1) <= 1e-14*Vc) { okAnchor = true; break; }
+                        if (mag(r1) <= tol && hi - lo <= 1e-6*h) { okAnchor = true; break; }
                         if (r1 < 0)
                         {
                             lo = c1; rlo = r1;
