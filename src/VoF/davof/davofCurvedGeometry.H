@@ -297,10 +297,11 @@ inline void segmentRoots(const point& p0, const point& p1, PhiAt&& phi, DynamicL
 //  the points P(t) of the edge a -> b to the vertex c, p(t, s) = P(t) +
 //  s (c - P(t)), dA = 2 A (1 - s) dt ds; along every such segment the
 //  roots of the quadrics are exact and the s-integral is a 12-point Gauss
-//  rule on each piece between them (W smooth there); the t-integral is a
-//  12-point Gauss rule refined adaptively (a parent against its two halves)
-//  to tolAbs, at most maxDepth levels. The breakpoints functor fills the
-//  parameters s in (0, 1) at which the segment P -> c crosses a trace.
+//  rule on each piece between them, refined adaptively; the t-integral is
+//  split where a trace crosses the edge a -> b and is a 12-point Gauss rule
+//  on each piece refined adaptively (a parent against its two halves) to
+//  tolAbs, at most maxDepth levels. The breakpoints functor fills the
+//  parameters in (0, 1) at which a segment P -> Q crosses a trace.
 template<class W, class Breaks>
 inline scalar triangleIntegralSplit
 (
@@ -342,7 +343,7 @@ inline scalar triangleIntegralSplit
             const scalar c0 = gaussS(P, s0, sm);
             const scalar c1 = gaussS(P, sm, s1);
             const scalar children = c0 + c1;
-            if (mag(children - parent) <= tolInner || depth >= 14)
+            if (mag(children - parent) <= tolInner || depth >= 20)
             {
                 return children;
             }
@@ -398,8 +399,28 @@ inline scalar triangleIntegralSplit
             }
             return rec(t0, tm, c0, 0.5*tol, depth + 1) + rec(tm, t1, c1, 0.5*tol, depth + 1);
         };
-    const scalar parent = gaussT(0, 1);
-    return A2*rec(0, 1, parent, tolAbs/A2, 0);
+    // the outer breakpoints: where a trace crosses the swept edge a -> b the
+    // s-breakpoint enters or leaves the segment, a kink of the inner
+    // integral in t that bisection alone resolves at second order only
+    // (the plane diagnostic: 4e-10 of a cell with the kink unmarked); the
+    // crossings are the same roots along the edge, exact
+    DynamicList<scalar> tb(8);
+    breakpoints(a, b, tb);
+    for (label i = 1; i < tb.size(); ++i)
+    {
+        for (label j = i; j > 0 && tb[j] < tb[j - 1]; --j) Swap(tb[j], tb[j - 1]);
+    }
+    scalar t0 = 0, sum = 0;
+    for (label k = 0; k <= tb.size(); ++k)
+    {
+        const scalar t1 = (k < tb.size()) ? tb[k] : scalar(1);
+        if (t1 - t0 > 1e-14)
+        {
+            sum += rec(t0, t1, gaussT(t0, t1), (t1 - t0)*tolAbs/A2, 0);
+        }
+        t0 = t1;
+    }
+    return A2*sum;
 }
 
 
