@@ -380,11 +380,14 @@ inline scalar triangleIntegralSplit
         }
         return sum;
     };
-    // the outer rule is refined at least minDepth times before the
-    // parent-against-halves test may accept: the inner integral is not
-    // smooth in t where a trace enters or leaves the sweep (a breakpoint
-    // appears), and a coarse agreement there is accidental
-    const label minDepth = 3;
+    // the outer rule is refined at least once before the parent-against-
+    // halves test may accept (one comparison of a 2-piece against a 4-piece
+    // estimate); the kinks of the inner integral in t where a trace enters or
+    // leaves the sweep are exact breakpoints below, so that only the
+    // silhouette of a curved surface seen from the apex is left to the
+    // adaptive test (three forced levels cost eight times the leaves of one
+    // and were not needed once the crossings were exact)
+    const label minDepth = 1;
     std::function<scalar(scalar, scalar, scalar, scalar, label)> rec =
         [&](scalar t0, scalar t1, scalar parent, scalar tol, label depth) -> scalar
         {
