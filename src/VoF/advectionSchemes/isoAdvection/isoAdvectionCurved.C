@@ -578,15 +578,82 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         }
     }
 
+    // The second exchange: per processor face the candidate flag of the
+    // cell across and the closest surface among that cell's face
+    // neighbours with its distance to the face centre, so that a processor
+    // face is processed when either cell is a candidate and its second ring
+    // is the serial one (the face neighbours of both cells)
+    List<boolList> nbrCand(nPatches), nbrRingHas(nPatches);
+    List<scalarList> nbrRingDist(nPatches);
+    List<List<davof::cellSurface>> nbrRing(nPatches);
+    if (Pstream::parRun())
+    {
+        PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
+        forAll(pbm, patchi)
+        {
+            const polyPatch& pp = pbm[patchi];
+            if (!isA<processorPolyPatch>(pp)) continue;
+            const processorPolyPatch& procPatch = refCast<const processorPolyPatch>(pp);
+            const labelUList& fc = pp.faceCells();
+            boolList isCand(fc.size(), false), ringHas(fc.size(), false);
+            scalarList ringDist(fc.size(), GREAT);
+            scalarList packed(nPack*fc.size(), Zero);
+            forAll(fc, i)
+            {
+                const label c = fc[i];
+                isCand[i] = cand.test(c);
+                const point& xf = Cf[pp.start() + i];
+                label best = -1;
+                scalar dMin = GREAT;
+                for (const label nb : cellCells[c])
+                {
+                    if (!hasSurface_.test(nb)) continue;
+                    const point& o = cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o;
+                    const scalar dd = magSqr(xf - o);
+                    if (dd < dMin) { dMin = dd; best = nb; }
+                }
+                if (best >= 0)
+                {
+                    ringHas[i] = true;
+                    ringDist[i] = dMin;
+                    packSurface(cellSurfaces_[best], packed, nPack*i);
+                }
+            }
+            UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
+            toNbr << isCand << ringHas << ringDist << packed;
+        }
+        pBufs.finishedSends();
+        forAll(pbm, patchi)
+        {
+            const polyPatch& pp = pbm[patchi];
+            if (!isA<processorPolyPatch>(pp)) continue;
+            const processorPolyPatch& procPatch = refCast<const processorPolyPatch>(pp);
+            UIPstream fromNbr(procPatch.neighbProcNo(), pBufs);
+            scalarList packed;
+            fromNbr >> nbrCand[patchi] >> nbrRingHas[patchi] >> nbrRingDist[patchi] >> packed;
+            nbrRing[patchi].setSize(pp.size());
+            forAll(pp, i)
+            {
+                if (nbrRingHas[patchi][i])
+                {
+                    nbrRing[patchi][i] = unpackSurface(packed, nPack*i);
+                }
+            }
+        }
+    }
+
     // The surface of a face: the upwind cell's, else the other cell's, else
     // the closest surface among the face neighbours of both (second ring,
     // the remote face neighbours across the processor patches included);
     // nullptr when none. For a processor face the remote cell's surface
-    // comes from the exchange (remote, remoteHas).
+    // (remote, remoteHas) and the closest surface of its face neighbours
+    // with its distance (remoteRing, remoteRingHas, remoteRingDist) come
+    // from the exchanges.
     auto surfaceOf = [&]
     (
         const label up, const label other,
         const davof::cellSurface* remote, const bool remoteHas,
+        const davof::cellSurface* remoteRing, const bool remoteRingHas, const scalar remoteRingDist,
         const point& xf, bool& secondRing
     ) -> const davof::cellSurface*
     {
@@ -596,11 +663,15 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         if (remoteHas) return remote;
         const davof::cellSurface* best = nullptr;
         scalar dMin = GREAT;
-        auto consider = [&](const davof::cellSurface& T, const point& o)
+        auto considerD = [&](const davof::cellSurface& T, const scalar d)
         {
-            const scalar d = magSqr(xf - o);
             if (d < dMin) { dMin = d; best = &T; }
         };
+        auto consider = [&](const davof::cellSurface& T, const point& o)
+        {
+            considerD(T, magSqr(xf - o));
+        };
+        if (remoteRingHas) considerD(*remoteRing, remoteRingDist);
         auto scan = [&](const label c)
         {
             if (c < 0) return;
@@ -638,11 +709,16 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     (
         const label facei, const label local, const label up, const label other,
         const davof::cellSurface* remote, const bool remoteHas,
+        const davof::cellSurface* remoteRing, const bool remoteRingHas, const scalar remoteRingDist,
         const scalar phiF, const bool boundary, const bool procFace
     )
     {
         bool secondRing = false;
-        const davof::cellSurface* Sp = surfaceOf(up, other, remote, remoteHas, Cf[facei], secondRing);
+        const davof::cellSurface* Sp = surfaceOf
+        (
+            up, other, remote, remoteHas, remoteRing, remoteRingHas, remoteRingDist,
+            Cf[facei], secondRing
+        );
         if (!Sp)
         {
             ++nCurvedSkipped_;
@@ -709,7 +785,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         const scalar phiF = phiIn[facei];
         const label up = (phiF >= 0) ? o : n;
         const label other = (phiF >= 0) ? n : o;
-        processFace(facei, up, up, other, nullptr, false, phiF, false, false);
+        processFace(facei, up, up, other, nullptr, false, nullptr, false, GREAT, phiF, false, false);
     }
     forAll(pbm, patchi)
     {
@@ -725,7 +801,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             if (!procFace)
             {
                 if (!cand.test(o)) continue;
-                processFace(facei, o, o, -1, nullptr, false, phiF, true, false);
+                processFace(facei, o, o, -1, nullptr, false, nullptr, false, GREAT, phiF, true, false);
                 continue;
             }
             // A processor face is computed on ONE side and copied to the
@@ -742,13 +818,23 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             const bool localUpwind =
                 (phiF > 0)
              || (phiF == 0 && refCast<const processorPolyPatch>(pp).owner());
+            // a face with no surface on either side is processed when either
+            // cell is a candidate (the serial rule), by the upwind side
+            const bool localCand = cand.test(o);
+            const bool remoteCand = !nbrCand[patchi].empty() && nbrCand[patchi][i];
             bool computeHere;
-            if (localUpwind) computeHere = localHas || !remoteHas;
+            if (localUpwind) computeHere = localHas || (!remoteHas && (localCand || remoteCand));
             else computeHere = localHas && !remoteHas;
             if (!computeHere) continue;
-            if (!cand.test(o) && !remoteHas) continue;
             const davof::cellSurface* remote = remoteHas ? &nbrSurface[patchi][i] : nullptr;
-            processFace(facei, o, o, -1, remote, remoteHas, phiF, true, true);
+            const bool remoteRingHas = !nbrRingHas[patchi].empty() && nbrRingHas[patchi][i];
+            const davof::cellSurface* remoteRing = remoteRingHas ? &nbrRing[patchi][i] : nullptr;
+            const scalar remoteRingDist = remoteRingHas ? nbrRingDist[patchi][i] : GREAT;
+            processFace
+            (
+                facei, o, o, -1, remote, remoteHas, remoteRing, remoteRingHas, remoteRingDist,
+                phiF, true, true
+            );
         }
     }
     if (Pstream::parRun())
