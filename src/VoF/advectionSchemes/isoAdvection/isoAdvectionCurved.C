@@ -32,7 +32,14 @@ Description
     fraction of that pre-image under the same surface, so that alpha_k and
     alpha_f are the volume and the boundary moments of one surface at every
     step (the requirement of the sagitta studies, 2026-10-16). Replaces the
-    plane sweep of timeIntegratedFlux() when active; serial runs only.
+    plane sweep of timeIntegratedFlux() when active. In parallel (2026-10-24)
+    the surfaces of the cells across the processor patches are exchanged per
+    patch face; a processor face is computed on one side (the upwind side
+    when its cell has a surface, else the downwind side when that cell has
+    one, else the upwind side from its second ring) and copied to the other
+    by syncProcPatches as the plane sweep's fluxes are; the second-ring
+    search of a cell next to a processor patch sees its remote face
+    neighbours; the counters of the Info line are reduced.
 
     exactSphere: the sphere of the exactNormal dictionary (origin + U0 t at
     the state's time) is every cell's surface: the machinery gate, exact to
@@ -54,6 +61,52 @@ SourceFiles
 #include "davofCurvedGeometry.H"
 #include "interpolationCellPoint.H"
 #include "volFields.H"
+#include "processorPolyPatch.H"
+#include "PstreamBuffers.H"
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace
+{
+
+// The surface of a cell as 21 scalars (the two flags, the origin, the
+// frame, the seven coefficients), for the exchange across processor patches
+inline void packSurface(const Foam::davof::cellSurface& S, Foam::UList<Foam::scalar>& v, const Foam::label off)
+{
+    v[off] = S.paraboloid ? 1 : 0;
+    v[off + 1] = S.sphere ? 1 : 0;
+    for (Foam::direction k = 0; k < 3; ++k)
+    {
+        v[off + 2 + k] = S.o[k];
+        v[off + 5 + k] = S.e1[k];
+        v[off + 8 + k] = S.e2[k];
+        v[off + 11 + k] = S.e3[k];
+    }
+    v[off + 14] = S.b11; v[off + 15] = S.b12; v[off + 16] = S.b22;
+    v[off + 17] = S.c; v[off + 18] = S.a1; v[off + 19] = S.a2; v[off + 20] = S.R;
+}
+
+inline Foam::davof::cellSurface unpackSurface(const Foam::UList<Foam::scalar>& v, const Foam::label off)
+{
+    Foam::davof::cellSurface S;
+    S.paraboloid = (v[off] > 0.5);
+    S.sphere = (v[off + 1] > 0.5);
+    for (Foam::direction k = 0; k < 3; ++k)
+    {
+        S.o[k] = v[off + 2 + k];
+        S.e1[k] = v[off + 5 + k];
+        S.e2[k] = v[off + 8 + k];
+        S.e3[k] = v[off + 11 + k];
+    }
+    S.b11 = v[off + 14]; S.b12 = v[off + 15]; S.b22 = v[off + 16];
+    S.c = v[off + 17]; S.a1 = v[off + 18]; S.a2 = v[off + 19]; S.R = v[off + 20];
+    return S;
+}
+
+constexpr Foam::label nPack = 21;
+
+} // End anonymous namespace
+
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
@@ -395,14 +448,6 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
 {
     addProfilingInFunction(geometricVoF);
 
-    if (Pstream::parRun())
-    {
-        FatalErrorInFunction
-            << "clippingSurface " << clippingSurface_
-            << " runs in serial only (no exchange of the surfaces across"
-            << " processor boundaries)" << exit(FatalError);
-    }
-
     // The records of the face fractions, as timeIntegratedFlux() keeps them
     clearIsoFaceData();
     alphafSetFace_.reset();
@@ -456,11 +501,62 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     scalarField& dVfIn = dVf_.primitiveFieldRef();
     const DynamicField<label>& interfaceLabels = surf_->interfaceLabels();
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label nPatches = pbm.size();
+
+    // The surfaces of the cells across the processor patches (the face
+    // neighbours of the local cells there), one per patch face, exchanged
+    // with the neighbouring processor: a processor face takes the surface
+    // of its upwind cell as an internal face does, and the second-ring
+    // search of a cell next to the boundary sees its remote face neighbours
+    List<List<davof::cellSurface>> nbrSurface(nPatches);
+    List<boolList> nbrHas(nPatches);
+    if (Pstream::parRun())
+    {
+        PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
+        forAll(pbm, patchi)
+        {
+            const polyPatch& pp = pbm[patchi];
+            if (!isA<processorPolyPatch>(pp)) continue;
+            const processorPolyPatch& procPatch = refCast<const processorPolyPatch>(pp);
+            const labelUList& fc = pp.faceCells();
+            scalarList packed(nPack*fc.size(), Zero);
+            boolList has(fc.size(), false);
+            forAll(fc, i)
+            {
+                if (hasSurface_.test(fc[i]))
+                {
+                    has[i] = true;
+                    packSurface(cellSurfaces_[fc[i]], packed, nPack*i);
+                }
+            }
+            UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
+            toNbr << has << packed;
+        }
+        pBufs.finishedSends();
+        forAll(pbm, patchi)
+        {
+            const polyPatch& pp = pbm[patchi];
+            if (!isA<processorPolyPatch>(pp)) continue;
+            const processorPolyPatch& procPatch = refCast<const processorPolyPatch>(pp);
+            UIPstream fromNbr(procPatch.neighbProcNo(), pBufs);
+            scalarList packed;
+            fromNbr >> nbrHas[patchi] >> packed;
+            nbrSurface[patchi].setSize(pp.size());
+            forAll(pp, i)
+            {
+                if (nbrHas[patchi][i])
+                {
+                    nbrSurface[patchi][i] = unpackSurface(packed, nPack*i);
+                }
+            }
+        }
+    }
 
     // The candidate cells: the interface cells and their face neighbours
-    // (the surface moves less than one cell per step); the interface cells
-    // are the surface cells of the bounding (limitFluxes marks the cells
-    // next to them from surfCells_)
+    // (the surface moves less than one cell per step), the face neighbours
+    // across the processor patches included; the interface cells are the
+    // surface cells of the bounding (limitFluxes marks the cells next to
+    // them from surfCells_)
     bitSet cand(mesh_.nCells());
     forAll(interfaceLabels, i)
     {
@@ -472,47 +568,90 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             cand.set(nb);
         }
     }
+    forAll(pbm, patchi)
+    {
+        if (nbrHas[patchi].empty()) continue;
+        const labelUList& fc = pbm[patchi].faceCells();
+        forAll(fc, i)
+        {
+            if (nbrHas[patchi][i]) cand.set(fc[i]);
+        }
+    }
 
     // The surface of a face: the upwind cell's, else the other cell's, else
-    // the closest surface cell among the face neighbours of both (second
-    // ring); -1 when none
-    auto surfaceCellOf = [&](const label up, const label other, const point& xf, bool& secondRing) -> label
+    // the closest surface among the face neighbours of both (second ring,
+    // the remote face neighbours across the processor patches included);
+    // nullptr when none. For a processor face the remote cell's surface
+    // comes from the exchange (remote, remoteHas).
+    auto surfaceOf = [&]
+    (
+        const label up, const label other,
+        const davof::cellSurface* remote, const bool remoteHas,
+        const point& xf, bool& secondRing
+    ) -> const davof::cellSurface*
     {
         secondRing = false;
-        if (hasSurface_.test(up)) return up;
-        if (other >= 0 && hasSurface_.test(other)) return other;
-        label best = -1;
+        if (up >= 0 && hasSurface_.test(up)) return &cellSurfaces_[up];
+        if (other >= 0 && hasSurface_.test(other)) return &cellSurfaces_[other];
+        if (remoteHas) return remote;
+        const davof::cellSurface* best = nullptr;
         scalar dMin = GREAT;
+        auto consider = [&](const davof::cellSurface& T, const point& o)
+        {
+            const scalar d = magSqr(xf - o);
+            if (d < dMin) { dMin = d; best = &T; }
+        };
         auto scan = [&](const label c)
         {
             if (c < 0) return;
             for (const label nb : cellCells[c])
             {
                 if (!hasSurface_.test(nb)) continue;
-                const point& o = cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o;
-                const scalar d = magSqr(xf - o);
-                if (d < dMin) { dMin = d; best = nb; }
+                consider(cellSurfaces_[nb], cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o);
+            }
+            // the remote face neighbours of c across the processor patches
+            if (Pstream::parRun())
+            {
+                for (const label cf : mesh_.cells()[c])
+                {
+                    if (cf < nInt) continue;
+                    const label patchi = pbm.whichPatch(cf);
+                    if (patchi < 0 || nbrHas[patchi].empty()) continue;
+                    const label pf = cf - pbm[patchi].start();
+                    if (!nbrHas[patchi][pf]) continue;
+                    const davof::cellSurface& T = nbrSurface[patchi][pf];
+                    consider(T, T.o);
+                }
             }
         };
         scan(up);
         scan(other);
-        secondRing = (best >= 0);
+        secondRing = (best != nullptr);
         return best;
     };
 
-    auto processFace = [&](const label facei, const label up, const label other, const scalar phiF, const bool boundary)
+    // facei: the face; local: the local cell whose velocity interpolates the
+    // displacement (the upwind cell, or the local cell of a processor face);
+    // up/other: the local upwind and downwind cells (-1 when remote or
+    // none); remote/remoteHas: the surface across a processor face
+    auto processFace = [&]
+    (
+        const label facei, const label local, const label up, const label other,
+        const davof::cellSurface* remote, const bool remoteHas,
+        const scalar phiF, const bool boundary, const bool procFace
+    )
     {
         bool secondRing = false;
-        const label sc = surfaceCellOf(up, other, Cf[facei], secondRing);
-        if (sc < 0)
+        const davof::cellSurface* Sp = surfaceOf(up, other, remote, remoteHas, Cf[facei], secondRing);
+        if (!Sp)
         {
             ++nCurvedSkipped_;
             return;
         }
-        const davof::cellSurface& S = cellSurfaces_[sc];
+        const davof::cellSurface& S = *Sp;
 
         // The displacement of the step at the face
-        const vector d = UInterp.interpolate(Cf[facei], up)*dt;
+        const vector d = UInterp.interpolate(Cf[facei], local)*dt;
 
         // The volume flux: the liquid volume of the prism between f - d and f
         if (!(boundary && phiF < 0))
@@ -549,6 +688,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             alphafSetFaces_.append(facei);
         }
         alphafSetFace_.set(facei);
+        if (procFace) checkIfOnProcPatch(facei);
         ++nCurvedFaces_;
         if (secondRing) ++nCurvedSecondRing_;
         if (boundary) ++nCurvedBoundary_;
@@ -562,20 +702,47 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         const scalar phiF = phiIn[facei];
         const label up = (phiF >= 0) ? o : n;
         const label other = (phiF >= 0) ? n : o;
-        processFace(facei, up, other, phiF, false);
+        processFace(facei, up, up, other, nullptr, false, phiF, false, false);
     }
     forAll(pbm, patchi)
     {
         const polyPatch& pp = pbm[patchi];
         if (alphafPtr_->boundaryField()[patchi].size() != pp.size()) continue;
-        if (pp.coupled()) continue;
+        if (pp.coupled() && !isA<processorPolyPatch>(pp)) continue;
+        const bool procFace = isA<processorPolyPatch>(pp);
         forAll(pp, i)
         {
             const label facei = pp.start() + i;
             const label o = own[facei];
-            if (!cand.test(o)) continue;
-            processFace(facei, o, -1, faceValue(phi_, facei), true);
+            const scalar phiF = faceValue(phi_, facei);
+            if (!procFace)
+            {
+                if (!cand.test(o)) continue;
+                processFace(facei, o, o, -1, nullptr, false, phiF, true, false);
+                continue;
+            }
+            // A processor face is computed on ONE side and copied to the
+            // other by syncProcPatches, as the plane sweep does: on the
+            // upwind side when the upwind cell has a surface, else on the
+            // downwind side when that cell has one, else on the upwind side
+            // from its second ring; both sides know both flags
+            const bool localHas = hasSurface_.test(o);
+            const bool remoteHas = !nbrHas[patchi].empty() && nbrHas[patchi][i];
+            const bool localUpwind = (phiF >= 0);
+            bool computeHere;
+            if (localUpwind) computeHere = localHas || !remoteHas;
+            else computeHere = localHas && !remoteHas;
+            if (!computeHere) continue;
+            if (!cand.test(o) && !remoteHas) continue;
+            const davof::cellSurface* remote = remoteHas ? &nbrSurface[patchi][i] : nullptr;
+            processFace(facei, o, o, -1, remote, remoteHas, phiF, true, true);
         }
+    }
+    if (Pstream::parRun())
+    {
+        // the computed processor faces to the other side (the flux with the
+        // opposite sign, the face fraction as it is)
+        syncProcPatches(dVf_, phi_, false, alphafPtr_);
     }
     nCurvedLeaves_ = volumeRulePtr_->nLeaves();
     nRuleFallback_ += volumeRulePtr_->nFallback();
@@ -636,35 +803,59 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
 
 void Foam::advection::isoAdvection::reportCurved() const
 {
+    // the counters over the processors (sums; the maxima as maxima)
+    label nFaces = nCurvedFaces_, nSecond = nCurvedSecondRing_, nBound = nCurvedBoundary_;
+    label nSkip = nCurvedSkipped_, nClip = nAlphafClipped_, nLin = nCurvedFallback_;
+    label nLeaves = nCurvedLeaves_, nFitC = nFitCells_, nFitConv = nFitConverged_;
+    label nFitSt = nFitStalled_, nFitSing = nFitSingular_, nFitNoBr = nFitNoBracket_;
+    label nFitNoFr = nFitNoFrame_, nAnchF = nAnchorFail_, nAnchL = nAnchorLeaves_;
+    label nDef = nDefectCells_, nRuleFb = nRuleFallback_ + volumeRulePtr_->nFallback();
+    scalar fitRMax = fitResMax_, fitRSum = fitResSum_, ashMax = anchorShiftMax_;
+    scalar ashSum = anchorShiftSum_, defMax = defectMax_, defSum = defectSum_;
+    if (Pstream::parRun())
+    {
+        reduce(nFaces, sumOp<label>()); reduce(nSecond, sumOp<label>());
+        reduce(nBound, sumOp<label>()); reduce(nSkip, sumOp<label>());
+        reduce(nClip, sumOp<label>()); reduce(nLin, sumOp<label>());
+        reduce(nLeaves, sumOp<label>()); reduce(nFitC, sumOp<label>());
+        reduce(nFitConv, sumOp<label>()); reduce(nFitSt, sumOp<label>());
+        reduce(nFitSing, sumOp<label>()); reduce(nFitNoBr, sumOp<label>());
+        reduce(nFitNoFr, sumOp<label>()); reduce(nAnchF, sumOp<label>());
+        reduce(nAnchL, sumOp<label>()); reduce(nDef, sumOp<label>());
+        reduce(nRuleFb, sumOp<label>());
+        reduce(fitRMax, maxOp<scalar>()); reduce(fitRSum, sumOp<scalar>());
+        reduce(ashMax, maxOp<scalar>()); reduce(ashSum, sumOp<scalar>());
+        reduce(defMax, maxOp<scalar>()); reduce(defSum, sumOp<scalar>());
+    }
     Info<< "isoAdvection: curved clipping (" << clippingSurface_
-        << "): alphaf and dVf set on " << nCurvedFaces_ << " faces ("
-        << nCurvedSecondRing_ << " second ring, " << nCurvedBoundary_
-        << " boundary), " << nCurvedSkipped_ << " skipped, "
-        << nAlphafClipped_ << " clips, " << nCurvedFallback_
-        << " linear cuts, " << nCurvedLeaves_ << " quadrature leaves";
+        << "): alphaf and dVf set on " << nFaces << " faces ("
+        << nSecond << " second ring, " << nBound
+        << " boundary), " << nSkip << " skipped, "
+        << nClip << " clips, " << nLin
+        << " linear cuts, " << nLeaves << " quadrature leaves";
     if (clippingSurface_ == "paraboloid")
     {
-        Info<< "; fit: cells " << nFitCells_ << ", converged " << nFitConverged_
-            << ", stalled " << nFitStalled_ << ", singular " << nFitSingular_
-            << ", no bracket " << nFitNoBracket_ << ", no frame " << nFitNoFrame_
-            << ", residual max " << fitResMax_
-            << " mean " << fitResSum_/max(nFitCells_, label(1));
+        Info<< "; fit: cells " << nFitC << ", converged " << nFitConv
+            << ", stalled " << nFitSt << ", singular " << nFitSing
+            << ", no bracket " << nFitNoBr << ", no frame " << nFitNoFr
+            << ", residual max " << fitRMax
+            << " mean " << fitRSum/max(nFitC, label(1));
         if (fitAnchor_ == "volume")
         {
-            Info<< "; volume anchor: failed " << nAnchorFail_
-                << ", face shift max " << anchorShiftMax_
-                << " mean " << anchorShiftSum_/max(nFitCells_, label(1))
-                << ", leaves " << nAnchorLeaves_;
+            Info<< "; volume anchor: failed " << nAnchF
+                << ", face shift max " << ashMax
+                << " mean " << ashSum/max(nFitC, label(1))
+                << ", leaves " << nAnchL;
         }
     }
-    if (nDefectCells_ > 0)
+    if (nDef > 0)
     {
-        Info<< "; surface defect max " << defectMax_
-            << " L1 " << defectSum_/nDefectCells_
-            << " over " << nDefectCells_ << " cells";
+        Info<< "; surface defect max " << defMax
+            << " L1 " << defSum/nDef
+            << " over " << nDef << " cells";
     }
     Info<< "; volume rule " << volumeRulePtr_->type()
-        << " fallbacks " << (nRuleFallback_ + volumeRulePtr_->nFallback());
+        << " fallbacks " << nRuleFb;
     Info<< endl;
 
     if (curvedDebug_ && debugCellR0_ >= 0)

@@ -68,6 +68,14 @@ class kromerBothe
 :
     public davofVolumeRule
 {
+    // Private Data
+
+        //- Compare every prism and cell volume with the split quadrature
+        //  and print the first mismatches (key volumeRuleDebug)
+        const bool debug_;
+        mutable label nDebugPrinted_;
+
+
 public:
 
     //- Runtime type information

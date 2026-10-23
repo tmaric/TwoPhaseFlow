@@ -49,8 +49,41 @@ Foam::davofVolumeRules::kromerBothe::kromerBothe
     const dictionary& dict
 )
 :
-    davofVolumeRule(mesh, dict)
+    davofVolumeRule(mesh, dict),
+    debug_(dict.getOrDefault<bool>("volumeRuleDebug", false)),
+    nDebugPrinted_(0)
 {}
+
+
+namespace
+{
+
+// The faces of a polyhedron and their wetted areas under S, for the debug print
+void printFaces
+(
+    const Foam::DynamicList<Foam::davof::kbFace>& faces,
+    const Foam::davof::cellSurface& S,
+    const Foam::scalar tolAbs
+)
+{
+    using namespace Foam;
+    forAll(faces, k)
+    {
+        const davof::kbFace& F = faces[k];
+        davof::kbSums sums;
+        const bool ok = davof::kbIntegrateFace(F, S, tolAbs, tolAbs, true, sums);
+        Pout<< "    face " << k << " n " << F.n << " x0 " << F.x0 << " Ls " << F.Ls
+            << " area " << F.area() << " wet " << sums.lastArea
+            << " faceTerm " << sums.faceSum << " line " << sums.lineSum
+            << " arcs " << sums.nArcs << (ok ? "" : " NOT RESOLVED") << nl;
+        forAll(F.p, i)
+        {
+            Pout<< "      p " << F.p[i] << " phi " << S.value(F.p[i]) << nl;
+        }
+    }
+}
+
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -99,6 +132,18 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     scalar v = 0;
     if (davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_))
     {
+        if (debug_ && nDebugPrinted_ < 12)
+        {
+            const scalar vs = splitPrismLiquidVolume(facei, d, S, tolRel);
+            if (mag(v - vs) > 1e-8*prismVol)
+            {
+                ++nDebugPrinted_;
+                Pout<< "kromerBothe prism mismatch: face " << facei << " d " << d
+                    << " prismVol " << prismVol << " kb " << v << " split " << vs
+                    << " diff/prismVol " << (v - vs)/prismVol << nl;
+                printFaces(faces, S, tolRel*prismVol);
+            }
+        }
         return v;
     }
     ++nFallback_;
@@ -117,6 +162,17 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::faceLiquidFraction
     scalar af = 0;
     if (!S.sphere && davof::kbFaceLiquidFraction(mesh_, facei, d, S, tolRel_, af, nLeaves_))
     {
+        if (debug_ && nDebugPrinted_ < 12)
+        {
+            label nfb = 0;
+            const scalar aq = davofVolumeRule::faceLiquidFraction(facei, d, S, nfb);
+            if (mag(af - aq) > 1e-8)
+            {
+                ++nDebugPrinted_;
+                Pout<< "kromerBothe face mismatch: face " << facei << " d " << d
+                    << " kb " << af << " quadratic cut " << aq << nl;
+            }
+        }
         return af;
     }
     ++nFallback_;
