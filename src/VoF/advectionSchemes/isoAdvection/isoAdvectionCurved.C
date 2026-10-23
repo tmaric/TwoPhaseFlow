@@ -1041,6 +1041,62 @@ void Foam::advection::isoAdvection::reportCurved() const
         const scalar vRule = volumeRulePtr_->cellLiquidVolume(celli, S, anchorTolRel_);
         Info<< "  total quad " << vq/Vc << " linear " << vl/Vc << " alpha " << debugAlpha_
             << " rule(" << volumeRulePtr_->type() << ") " << vRule/Vc << endl;
+
+        // The reference of the prism quadrature on a sphere: the split
+        // quadrature against the exact sphere-tetrahedron overlap on every
+        // prism of the interface cells' faces, with the sphere of the
+        // exactNormal dictionary at the state's time and the uniform
+        // displacement U0 dt; the faces whose normal is perpendicular to U0
+        // (the sphere's equator) carry the silhouette kink the split rule
+        // leaves to refinement (2026-10-24: the Kromer-Bothe rule differed
+        // from the split quadrature by 5e-6 of the prism volume there)
+        if (modelDict().found("exactNormal") && !Pstream::parRun())
+        {
+            const dictionary& ed = modelDict().subDict("exactNormal");
+            if (ed.found("radius"))
+            {
+                const scalar dt = mesh_.time().deltaTValue();
+                davof::cellSurface Ssph;
+                Ssph.sphere = true;
+                Ssph.o = ed.get<point>("origin") + ed.getOrDefault<vector>("U0", vector::zero)*(mesh_.time().value() - dt);
+                Ssph.R = ed.get<scalar>("radius");
+                const vector d = ed.getOrDefault<vector>("U0", vector::zero)*dt;
+                dictionary dSplit(modelDict()); dSplit.set("volumeRule", "splitQuadrature");
+                dictionary dExact(modelDict()); dExact.set("volumeRule", "exactSphere");
+                autoPtr<davofVolumeRule> split(davofVolumeRule::New(mesh_, dSplit));
+                autoPtr<davofVolumeRule> exact(davofVolumeRule::New(mesh_, dExact));
+                const vectorField& Sf = mesh_.faceAreas();
+                const DynamicField<label>& labels = surf_->interfaceLabels();
+                bitSet done(mesh_.nFaces());
+                scalar maxRel = 0, sumRel = 0, maxRelEq = 0;
+                label n = 0, nEq = 0, worst = -1;
+                forAll(labels, i)
+                {
+                    for (const label f : mesh_.cells()[labels[i]])
+                    {
+                        if (done.test(f)) continue;
+                        done.set(f);
+                        const scalar pv = mag(d & Sf[f]);
+                        if (pv <= 1e-10*mag(d)*mag(Sf[f])) continue;
+                        const scalar vs = split->prismLiquidVolume(f, d, Ssph, curvedTolRel_);
+                        const scalar ve = exact->prismLiquidVolume(f, d, Ssph, curvedTolRel_);
+                        const scalar rel = mag(vs - ve)/pv;
+                        sumRel += rel; ++n;
+                        if (rel > maxRel) { maxRel = rel; worst = f; }
+                        // the equatorial faces: the sphere's radius through
+                        // the face centre perpendicular to d within 0.1 h
+                        const point& xf = mesh_.faceCentres()[f];
+                        if (mag((xf - Ssph.o) & d) < 0.1*Foam::cbrt(mesh_.V()[labels[i]])*mag(d))
+                        {
+                            maxRelEq = max(maxRelEq, rel); ++nEq;
+                        }
+                    }
+                }
+                Info<< "curved debug sphere prisms: |split - exact|/prismVol over " << n
+                    << " prisms max " << maxRel << " (face " << worst << ") mean " << sumRel/max(n, label(1))
+                    << "; over " << nEq << " equatorial prisms max " << maxRelEq << endl;
+            }
+        }
     }
 }
 
