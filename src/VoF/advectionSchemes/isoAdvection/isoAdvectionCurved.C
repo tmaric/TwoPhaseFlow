@@ -70,6 +70,8 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
 
     nFitCells_ = nFitConverged_ = nFitStalled_ = nFitSingular_ = nFitNoBracket_ = 0;
     nFitNoFrame_ = 0;
+    debugR0Max_ = 0;
+    debugCellR0_ = -1;
     fitResMax_ = 0;
     fitResSum_ = 0;
     nAnchorFail_ = 0;
@@ -299,6 +301,17 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             const scalar cTol = 1e-11*h;
             scalar c0 = S.c;
             scalar r0 = volumeOf() - target;
+            // the diagnostic of the quadrature (key curvedDebug): on an exact
+            // state the surface before the anchor encloses alpha V, so r0 is
+            // the quadrature's own error; the worst cell is printed with its
+            // pyramids against the exact linear cut of the Detrixhe-Aslam tets
+            if (curvedDebug_ && mag(r0)/Vc > debugR0Max_)
+            {
+                debugR0Max_ = mag(r0)/Vc;
+                debugCellR0_ = celli;
+                debugSurface_ = S;
+                debugAlpha_ = alpha1In_[celli];
+            }
             if (mag(r0) <= 1e-14*Vc)
             {
                 okAnchor = true;
@@ -661,6 +674,54 @@ void Foam::advection::isoAdvection::reportCurved() const
             << " over " << nDefectCells_ << " cells";
     }
     Info<< endl;
+
+    if (curvedDebug_ && debugCellR0_ >= 0)
+    {
+        // the worst cell's pyramids: the split quadrature against the linear
+        // cut of the Detrixhe-Aslam tets (exact for a plane)
+        const label celli = debugCellR0_;
+        const davof::cellSurface& S = debugSurface_;
+        auto phi = [&](const point& x) { return S.value(x); };
+        const pointField& P = mesh_.points();
+        const faceList& faces = mesh_.faces();
+        const vectorField& Cf = mesh_.faceCentres();
+        const point& xc = mesh_.cellCentres()[celli];
+        const labelList& cFaces = mesh_.cells()[celli];
+        const scalar Vc = mesh_.V()[celli];
+        Info<< "curved debug: cell " << celli << " alpha " << debugAlpha_
+            << " |r0|/V " << debugR0Max_ << " centre " << xc
+            << " surface o " << S.o << " e3 " << S.e3 << " c " << S.c
+            << " b " << S.b11 << " " << S.b12 << " " << S.b22 << " phi(xc) " << phi(xc) << nl;
+        scalar vq = 0, vl = 0;
+        forAll(cFaces, cf)
+        {
+            const label faceI = cFaces[cf];
+            const face& f = faces[faceI];
+            const point& xf = Cf[faceI];
+            forAll(f, ip)
+            {
+                const label ip1 = f.nextLabel(ip);
+                const point& p0 = P[f[ip]];
+                const point& p1 = P[ip1];
+                label nl2 = 0;
+                const scalar vQuad = davof::pyramidLiquidVolume
+                (
+                    xc, xf, p0, p1, phi, anchorTolRel_*Vc, curvedMaxDepth_, nl2
+                );
+                const scalar vol = mag(((xf - xc) ^ (p0 - xc)) & (p1 - xc))/6.0;
+                const scalar vLin = davof::tetNegativeFraction(phi(xc), phi(xf), phi(p0), phi(p1))*vol;
+                vq += vQuad; vl += vLin;
+                if (mag(vQuad - vLin) > 1e-12*Vc)
+                {
+                    Info<< "  face " << faceI << " tri " << ip << " quad " << vQuad/Vc
+                        << " linear " << vLin/Vc << " diff " << (vQuad - vLin)/Vc
+                        << " phi(xf,p0,p1) " << phi(xf) << " " << phi(p0) << " " << phi(p1)
+                        << " leaves " << nl2 << nl;
+                }
+            }
+        }
+        Info<< "  total quad " << vq/Vc << " linear " << vl/Vc << " alpha " << debugAlpha_ << endl;
+    }
 }
 
 

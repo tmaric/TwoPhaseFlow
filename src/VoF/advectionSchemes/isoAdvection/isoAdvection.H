@@ -338,6 +338,15 @@ class isoAdvection
             //  diagnostic in steps (key defectEvery)
             scalar anchorTolRel_;
             label defectEvery_;
+
+            //- The quadrature diagnostic (key curvedDebug): the cell with
+            //  the largest anchor residual before the anchor, printed with
+            //  its pyramids against the linear tet cut
+            bool curvedDebug_;
+            scalar debugR0Max_;
+            label debugCellR0_;
+            davof::cellSurface debugSurface_;
+            scalar debugAlpha_;
             label nAnchorFail_;
             label nAnchorLeaves_;
             scalar anchorShiftMax_;
