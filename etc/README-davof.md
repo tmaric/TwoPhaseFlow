@@ -537,6 +537,73 @@ bias on a curved interface limits its row (the slope error O(h) enters
 `w` at O(h^2)). The sphere's `z_0`: the plane positioned by alpha in a
 cube cut through its centre, `z_0 = -h^2/(12 R)`, 1.7e-3 h at R = 4.8 h.
 
+### The curved clipping surface and its volume rules (2026-10-23/24)
+
+`clippingSurface exactSphere | paraboloid` in the isoAdvector dictionary replaces the plane
+sweep by ONE quadric surface per interface cell for both the volume flux (the liquid volume of
+the prism swept between a face's pre-image f - U dt and the face under the upwind cell's
+surface) and the face update (the pre-image's liquid fraction under the same surface), so that
+alpha_k and alpha_f are the moments of one surface at every step (`isoAdvectionCurved.C`,
+`davofCurvedGeometry.H`). `exactSphere` takes the sphere of the `exactNormal` dictionary at the
+state's time (the machinery gate for the sphere translation case); `paraboloid` the paraboloid
+in the frame of the normal the scheme used, with `fitDof six | one | none` (how many of its
+coefficients the cell's own face fractions set) and `fitAnchor faces | volume` (the offset from
+the faces or from alpha_k V). The stable variant is `fitDof none; fitAnchor volume`: the frame
+from the normal, the curvature tensor from the ring, the offset from the conserved alpha_k.
+Serial runs only until the surfaces are exchanged across processor boundaries.
+
+The three geometric quantities, the cell volume under a surface (the anchor, the surface
+defect), the prism volume (the flux) and the face fraction (the update), come from one
+run-time selected rule, `volumeRule` (`davof/volumeRules`, `davofVolumeRule`, RTS as the normal
+models):
+
+- `splitQuadrature` (the default, the reference): the triangle integrals split at the exact
+  traces of the quadric (the roots along every sweep line and the swept edge, three evaluations
+  each), 12-point Gauss-Legendre per piece, refined adaptively in both sweep directions to
+  `curvedTolRel` of the volume (default 1e-11, depth cap `curvedMaxDepth`). Any quadric. On the
+  translated plane at N = 40 it reproduces the exact linear cut to 2e-14 of the cell.
+- `kromerBothe`: J. Kromer, D. Bothe, Third-order accurate initialization of volume fractions
+  on unstructured meshes with arbitrary polyhedral cells, J. Comput. Phys. 475 (2023) 111840,
+  doi:10.1016/j.jcp.2022.111840, arXiv:2111.01073 (building on J. Comput. Phys. 396 (2019)
+  761-784, doi:10.1016/j.jcp.2019.07.005, arXiv:1805.03136). Their local paraboloid is the DAVOF
+  surface itself: the divergence theorem with x - o gives the face sum plus the paraboloid
+  patch integral, which Green's theorem turns into the line integral of H1 = c t1 - (b11 t1^3/6
+  + b12 t1^2 t2/2 + b22 t1 t2^2/2) along the conic traces on the faces; the wetted face areas
+  by Green's theorem as well. The conic is classified in principal form (their Eqs. 26-34) to
+  order the boundary crossings and to split long arcs; every arc is integrated as the graph
+  over its chord with the exact root along the chord's normal, adaptive Gauss-Legendre 12
+  (`davofKromerBothe.H`). Non-planar faces as fan triangles. Falls back to `splitQuadrature`
+  per polyhedron where a configuration is not resolved, and for a sphere surface; counted in
+  the Info line ("volume rule kromerBothe fallbacks N").
+- `exactSphere`: S. Strobl, A. Formella, T. Pöschel, Exact calculation of the overlap volume of
+  spheres and mesh elements, J. Comput. Phys. 311 (2016) 158-172, doi:10.1016/j.jcp.2016.02.003,
+  through the authors' reference implementation (`davof/thirdParty/overlap/overlap.hpp`, MIT,
+  header-only on Eigen 3; `src/VoF/Make/options` adds `-isystem $(EIGEN_INC)`, which
+  `etc/davof-env.sh` sets to `$HOME/OpenFOAM/thirdparty/eigen/eigen-3.4.0` when unset). The
+  cell as the (centre, face centre, edge) tetrahedra of every face's fan, the prism as three
+  tetrahedra per fan triangle; the face fraction by the quadratic face cut (exact for the
+  circle trace up to the sliver's 12-point rule). For `clippingSurface exactSphere`; a
+  paraboloid falls back to `splitQuadrature`, counted.
+
+Other algorithms of the curved flux, with their sources: the volume anchor's root by a bracket
+and the Illinois rule, M. Dowell, P. Jarratt, A modified regula falsi method for computing the
+root of an equation, BIT 11 (1971) 168-174, doi:10.1007/BF01934364; the six-coefficient fit by
+Gauss-Newton with the damping of D. W. Marquardt, An algorithm for least-squares estimation of
+nonlinear parameters, J. Soc. Indust. Appl. Math. 11 (1963) 431-441, doi:10.1137/0111030; the
+six-point degree-4 triangle rule of the retired unsplit quadrature from D. A. Dunavant, High
+degree efficient symmetrical Gaussian quadrature rules for the triangle, Int. J. Numer. Meth.
+Engng. 21 (1985) 1129-1148, doi:10.1002/nme.1620210612; the Gauss-Legendre nodes by Newton on
+the Legendre polynomials (Press, Teukolsky, Vetterling, Flannery, Numerical Recipes, 3rd ed.,
+Cambridge University Press, 2007, Sect. 4.6, ISBN 978-0-521-88068-8); the tetrahedral cell
+fractions of the initialisation from M. Detrixhe, T. D. Aslam, From level set to volume of
+fluid and back again at second-order accuracy, Int. J. Numer. Meth. Fluids 80 (2016) 231-255,
+doi:10.1002/fld.4076. The closed forms of F. Evrard, R. Chiodi, A. Han, B. van Wachem, O.
+Desjardins, First moments of a polyhedron clipped by a paraboloid, SIAM J. Sci. Comput. 45
+(2023) A2250-A2274, doi:10.1137/22M1524308, arXiv:2210.07772, are the alternative to the
+Kromer-Bothe rule for the paraboloid and are not implemented.
+
+The leia token is `TPF_VOLUME_RULE` (default `splitQuadrature`; `cases/davof/*Translation3D`).
+
 ### The mixed normal and the normal-source controls (2026-10-13, superseded by the normal models above)
 
 The closed loop (own normal from alphaf, the alpha-positioned plane, alphaf
