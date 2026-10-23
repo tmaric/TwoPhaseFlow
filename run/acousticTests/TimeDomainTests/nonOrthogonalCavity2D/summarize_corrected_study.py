@@ -47,7 +47,7 @@ def main():
     root = Path(sys.argv[1] if len(sys.argv) > 1 else "studies/corrected")
     if (root / "S").is_dir():
         rows = []
-        for update in ("monolithic", "segregated"):
+        for update in ("monolithic", "segregated", "nowall"):
             for eps in ("0.15", "0.3", "0.6"):
                 prev = None
                 for n in (20, 40, 80, 160):
@@ -66,6 +66,8 @@ def main():
         rows = []
         for update in ("monolithic", "segregated"):
             ref = root / "T" / f"{update}_NT2560"
+            if not ref.is_dir():
+                continue
             t_ref, p_ref = probes(ref)
             prev = None
             for nt in (40, 80, 160, 320, 640):

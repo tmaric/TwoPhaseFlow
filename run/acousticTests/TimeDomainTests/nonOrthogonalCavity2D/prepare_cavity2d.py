@@ -57,6 +57,8 @@ def setup():
         "method": os.environ["TIME_METHOD"], "theta": env("THETA"),
         "blockSolver": os.environ["BLOCK_SOLVER"],
         "nonOrthCorrectors": env("NONORTH_CORRECTORS", int),
+        "nonOrthMode": os.environ["NONORTH_MODE"],
+        "nonOrthTolerance": env("NONORTH_TOLERANCE"),
         "wallLayers": env("WALL_LAYERS", int),
         "transitionFraction": env("TRANSITION_FRACTION"),
     }
@@ -103,6 +105,8 @@ timeIntegrationMethod {s['method']};
 timeIntegrationTheta  {s['theta']};
 timeBlockLinearSolver {s['blockSolver']};
 acousticDampingRate   0;
+nonOrthogonalCorrection {s['nonOrthMode']};
+nonOrthogonalTolerance {s['nonOrthTolerance']!r};
 """)
     scheme = s["laplacian"]
     write("system/fvSchemes", HEADER.format(cls="dictionary", obj="fvSchemes") + f"""

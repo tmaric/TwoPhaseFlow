@@ -36,3 +36,27 @@ on non-orthogonal faces.
 mode, the modal amplitude growth per period and frequency error, and the
 drift of the physical energy. `summarize_nonorth_study.py` writes
 `studies/studyA.csv` and `studies/studyB.csv`.
+
+## Non-orthogonal correction
+
+- `LAPLACIAN=orthogonal` drops the tangential gradient on non-orthogonal
+  faces and does not converge on the distorted meshes.
+- `LAPLACIAN=corrected` adds the explicit correction of OpenFOAM's scheme.
+  The monolithic update converges it within each step with
+  `NONORTH_CORRECTORS` block solves that reuse the factorization; the
+  segregated update uses its corrector loop. Second order in space and
+  time, but the corrected Laplacian is not symmetric: its complex
+  eigenvalues make the lossless wave equation grow slowly on strongly
+  distorted meshes (`amplification_cavity.py`).
+- `LAPLACIAN=uncorrected NONORTH_MODE=symmetric` (monolithic, serial) lets
+  the solver apply the symmetrized correction `(C + C^T)/2`, which keeps the
+  operator self-adjoint; `NONORTH_MODE=explicit` applies `C` itself and
+  reproduces `corrected`.
+- `WALL_LAYERS=1 TRANSITION_FRACTION=0.15` keeps the wall cells orthogonal;
+  skewed wall cells with a zero-gradient wall reduce the order to one.
+
+Studies: `runCorrectedStudy` (lagged correction), `runWallLayerStudy`,
+`runDefectCorrectionStudy` (converged correction), `runSymmetricStudy`;
+`summarize_corrected_study.py` and `summarize_wall_layer_study.py` write the
+tables; `amplification_cavity.py OUTDIR` forms the (p, q) amplification
+matrix and its spectrum.

@@ -30,6 +30,13 @@
 # the step in the segregated update.
 : "${LAPLACIAN:=orthogonal}"
 : "${NONORTH_CORRECTORS:=0}"
+# Monolithic update with LAPLACIAN=uncorrected: none | explicit (the
+# correction of the corrected scheme, applied by the solver) | symmetric
+# (its symmetrized form, which keeps the operator self-adjoint).
+: "${NONORTH_MODE:=none}"
+# Monolithic: stop the correctors at this relative pressure change (0: run
+# all NONORTH_CORRECTORS).
+: "${NONORTH_TOLERANCE:=0}"
 
 # Time: STEPS_PER_PERIOD of the continuous mode, N_PERIODS periods,
 # PROBE_SAMPLES_PER_PERIOD samples per period.

@@ -1,0 +1,50 @@
+#!/bin/sh
+# Symmetric non-orthogonal correction (nonOrthogonalCorrection symmetric,
+# Gauss linear uncorrected scheme, monolithic update, NONORTH_CORRECTORS 3),
+# on the same cases as runDefectCorrectionStudy:
+#   S  spatial refinement, distortion 0.15, 0.3, 0.6 with the orthogonal wall
+#      layer and 0.6 without it
+#   T  temporal refinement, distortion 0.3, CELLS 80
+#   L  long time, CELLS 40: 200 periods at Co 0.22, 1.8, 7.2 (distortion 0.3
+#      and 0.6, wall layer) and 600 periods at Co 0.22 (0.6, wall layer, and
+#      0.6 without wall layer)
+#   N  distortion 0.6, CELLS 80: 1, 2, 3, 5 correctors
+# Usage: ./runSymmetricStudy  (outputs in ${STUDY_DIR:-studies}/symmetric)
+set -e
+cd "${0%/*}" || exit 1
+LIST=$(mktemp)
+trap 'rm -f "$LIST"' EXIT
+WALL="WALL_LAYERS=1 TRANSITION_FRACTION=0.15"
+SYM="LAPLACIAN=uncorrected TIME_METHOD=blockCoupled NONORTH_MODE=symmetric"
+
+for eps in 0.15 0.3 0.6
+do
+    for n in 160 80 40 20
+    do
+        echo "symmetric/S/monolithic_eps${eps}_N$n $WALL DISTORTION=$eps CELLS=$n STEPS_PER_PERIOD=$((4*n)) N_PERIODS=10 $SYM NONORTH_CORRECTORS=3" >> "$LIST"
+    done
+done
+for n in 160 80 40 20
+do
+    echo "symmetric/S/nowall_eps0.6_N$n DISTORTION=0.6 CELLS=$n STEPS_PER_PERIOD=$((4*n)) N_PERIODS=10 $SYM NONORTH_CORRECTORS=3" >> "$LIST"
+done
+for nt in 2560 640 320 160 80 40
+do
+    echo "symmetric/T/monolithic_NT$nt $WALL DISTORTION=0.3 CELLS=80 STEPS_PER_PERIOD=$nt N_PERIODS=10 $SYM NONORTH_CORRECTORS=3" >> "$LIST"
+done
+for eps in 0.3 0.6
+do
+    for nt in 160 20 5
+    do
+        echo "symmetric/L/monolithic_eps${eps}_NT$nt $WALL DISTORTION=$eps CELLS=40 STEPS_PER_PERIOD=$nt N_PERIODS=200 PROBE_SAMPLES_PER_PERIOD=$((nt % 8 == 0 ? 8 : 5)) $SYM NONORTH_CORRECTORS=3" >> "$LIST"
+    done
+done
+echo "symmetric/L/monolithic_eps0.6_NT160_600periods $WALL DISTORTION=0.6 CELLS=40 STEPS_PER_PERIOD=160 N_PERIODS=600 $SYM NONORTH_CORRECTORS=3" >> "$LIST"
+echo "symmetric/L/nowall_eps0.6_NT160_600periods DISTORTION=0.6 CELLS=40 STEPS_PER_PERIOD=160 N_PERIODS=600 $SYM NONORTH_CORRECTORS=3" >> "$LIST"
+for k in 1 2 3 5
+do
+    echo "symmetric/N/monolithic_corr$k $WALL DISTORTION=0.6 CELLS=80 STEPS_PER_PERIOD=320 N_PERIODS=10 $SYM NONORTH_CORRECTORS=$k" >> "$LIST"
+done
+
+xargs -L1 -P "${JOBS:-8}" ./runStudy --one < "$LIST"
+python3 summarize_corrected_study.py "${STUDY_DIR:-studies}/symmetric"
