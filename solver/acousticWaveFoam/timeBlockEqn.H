@@ -364,6 +364,27 @@
     }
 
     addTimeBlockOperatorSource(qRhs, pressureSpatial, theta);
+
+    // Solver-applied non-orthogonal correction (orthogonal scheme in the
+    // matrix): rho (C p) at both levels, the new level from the pressure of
+    // the previous step until the correctors below converge it.
+    const bool solverNonOrthCorrection = nonOrthogonalCorrection != "none";
+    surfaceScalarField gammaMagSf("gammaMagSf", invRhof*mesh.magSf());
+    scalarField nonOrthSourceOld(mesh.nCells(), Zero);
+    if (solverNonOrthCorrection)
+    {
+        static bool adjointTested = false;
+        if (!adjointTested && nonOrthogonalCorrection == "symmetric")
+        {
+            Info<< "Non-orthogonal correction adjoint test: relative error "
+                << nonOrthAdjointTest(p, gammaMagSf) << endl;
+            adjointTested = true;
+        }
+        nonOrthSourceOld =
+            rho.primitiveField()
+           *nonOrthCorrection(p, gammaMagSf, nonOrthogonalCorrection);
+        qRhs += nonOrthSourceOld;
+    }
     addTimeBlockOperatorSource(qRhs, divUx, 1.0, &qDivScaleX);
     addTimeBlockOperatorSource(qRhs, divUy, 1.0, &qDivScaleY);
     addTimeBlockOperatorSource(qRhs, divUz, 1.0, &qDivScaleZ);
@@ -462,6 +483,20 @@
                 qRhsCorr[celli] +=
                     theta*(newSource[celli] - oldSource[celli]);
             }
+            if (solverNonOrthCorrection)
+            {
+                qRhsCorr += theta
+                   *(
+                        rho.primitiveField()
+                       *nonOrthCorrection
+                        (
+                            p,
+                            gammaMagSf,
+                            nonOrthogonalCorrection
+                        )
+                      - nonOrthSourceOld
+                    );
+            }
 
             setTimeBlockRhs
             (
@@ -507,6 +542,11 @@
 
             Info<< "Non-orthogonal corrector " << corr
                 << ": relative pressure change = " << change << endl;
+
+            if (change < nonOrthogonalTolerance)
+            {
+                break;
+            }
         }
     }
 }

@@ -7,11 +7,17 @@
 // density 1/invRhof, and the cell value follows the phase that carries the
 // momentum of the cell.
 
+//
+// A non-orthogonal correction applied by the solver (nonOrthogonalCorrection)
+// is not part of the uncorrected snGrad; its face flux is then passed as
+// correctionFlux and added, so that the face fluxes stay consistent.
+
 Foam::tmp<Foam::volVectorField> reconstructPressureAcceleration
 (
     const Foam::volScalarField& p,
     const Foam::surfaceScalarField& invRhof,
-    const Foam::volScalarField& alpha1
+    const Foam::volScalarField& alpha1,
+    const Foam::scalarField* correctionFlux = nullptr
 )
 {
     using namespace Foam;
@@ -19,10 +25,14 @@ Foam::tmp<Foam::volVectorField> reconstructPressureAcceleration
     const fvMesh& mesh = p.mesh();
     const scalar mixedTol = 1e-12;
 
-    const surfaceScalarField faceFlux
+    surfaceScalarField faceFlux
     (
         invRhof*fvc::snGrad(p)*mesh.magSf()
     );
+    if (correctionFlux)
+    {
+        faceFlux.primitiveFieldRef() += *correctionFlux;
+    }
 
     const auto weight = [&](const label celli, const scalar faceInvRho)
     {

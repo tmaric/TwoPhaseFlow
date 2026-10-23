@@ -58,6 +58,7 @@ SourceFiles
 
 #include "petscTimeBlockAssembly.H"
 #include "reconstructPressureAcceleration.H"
+#include "nonOrthogonalCorrection.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -120,6 +121,28 @@ int main(int argc, char *argv[])
     const auto reconstructedPressureAcceleration =
         [&](const volScalarField& pressure)
         {
+            if (nonOrthogonalCorrection != "none")
+            {
+                const scalarField correctionFlux
+                (
+                    nonOrthCorrectionFlux
+                    (
+                        pressure,
+                        surfaceScalarField
+                        (
+                            "gammaMagSf",
+                            invRhof*mesh.magSf()
+                        )
+                    )
+                );
+                return reconstructPressureAcceleration
+                (
+                    pressure,
+                    invRhof,
+                    alpha1,
+                    &correctionFlux
+                );
+            }
             return reconstructPressureAcceleration(pressure, invRhof, alpha1);
         };
 

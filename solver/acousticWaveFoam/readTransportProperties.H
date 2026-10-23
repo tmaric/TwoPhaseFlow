@@ -183,6 +183,63 @@ if (segregatedImplicitPMLDamping)
     Info<< "Segregated PML damping = implicit (diagnostic)" << endl;
 }
 
+// Monolithic update: the non-orthogonal correctors (nNonOrthogonalCorrectors
+// in PIMPLE, the maximum) stop once the relative pressure change falls below
+// this tolerance; 0 always runs all of them.
+const scalar nonOrthogonalTolerance =
+    transportProperties.getOrDefault<scalar>("nonOrthogonalTolerance", 0);
+
+// Monolithic update only: non-orthogonal correction of the pressure
+// Laplacian applied by the solver (with the uncorrected Laplacian scheme):
+//   none      no correction (default)
+//   explicit  the correction C of Gauss linear corrected
+//   symmetric (C + C^T)/2, which keeps the operator symmetric
+// The new-level correction converges with nNonOrthogonalCorrectors.
+const word nonOrthogonalCorrection =
+    transportProperties.getOrDefault<word>("nonOrthogonalCorrection", "none");
+
+if
+(
+    nonOrthogonalCorrection != "none"
+ && nonOrthogonalCorrection != "explicit"
+ && nonOrthogonalCorrection != "symmetric"
+)
+{
+    FatalIOErrorInFunction(transportProperties)
+        << "nonOrthogonalCorrection must be none, explicit or symmetric, "
+        << "but is " << nonOrthogonalCorrection << exit(FatalIOError);
+}
+
+if (nonOrthogonalCorrection != "none")
+{
+    if (!blockCoupledTimeIntegration)
+    {
+        FatalIOErrorInFunction(transportProperties)
+            << "nonOrthogonalCorrection requires timeIntegrationMethod "
+            << "blockCoupled" << exit(FatalIOError);
+    }
+    if (Pstream::parRun())
+    {
+        FatalIOErrorInFunction(transportProperties)
+            << "nonOrthogonalCorrection is implemented for serial runs only"
+            << exit(FatalIOError);
+    }
+    // The correction vectors pair with the uncorrected face coefficient
+    // 1/(n.d); the orthogonal scheme uses 1/|d| and would not match.
+    OStringStream schemeStream;
+    schemeStream << mesh.laplacianScheme("laplacian(invRhof,p)");
+    const std::string scheme(schemeStream.str());
+    if (scheme.find("uncorrected") == std::string::npos)
+    {
+        FatalIOErrorInFunction(transportProperties)
+            << "nonOrthogonalCorrection adds the correction itself and needs "
+            << "the Gauss linear uncorrected laplacian scheme, not " << scheme
+            << exit(FatalIOError);
+    }
+    Info<< "Non-orthogonal correction = " << nonOrthogonalCorrection
+        << " (solver)" << endl;
+}
+
 scalar MaxCo =
     max(mesh.surfaceInterpolation::deltaCoeffs()*cg).value()
    *runTime.deltaT().value();
