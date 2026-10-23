@@ -98,12 +98,26 @@ Info<< "Physical-domain acoustic damping rate = "
 const scalar laplacianCorrection =
     transportProperties.getOrDefault<scalar>("laplacianCorrection", 1.0);
 
+// The monolithic update is the default. The segregated (thetaNewmark) and
+// backward (fullyImplicit) updates are kept for comparison only.
 const word timeIntegrationMethod =
     transportProperties.getOrDefault<word>
     (
         "timeIntegrationMethod",
-        laplacianCorrection > 0.5 ? "thetaNewmark" : "fullyImplicit"
+        "blockCoupled"
     );
+
+if
+(
+    !transportProperties.found("timeIntegrationMethod")
+ && transportProperties.found("laplacianCorrection")
+)
+{
+    WarningInFunction
+        << "laplacianCorrection no longer selects the time integration; "
+        << "using the default blockCoupled. Set timeIntegrationMethod to "
+        << "choose another update." << endl;
+}
 
 if
 (
@@ -120,6 +134,22 @@ if
 
 const bool blockCoupledTimeIntegration =
     timeIntegrationMethod == "blockCoupled";
+
+if (timeIntegrationMethod == "thetaNewmark")
+{
+    WarningInFunction
+        << "timeIntegrationMethod thetaNewmark (segregated update) is kept "
+        << "for comparison only. Its explicit PML damping is unstable for "
+        << "sigma*deltaT > 2 in a PML cell, and its lagged pressure-PML "
+        << "coupling at large Courant numbers; use blockCoupled." << endl;
+}
+else if (timeIntegrationMethod == "fullyImplicit")
+{
+    WarningInFunction
+        << "timeIntegrationMethod fullyImplicit (backward update) is kept as "
+        << "a damping reference only: it attenuates resolved waves at first "
+        << "order in deltaT; use blockCoupled." << endl;
+}
 
 const word timeBlockLinearSolver =
     transportProperties.getOrDefault<word>

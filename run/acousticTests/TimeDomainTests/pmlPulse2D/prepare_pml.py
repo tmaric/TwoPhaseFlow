@@ -13,6 +13,8 @@ def env(name, kind=float):
 
 
 def write(path, text):
+    # constant/ holds only generated files and is not in a fresh clone.
+    (CASE / path).parent.mkdir(parents=True, exist_ok=True)
     (CASE / path).write_text(text)
 
 

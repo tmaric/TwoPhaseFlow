@@ -36,8 +36,9 @@ clone the time-dependent piston boundary condition reliably.
 
 ## Time integration and piston condition
 
-`TIME_METHOD` (default `thetaNewmark`, the solver's own default) selects the
-update; `TIME_METHOD=blockCoupled` runs the monolithic update. The piston
+`TIME_METHOD` selects the update: `blockCoupled` (default, monolithic);
+`thetaNewmark` (segregated) and `fullyImplicit` (backward) are kept for
+comparison only. The piston
 boundary condition imposes `dp/dn = rho dU/dt` along the outward normal, the
 same as the frequency case (`dP/dn = -i omega rho U`); before 2026-10-21 the
 density factor was missing, which reduced the pressure by `1/rho`.

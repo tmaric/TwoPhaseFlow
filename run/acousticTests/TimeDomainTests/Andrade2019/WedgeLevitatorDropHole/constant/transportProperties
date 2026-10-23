@@ -36,6 +36,11 @@ cg 343;
 cl 1480; 
 kg #eval{1.0/($rhog*$cg*$cg)};
 kl #eval{1.0/($rhol*$cl*$cl)};
+timeIntegrationTheta 0.5;
+// Monolithic update; thetaNewmark and fullyImplicit are kept for comparison.
+timeIntegrationMethod blockCoupled;
+// Options: direct (LU/MUMPS), iterative (FGMRES/block-Jacobi/ILU).
+timeBlockLinearSolver iterative;
 
 PMLType rectangle;
 f 25250;

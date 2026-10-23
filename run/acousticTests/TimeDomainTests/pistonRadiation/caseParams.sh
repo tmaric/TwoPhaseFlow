@@ -23,9 +23,9 @@ MESH_CELLS_PER_LAMBDA=${MESH_CELLS_PER_LAMBDA:-20}
 MESH_GR=1.0
 WEDGE_ANGLE_DEG=2
 
-# Time integration and output. Without TIME_METHOD the solver chooses its
-# default (thetaNewmark); blockCoupled selects the monolithic update.
-TIME_METHOD=${TIME_METHOD:-thetaNewmark}
+# Time integration and output: blockCoupled (monolithic); thetaNewmark and
+# fullyImplicit are kept for comparison only.
+TIME_METHOD=${TIME_METHOD:-blockCoupled}
 BLOCK_SOLVER=${BLOCK_SOLVER:-direct}
 N_PERIODS=${N_PERIODS:-25}
 PROBE_SAMPLES_PER_PERIOD=${PROBE_SAMPLES_PER_PERIOD:-50}

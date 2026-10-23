@@ -53,7 +53,9 @@ PIMPLE
     momentumPredictor   no;
     nOuterCorrectors    2;
     nCorrectors         2;
-     nNonOrthogonalCorrectors 2;
+    // The acoustic Laplacian is orthogonal (fvSchemes), so blockCoupled
+    // correctors would re-solve an unchanged system.
+    nNonOrthogonalCorrectors 0;
      residualControl
      {
          p
