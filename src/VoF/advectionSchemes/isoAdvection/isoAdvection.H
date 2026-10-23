@@ -67,6 +67,7 @@ SourceFiles
 #include "cutFaceAdvect.H"
 #include "davofFaceClipping.H"
 #include "davofCurvedGeometry.H"
+#include "davofVolumeRule.H"
 #include "bitSet.H"
 #include "zeroField.H"
 
@@ -364,6 +365,12 @@ class isoAdvection
             //- The surface of every cell that has one (interface cells)
             List<davof::cellSurface> cellSurfaces_;
             bitSet hasSurface_;
+
+            //- The run-time selected rule for the cell volume, the prism
+            //  volume and the face fraction under a surface (key
+            //  volumeRule: splitQuadrature | kromerBothe | exactSphere)
+            autoPtr<davofVolumeRule> volumeRulePtr_;
+            label nRuleFallback_;
 
             //- Counters of the step
             label nCurvedFaces_;

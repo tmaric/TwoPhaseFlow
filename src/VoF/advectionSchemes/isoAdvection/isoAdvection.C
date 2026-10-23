@@ -179,6 +179,8 @@ Foam::advection::isoAdvection::isoAdvection
     writeCurvedFields_(modelDict().getOrDefault<bool>("writeCurvedFields", false)),
     cellSurfaces_(0),
     hasSurface_(),
+    volumeRulePtr_(nullptr),
+    nRuleFallback_(0),
     nCurvedFaces_(0),
     nCurvedSecondRing_(0),
     nCurvedBoundary_(0),
@@ -277,6 +279,9 @@ Foam::advection::isoAdvection::isoAdvection
                     << defectEvery_;
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
+
+            // The rule for the volumes and face fractions under a surface
+            volumeRulePtr_ = davofVolumeRule::New(mesh_, modelDict());
         }
     }
     else if (modelDict().getOrDefault<word>("clippingSurface", "none") != "none")

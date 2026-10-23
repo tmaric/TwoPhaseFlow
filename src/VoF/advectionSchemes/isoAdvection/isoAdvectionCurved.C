@@ -179,17 +179,14 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         }
 
         // The fractions of the cell's faces under a surface, in face order
+        // (the volume rule's face cut, consistent with its volumes)
         auto fractionsOf = [&](const davof::cellSurface& T, scalarList& aF)
         {
             aF.setSize(F);
             label nfb = 0;
             forAll(cf, k)
             {
-                aF[k] = davof::faceCutDisplaced
-                (
-                    mesh_, cf[k], vector::zero,
-                    [&](const point& x) { return T.value(x); }, nfb
-                );
+                aF[k] = volumeRulePtr_->faceLiquidFraction(cf[k], vector::zero, T, nfb);
             }
         };
 
@@ -269,19 +266,13 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             const scalar Vc = V[celli];
             const scalar target = alpha1In_[celli]*Vc;
             const scalar mMag = max(mag(m[celli]), 1e-3*h*h);
-            label nLeaves = 0;
             bool okAnchor = false;
-            // the cell volume under the surface at the anchor's own
-            // tolerance (anchorTolRel of V; the flux's tolerance is tighter
-            // and the anchor's error enters the surface as an offset of
-            // anchorTolRel V / A, far below the face-fraction errors)
+            // the cell volume under the surface by the volume rule at the
+            // anchor's tolerance (anchorTolRel of V), the same rule as the
+            // flux, so that the anchored volume is the flux's volume
             auto volumeOf = [&]() -> scalar
             {
-                return davof::cellLiquidVolumeQuadric
-                (
-                    mesh_, celli, [&](const point& x) { return S.value(x); },
-                    anchorTolRel_, curvedMaxDepth_, nLeaves
-                );
+                return volumeRulePtr_->cellLiquidVolume(celli, S, anchorTolRel_);
             };
             // V(c) is non-decreasing in c (c larger: more liquid, dV/dc = the
             // wetted area, zero where the surface has left the cell). A
@@ -381,7 +372,6 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
                 }
             }
             if (!okAnchor) ++nAnchorFail_;
-            nAnchorLeaves_ += nLeaves;
             // the face fractions the anchored surface cuts against the targets
             scalarList aF;
             fractionsOf(S, aF);
@@ -394,6 +384,10 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         cellSurfaces_[celli] = S;
         hasSurface_.set(celli);
     }
+    // the rule's cost and fallbacks of the fit and the anchor
+    nAnchorLeaves_ = volumeRulePtr_->nLeaves();
+    nRuleFallback_ += volumeRulePtr_->nFallback();
+    volumeRulePtr_->resetCounters();
 }
 
 
@@ -436,6 +430,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nCurvedFaces_ = nCurvedSecondRing_ = nCurvedBoundary_ = nCurvedSkipped_ = 0;
     nCurvedFallback_ = 0;
     nCurvedLeaves_ = 0;
+    nRuleFallback_ = 0;
+    volumeRulePtr_->resetCounters();
     if (mesh_.time().timeIndex() % max(defectEvery_, label(1)) == 0 || mesh_.time().timeIndex() <= 1)
     {
         defectMax_ = 0;
@@ -514,7 +510,6 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             return;
         }
         const davof::cellSurface& S = cellSurfaces_[sc];
-        auto phi = [&](const point& x) { return S.value(x); };
 
         // The displacement of the step at the face
         const vector d = UInterp.interpolate(Cf[facei], up)*dt;
@@ -525,10 +520,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             scalar vLiq = 0;
             if (mag(d & Sf[facei]) > VSMALL)
             {
-                vLiq = davof::faceSweptLiquidVolume
-                (
-                    mesh_, facei, d, phi, curvedTolRel_, curvedMaxDepth_, nCurvedLeaves_
-                );
+                vLiq = volumeRulePtr_->prismLiquidVolume(facei, d, S, curvedTolRel_);
             }
             const scalar dVfNew = (phiF >= 0 ? vLiq : -vLiq);
             if (boundary)
@@ -543,7 +535,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
 
         // The face fraction: the pre-image's liquid fraction under the surface
         label nfb = 0;
-        scalar af = davof::faceCutDisplaced(mesh_, facei, -d, phi, nfb);
+        scalar af = volumeRulePtr_->faceLiquidFraction(facei, -d, S, nfb);
         nCurvedFallback_ += nfb;
         if (af < -1e-12 || af > 1 + 1e-12)
         {
@@ -585,6 +577,9 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             processFace(facei, o, -1, faceValue(phi_, facei), true);
         }
     }
+    nCurvedLeaves_ = volumeRulePtr_->nLeaves();
+    nRuleFallback_ += volumeRulePtr_->nFallback();
+    volumeRulePtr_->resetCounters();
 
     // The paraboloid defect: alpha_k against the volume under the cell's
     // surface, at the start of the step (diagnostic, every defectEvery-th
@@ -624,13 +619,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             const label celli = interfaceLabels[i];
             if (!hasSurface_.test(celli)) continue;
             const davof::cellSurface& S = cellSurfaces_[celli];
-            // the same quadrature as the flux (defectLevels kept as the switch)
-            label nLeavesDefect = 0;
-            const scalar vLiq = davof::cellLiquidVolumeQuadric
-            (
-                mesh_, celli, [&](const point& x) { return S.value(x); },
-                curvedTolRel_, curvedMaxDepth_, nLeavesDefect
-            );
+            // the same rule as the flux (defectLevels kept as the switch)
+            const scalar vLiq = volumeRulePtr_->cellLiquidVolume(celli, S, curvedTolRel_);
             const scalar defect = alpha1In_[celli] - vLiq/V[celli];
             defectMax_ = max(defectMax_, mag(defect));
             defectSum_ += mag(defect);
@@ -673,6 +663,8 @@ void Foam::advection::isoAdvection::reportCurved() const
             << " L1 " << defectSum_/nDefectCells_
             << " over " << nDefectCells_ << " cells";
     }
+    Info<< "; volume rule " << volumeRulePtr_->type()
+        << " fallbacks " << (nRuleFallback_ + volumeRulePtr_->nFallback());
     Info<< endl;
 
     if (curvedDebug_ && debugCellR0_ >= 0)
@@ -720,7 +712,10 @@ void Foam::advection::isoAdvection::reportCurved() const
                 }
             }
         }
-        Info<< "  total quad " << vq/Vc << " linear " << vl/Vc << " alpha " << debugAlpha_ << endl;
+        // the selected rule's value against the split quadrature and the linear cut
+        const scalar vRule = volumeRulePtr_->cellLiquidVolume(celli, S, anchorTolRel_);
+        Info<< "  total quad " << vq/Vc << " linear " << vl/Vc << " alpha " << debugAlpha_
+            << " rule(" << volumeRulePtr_->type() << ") " << vRule/Vc << endl;
     }
 }
 

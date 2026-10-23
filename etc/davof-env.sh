@@ -61,3 +61,18 @@ export PATH="$FOAM_USER_APPBIN:$(_tpf_strip "$PATH")"
 export LD_LIBRARY_PATH="$FOAM_USER_LIBBIN:$(_tpf_strip "$LD_LIBRARY_PATH")"
 unset -f _tpf_strip
 unset _tpf_acct
+
+# Eigen 3 for the vendored overlap library (src/VoF/davof/thirdParty/overlap, the exact
+# sphere-tetrahedron overlap of Strobl, Formella and Poeschel 2016, doi:10.1016/j.jcp.2016.02.003):
+# src/VoF/Make/options adds -I$(EIGEN_INC). Keep an EIGEN_INC set by a module (Lichtenberg:
+# eigen/5.0.1 puts its include on CPATH as well); on the laptop the headers live in
+# $HOME/OpenFOAM/thirdparty/eigen/eigen-3.4.0 (downloaded 2026-10-24, MPL2).
+if [ -z "${EIGEN_INC:-}" ]; then
+    if [ -d "$HOME/OpenFOAM/thirdparty/eigen/eigen-3.4.0" ]; then
+        export EIGEN_INC="$HOME/OpenFOAM/thirdparty/eigen/eigen-3.4.0"
+    elif [ -d /usr/include/eigen3 ]; then
+        export EIGEN_INC=/usr/include/eigen3
+    else
+        export EIGEN_INC="${CPATH%%:*}"
+    fi
+fi

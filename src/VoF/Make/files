@@ -28,6 +28,10 @@ davof/normalModels/ringFitNormal.C
 davof/faceClipping/davofFaceClipping.C
 davof/faceClipping/planeClipping.C
 davof/faceClipping/planeSagittaClipping.C
+davof/volumeRules/davofVolumeRule.C
+davof/volumeRules/splitQuadratureVolumeRule.C
+davof/volumeRules/kromerBotheVolumeRule.C
+davof/volumeRules/exactSphereVolumeRule.C
 
 /* Run-time selectable implicitFunctions */
 reconstructionSchemes/reconstructionSchemesNew.C

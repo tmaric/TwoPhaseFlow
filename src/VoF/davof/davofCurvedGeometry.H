@@ -70,6 +70,7 @@ SourceFiles
 #define davofCurvedGeometry_H
 
 #include "fvMesh.H"
+#include "volFields.H"
 #include "FixedList.H"
 #include "davofSimplexGeometry.H"
 #include "davofQuadraticFaceGeometry.H"

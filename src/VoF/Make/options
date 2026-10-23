@@ -1,4 +1,8 @@
+/* Eigen 3 for the vendored overlap library (davof/thirdParty/overlap):
+   EIGEN_INC from the environment (etc/davof-env.sh sets a default) */
 EXE_INC = \
+    -isystem $(EIGEN_INC) \
+    -Idavof/thirdParty \
     -I$(FOAM_UTILITIES)/preProcessing/setAlphaField/alphaFieldFunctions/lnInclude \
     -I$(LIB_SRC)/finiteVolume/lnInclude \
     -I$(LIB_SRC)/fileFormats/lnInclude \
