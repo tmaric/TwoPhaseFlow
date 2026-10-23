@@ -654,6 +654,23 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         }
     }
 
+    // A zero flux (a face parallel to the velocity) leaves "upwind"
+    // undefined; the cell with the lexicographically smaller centre takes
+    // the face, a convention both sides of a processor patch can evaluate
+    // (the serial owner cell, the lower cell index, is not the patch's
+    // owning side after decomposition: the four-processor check differed by
+    // 1e-3 of L1(alphaf) through the other surface on those faces)
+    auto lexLessPoint = [](const point& a, const point& b) -> bool
+    {
+        for (direction k = 0; k < 3; ++k)
+        {
+            if (a[k] < b[k]) return true;
+            if (a[k] > b[k]) return false;
+        }
+        return false;
+    };
+    const vectorField& C = mesh_.cellCentres();
+
     // The surface of a face: the upwind cell's, else the other cell's, else
     // the closest surface among the face neighbours of both (second ring,
     // the remote face neighbours across the processor patches included);
@@ -817,8 +834,9 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         const label n = nei[facei];
         if (!cand.test(o) && !cand.test(n)) continue;
         const scalar phiF = phiIn[facei];
-        const label up = (phiF >= 0) ? o : n;
-        const label other = (phiF >= 0) ? n : o;
+        const bool ownerUp = (phiF > 0) || (phiF == 0 && lexLessPoint(C[o], C[n]));
+        const label up = ownerUp ? o : n;
+        const label other = ownerUp ? n : o;
         processFace(facei, up, up, other, nullptr, false, nullptr, false, GREAT, phiF, false, false);
     }
     forAll(pbm, patchi)
@@ -827,6 +845,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         if (alphafPtr_->boundaryField()[patchi].size() != pp.size()) continue;
         if (pp.coupled() && !isA<processorPolyPatch>(pp)) continue;
         const bool procFace = isA<processorPolyPatch>(pp);
+        // the cell centres across a processor patch (the zero-flux convention)
+        tmp<vectorField> tCnbr;
+        if (procFace)
+        {
+            tCnbr = mesh_.C().boundaryField()[patchi].patchNeighbourField();
+        }
         forAll(pp, i)
         {
             const label facei = pp.start() + i;
@@ -846,12 +870,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             const bool localHas = hasSurface_.test(o);
             const bool remoteHas = !nbrHas[patchi].empty() && nbrHas[patchi][i];
             // a zero flux (a face parallel to the velocity) makes both sides
-            // "upwind" by phiF >= 0; the serial rule gives such a face to
-            // the owner, so here the owning side of the processor patch
-            // takes it, and the two sides never both compute
+            // "upwind" by phiF >= 0; the cell with the lexicographically
+            // smaller centre takes it, as in the serial loop above, and the
+            // two sides never both compute
             const bool localUpwind =
                 (phiF > 0)
-             || (phiF == 0 && refCast<const processorPolyPatch>(pp).owner());
+             || (phiF == 0 && lexLessPoint(C[o], tCnbr()[i]));
             // a face with no surface on either side is processed when either
             // cell is a candidate (the serial rule), by the upwind side
             const bool localCand = cand.test(o);
