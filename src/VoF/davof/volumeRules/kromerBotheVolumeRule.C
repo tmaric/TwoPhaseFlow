@@ -103,9 +103,14 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolume
     DynamicList<davof::kbFace> faces(24);
     davof::kbCellFaces(mesh_, celli, faces);
     scalar v = 0;
-    if (davof::kbPolyhedronLiquidVolume(faces, S, tolRel*mesh_.V()[celli], v, nLeaves_))
+    const scalar Vc = mesh_.V()[celli];
+    if
+    (
+        davof::kbPolyhedronLiquidVolume(faces, S, tolRel*Vc, v, nLeaves_)
+     && v >= -1e-9*Vc && v <= (1 + 1e-9)*Vc
+    )
     {
-        return v;
+        return min(max(v, scalar(0)), Vc);
     }
     ++nFallback_;
     return splitCellLiquidVolume(celli, S, tolRel);
@@ -120,8 +125,12 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     const scalar tolRel
 ) const
 {
-    const scalar prismVol = mag(d & mesh_.faceAreas()[facei]);
-    if (prismVol <= VSMALL) return 0;
+    const vector& Sf = mesh_.faceAreas()[facei];
+    const scalar prismVol = mag(d & Sf);
+    // a face parallel to the displacement sweeps no volume (relative test:
+    // the flat prism of a round-off product is not a closed polyhedron and
+    // the face sum does not cancel)
+    if (prismVol <= 1e-14*mag(d)*mag(Sf)) return 0;
     if (S.sphere)
     {
         ++nFallback_;
@@ -130,8 +139,13 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     DynamicList<davof::kbFace> faces(12);
     davof::kbPrismFaces(mesh_, facei, d, faces);
     scalar v = 0;
-    if (davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_))
+    if
+    (
+        davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_)
+     && v >= -1e-9*prismVol && v <= (1 + 1e-9)*prismVol
+    )
     {
+        v = min(max(v, scalar(0)), prismVol);
         if (debug_ && nDebugPrinted_ < 12)
         {
             const scalar vs = splitPrismLiquidVolume(facei, d, S, tolRel);
