@@ -332,6 +332,12 @@ class isoAdvection
             //  or none (the frame of the normal and the ring tensor only;
             //  the offset from the volume anchor); key fitDof
             word fitDof_;
+
+            //- The volume anchor's tolerance (of the cell volume; key
+            //  anchorTolRel) and the period of the surface-defect
+            //  diagnostic in steps (key defectEvery)
+            scalar anchorTolRel_;
+            label defectEvery_;
             label nAnchorFail_;
             label nAnchorLeaves_;
             scalar anchorShiftMax_;

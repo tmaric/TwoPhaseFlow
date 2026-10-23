@@ -268,29 +268,48 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             const scalar target = alpha1In_[celli]*Vc;
             const scalar mMag = max(mag(m[celli]), 1e-3*h*h);
             label nLeaves = 0;
-            scalar cPrev = S.c;
-            scalar shift = 0;
             bool okAnchor = false;
-            for (label it = 0; it < 12; ++it)
+            // the cell volume under the surface at the anchor's own
+            // tolerance (anchorTolRel of V; the flux's tolerance is tighter
+            // and the anchor's error enters the surface as an offset of
+            // anchorTolRel V / A, far below the face-fraction errors)
+            auto volumeOf = [&]() -> scalar
             {
-                const scalar vol = davof::cellLiquidVolumeQuadric
+                return davof::cellLiquidVolumeQuadric
                 (
                     mesh_, celli, [&](const point& x) { return S.value(x); },
-                    curvedTolRel_, curvedMaxDepth_, nLeaves
+                    anchorTolRel_, curvedMaxDepth_, nLeaves
                 );
-                const scalar r = vol - target;
-                if (mag(r) <= 10*curvedTolRel_*Vc)
-                {
-                    okAnchor = true;
-                    break;
-                }
-                // c larger: more liquid (e3 points out of the liquid, the
-                // liquid is w < c + ...): dV/dc = +area
-                scalar dc = -r/mMag;
+            };
+            // one Newton step with the wetted area as the derivative
+            // (c larger: more liquid, dV/dc = +area), then secant steps
+            scalar c0 = S.c;
+            scalar r0 = volumeOf() - target;
+            if (mag(r0) <= anchorTolRel_*Vc)
+            {
+                okAnchor = true;
+            }
+            else
+            {
+                scalar dc = -r0/mMag;
                 const scalar dcMax = 0.5*h;
                 if (mag(dc) > dcMax) dc = sign(dc)*dcMax;
-                S.c += dc;
-                shift += dc;
+                S.c = c0 + dc;
+                for (label it = 0; it < 10; ++it)
+                {
+                    const scalar r1 = volumeOf() - target;
+                    if (mag(r1) <= anchorTolRel_*Vc)
+                    {
+                        okAnchor = true;
+                        break;
+                    }
+                    const scalar c1 = S.c;
+                    const scalar dr = r1 - r0;
+                    scalar step = (mag(dr) > VSMALL) ? -r1*(c1 - c0)/dr : -r1/mMag;
+                    if (mag(step) > dcMax) step = sign(step)*dcMax;
+                    c0 = c1; r0 = r1;
+                    S.c = c1 + step;
+                }
             }
             if (!okAnchor) ++nAnchorFail_;
             nAnchorLeaves_ += nLeaves;
@@ -301,7 +320,6 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             forAll(aF, k) dmax = max(dmax, mag(aF[k] - tF[k]));
             anchorShiftMax_ = max(anchorShiftMax_, dmax);
             anchorShiftSum_ += dmax;
-            (void)cPrev;
         }
 
         cellSurfaces_[celli] = S;
@@ -349,9 +367,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nCurvedFaces_ = nCurvedSecondRing_ = nCurvedBoundary_ = nCurvedSkipped_ = 0;
     nCurvedFallback_ = 0;
     nCurvedLeaves_ = 0;
-    defectMax_ = 0;
-    defectSum_ = 0;
-    nDefectCells_ = 0;
+    if (mesh_.time().timeIndex() % max(defectEvery_, label(1)) == 0 || mesh_.time().timeIndex() <= 1)
+    {
+        defectMax_ = 0;
+        defectSum_ = 0;
+        nDefectCells_ = 0;
+    }
 
     // The surfaces of the state at t^n: the time has been advanced to
     // t^{n+1} when the advection runs (the scheme's stateTime() counts its
@@ -497,8 +518,13 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     }
 
     // The paraboloid defect: alpha_k against the volume under the cell's
-    // surface, at the start of the step (diagnostic)
-    if (defectLevels_ >= 0)
+    // surface, at the start of the step (diagnostic, every defectEvery-th
+    // step and at the first; the per-step line prints the last evaluation)
+    if
+    (
+        defectLevels_ >= 0
+     && (mesh_.time().timeIndex() % max(defectEvery_, label(1)) == 0 || mesh_.time().timeIndex() <= 1)
+    )
     {
         if (writeCurvedFields_ && !paraboloidDefectPtr_)
         {

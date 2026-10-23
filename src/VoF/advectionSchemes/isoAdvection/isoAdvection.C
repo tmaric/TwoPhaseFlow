@@ -164,6 +164,8 @@ Foam::advection::isoAdvection::isoAdvection
     fitMaxIter_(modelDict().getOrDefault<label>("fitMaxIter", 50)),
     fitAnchor_(modelDict().getOrDefault<word>("fitAnchor", "faces")),
     fitDof_(modelDict().getOrDefault<word>("fitDof", "six")),
+    anchorTolRel_(modelDict().getOrDefault<scalar>("anchorTolRel", 1e-6)),
+    defectEvery_(modelDict().getOrDefault<label>("defectEvery", 10)),
     nAnchorFail_(0),
     nAnchorLeaves_(0),
     anchorShiftMax_(0),
@@ -265,7 +267,9 @@ Foam::advection::isoAdvection::isoAdvection
                 }
                 Info<< ", fitPriorWeight " << fitPriorWeight_ << ", fitTol "
                     << fitTol_ << ", fitMaxIter " << fitMaxIter_
-                    << ", fitAnchor " << fitAnchor_ << ", fitDof " << fitDof_;
+                    << ", fitAnchor " << fitAnchor_ << ", fitDof " << fitDof_
+                    << ", anchorTolRel " << anchorTolRel_ << ", defectEvery "
+                    << defectEvery_;
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
         }
