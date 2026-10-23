@@ -659,9 +659,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             // a face parallel to the displacement sweeps no volume: the
             // test is relative (the round-off product of 1e-28 of an
             // axis-aligned face and displacement built a flat prism whose
-            // face sum was 5e-14, five percent of the cell, 2026-10-24)
+            // face sum was 5e-14, five percent of the cell, 2026-10-24; the
+            // zero components of the face area vectors carry 1e-14 of
+            // round-off, so the threshold is 1e-10: a sweep below 1e-10 of
+            // a normal flux is taken as none)
             scalar vLiq = 0;
-            if (mag(d & Sf[facei]) > 1e-14*mag(d)*mag(Sf[facei]))
+            if (mag(d & Sf[facei]) > 1e-10*mag(d)*mag(Sf[facei]))
             {
                 vLiq = volumeRulePtr_->prismLiquidVolume(facei, d, S, curvedTolRel_);
             }

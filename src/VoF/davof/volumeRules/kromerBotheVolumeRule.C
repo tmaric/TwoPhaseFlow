@@ -130,7 +130,7 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     // a face parallel to the displacement sweeps no volume (relative test:
     // the flat prism of a round-off product is not a closed polyhedron and
     // the face sum does not cancel)
-    if (prismVol <= 1e-14*mag(d)*mag(Sf)) return 0;
+    if (prismVol <= 1e-10*mag(d)*mag(Sf)) return 0;
     if (S.sphere)
     {
         ++nFallback_;
