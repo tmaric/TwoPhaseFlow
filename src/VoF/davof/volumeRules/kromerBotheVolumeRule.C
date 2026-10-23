@@ -54,7 +54,16 @@ Foam::davofVolumeRules::kromerBothe::kromerBothe
     nDebugPrinted_(0),
     dbgMaxPrism_(0), dbgSumPrism_(0), dbgMaxCell_(0), dbgSumCell_(0),
     dbgNPrism_(0), dbgNCell_(0)
-{}
+{
+    // the debug knobs of davofKromerBothe.H
+    davof::kbMinSplit() = dict.getOrDefault<label>("kromerBotheMinSplit", 1);
+    davof::kbFanFacesOn() = dict.getOrDefault<bool>("kromerBotheFan", true);
+    if (debug_)
+    {
+        Info<< "kromerBothe: minSplit " << davof::kbMinSplit()
+            << ", fan faces " << davof::kbFanFacesOn() << endl;
+    }
+}
 
 
 namespace

@@ -119,6 +119,27 @@ namespace Foam
 namespace davof
 {
 
+// * * * * * * * * * * * * * * Debug knobs * * * * * * * * * * * * * * * * //
+
+//- The least number of sub-arcs every trace arc is split into (1: only the
+//  quarter-turn rule of the ellipse); a convergence check of the arc
+//  quadrature (key kromerBotheMinSplit)
+inline label& kbMinSplit()
+{
+    static label v = 1;
+    return v;
+}
+
+//- Whether the top and bottom faces of a prism and the faces of a cell are
+//  integrated as fan triangles (true, the default; warped faces) or as whole
+//  polygons (planar faces only; a consistency check of the fan)
+inline bool& kbFanFacesOn()
+{
+    static bool v = true;
+    return v;
+}
+
+
 // * * * * * * * * * * * * * * The conic trace  * * * * * * * * * * * * * * //
 
 //- A conic Q11 x^2 + 2 Q12 x y + Q22 y^2 + 2 L1 x + 2 L2 y + K = 0 in the
@@ -632,10 +653,10 @@ inline bool kbIntegrateFace
             if (!C.at(ar.br, 0.5*(ar.sa + ar.sb), mx, my)) continue;
             if (!F.inside(mx, my, 1e-12*Ls)) continue;
         }
-        label m = 1;
+        label m = max(label(1), kbMinSplit());
         if (C.kind == conic2D::ELLIPSE)
         {
-            m = max(label(1), label(std::ceil((ar.sb - ar.sa)/(0.5*constant::mathematical::pi) - 1e-9)));
+            m = max(m, label(std::ceil((ar.sb - ar.sa)/(0.5*constant::mathematical::pi) - 1e-9)));
         }
         for (label k = 0; k < m; ++k)
         {
@@ -792,6 +813,19 @@ inline bool kbIntegrateFace
 //  their normals point away from the interior point xin, appended to faces.
 inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kbFace>& faces)
 {
+    if (!kbFanFacesOn())
+    {
+        kbFace F;
+        F.p = poly;
+        F.setFrame();
+        if (((F.x0 - xin) & F.n) < 0)
+        {
+            F.reverse();
+            F.setFrame();
+        }
+        if (mag(F.n) > 0 && F.Ls > SMALL) faces.append(F);
+        return;
+    }
     point xc = Zero;
     forAll(poly, i) xc += poly[i];
     xc /= poly.size();
@@ -861,6 +895,15 @@ inline void kbCellFaces(const fvMesh& mesh, const label cellI, DynamicList<kbFac
         const face& f = fcs[faceI];
         const bool isOwner = (own[faceI] == cellI);
         const point& xf = Cf[faceI];
+        if (!kbFanFacesOn())
+        {
+            kbFace F;
+            F.p.setSize(f.size());
+            forAll(f, ip) F.p[ip] = isOwner ? P[f[ip]] : P[f[f.size() - 1 - ip]];
+            F.setFrame();
+            if (F.Ls > SMALL) faces.append(F);
+            continue;
+        }
         forAll(f, ip)
         {
             const label ip1 = f.nextLabel(ip);
