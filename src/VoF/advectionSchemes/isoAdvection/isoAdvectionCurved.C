@@ -735,7 +735,13 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             // from its second ring; both sides know both flags
             const bool localHas = hasSurface_.test(o);
             const bool remoteHas = !nbrHas[patchi].empty() && nbrHas[patchi][i];
-            const bool localUpwind = (phiF >= 0);
+            // a zero flux (a face parallel to the velocity) makes both sides
+            // "upwind" by phiF >= 0; the serial rule gives such a face to
+            // the owner, so here the owning side of the processor patch
+            // takes it, and the two sides never both compute
+            const bool localUpwind =
+                (phiF > 0)
+             || (phiF == 0 && refCast<const processorPolyPatch>(pp).owner());
             bool computeHere;
             if (localUpwind) computeHere = localHas || !remoteHas;
             else computeHere = localHas && !remoteHas;

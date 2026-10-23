@@ -124,7 +124,8 @@ Foam::scalar Foam::davofVolumeRules::exactSphere::prismLiquidVolume
     const scalar tolRel
 ) const
 {
-    if (mag(d & mesh_.faceAreas()[facei]) <= VSMALL) return 0;
+    const vector& Sf = mesh_.faceAreas()[facei];
+    if (mag(d & Sf) <= 1e-10*mag(d)*mag(Sf)) return 0;
     if (!S.sphere)
     {
         ++nFallback_;

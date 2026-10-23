@@ -35,6 +35,8 @@ License
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "profiling.H"
+#include "syncTools.H"
+#include "processorPolyPatch.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -289,14 +291,37 @@ bool Foam::functionObjects::areaFractionError::write()
             );
         }
 
+        // a processor face is one face: counted on the owning side of the
+        // patch, adjacent when either cell is an interface cell (the remote
+        // cell's flag swapped across the patch), as an internal face in
+        // serial (2026-10-24: the parallel norm counted them twice)
+        boolList nbrInterface;
+        if (Pstream::parRun())
+        {
+            syncTools::swapBoundaryCellList(mesh_, isInterface, nbrInterface);
+        }
+        const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+
         scalar sum = 0, sum2 = 0, worst = 0;
         label nLocal = 0;
         forAll(hasValue, facei)
         {
             if (!hasValue[facei]) continue;
-            const bool adjacent =
+            bool adjacent =
                 isInterface[own[facei]]
              || (facei < nInt && isInterface[nei[facei]]);
+            if (facei >= nInt && Pstream::parRun())
+            {
+                const label patchi = pbm.whichPatch(facei);
+                if (patchi >= 0 && isA<processorPolyPatch>(pbm[patchi]))
+                {
+                    if (!refCast<const processorPolyPatch>(pbm[patchi]).owner())
+                    {
+                        continue;
+                    }
+                    adjacent = adjacent || nbrInterface[facei - nInt];
+                }
+            }
             if (!adjacent) continue;
             const scalar e = mag(afCur[facei] - afEx[facei]);
             sum += e;
