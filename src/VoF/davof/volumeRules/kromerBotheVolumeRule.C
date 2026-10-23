@@ -178,6 +178,41 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
                 Pout<< "kromerBothe prism mismatch: face " << facei << " d " << d
                     << " prismVol " << prismVol << " kb " << v << " split " << vs
                     << " diff/prismVol " << (v - vs)/prismVol << nl;
+                // a third value: the brute-force midpoint grid over the face
+                // (a parallelogram spanned from its first vertex) with the
+                // exact liquid fraction of every segment [p - d, p], at
+                // three grid sizes and Richardson-extrapolated (the
+                // integrand has kinks on the traces, so the grid converges
+                // at second order at best)
+                const face& f = mesh_.faces()[facei];
+                if (f.size() == 4)
+                {
+                    const pointField& P = mesh_.points();
+                    const point& p0 = P[f[0]];
+                    const vector ea = P[f[1]] - p0, eb = P[f[3]] - p0;
+                    auto phi = [&](const point& x) { return S.value(x); };
+                    scalar vb[3];
+                    const label ns[3] = {200, 400, 800};
+                    for (label k = 0; k < 3; ++k)
+                    {
+                        const label n = ns[k];
+                        scalar sum = 0;
+                        for (label i = 0; i < n; ++i)
+                        {
+                            for (label j = 0; j < n; ++j)
+                            {
+                                const point p = p0 + ((i + 0.5)/n)*ea + ((j + 0.5)/n)*eb;
+                                sum += davof::segmentLiquidFraction(p - d, p, phi);
+                            }
+                        }
+                        vb[k] = prismVol*sum/(scalar(n)*n);
+                    }
+                    const scalar rich = vb[2] + (vb[2] - vb[1])/3.0;
+                    Pout<< "  brute force (midpoint grid, exact segments) n=200 " << vb[0]
+                        << " n=400 " << vb[1] << " n=800 " << vb[2]
+                        << " Richardson " << rich << " (kb - bf)/prismVol " << (v - rich)/prismVol
+                        << " (split - bf)/prismVol " << (vs - rich)/prismVol << nl;
+                }
                 printFaces(faces, S, tolRel*prismVol);
             }
         }
