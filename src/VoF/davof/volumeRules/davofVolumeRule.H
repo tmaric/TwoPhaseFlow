@@ -113,12 +113,34 @@ protected:
         //- The depth cap of the split quadrature
         const label maxDepth_;
 
+        //- The split quadrature's tolerance and depth when it is the
+        //  FALLBACK of a rule that could not resolve a polyhedron (keys
+        //  volumeRuleFallbackTolRel 1e-8, volumeRuleFallbackMaxDepth 6):
+        //  unresolved configurations are the wild surfaces of a diverging
+        //  loop, where the full-accuracy split quadrature cost hours per step
+        const scalar fallbackTolRel_;
+        const label fallbackMaxDepth_;
+
         //- Counters of the step: quadrature leaves (cost) and fallbacks
         mutable label nLeaves_;
         mutable label nFallback_;
 
 
     // Protected Member Functions
+
+        //- The capped split quadrature of a fallback
+        scalar fallbackCellLiquidVolume
+        (
+            const label celli,
+            const davof::cellSurface& S
+        ) const;
+
+        scalar fallbackPrismLiquidVolume
+        (
+            const label facei,
+            const vector& d,
+            const davof::cellSurface& S
+        ) const;
 
         //- The reference: the split quadrature of davofCurvedGeometry.H
         scalar splitCellLiquidVolume

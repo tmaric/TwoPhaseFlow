@@ -543,8 +543,10 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolume
         }
         return min(max(v, scalar(0)), Vc);
     }
+    // not resolved (a wild surface, a degenerate conic): the capped split
+    // quadrature; clamped to [0, V] as the rule's own value is
     ++nFallback_;
-    return splitCellLiquidVolume(celli, S, tolRel);
+    return min(max(fallbackCellLiquidVolume(celli, S), scalar(0)), Vc);
 }
 
 
@@ -631,7 +633,7 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
         return v;
     }
     ++nFallback_;
-    return splitPrismLiquidVolume(facei, d, S, tolRel);
+    return min(max(fallbackPrismLiquidVolume(facei, d, S), scalar(0)), prismVol);
 }
 
 

@@ -48,6 +48,8 @@ Foam::davofVolumeRule::davofVolumeRule
     dict_(dict),
     tolRel_(dict.getOrDefault<scalar>("curvedTolRel", 1e-11)),
     maxDepth_(dict.getOrDefault<label>("curvedMaxDepth", 12)),
+    fallbackTolRel_(dict.getOrDefault<scalar>("volumeRuleFallbackTolRel", 1e-8)),
+    fallbackMaxDepth_(dict.getOrDefault<label>("volumeRuleFallbackMaxDepth", 6)),
     nLeaves_(0),
     nFallback_(0)
 {}
@@ -114,6 +116,35 @@ Foam::scalar Foam::davofVolumeRule::splitPrismLiquidVolume
     (
         mesh_, facei, d, [&](const point& x) { return S.value(x); },
         tolRel, maxDepth_, nLeaves_
+    );
+}
+
+
+Foam::scalar Foam::davofVolumeRule::fallbackCellLiquidVolume
+(
+    const label celli,
+    const davof::cellSurface& S
+) const
+{
+    return davof::cellLiquidVolumeQuadric
+    (
+        mesh_, celli, [&](const point& x) { return S.value(x); },
+        fallbackTolRel_, fallbackMaxDepth_, nLeaves_
+    );
+}
+
+
+Foam::scalar Foam::davofVolumeRule::fallbackPrismLiquidVolume
+(
+    const label facei,
+    const vector& d,
+    const davof::cellSurface& S
+) const
+{
+    return davof::faceSweptLiquidVolume
+    (
+        mesh_, facei, d, [&](const point& x) { return S.value(x); },
+        fallbackTolRel_, fallbackMaxDepth_, nLeaves_
     );
 }
 
