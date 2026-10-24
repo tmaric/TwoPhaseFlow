@@ -29,7 +29,13 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // The reference implementation of Strobl, Formella and Poeschel (2016),
-// doi:10.1016/j.jcp.2016.02.003 (MIT; Eigen 3)
+// doi:10.1016/j.jcp.2016.02.003 (MIT; Eigen 3). Its sanity checks are
+// assertions meant for a debug build ("debug version only" in the source);
+// OpenFOAM's build keeps assertions on, and the final check fired on a thin
+// prism tetrahedron (N = 128, Co 0.1) whose overlap came out beyond [0, V] by
+// more than the library's limit of sqrt(eps) V. The assertions are disabled
+// here as in a release build and the result is clamped to [0, V] below.
+#define overlap_assert(cond, msg) static_cast<void>(0)
 #include "overlap/overlap.hpp"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -70,13 +76,22 @@ Foam::scalar Foam::davofVolumeRules::exactSphere::tetOverlap
     if (mag(tp) <= VSMALL) return 0;
     auto V = [](const point& p) { return overlap::Vector(p.x(), p.y(), p.z()); };
     const overlap::Sphere sph(V(S.o), S.R);
+    const scalar vTet = mag(tp)/6.0;
+    scalar v;
     if (tp > 0)
     {
         const overlap::Tetrahedron tet(V(a), V(b), V(c), V(d));
-        return overlap::overlap_volume(sph, tet);
+        v = overlap::overlap_volume(sph, tet);
     }
-    const overlap::Tetrahedron tet(V(a), V(c), V(b), V(d));
-    return overlap::overlap_volume(sph, tet);
+    else
+    {
+        const overlap::Tetrahedron tet(V(a), V(c), V(b), V(d));
+        v = overlap::overlap_volume(sph, tet);
+    }
+    // the library's own clamp covers sqrt(eps) V; beyond it (its debug
+    // assertion, disabled above) the value is round-off of a thin
+    // tetrahedron and is clamped as well
+    return min(max(v, scalar(0)), vTet);
 }
 
 
