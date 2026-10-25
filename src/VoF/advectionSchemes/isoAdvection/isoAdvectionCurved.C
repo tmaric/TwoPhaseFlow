@@ -206,7 +206,14 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         return;
     }
 
-    // paraboloid: the ring curvature tensor of the start-of-step state
+    // paraboloid: the ring curvature tensor of the start-of-step state,
+    // fitted through the cut centroids or (tensorCentroid anchored) through
+    // the centroids re-anchored by the volume rule
+    nCentroidFail_ = 0;
+    if (tensorCentroid_ == "anchored")
+    {
+        anchorTensorCentroids();
+    }
     davofPtr_->updateCurvatureTensor();
     const symmTensorField& B = davofPtr_->curvatureTensor().primitiveField();
     const vectorField& usedN = davofPtr_->usedNormals();
@@ -918,6 +925,104 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
 }
 
 
+void Foam::advection::isoAdvection::anchorTensorCentroids()
+{
+    addProfilingInFunction(geometricVoF);
+    const DynamicField<label>& interfaceLabels = surf_->interfaceLabels();
+    const vectorField& usedN = davofPtr_->usedNormals();
+    const vectorField& normal = surf_->normal().primitiveField();
+    const vectorField& centre = surf_->centre().primitiveField();
+    const vectorField& m = davofPtr_->areaNormal().primitiveField();
+    const vectorField& C = mesh_.cellCentres();
+    const scalarField& V = mesh_.V();
+    const pointField& pts = mesh_.points();
+    const labelListList& cellPts = mesh_.cellPoints();
+    vectorField& xT = davofPtr_->tensorCentres();
+
+    forAll(interfaceLabels, i)
+    {
+        const label celli = interfaceLabels[i];
+        const point o = (mag(normal[celli]) > 0) ? centre[celli] : C[celli];
+        xT[celli] = o;
+        vector nIn = usedN[i];
+        if (!(mag(nIn) > 0))
+        {
+            const scalar mMag = mag(m[celli]);
+            if (!(mMag > 0)) continue;
+            nIn = m[celli]/mMag;
+        }
+        // The plane of the frame through o (c = 0), to be shifted along e3
+        davof::cellSurface T;
+        T.paraboloid = false;
+        T.e3 = -nIn;
+        davof::frameOf(T.e3, T.e1, T.e2);
+        T.o = o;
+        T.c = 0;
+        const scalar Vc = V[celli];
+        const scalar h = Foam::cbrt(Vc);
+        const scalar target = alpha1In_[celli]*Vc;
+
+        // The bracket: the cell's extent along e3 about o, where the
+        // volume under the plane is 0 and V (V(c) is non-decreasing)
+        scalar lo = 0, hi = 0;
+        for (const label pi : cellPts[celli])
+        {
+            const scalar s = (pts[pi] - o) & T.e3;
+            lo = min(lo, s);
+            hi = max(hi, s);
+        }
+        lo -= 1e-9*h;
+        hi += 1e-9*h;
+        scalar rlo = -target, rhi = Vc - target;
+        auto residual = [&](const scalar cc) -> scalar
+        {
+            T.c = cc;
+            return volumeRulePtr_->cellLiquidVolume(celli, T, anchorTolRel_) - target;
+        };
+        bool ok = false;
+        if (rlo >= 0)
+        {
+            T.c = lo; ok = true;
+        }
+        else if (rhi <= 0)
+        {
+            T.c = hi; ok = true;
+        }
+        else
+        {
+            // Illinois (modified regula falsi) on the offset, closed to a
+            // round-off residual or to 1e-13 h of the offset
+            label side = 0;
+            for (label it = 0; it < 200; ++it)
+            {
+                scalar c1 = (rlo*hi - rhi*lo)/(rlo - rhi);
+                if (!(c1 > lo && c1 < hi)) c1 = 0.5*(lo + hi);
+                const scalar r1 = residual(c1);
+                if (mag(r1) <= 1e-15*Vc || hi - lo <= 1e-13*h)
+                {
+                    T.c = c1; ok = true; break;
+                }
+                if (r1 < 0)
+                {
+                    lo = c1; rlo = r1;
+                    if (side == -1) rhi *= 0.5;
+                    side = -1;
+                }
+                else
+                {
+                    hi = c1; rhi = r1;
+                    if (side == 1) rlo *= 0.5;
+                    side = 1;
+                }
+            }
+            if (!ok) T.c = 0.5*(lo + hi);
+        }
+        if (!ok) ++nCentroidFail_;
+        xT[celli] = o + T.c*T.e3;
+    }
+}
+
+
 void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
 {
     addProfilingInFunction(geometricVoF);
@@ -1280,9 +1385,20 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             }
         }
 
-        // The face fraction: the pre-image's liquid fraction under the surface
+        // The face fraction: the pre-image's liquid fraction under the
+        // surface; with faceState vector its wetted area vector as well
+        // (the pre-image's fan triangles are translates of the face's)
         label nfb = 0;
-        scalar af = volumeRulePtr_->faceLiquidFraction(facei, -d, S, nfb);
+        scalar af;
+        vector aWet(Zero);
+        if (wetVecPtr_)
+        {
+            af = volumeRulePtr_->faceWettedArea(facei, -d, S, aWet, nfb);
+        }
+        else
+        {
+            af = volumeRulePtr_->faceLiquidFraction(facei, -d, S, nfb);
+        }
         nCurvedFallback_ += nfb;
         if (af < -1e-12 || af > 1 + 1e-12)
         {
@@ -1290,6 +1406,10 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         }
         af = min(max(af, scalar(0)), scalar(1));
         setFaceValue(*alphafPtr_, facei, af);
+        if (wetVecPtr_)
+        {
+            setFaceValue(*wetVecPtr_, facei, aWet);
+        }
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
         if (!alphafSetFace_.test(facei))
         {
@@ -1373,7 +1493,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     {
         // the computed processor faces to the other side (the flux with the
         // opposite sign, the face fraction as it is)
-        syncProcPatches(dVf_, phi_, false, alphafPtr_);
+        syncProcPatches(dVf_, phi_, false, alphafPtr_, wetVecPtr_);
     }
     nCurvedLeaves_ = volumeRulePtr_->nLeaves();
     nRuleFallback_ += volumeRulePtr_->nFallback();
@@ -1443,10 +1563,12 @@ void Foam::advection::isoAdvection::reportCurved() const
     label nAnchE = nAnchorEvals_, nAnchEdge = nAnchorEdge_;
     label nCmpD = nCompareDiff_, nCmpDE = nCompareDiffEdge_, nCmpDR = nCompareDiffResolved_;
     label nDef = nDefectCells_, nRuleFb = nRuleFallback_ + volumeRulePtr_->nFallback();
+    label nCenF = nCentroidFail_;
     scalar fitRMax = fitResMax_, fitRSum = fitResSum_, ashMax = anchorShiftMax_;
     scalar ashSum = anchorShiftSum_, defMax = defectMax_, defSum = defectSum_;
     if (Pstream::parRun())
     {
+        reduce(nCenF, sumOp<label>());
         reduce(nFaces, sumOp<label>()); reduce(nSecond, sumOp<label>());
         reduce(nBound, sumOp<label>()); reduce(nSkip, sumOp<label>());
         reduce(nClip, sumOp<label>()); reduce(nLin, sumOp<label>());
@@ -1492,6 +1614,10 @@ void Foam::advection::isoAdvection::reportCurved() const
             Info<< ", leaves " << nAnchL << ", evaluations " << nAnchE
                 << " (per cell " << scalar(nAnchE)/max(nFitC, label(1)) << ")"
                 << ", edge " << nAnchEdge;
+        }
+        if (tensorCentroid_ == "anchored")
+        {
+            Info<< "; anchored centroids: failed " << nCenF;
         }
     }
     if (nDef > 0)

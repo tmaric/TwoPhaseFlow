@@ -125,6 +125,15 @@ class davofInit
         //  surface's for every construction)
         vectorField mTet_;
 
+        //- The wetted area vector of every polyMesh face (faceState vector,
+        //  2026-10-25): the sum over the fan triangles (x_f, p_i, p_{i+1})
+        //  of each triangle's wetted area vector, in the face's
+        //  orientation; filled by every construction (detrixheAslam: the
+        //  linear cut's wet polygon per triangle, davof::triNegativePolygon;
+        //  quadraticFaces: the quadratic fraction times the triangle's area
+        //  vector; exactSphere: alpha_f S_f, its faces are planar)
+        vectorField wetVecAll_;
+
 
     // Private Member Functions
 
@@ -243,6 +252,16 @@ public:
             scalarField& alphafAll
         );
 
+        //- m_c = sum_f a_f^out per cell from the wetted area vectors (the
+        //  faces with alpha_f = 0 skipped as in the scalar sum)
+        static void areaNormal
+        (
+            const fvMesh& mesh,
+            const surfaceScalarField& alphaf,
+            const surfaceVectorField& wetVec,
+            vectorField& m
+        );
+
         //- max over the interface cells (|m_c| > wispTol V^(2/3)) of
         //  |m_c - mTet_c| / V_c^(2/3), reduced over the ranks
         scalar maxConsistency
@@ -250,6 +269,18 @@ public:
             const surfaceScalarField& alphaf,
             const scalar wispTol
         ) const;
+
+        //- The same with m_c from the wetted area vectors
+        scalar maxConsistency
+        (
+            const surfaceScalarField& alphaf,
+            const surfaceVectorField& wetVec,
+            const scalar wispTol
+        ) const;
+
+        //- The wetted area vectors of the last construction into the face
+        //  field (internal field, then patch-wise)
+        void fillWettedArea(surfaceVectorField& wetVec) const;
 
         scalar maxAlphaClip() const
         {

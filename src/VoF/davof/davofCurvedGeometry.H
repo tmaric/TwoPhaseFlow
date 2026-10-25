@@ -250,6 +250,44 @@ inline scalar faceCutDisplaced
 }
 
 
+//- As faceCutDisplaced, and the wetted area VECTOR of the displaced face in
+//  the face's orientation: the sum over the fan triangles of each triangle's
+//  wetted area (the quadratic cut, clamped to [0, A_t]) times its unit
+//  normal (faceState vector, 2026-10-25).
+template<class PhiAt>
+inline scalar faceCutDisplacedVector
+(
+    const fvMesh& mesh,
+    const label faceI,
+    const vector& d,
+    PhiAt&& phi,
+    vector& aWet,
+    label& nFallback
+)
+{
+    const pointField& P = mesh.points();
+    const face& f = mesh.faces()[faceI];
+    const point xf = mesh.faceCentres()[faceI] + d;
+    scalar liqA = 0, totA = 0;
+    aWet = Zero;
+    forAll(f, ip)
+    {
+        const label ip1 = f.nextLabel(ip);
+        const point p0 = P[f[ip]] + d;
+        const point p1 = P[ip1] + d;
+        const vector St = 0.5*((p0 - xf) ^ (p1 - xf));
+        const scalar triA = mag(St);
+        if (triA <= VSMALL) continue;
+        const scalar wet = min(max(triLiquidArea(xf, p0, p1, phi, 6, nFallback), scalar(0)), triA);
+        liqA += wet;
+        totA += triA;
+        aWet += (wet/triA)*St;
+    }
+    if (totA > VSMALL) return liqA/totA;
+    return (phi(xf) < 0 ? scalar(1) : scalar(0));
+}
+
+
 // * * * * * * * The triangle integral split at the quadric traces * * * * * //
 
 //- Gauss-Legendre nodes and weights on [0, 1], n = 12 (cached).
@@ -549,7 +587,11 @@ inline scalar prismLiquidVolume
 
 
 //- The liquid volume flux prism of the face faceI (fan of triangles about
-//  the face centre) displaced by -d, under phi.
+//  the face centre) displaced by -d, under phi. A fan triangle of a warped
+//  face whose normal makes d.n_t of the other sign than d.S_f is swept
+//  backwards and enters with a negative sign (2026-10-25; every triangle of
+//  a planar face has the face's sign, so nothing changes there): the net
+//  liquid volume through the face.
 template<class PhiAt>
 inline scalar faceSweptLiquidVolume
 (
@@ -566,14 +608,24 @@ inline scalar faceSweptLiquidVolume
     const face& f = mesh.faces()[faceI];
     const point& xf = mesh.faceCentres()[faceI];
     const vector& Sf = mesh.faceAreas()[faceI];
-    const scalar prismVol = mag(d & Sf);
+    const scalar dS = d & Sf;
+    const scalar prismVol = mag(dS);
     if (prismVol <= VSMALL) return 0;
     const scalar tolAbs = tolRel*prismVol;
     scalar v = 0;
     forAll(f, ip)
     {
         const label ip1 = f.nextLabel(ip);
-        v += prismLiquidVolume(xf, P[f[ip]], P[ip1], d, phi, tolAbs, maxDepth, nLeaves);
+        const scalar vt = prismLiquidVolume(xf, P[f[ip]], P[ip1], d, phi, tolAbs, maxDepth, nLeaves);
+        const scalar dSt = d & ((P[f[ip]] - xf) ^ (P[ip1] - xf));
+        if (dSt*dS < 0)
+        {
+            v -= vt;
+        }
+        else
+        {
+            v += vt;
+        }
     }
     return v;
 }

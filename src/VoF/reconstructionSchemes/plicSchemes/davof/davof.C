@@ -86,6 +86,51 @@ Foam::reconstruction::davof::readAlphafIfAbsent(const volScalarField& alpha1)
 }
 
 
+Foam::autoPtr<Foam::surfaceVectorField>
+Foam::reconstruction::davof::readWetVecIfAbsent
+(
+    const volScalarField& alpha1,
+    const word& faceState
+)
+{
+    if (faceState != "vector")
+    {
+        return nullptr;
+    }
+    const fvMesh& mesh = alpha1.mesh();
+    const word name(IOobject::groupName("wettedAreaDavof", alpha1.group()));
+
+    if (mesh.foundObject<surfaceVectorField>(name))
+    {
+        return nullptr;
+    }
+
+    IOobject io
+    (
+        name,
+        mesh.time().timeName(),
+        mesh,
+        IOobject::MUST_READ,
+        IOobject::AUTO_WRITE
+    );
+
+    if (!io.typeHeaderOk<surfaceVectorField>(true))
+    {
+        FatalErrorInFunction
+            << "faceState vector: the wetted area vector field " << name
+            << " is neither registered nor in " << mesh.time().timeName()
+            << "/ of the case." << nl
+            << "Run initDavofFields with faceState vector in"
+            << " system/initAlphaFieldDict to write " << name << "."
+            << exit(FatalError);
+    }
+
+    Info<< "davof: reading " << name << " from " << mesh.time().timeName()
+        << endl;
+    return autoPtr<surfaceVectorField>::New(io, mesh);
+}
+
+
 bool Foam::reconstruction::davof::positionPlane
 (
     const label celli,
@@ -193,11 +238,16 @@ void Foam::reconstruction::davof::formAreaNormal()
         touchedCell_.reset();
 
         const scalarField& afIn = alphaf_.primitiveField();
+        const vectorField* wvIn = wetVecPtr_ ? &wetVecPtr_->primitiveField() : nullptr;
         for (const label facei : *wetFacesPtr_)
         {
             const scalar af = (facei < nInt) ? afIn[facei] : faceFraction(facei);
             if (af == 0) continue;
-            const vector contrib = af*Sf[facei];
+            // faceState vector: the wetted area vector in place of af S_f
+            const vector contrib =
+                wvIn
+              ? ((facei < nInt) ? (*wvIn)[facei] : faceWettedArea(facei))
+              : af*Sf[facei];
             m[own[facei]] += contrib;
             touchedCell_.set(own[facei]);
             if (facei < nInt)
@@ -214,11 +264,12 @@ void Foam::reconstruction::davof::formAreaNormal()
     touchedCell_.reset();
 
     const scalarField& afIn = alphaf_.primitiveField();
+    const vectorField* wvIn = wetVecPtr_ ? &wetVecPtr_->primitiveField() : nullptr;
     for (label facei = 0; facei < nInt; ++facei)
     {
         const scalar af = afIn[facei];
         if (af == 0) continue;
-        const vector contrib = af*Sf[facei];
+        const vector contrib = wvIn ? (*wvIn)[facei] : af*Sf[facei];
         m[own[facei]] += contrib;
         m[nei[facei]] -= contrib;
         touchedCell_.set(own[facei]);
@@ -233,7 +284,10 @@ void Foam::reconstruction::davof::formAreaNormal()
         {
             const label facei = pp.start() + i;
             if (pf[i] == 0) continue;
-            m[own[facei]] += pf[i]*Sf[facei];
+            m[own[facei]] +=
+                wetVecPtr_
+              ? wetVecPtr_->boundaryField()[patchi][i]
+              : pf[i]*Sf[facei];
             touchedCell_.set(own[facei]);
         }
     }
@@ -302,6 +356,9 @@ Foam::reconstruction::davof::davof
             IOobject::groupName("alphaf", alpha1.group())
         )
     ),
+    faceState_(modelDict().getOrDefault<word>("faceState", "scalar")),
+    wetVecOwnPtr_(readWetVecIfAbsent(alpha1, faceState_)),
+    wetVecPtr_(nullptr),
     hasValue_(),
     wetFacesPtr_(nullptr),
     wetFacesNFaces_(-1),
@@ -388,9 +445,27 @@ Foam::reconstruction::davof::davof
     mRingPtr_(nullptr),
     mRingFilled_(),
     tensorCells_(),
+    tensorCentrePtr_(nullptr),
+    tensorCentresValid_(false),
     nTensorCells_(0),
     nTensorFallback_(0)
 {
+    if (faceState_ == "vector")
+    {
+        wetVecPtr_ = &mesh_.lookupObjectRef<surfaceVectorField>
+        (
+            IOobject::groupName("wettedAreaDavof", alpha1.group())
+        );
+        Info<< "davof: faceState vector (m_c and the face moment from the"
+            << " wetted area vector " << wetVecPtr_->name() << ")" << endl;
+    }
+    else if (faceState_ != "scalar")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "faceState '" << faceState_
+            << "' unknown. Valid: scalar, vector." << exit(FatalIOError);
+    }
+
     normalModel_ = davofNormalModel::New(modelDict(), *this);
 
     Info<< "davof: normalModel " << normalModel_->type() << ", applyTo "
@@ -551,13 +626,19 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
             if (!hasValue_[facei]) continue;
             const scalar af = faceFraction(facei);
             if (af == 0) continue;
+            // faceState vector: (x_f - x_c).a_f, the exact first moment of
+            // the fan face (every fan triangle contains x_f)
+            const scalar term =
+                wetVecPtr_
+              ? ((Cf[facei] - C[celli]) & faceWettedArea(facei))
+              : af*((Cf[facei] - C[celli]) & Sf[facei]);
             if (own[facei] == celli)
             {
-                faceMoment += af*((Cf[facei] - C[celli]) & Sf[facei]);
+                faceMoment += term;
             }
             else
             {
-                faceMoment -= af*((Cf[facei] - C[celli]) & Sf[facei]);
+                faceMoment -= term;
             }
         }
 
@@ -745,8 +826,14 @@ void Foam::reconstruction::davof::updateCurvatureTensor()
     const boolList& zone = interfaceCell_;
     exchange.setUpCommforZone(zone, true);
 
+    // The centroids: the cut polygons' (centre_) or the ones isoAdvection
+    // re-anchored for this update (tensorCentroid anchored)
+    const bool useAnchored = (tensorCentresValid_ && tensorCentrePtr_);
+    const volVectorField& xField = useAnchored ? *tensorCentrePtr_ : centre_;
+    tensorCentresValid_ = false;
+
     const Map<vector> mapM(exchange.getDatafromOtherProc(zone, *mRingPtr_));
-    const Map<vector> mapX(exchange.getDatafromOtherProc(zone, centre_));
+    const Map<vector> mapX(exchange.getDatafromOtherProc(zone, xField));
     const Map<vector> mapN(exchange.getDatafromOtherProc(zone, normal_));
     const labelListList& stencil = exchange.getStencil();
 
@@ -776,7 +863,7 @@ void Foam::reconstruction::davof::updateCurvatureTensor()
             const vector nk = exchange.getValue(normal_, mapN, gblIdx);
             const scalar nkMag = mag(nk);
             if (!(nkMag > 0)) continue;       // no positioned plane
-            const vector xk = exchange.getValue(centre_, mapX, gblIdx);
+            const vector xk = exchange.getValue(xField, mapX, gblIdx);
             xs.append(xk);
             ns.append(nk/nkMag);
             ws.append(mkMag);
@@ -791,7 +878,7 @@ void Foam::reconstruction::davof::updateCurvatureTensor()
             const scalar mMag = mag(m[celli]);
             e3 = (mMag > 0) ? m[celli]/mMag : vector(Zero);
         }
-        const point o = (mag(normal_[celli]) > 0) ? centre_[celli] : C[celli];
+        const point o = (mag(normal_[celli]) > 0) ? xField[celli] : C[celli];
         const scalar h = Foam::cbrt(V[celli]);
 
         vector e1, e2;
@@ -832,7 +919,35 @@ void Foam::reconstruction::davof::updateCurvatureTensor()
     z0f.correctBoundaryConditions();
 
     Info<< "davof: curvature tensor on " << nTensorCells_
-        << " cells, " << nTensorFallback_ << " tensor fallbacks" << endl;
+        << " cells, " << nTensorFallback_ << " tensor fallbacks"
+        << (useAnchored ? " (anchored centroids)" : "") << endl;
+}
+
+
+Foam::vectorField& Foam::reconstruction::davof::tensorCentres()
+{
+    if (!tensorCentrePtr_)
+    {
+        tensorCentrePtr_.reset
+        (
+            new volVectorField
+            (
+                IOobject
+                (
+                    IOobject::groupName("davofTensorCentre", alpha1_.group()),
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE,
+                    IOobject::NO_REGISTER
+                ),
+                mesh_,
+                dimensionedVector(dimLength, Zero)
+            )
+        );
+    }
+    tensorCentresValid_ = true;
+    return tensorCentrePtr_->primitiveFieldRef();
 }
 
 

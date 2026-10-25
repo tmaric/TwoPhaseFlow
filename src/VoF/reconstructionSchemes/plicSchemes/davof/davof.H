@@ -221,6 +221,20 @@ class davof
         //- The face fractions alphaf.<group> (registered)
         surfaceScalarField& alphaf_;
 
+        //- The face state on warped faces (key faceState, 2026-10-25):
+        //  scalar (alphaf alone, the default) or vector, where the wetted
+        //  area vector wettedAreaDavof.<group> (per face the sum over the
+        //  fan triangles about the face centre of the wetted area times
+        //  the triangle's unit normal, in the face's orientation; read
+        //  from the time directory unless registered) replaces alpha_f S_f
+        //  in m_c and in the face moment of the explicit position. Every
+        //  fan triangle contains the face centre, so (x - x_f).n_t = 0 on
+        //  it and the first-moment identity needs nothing beyond the
+        //  vector: int_f chi (x - x_c).n dS = (x_f - x_c).a_f
+        word faceState_;
+        autoPtr<surfaceVectorField> wetVecOwnPtr_;
+        surfaceVectorField* wetVecPtr_;
+
         //- Faces that carry a face-fraction value (the internal faces and
         //  the faces of patches whose fvsPatchField has the patch size);
         //  built once per mesh (updateHasValue)
@@ -296,6 +310,13 @@ class davof
             //  next update)
             labelList tensorCells_;
 
+            //- The centroids the Monge fit reads in place of centre_ when
+            //  isoAdvection has set them for the coming update
+            //  (tensorCentroid anchored; tensorCentres()): a NO_REGISTER
+            //  field for the ring exchange, valid until consumed
+            autoPtr<volVectorField> tensorCentrePtr_;
+            bool tensorCentresValid_;
+
             //- Counts of the last update (reduced)
             label nTensorCells_;
             label nTensorFallback_;
@@ -313,6 +334,17 @@ class davof
         (
             const volScalarField& alpha1
         );
+
+        //- Read wettedAreaDavof.<group> from the time directory unless
+        //  registered (faceState vector; nullptr otherwise)
+        static autoPtr<surfaceVectorField> readWetVecIfAbsent
+        (
+            const volScalarField& alpha1,
+            const word& faceState
+        );
+
+        //- The wetted area vector of a polyMesh face that carries a value
+        inline vector faceWettedArea(const label facei) const;
 
         //- Position the plane of celli by alpha along n; sets normal_ and
         //  centre_ (zero when the cut fails). Returns the success.
@@ -416,6 +448,22 @@ public:
         {
             return areaNormal_;
         }
+
+        //- The wetted area vector field (nullptr with faceState scalar)
+        surfaceVectorField* wettedAreaPtr()
+        {
+            return wetVecPtr_;
+        }
+
+        const surfaceVectorField* wettedAreaPtr() const
+        {
+            return wetVecPtr_;
+        }
+
+        //- The centroids for the next updateCurvatureTensor (allocated on
+        //  the first call, sized to the cells; marked valid until the
+        //  update consumes them)
+        vectorField& tensorCentres();
 
         //- The sliver flag
         const volScalarField& sliverFlag() const
@@ -542,6 +590,22 @@ inline Foam::scalar Foam::reconstruction::davof::faceFraction
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
     const label patchi = pbm.patchID()[facei - nInt];
     return alphaf_.boundaryField()[patchi][facei - pbm[patchi].start()];
+}
+
+
+inline Foam::vector Foam::reconstruction::davof::faceWettedArea
+(
+    const label facei
+) const
+{
+    const label nInt = mesh_.nInternalFaces();
+    if (facei < nInt)
+    {
+        return wetVecPtr_->primitiveField()[facei];
+    }
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label patchi = pbm.patchID()[facei - nInt];
+    return wetVecPtr_->boundaryField()[patchi][facei - pbm[patchi].start()];
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

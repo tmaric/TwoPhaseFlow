@@ -107,6 +107,27 @@ Foam::davofVolumeRules::kromerBothe::kromerBothe
         << (davof::kbFanMode() < 0 ? "auto (warped faces only)"
           : (davof::kbFanMode() > 0 ? "true (every face)" : "false (whole faces)"))
         << endl;
+    // kromerBothePrismApex: vertexMean (the default, as before) | faceCentre
+    // (the warped prism top and bottom fanned about the mesh face centre,
+    // the cell's own fan; 2026-10-25)
+    {
+        const word apex
+        (
+            dict.getOrDefault<word>("kromerBothePrismApex", "vertexMean")
+        );
+        if (apex == "vertexMean") davof::kbPrismApexCentre() = false;
+        else if (apex == "faceCentre") davof::kbPrismApexCentre() = true;
+        else
+        {
+            FatalIOErrorInFunction(dict)
+                << "kromerBothePrismApex '" << apex
+                << "' unknown. Valid: vertexMean, faceCentre." << exit(FatalIOError);
+        }
+        if (davof::kbPrismApexCentre())
+        {
+            Info<< "kromerBothe: prism apex faceCentre" << endl;
+        }
+    }
     if (debug_)
     {
         Info<< "kromerBothe: minSplit " << davof::kbMinSplit()
@@ -1144,11 +1165,21 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     davof::kbPrismFaces(mesh_, facei, d, faces);
     scalar v = 0;
     const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_);
-    const bool inRange = v >= -1e-9*prismVol && v <= (1 + 1e-9)*prismVol;
+    // the admissible range of the net liquid volume: [0, |d.S_f|] on a
+    // planar face; on a warped face whose fan triangles the displacement
+    // partly sweeps backwards [-V_back, V_fwd] (kbPrismRange, 2026-10-25:
+    // the clamp to [0, |d.S_f|] cut the exact net flux of the obliquely
+    // crossed warped faces of the perturbed plane)
+    scalar vLo = 0, vHi = prismVol;
+    const bool warpedRange = davof::kbPrismRange(mesh_, facei, d, vLo, vHi);
+    const bool inRange =
+        warpedRange
+      ? (v >= vLo - 1e-9*prismVol && v <= vHi + 1e-9*prismVol)
+      : (v >= -1e-9*prismVol && v <= (1 + 1e-9)*prismVol);
     if (resolved && !inRange) ++davof::kbFailCount(davof::KB_VOLUME);
     if (resolved && inRange)
     {
-        v = min(max(v, scalar(0)), prismVol);
+        v = min(max(v, vLo), vHi);
         if (debug_)
         {
             const scalar vs = splitPrismLiquidVolume(facei, d, S, tolRel);
@@ -1203,7 +1234,7 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
         return v;
     }
     ++nFallback_;
-    return min(max(fallbackPrismLiquidVolume(facei, d, S), scalar(0)), prismVol);
+    return min(max(fallbackPrismLiquidVolume(facei, d, S), vLo), vHi);
 }
 
 
@@ -1273,6 +1304,29 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::faceLiquidFraction
     }
     ++nFallback_;
     return davofVolumeRule::faceLiquidFraction(facei, d, S, nFallback);
+}
+
+
+Foam::scalar Foam::davofVolumeRules::kromerBothe::faceWettedArea
+(
+    const label facei,
+    const vector& d,
+    const davof::cellSurface& S,
+    vector& aWet,
+    label& nFallback
+) const
+{
+    scalar af = 0;
+    if
+    (
+        !S.sphere
+     && davof::kbFaceWettedArea(mesh_, facei, d, S, tolRel_, aWet, af, nLeaves_)
+    )
+    {
+        return af;
+    }
+    ++nFallback_;
+    return davofVolumeRule::faceWettedArea(facei, d, S, aWet, nFallback);
 }
 
 

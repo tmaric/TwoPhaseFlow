@@ -246,6 +246,22 @@ public:
             label& nFallback
         ) const;
 
+        //- The wetted area VECTOR of facei displaced by d under S, in the
+        //  face's orientation (the sum over the fan triangles about the
+        //  face centre of each triangle's wetted area times its unit
+        //  normal; alpha_f S_f on a planar face), returned with the scalar
+        //  fraction as faceLiquidFraction gives it: the transported face
+        //  state on warped faces (faceState vector, 2026-10-25). Default:
+        //  the quadratic triangle cut per triangle
+        virtual scalar faceWettedArea
+        (
+            const label facei,
+            const vector& d,
+            const davof::cellSurface& S,
+            vector& aWet,
+            label& nFallback
+        ) const;
+
         //- The rule's own line of the step report (nothing by default)
         virtual void report() const {}
 
