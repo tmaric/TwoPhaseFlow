@@ -692,6 +692,13 @@ inline bool kbIntegrateFace
             const scalar nx = -ey/Le, ny = ex/Le;      // left normal of the chord
             const scalar rM = (mx - ax)*nx + (my - ay)*ny;
             const scalar sigma = (rM >= 0) ? 1 : -1;
+            // a flat arc (a line trace, or a parabola of round-off curvature
+            // on a plane) has a midpoint on its chord to round-off: its side
+            // is not known, and the root along the chord's normal is the one
+            // nearest to the chord; selecting it by the side took the far
+            // root of the near-degenerate quadratic (|r| ~ 1e9 Ls) in up to
+            // 70000 prisms per step on the translated plane (2026-10-25)
+            const bool sideKnown = mag(rM) > 1e-9*Ls;
 
             // the point of the arc over the chord parameter l and its derivative
             auto onArc = [&](const scalar l, scalar& x, scalar& y, scalar& dx, scalar& dy) -> bool
@@ -715,7 +722,8 @@ inline bool kbIntegrateFace
                     const scalar ra = (qq != 0) ? ga/qq : -be/(2*al);
                     const scalar rb = (al != 0) ? qq/al : ra;
                     const bool sa = (ra*sigma >= 0), sb = (rb*sigma >= 0);
-                    if (sa && sb) r = (mag(ra) <= mag(rb)) ? ra : rb;
+                    if (!sideKnown) r = (mag(ra) <= mag(rb)) ? ra : rb;
+                    else if (sa && sb) r = (mag(ra) <= mag(rb)) ? ra : rb;
                     else if (sa) r = ra;
                     else if (sb) r = rb;
                     else r = (mag(ra) <= mag(rb)) ? ra : rb;
