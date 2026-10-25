@@ -168,12 +168,14 @@ Foam::advection::isoAdvection::isoAdvection
     defectEvery_(modelDict().getOrDefault<label>("defectEvery", 10)),
     curvedDebug_(modelDict().getOrDefault<bool>("curvedDebug", false)),
     anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
+    anchorMethod_(modelDict().getOrDefault<word>("anchorMethod", "newton")),
     debugR0Max_(0),
     debugCellR0_(-1),
     debugSurface_(),
     debugAlpha_(0),
     nAnchorFail_(0),
     nAnchorLeaves_(0),
+    nAnchorEvals_(0),
     anchorShiftMax_(0),
     anchorShiftSum_(0),
     defectLevels_(modelDict().getOrDefault<label>("defectLevels", 3)),
@@ -273,10 +275,17 @@ Foam::advection::isoAdvection::isoAdvection
                         << "fitDof none needs fitAnchor volume (the offset"
                         << " comes from nowhere else)" << exit(FatalIOError);
                 }
+                if (anchorMethod_ != "newton" && anchorMethod_ != "illinois")
+                {
+                    FatalIOErrorInFunction(modelDict())
+                        << "anchorMethod '" << anchorMethod_
+                        << "' unknown. Valid: newton, illinois." << exit(FatalIOError);
+                }
                 Info<< ", fitPriorWeight " << fitPriorWeight_ << ", fitTol "
                     << fitTol_ << ", fitMaxIter " << fitMaxIter_
                     << ", fitAnchor " << fitAnchor_ << ", fitDof " << fitDof_
-                    << ", anchorTolRel " << anchorTolRel_ << ", defectEvery "
+                    << ", anchorTolRel " << anchorTolRel_ << ", anchorMethod "
+                    << anchorMethod_ << ", defectEvery "
                     << defectEvery_ << ", anchorDiagnostics "
                     << (anchorDiagnostics_ ? "on" : "off");
             }

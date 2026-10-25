@@ -105,6 +105,17 @@ public:
             const scalar tolRel
         ) const;
 
+        //- The cell volume with its slope dV/dc, the projected area of the
+        //  wetted patch (oint t1 dt2 around the trace arcs); -1 where the
+        //  polyhedron fell back to the split quadrature
+        virtual scalar cellLiquidVolumeSlope
+        (
+            const label celli,
+            const davof::cellSurface& S,
+            const scalar tolRel,
+            scalar& dVdc
+        ) const;
+
         virtual scalar prismLiquidVolume
         (
             const label facei,

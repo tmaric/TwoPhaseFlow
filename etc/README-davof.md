@@ -599,9 +599,27 @@ models):
   circle trace up to the sliver's 12-point rule). For `clippingSurface exactSphere`; a
   paraboloid falls back to `splitQuadrature`, counted.
 
-Other algorithms of the curved flux, with their sources: the volume anchor's root by a bracket
-and the Illinois rule, M. Dowell, P. Jarratt, A modified regula falsi method for computing the
-root of an equation, BIT 11 (1971) 168-174, doi:10.1007/BF01934364; the six-coefficient fit by
+Other algorithms of the curved flux, with their sources: the volume anchor's root (key
+`anchorMethod`, default `newton`, 2026-10-25) by Newton on the exact slope dV/dc, the area of the
+wetted patch projected along the frame's axis, which the Kromer-Bothe rule returns as the line
+integral oint t1 dt2 around the trace arcs it walks for the volume anyway
+(`cellLiquidVolumeSlope`), safeguarded by the bracket the iterates build (an iterate outside
+it is replaced by the bisection point: the rtsafe of Press, Teukolsky, Vetterling, Flannery,
+Numerical Recipes, 3rd ed., Cambridge University Press, 2007, Sect. 9.4, ISBN
+978-0-521-88068-8) and corrected by the quadratic model whose second derivative is the secant
+of the two latest slopes (Halley's step with that estimate: T. R. Scavo, J. B. Thoo, On the
+geometry of Halley's method, Amer. Math. Monthly 102 (1995) 417-426, doi:10.2307/2975033);
+converged when the bracket closes to 1e-11 h or Newton's own step is below it with the
+residual within `anchorTolRel`; where the slope is not available (a fallback polyhedron,
+another rule) and no bracket exists yet, or with `anchorMethod illinois`, the root by a
+bracket of doubling steps and the Illinois rule, M. Dowell, P. Jarratt, A modified regula
+falsi method for computing the root of an equation, BIT 11 (1971) 168-174,
+doi:10.1007/BF01934364 (the only method until 2026-10-25: 6.2 cell-volume evaluations per
+interface cell per step, 57 % of the advection step at N = 64). The Info line counts the
+anchor's evaluations ("evaluations N (per cell x)"). The anchor's two face-fraction
+diagnostics, the face residual before the anchor and the face shift after it (14 % of the
+step), are computed and printed only with `anchorDiagnostics true` (default false). The
+six-coefficient fit by
 Gauss-Newton with the damping of D. W. Marquardt, An algorithm for least-squares estimation of
 nonlinear parameters, J. Soc. Indust. Appl. Math. 11 (1963) 431-441, doi:10.1137/0111030; the
 six-point degree-4 triangle rule of the retired unsplit quadrature from D. A. Dunavant, High

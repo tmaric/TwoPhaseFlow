@@ -547,6 +547,20 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolume
     const scalar tolRel
 ) const
 {
+    scalar dVdc = -1;
+    return cellLiquidVolumeSlope(celli, S, tolRel, dVdc);
+}
+
+
+Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolumeSlope
+(
+    const label celli,
+    const davof::cellSurface& S,
+    const scalar tolRel,
+    scalar& dVdc
+) const
+{
+    dVdc = -1;
     if (S.sphere)
     {
         ++nFallback_;
@@ -554,13 +568,14 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolume
     }
     DynamicList<davof::kbFace> faces(24);
     davof::kbCellFaces(mesh_, celli, faces);
-    scalar v = 0;
+    scalar v = 0, patchArea = 0;
     const scalar Vc = mesh_.V()[celli];
-    const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*Vc, v, nLeaves_);
+    const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*Vc, v, nLeaves_, &patchArea);
     const bool inRange = v >= -1e-9*Vc && v <= (1 + 1e-9)*Vc;
     if (resolved && !inRange) ++davof::kbFailCount(davof::KB_VOLUME);
     if (resolved && inRange)
     {
+        dVdc = patchArea;
         if (debug_)
         {
             const scalar vs = splitCellLiquidVolume(celli, S, tolRel);

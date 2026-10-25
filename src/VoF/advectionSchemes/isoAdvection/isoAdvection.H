@@ -352,12 +352,23 @@ class isoAdvection
             //  cell per step (14 % of the advection step at N = 64,
             //  2026-10-25), printed in the Info line when on
             bool anchorDiagnostics_;
+
+            //- The volume anchor's root finder (key anchorMethod): newton
+            //  (the default; Newton on the exact slope dV/dc, the projected
+            //  wetted patch area of the volume rule, safeguarded by the
+            //  bracket, falling back to illinois where the slope is not
+            //  available) or illinois (a bracket by doubling steps and the
+            //  Illinois rule, the method until 2026-10-25)
+            word anchorMethod_;
             scalar debugR0Max_;
             label debugCellR0_;
             davof::cellSurface debugSurface_;
             scalar debugAlpha_;
             label nAnchorFail_;
             label nAnchorLeaves_;
+
+            //- The cell-volume evaluations of the anchor in the step
+            label nAnchorEvals_;
             scalar anchorShiftMax_;
             scalar anchorShiftSum_;
 

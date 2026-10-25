@@ -513,6 +513,8 @@ struct kbSums
 {
     scalar faceSum = 0;      // sum_k ((x_k - o).n_k) A_k^wet
     scalar lineSum = 0;      // oint H1 dt2
+    scalar patchSum = 0;     // oint t1 dt2: the area of the projected patch,
+                             // dV/dc of the liquid volume in the offset c
     scalar lastArea = 0;     // A^wet of the last face integrated
     label nArcs = 0;
     label nLeaves = 0;
@@ -722,7 +724,7 @@ inline bool kbIntegrateFace
 
     // the arcs inside the polygon, split to at most a quarter turn
     const List<Pair<scalar>>& g = gl12();
-    scalar arcArea = 0, arcLine = 0;
+    scalar arcArea = 0, arcLine = 0, arcPatch = 0;
     forAll(arcs, ia)
     {
         const arc& ar = arcs[ia];
@@ -827,13 +829,14 @@ inline bool kbIntegrateFace
                 sLine = ((nu1*m1 + nu2*m2) >= 0) ? 1 : -1;
             }
 
-            // the integrands over l in [0, 1]
-            auto integrands = [&](const scalar l, scalar& fA, scalar& fL) -> bool
+            // the integrands over l in [0, 1]: the wetted area, the H1 line
+            // integral and the projected patch area oint t1 dt2 (dV/dc)
+            auto integrands = [&](const scalar l, scalar& fA, scalar& fL, scalar& fP) -> bool
             {
                 scalar x, y, dx, dy;
                 if (!onArc(l, x, y, dx, dy)) return false;
                 fA = 0.5*(x*dy - y*dx);
-                fL = 0;
+                fL = 0; fP = 0;
                 if (withLine)
                 {
                     const point X = F.at(x, y);
@@ -841,46 +844,49 @@ inline bool kbIntegrateFace
                     const scalar H1 = S.c*t1 - (S.b11*t1*t1*t1/6 + 0.5*S.b12*t1*t1*t2 + 0.5*S.b22*t1*t2*t2);
                     const scalar dt2 = dx*(F.f1 & S.e2) + dy*(F.f2 & S.e2);
                     fL = H1*dt2;
+                    fP = t1*dt2;
                 }
                 return true;
             };
-            auto gaussL = [&](const scalar l0, const scalar l1, scalar& IA, scalar& IL) -> bool
+            auto gaussL = [&](const scalar l0, const scalar l1, scalar& IA, scalar& IL, scalar& IP) -> bool
             {
-                IA = 0; IL = 0;
+                IA = 0; IL = 0; IP = 0;
                 for (const Pair<scalar>& gw : g)
                 {
-                    scalar fA, fL;
-                    if (!integrands(l0 + gw.first()*(l1 - l0), fA, fL)) return false;
+                    scalar fA, fL, fP;
+                    if (!integrands(l0 + gw.first()*(l1 - l0), fA, fL, fP)) return false;
                     IA += gw.second()*(l1 - l0)*fA;
                     IL += gw.second()*(l1 - l0)*fL;
+                    IP += gw.second()*(l1 - l0)*fP;
                 }
                 return true;
             };
             bool ok = true;
-            std::function<void(scalar, scalar, scalar, scalar, label, scalar&, scalar&)> rec =
-                [&](scalar l0, scalar l1, scalar pA, scalar pL, label depth, scalar& oA, scalar& oL)
+            std::function<void(scalar, scalar, scalar, scalar, scalar, label, scalar&, scalar&, scalar&)> rec =
+                [&](scalar l0, scalar l1, scalar pA, scalar pL, scalar pP, label depth, scalar& oA, scalar& oL, scalar& oP)
                 {
                     const scalar lm = 0.5*(l0 + l1);
-                    scalar a0, L0, a1, L1;
-                    if (!gaussL(l0, lm, a0, L0) || !gaussL(lm, l1, a1, L1)) { ok = false; oA = pA; oL = pL; return; }
+                    scalar a0, L0, P0, a1, L1, P1;
+                    if (!gaussL(l0, lm, a0, L0, P0) || !gaussL(lm, l1, a1, L1, P1)) { ok = false; oA = pA; oL = pL; oP = pP; return; }
                     ++sums.nLeaves;
-                    const scalar cA = a0 + a1, cL = L0 + L1;
+                    const scalar cA = a0 + a1, cL = L0 + L1, cP = P0 + P1;
                     if ((mag(cA - pA) <= tolArea && mag(cL - pL) <= tolLine) || depth >= 20)
                     {
-                        oA = cA; oL = cL; return;
+                        oA = cA; oL = cL; oP = cP; return;
                     }
-                    scalar rA0, rL0, rA1, rL1;
-                    rec(l0, lm, a0, L0, depth + 1, rA0, rL0);
-                    rec(lm, l1, a1, L1, depth + 1, rA1, rL1);
-                    oA = rA0 + rA1; oL = rL0 + rL1;
+                    scalar rA0, rL0, rP0, rA1, rL1, rP1;
+                    rec(l0, lm, a0, L0, P0, depth + 1, rA0, rL0, rP0);
+                    rec(lm, l1, a1, L1, P1, depth + 1, rA1, rL1, rP1);
+                    oA = rA0 + rA1; oL = rL0 + rL1; oP = rP0 + rP1;
                 };
-            scalar pA, pL;
-            if (!gaussL(0, 1, pA, pL)) return false;
-            scalar IA, IL;
-            rec(0, 1, pA, pL, 0, IA, IL);
+            scalar pA, pL, pP;
+            if (!gaussL(0, 1, pA, pL, pP)) return false;
+            scalar IA, IL, IP;
+            rec(0, 1, pA, pL, pP, 0, IA, IL, IP);
             if (!ok) return false;
             arcArea += sArea*IA;
             arcLine += sLine*IL;
+            arcPatch += sLine*IP;
             ++sums.nArcs;
         }
     }
@@ -910,7 +916,7 @@ inline bool kbIntegrateFace
     }
     sums.lastArea = min(max(Awet, scalar(0)), A);
     sums.faceSum += ((F.x0 - S.o) & F.n)*sums.lastArea;
-    if (withLine) sums.lineSum += arcLine;
+    if (withLine) { sums.lineSum += arcLine; sums.patchSum += arcPatch; }
     return true;
 }
 
@@ -952,15 +958,19 @@ inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kb
 
 
 //- The liquid volume of the polyhedron given by its faces (outward
-//  oriented) under the paraboloid S. Returns false where a face is not
-//  resolved.
+//  oriented) under the paraboloid S, and, when asked (patchArea), the area
+//  of the paraboloid patch inside the polyhedron projected along e3, oint
+//  t1 dt2 around the same arcs: the derivative dV/dc of the volume in the
+//  offset c (raising the surface by dc adds a slab of that area). Returns
+//  false where a face is not resolved.
 inline bool kbPolyhedronLiquidVolume
 (
     const DynamicList<kbFace>& faces,
     const cellSurface& S,
     const scalar tolAbs,         // of the volume
     scalar& vLiq,
-    label& nLeaves
+    label& nLeaves,
+    scalar* patchArea = nullptr
 )
 {
     kbSums sums;
@@ -980,6 +990,7 @@ inline bool kbPolyhedronLiquidVolume
     }
     nLeaves += sums.nLeaves;
     vLiq = (sums.faceSum + sums.lineSum)/3.0;
+    if (patchArea) *patchArea = sums.patchSum;
     return true;
 }
 
