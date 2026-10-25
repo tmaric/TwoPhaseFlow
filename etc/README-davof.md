@@ -733,9 +733,10 @@ kromerBothePrismApex vertexMean;  // | faceCentre: the warped flux prism's top a
   ring row (L1(n) 2.1e-3 to 2.4e-3, L1(alphaf) 2.6e-4 to 4.1e-4, flat in N); `tensorCentroid cut`
   fails in every row at 1.3e-5 to 1.7e-5, flat in N; `kromerBothePrismApex vertexMean` fails
   at 2e-5 to 3.5e-5 with everything else in place. On the hexahedra `faceState scalar` is
-  bit-identical with the unmodified build (8a1c5e4 before the rebase, f133781 after it) in every
-  number of areaFractionError.dat, error.dat and volumeFractionError.dat (8 cases), `vector` at
-  round-off.
+  bit-identical with the unmodified build (8a1c5e4, then f133781 and 1f914f9 after the rebases
+  onto the sliver and the perf merges) in every number of areaFractionError.dat, error.dat and
+  volumeFractionError.dat (8 cases), `vector` at round-off; on 1f914f9 the perturbed plane's
+  vector + anchored cases are at 5e-15 to 6e-14 in L1(alphaf) and 2e-16 in L1(n) throughout.
 - Diagnostics: `areaFractionError` takes m_c of both states from the vectors when
   `wettedAreaDavof` is registered (the interface-cell set of the norms) and logs the vector error
   |a_f - a_f,exact|/|S_f| (L1, Linf); the .dat columns are unchanged. Its `consistency` column
