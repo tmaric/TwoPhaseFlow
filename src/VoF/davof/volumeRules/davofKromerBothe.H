@@ -595,6 +595,39 @@ inline bool kbIntegrateFace
     forAll(F.p, i) { fv[i] = phi(F.p[i]); fmax = max(fmax, mag(fv[i])); }
     const scalar epsV = 1e-14*max(fmax, SMALL);
 
+    // A face on one side of the surface without the trace: along any line
+    // of the face plane phi is a quadratic whose second derivative is at
+    // most M = |b|_2 (the paraboloid; 2 for the sphere, 0 for a plane), so
+    // at x = sum lambda_i p_i in the convex polygon phi(x) >= sum lambda_i
+    // phi(p_i) - M/2 sum lambda_i |p_i - x|^2 >= min_i phi(p_i) - 2 M R^2,
+    // R the largest vertex distance from x0 (and symmetrically from above).
+    // Where every vertex value exceeds that bound (and the round-off band of
+    // the vertices on the surface) on one side, the face has no crossing
+    // and no enclosed ellipse: the result of the no-crossing branch below,
+    // without the edge roots and the conic.
+    {
+        scalar M = 0;
+        if (S.sphere) M = 2;
+        else if (S.paraboloid)
+        {
+            M = mag(0.5*(S.b11 + S.b22))
+              + std::sqrt(sqr(0.5*(S.b11 - S.b22)) + sqr(S.b12));
+        }
+        scalar R2 = 0;
+        forAll(F.p, i) R2 = max(R2, magSqr(F.p[i] - F.x0));
+        const scalar bound = max(2*M*R2, epsV);
+        scalar fminV = GREAT, fmaxV = -GREAT;
+        for (label i = 0; i < nV; ++i) { fminV = min(fminV, fv[i]); fmaxV = max(fmaxV, fv[i]); }
+        if (fminV > bound || fmaxV < -bound)
+        {
+            // the centroid value decides, as in the no-crossing branch
+            const scalar fc = phi(F.at(0, 0));
+            sums.lastArea = (fc < 0) ? A : 0;
+            sums.faceSum += ((F.x0 - S.o) & F.n)*sums.lastArea;
+            return true;
+        }
+    }
+
     struct crossing { scalar a, b; label br; scalar s; };
     kbStackList<crossing, 16> cr;
     kbStackList<scalar, 4> roots;
