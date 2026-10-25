@@ -672,10 +672,15 @@ pre-image fractions at its ends and its midpoint (two more face fractions per su
 few faces have a breakpoint in a step), so that on the plane the rule is exact in every step; the
 time-quadrature analogue of the split quadrature's breakpoints. Where three or more vertices
 meet the surface at one time the face lies on the surface then (a face parallel to a plane that
-passes it, every flux face of the plane test's normal arm) and its fraction jumps from 0 to 1 or
-back; the end values of such a breakpoint are the one-sided limits, evaluated 1e-9 of the step
-before and after it (the pre-image is then entirely on one side); `simpson` and `trapezoidal`
-cannot integrate that jump, which is why they fail on the normal arm. The signs follow the prism path
+passes it: an axis-aligned plane on a hexahedral mesh; not the plane test, whose plane is
+oblique to the mesh) and its fraction jumps from 0 to 1 or back; the end values of such a
+breakpoint are the one-sided limits, evaluated 1e-9 of the step before and after it (the
+pre-image is then entirely on one side). `gaussSplit`: the three-point Gauss-Legendre rule on
+the same sub-intervals (exact for a quintic in time); its nodes lie inside the sub-intervals, so
+no face fraction is evaluated at a breakpoint, the instant at which a vertex of the pre-image
+lies exactly on the surface (the degenerate configuration of the face integral), and the stored
+fraction alpha_f^n does not enter: every value is a fraction under the same surface, as the
+prism volume is; three face fractions per sub-interval. The signs follow the prism path
 (the flux carries the sign of phi_f); a face that does not sweep (|d . S_f| below 1e-10 |d| |S_f|)
 gets no flux in every mode. The leia token is `TPF_FLUX_INTEGRATION` (default `prism`).
 

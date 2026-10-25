@@ -401,7 +401,9 @@ class isoAdvection
             //  (with the half-step pre-image's fraction, phi_f dt
             //  (a^n + 4 a^{n+1/2} + a^{n+1})/6) or simpsonSplit (Simpson's
             //  rule on the sub-intervals between the passages of the trace
-            //  over the face's vertices); see isoAdvectionCurved.C
+            //  over the face's vertices) or gaussSplit (the three-point
+            //  Gauss rule on those sub-intervals, no value at a breakpoint
+            //  and none from the stored fraction); see isoAdvectionCurved.C
             word fluxIntegration_;
             scalar debugR0Max_;
             label debugCellR0_;

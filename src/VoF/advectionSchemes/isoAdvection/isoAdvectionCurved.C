@@ -1431,6 +1431,40 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 {
                     aMean = (a0 + 4*fracAt(0.5) + a1)/6;
                 }
+                else if (fluxIntegration_ == "gaussSplit")
+                {
+                    // the three-point Gauss-Legendre rule on the
+                    // sub-intervals between the breakpoints of simpsonSplit
+                    // below: exact for a quintic in time, and its nodes lie
+                    // inside the sub-intervals, so that no face fraction is
+                    // evaluated at a breakpoint, the instant at which a
+                    // vertex of the pre-image lies exactly on the surface
+                    // (the degenerate configuration of the face integral),
+                    // and the stored fraction a0 does not enter: every value
+                    // is a fraction under the same surface S, as the prism
+                    // volume is (2026-10-25)
+                    auto phi = [&](const point& x) { return S.value(x); };
+                    const face& fc = mesh_.faces()[facei];
+                    const pointField& P = mesh_.points();
+                    DynamicList<scalar> sig(16);
+                    forAll(fc, ip)
+                    {
+                        davof::segmentRoots(P[fc[ip]], P[fc[ip]] - d, phi, sig);
+                    }
+                    davof::segmentRoots(Cf[facei], Cf[facei] - d, phi, sig);
+                    Foam::sort(sig);
+                    static const scalar xg = 0.5*std::sqrt(0.6);
+                    scalar integral = 0, sa = 0;
+                    for (label k = 0; k <= sig.size(); ++k)
+                    {
+                        const scalar sb = (k < sig.size()) ? sig[k] : scalar(1);
+                        if (sb - sa <= 1e-12) continue;
+                        const scalar w = sb - sa, sm = 0.5*(sa + sb);
+                        integral += w*(5*fracAt(sm - xg*w) + 8*fracAt(sm) + 5*fracAt(sm + xg*w))/18;
+                        sa = sb;
+                    }
+                    aMean = integral;
+                }
                 else if (fluxIntegration_ == "simpsonSplit")
                 {
                     // Simpson's rule on the sub-intervals between the
