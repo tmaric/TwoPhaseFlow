@@ -139,6 +139,18 @@ inline bool& kbFanFacesOn()
     return v;
 }
 
+//- The treatment of weakly curved traces and short arcs (true, the default):
+//  a trace whose curvature is below 1e-3 of its slope over the face is
+//  ordered as a line, an arc between two exact crossings is kept whatever
+//  the difference of their conic parameters, and its inside test is made at
+//  the arc's point over its chord midpoint. False restores the previous
+//  ordering (the before of the vertex-grazing self-test)
+inline bool& kbGrazingFixOn()
+{
+    static bool v = true;
+    return v;
+}
+
 
 // * * * * * * * * * * * * * * The conic trace  * * * * * * * * * * * * * * //
 
@@ -316,7 +328,25 @@ inline conic2D faceConic
     }
     const scalar epsB = 1e-13*scaleAll;
     const bool z1 = mag(C.B1) <= epsB, z2 = mag(C.B2) <= epsB;
-    if (z1 && z2)
+    // A weakly curved trace (both curvatures below 1e-3 of the slope, in the
+    // coordinates scaled by Ls): within the face it is a graph over the line
+    // 2 l.u + K = 0, from which it deviates by less than 5e-4 Ls, and its
+    // other pieces (the far side of an ellipse, the second branch of a
+    // hyperbola, the second of two parallel lines) lie 1e3 Ls away. It is
+    // ordered as that line; the arcs are integrated with the exact quadric as
+    // every arc is. In the principal form its centre lies at |l/B| (up to
+    // 1e13 for the round-off tensor of a plane), so that the parameter
+    // s = u - uc of a crossing carries a noise of about 5e-17 |l/B| Ls: on the
+    // translated plane at N = 160 (2026-10-25) the corner sliver of a vertex
+    // 2e-4 h inside the liquid (chord 3e-4 Ls) got equal parameters at its two
+    // crossings or a parameter midpoint outside the triangle, its arc was
+    // dropped, the wetted area of the fan triangle was 1.5e-4 of the
+    // triangle off (inside [0, A]: no fallback), and the cell volume toggled
+    // by 1.24e-5 of the cell between offsets 1e-16 m apart, which put the
+    // volume anchor's offset off and the transported face fractions 4e-6 off.
+    const scalar lMag = std::sqrt(C.l1*C.l1 + C.l2*C.l2);
+    const bool weak = kbGrazingFixOn() && max(mag(C.B1), mag(C.B2)) <= 1e-3*lMag;
+    if ((z1 && z2) || weak)
     {
         const scalar l2n = C.l1*C.l1 + C.l2*C.l2;
         if (l2n > sqr(1e-13*scaleAll))
@@ -695,17 +725,25 @@ inline bool kbIntegrateFace
     forAll(arcs, ia)
     {
         const arc& ar = arcs[ia];
-        if (!(ar.sb > ar.sa)) continue;
-        // inside?
-        {
-            scalar mx, my;
-            if (!C.at(ar.br, 0.5*(ar.sa + ar.sb), mx, my)) continue;
-            if (!F.inside(mx, my, 1e-12*Ls)) continue;
-        }
+        // an arc between two exact crossings is decided by its chord length
+        // below, not by the difference of the crossings' conic parameters,
+        // which a nearly degenerate conic quantises (kbGrazingFixOn)
+        if (!(ar.sb > ar.sa) && !(kbGrazingFixOn() && ar.exactEnds)) continue;
         label m = max(label(1), kbMinSplit());
         if (C.kind == conic2D::ELLIPSE)
         {
             m = max(m, label(std::ceil((ar.sb - ar.sa)/(0.5*constant::mathematical::pi) - 1e-9)));
+        }
+        // inside? An arc of one piece between exact crossings is tested at
+        // its point over the chord midpoint (below, from the exact root along
+        // the chord's normal); the point at the parameter midpoint lies off
+        // the arc by the parameter's noise, outside a short arc
+        const bool insideAtChord = kbGrazingFixOn() && ar.exactEnds && m == 1;
+        if (!insideAtChord)
+        {
+            scalar mx, my;
+            if (!C.at(ar.br, 0.5*(ar.sa + ar.sb), mx, my)) continue;
+            if (!F.inside(mx, my, 1e-12*Ls)) continue;
         }
         for (label k = 0; k < m; ++k)
         {
@@ -718,7 +756,14 @@ inline bool kbIntegrateFace
             else if (!C.at(ar.br, s1, bx, by)) { ++kbFailCount(KB_AT); return false; }
             // the side of the chord the arc lies on, from its midpoint
             scalar mx, my;
-            if (!C.at(ar.br, 0.5*(s0 + s1), mx, my)) { ++kbFailCount(KB_AT); return false; }
+            if (!C.at(ar.br, 0.5*(s0 + s1), mx, my))
+            {
+                // (the inside test at the parameter midpoint skipped such an
+                // arc, insideAtChord keeps that)
+                if (insideAtChord) continue;
+                ++kbFailCount(KB_AT);
+                return false;
+            }
 
             const scalar ex = bx - ax, ey = by - ay;
             const scalar Le = std::sqrt(ex*ex + ey*ey);
@@ -776,7 +821,20 @@ inline bool kbIntegrateFace
             // for the line integral (the projected patch on the left), from
             // the midpoint
             scalar mX, mY, mdx, mdy;
-            if (!onArc(0.5, mX, mY, mdx, mdy)) return false;
+            const label nRootFail = kbFailCount(KB_ROOT), nGradFail = kbFailCount(KB_GRAD);
+            if (!onArc(0.5, mX, mY, mdx, mdy))
+            {
+                // an arc whose parameter midpoint lies outside was skipped
+                // before the root was sought; it stays skipped, no failure
+                if (insideAtChord && !F.inside(mx, my, 1e-12*Ls))
+                {
+                    kbFailCount(KB_ROOT) = nRootFail;
+                    kbFailCount(KB_GRAD) = nGradFail;
+                    continue;
+                }
+                return false;
+            }
+            if (insideAtChord && !F.inside(mX, mY, 1e-12*Ls)) continue;
             scalar gx, gy;
             C.gradq(mX, mY, gx, gy);
             const scalar leftX = -mdy, leftY = mdx;
