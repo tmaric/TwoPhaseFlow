@@ -387,6 +387,7 @@ class isoAdvection
             label nCompare_;
             label nCompareDiff_;
             label nCompareDiffEdge_;
+            label nCompareDiffResolved_;
             scalar anchorShiftMax_;
             scalar anchorShiftSum_;
 

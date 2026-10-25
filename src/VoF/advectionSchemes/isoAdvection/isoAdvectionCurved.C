@@ -181,6 +181,7 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
     nCompare_ = 0;
     nCompareDiff_ = 0;
     nCompareDiffEdge_ = 0;
+    nCompareDiffResolved_ = 0;
     anchorShiftMax_ = 0;
     anchorShiftSum_ = 0;
 
@@ -780,13 +781,22 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
                 if (mag(SI.c - S.c) > 1e-9*h)
                 {
                     ++nCompareDiff_;
+                    scalar AI = -1, AN = -1;
+                    const scalar vI = volumeRulePtr_->cellLiquidVolumeSlope(celli, SI, anchorTolRel_, AI);
+                    const scalar vN = volumeRulePtr_->cellLiquidVolumeSlope(celli, S, anchorTolRel_, AN);
+                    // the classes: the edge of the flat interval; a
+                    // difference the anchor cannot resolve (the two offsets
+                    // enclose less than ten times the residual round-off
+                    // 1e-14 V between them, |dc| A <= 1e-13 V: a nearly full
+                    // or empty cell whose root is ill-conditioned, the
+                    // slope A of the corner sliver small) or an illinois
+                    // failure; the rest would be a real disagreement
+                    const scalar dV = mag(SI.c - S.c)*max(max(AI, AN), scalar(0));
                     if (exitCode >= 10) ++nCompareDiffEdge_;
+                    else if (dV <= 1e-13*Vc || !okI) ++nCompareDiffResolved_;
                     if (nCompare_ < 20)
                     {
                         ++nCompare_;
-                        scalar AI = -1, AN = -1;
-                        const scalar vI = volumeRulePtr_->cellLiquidVolumeSlope(celli, SI, anchorTolRel_, AI);
-                        const scalar vN = volumeRulePtr_->cellLiquidVolumeSlope(celli, S, anchorTolRel_, AN);
                         Pout<< "anchor compare: cell " << celli << " alpha " << alpha1In_[celli]
                             << " h " << h << " c0/h " << cStart/h << " r0/V " << rStart/Vc
                             << " A0/h^2 " << AStart/(h*h)
@@ -794,7 +804,8 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
                             << " c/h " << SI.c/h << " r/V " << (vI - target)/Vc << " A/h^2 " << AI/(h*h)
                             << " | ccs ok " << okAnchor << " exit " << exitCode
                             << " c/h " << S.c/h << " r/V " << (vN - target)/Vc << " A/h^2 " << AN/(h*h)
-                            << " | (cCcs - cI)/h " << (S.c - SI.c)/h << nl;
+                            << " | (cCcs - cI)/h " << (S.c - SI.c)/h
+                            << " |dc| A/V " << dV/Vc << nl;
                     }
                 }
             }
@@ -1430,7 +1441,7 @@ void Foam::advection::isoAdvection::reportCurved() const
     label nFitSt = nFitStalled_, nFitSing = nFitSingular_, nFitNoBr = nFitNoBracket_;
     label nFitNoFr = nFitNoFrame_, nAnchF = nAnchorFail_, nAnchL = nAnchorLeaves_;
     label nAnchE = nAnchorEvals_, nAnchEdge = nAnchorEdge_;
-    label nCmpD = nCompareDiff_, nCmpDE = nCompareDiffEdge_;
+    label nCmpD = nCompareDiff_, nCmpDE = nCompareDiffEdge_, nCmpDR = nCompareDiffResolved_;
     label nDef = nDefectCells_, nRuleFb = nRuleFallback_ + volumeRulePtr_->nFallback();
     scalar fitRMax = fitResMax_, fitRSum = fitResSum_, ashMax = anchorShiftMax_;
     scalar ashSum = anchorShiftSum_, defMax = defectMax_, defSum = defectSum_;
@@ -1446,6 +1457,7 @@ void Foam::advection::isoAdvection::reportCurved() const
         reduce(nAnchL, sumOp<label>()); reduce(nDef, sumOp<label>());
         reduce(nAnchE, sumOp<label>()); reduce(nAnchEdge, sumOp<label>());
         reduce(nCmpD, sumOp<label>()); reduce(nCmpDE, sumOp<label>());
+        reduce(nCmpDR, sumOp<label>());
         reduce(nRuleFb, sumOp<label>());
         reduce(fitRMax, maxOp<scalar>()); reduce(fitRSum, sumOp<scalar>());
         reduce(ashMax, maxOp<scalar>()); reduce(ashSum, sumOp<scalar>());
@@ -1494,7 +1506,9 @@ void Foam::advection::isoAdvection::reportCurved() const
     if (anchorMethod_ == "compare")
     {
         Info<< "isoAdvection: anchor compare: illinois and ccs differ in "
-            << nCmpD << " cells, " << nCmpDE << " of them at the edge of the flat interval"
+            << nCmpD << " cells, " << nCmpDE << " of them at the edge of the flat interval, "
+            << nCmpDR << " within the anchor's resolution or an illinois failure, "
+            << nCmpD - nCmpDE - nCmpDR << " other"
             << endl;
     }
     volumeRulePtr_->report();

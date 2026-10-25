@@ -180,6 +180,7 @@ Foam::advection::isoAdvection::isoAdvection
     nCompare_(0),
     nCompareDiff_(0),
     nCompareDiffEdge_(0),
+    nCompareDiffResolved_(0),
     anchorShiftMax_(0),
     anchorShiftSum_(0),
     defectLevels_(modelDict().getOrDefault<label>("defectLevels", 3)),
