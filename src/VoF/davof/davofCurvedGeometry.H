@@ -437,6 +437,49 @@ inline scalar triangleIntegralSplit
 }
 
 
+//- The sweep apex of triangleIntegralSplit moved away from the traces: the
+//  triangle (a, b, c) is rotated cyclically so that c becomes the vertex of
+//  the largest distance measure m (|phi|, or its minimum over the quadrics of
+//  the weight) when the given apex lies within 1e-3 of the largest measure.
+//  An apex on a trace makes the breakpoint of every sweep line run from 1 to
+//  0 within |phi(c)|/|dphi/dt| of the outer parameter next to the edge
+//  crossing, a layer the breakpoints do not mark and the depth cap does not
+//  resolve: on the translated plane at N = 160 a cell vertex 1.2e-10 from the
+//  surface (4.8e-6 of the cell) put the pyramids' volume 1.23e-11 of the cell
+//  off the exact plane volume, while the Kromer-Bothe rule was exact to
+//  3.8e-15 (2026-10-25). With the apex away from the traces the breakpoint
+//  is a smooth function of t on every piece. Generic triangles keep their
+//  order (their values do not change).
+inline bool& splitApexRotationOn()
+{
+    // true, the default; false restores the given order (the before of the
+    // vertex-grazing self-test)
+    static bool v = true;
+    return v;
+}
+
+inline void sweepApexAwayFromTraces
+(
+    point& a, point& b, point& c,
+    const scalar ma, const scalar mb, const scalar mc
+)
+{
+    if (!splitApexRotationOn()) return;
+    const scalar mmax = max(ma, mb);
+    if (!(mc < 1e-3*mmax)) return;
+    if (ma >= mb)
+    {
+        // (a, b, c) -> (b, c, a)
+        const point t = a; a = b; b = c; c = t;
+    }
+    else
+    {
+        // (a, b, c) -> (c, a, b)
+        const point t = c; c = b; b = a; a = t;
+    }
+}
+
+
 // * * * * * * * * * * * * * * The prism volume  * * * * * * * * * * * * * //
 
 //- The six-point degree-4 Gauss rule on the unit triangle (Strang and Fix):
@@ -496,8 +539,12 @@ inline scalar prismLiquidVolume
     {
         return segmentLiquidFraction(p - d, p, phi);
     };
+    // the sweep apex away from both traces
+    point pa = a, pb = b, pc = c;
+    auto m = [&](const point& p) { return min(mag(phi(p)), mag(phi(p - d))); };
+    sweepApexAwayFromTraces(pa, pb, pc, m(a), m(b), m(c));
     // tolAbs is a volume: the area integral's tolerance
-    return thickness*triangleIntegralSplit(a, b, c, weight, breaks, tolAbs/thickness, maxDepth, nLeaves);
+    return thickness*triangleIntegralSplit(pa, pb, pc, weight, breaks, tolAbs/thickness, maxDepth, nLeaves);
 }
 
 
@@ -625,7 +672,10 @@ inline scalar pyramidLiquidVolume
         return rayLiquidCubicWeight(apex, p, phi);
     };
     const scalar factor = height/3.0;
-    return factor*triangleIntegralSplit(a, b, c, weight, breaks, tolAbs/factor, maxDepth, nLeaves);
+    // the sweep apex away from the trace
+    point pa = a, pb = b, pc = c;
+    sweepApexAwayFromTraces(pa, pb, pc, mag(phi(a)), mag(phi(b)), mag(phi(c)));
+    return factor*triangleIntegralSplit(pa, pb, pc, weight, breaks, tolAbs/factor, maxDepth, nLeaves);
 }
 
 
