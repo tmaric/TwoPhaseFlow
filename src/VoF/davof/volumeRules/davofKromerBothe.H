@@ -816,6 +816,23 @@ inline bool kbIntegrateFace
     if (Awet < -1e-9*A || Awet > (1 + 1e-9)*A)
     {
         ++kbFailCount(KB_AREA);
+        // the first faces of a run that fail the area check, for the
+        // diagnosis of the rule on flat traces (2026-10-25)
+        static label nPrinted = 0;
+        if (nPrinted < 40)
+        {
+            ++nPrinted;
+            Pout<< "kromerBothe area check failed: kind " << label(C.kind)
+                << " nV " << nV << " A " << A << " Ls " << Ls
+                << " Awet/A " << Awet/A << " edge/A " << edgeArea/A
+                << " arc/A " << arcArea/A << " crossings " << cr.size()
+                << " arcs " << arcs.size() << " nArcs " << sums.nArcs
+                << " scaled B1 " << C.B1 << " B2 " << C.B2 << " l1 " << C.l1
+                << " l2 " << C.l2 << " K " << C.K
+                << " surface b11 " << S.b11 << " b12 " << S.b12 << " b22 " << S.b22
+                << " c " << S.c << " a1 " << S.a1 << " a2 " << S.a2
+                << " fv " << fv << nl;
+        }
         return false;
     }
     sums.lastArea = min(max(Awet, scalar(0)), A);
