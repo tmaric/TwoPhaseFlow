@@ -96,9 +96,11 @@ Description
     2007, Sect. 4.6, ISBN 978-0-521-88068-8). A fully enclosed trace (an
     ellipse inside a face, their Section 3.6) is integrated as four arcs.
 
-    Non-planar mesh faces are integrated as the fan triangles about the face
-    centre (planar); the interior fan edges cancel in the line integrals and
-    carry the same face constant. The routines return false where the
+    A planar mesh face (every vertex within 1e-10 L_s of the face plane) is
+    integrated whole; a warped face as the fan triangles about the face
+    centre (planar), whose interior edges cancel in the line integrals and
+    carry the same face constant (kbWholeFace; the key kromerBotheFan
+    overrides the test). The routines return false where the
     configuration is not resolved (a degenerate conic with crossings, a
     failed root along an arc, an area outside [0, A]); the caller then falls
     back to the split quadrature of davofCurvedGeometry.H and counts.
@@ -113,6 +115,7 @@ SourceFiles
 
 #include "davofCurvedGeometry.H"
 #include <cmath>
+#include <vector>
 
 namespace Foam
 {
@@ -130,12 +133,20 @@ inline label& kbMinSplit()
     return v;
 }
 
-//- Whether the top and bottom faces of a prism and the faces of a cell are
-//  integrated as fan triangles (true, the default; warped faces) or as whole
-//  polygons (planar faces only; a consistency check of the fan)
-inline bool& kbFanFacesOn()
+//- Whether the faces of a cell, the top and bottom of a prism and the
+//  displaced faces of the face fractions are integrated as fan triangles
+//  about the face centre or as whole polygons (key kromerBotheFan):
+//  -1 (auto, the default) fans a face only where it is not planar, i.e.
+//  max_i |(p_i - x_f).n| > 1e-10 L_s (kbWholeFace); 1 (true) forces the fan
+//  on every face (the rule before 2026-10-25); 0 (false) forces whole faces
+//  (a consistency check of the fan on a planar mesh). On the hexahedral
+//  sphere the whole faces cut the step by 45 % at N = 64 and 40 % at
+//  N = 128 against the fan, the end error changing in the eighth digit
+//  (L1(alphaf) 0.00195336 against 0.00195339), the arc quadrature's
+//  round-off of four times fewer arcs.
+inline label& kbFanMode()
 {
-    static bool v = true;
+    static label v = -1;
     return v;
 }
 
@@ -502,7 +513,28 @@ struct kbFace
         }
         return A;
     }
+
+    //- The largest distance of a vertex from the plane (x0, n), relative
+    //  to Ls: zero on a planar polygon
+    scalar warp() const
+    {
+        scalar dmax = 0;
+        forAll(p, i) dmax = max(dmax, mag((p[i] - x0) & n));
+        return dmax/max(Ls, VSMALL);
+    }
 };
+
+
+//- Whether the polygon F (its frame set) is integrated as one face: a
+//  planar polygon (warp at most 1e-10) in the auto mode of kbFanMode(),
+//  every polygon when whole faces are forced, none when fans are forced
+inline bool kbWholeFace(const kbFace& F)
+{
+    const label mode = kbFanMode();
+    if (mode > 0) return false;
+    if (mode == 0) return true;
+    return F.warp() <= 1e-10;
+}
 
 
 //- The accumulators of one polyhedron: the face sum of the divergence
@@ -512,6 +544,8 @@ struct kbSums
 {
     scalar faceSum = 0;      // sum_k ((x_k - o).n_k) A_k^wet
     scalar lineSum = 0;      // oint H1 dt2
+    scalar patchSum = 0;     // oint t1 dt2: the area of the projected patch,
+                             // dV/dc of the liquid volume in the offset c
     scalar lastArea = 0;     // A^wet of the last face integrated
     label nArcs = 0;
     label nLeaves = 0;
@@ -530,6 +564,34 @@ inline label& kbFailCount(const label r)
     static label c[KB_NFAIL] = {};
     return c[r];
 }
+
+
+//- A list of trivially copyable T with N entries on the stack and the heap
+//  beyond (the boundary crossings, the roots along an edge and the arcs of
+//  one face: a handful each, allocated per face and per evaluation before,
+//  13 % of the advection step in the allocator, 2026-10-25)
+template<class T, int N>
+class kbStackList
+{
+    T buf_[N];
+    std::vector<T> heap_;
+    label n_ = 0;
+
+public:
+
+    label size() const { return n_; }
+    bool empty() const { return n_ == 0; }
+    void clear() { n_ = 0; heap_.clear(); }
+    void append(const T& v)
+    {
+        if (n_ < N) { buf_[n_++] = v; return; }
+        if (heap_.empty()) heap_.assign(buf_, buf_ + N);
+        heap_.push_back(v);
+        ++n_;
+    }
+    T& operator[](const label i) { return (n_ <= N) ? buf_[i] : heap_[i]; }
+    const T& operator[](const label i) const { return (n_ <= N) ? buf_[i] : heap_[i]; }
+};
 
 
 //- The trace arcs and the wetted area of one face under the surface S;
@@ -552,22 +614,60 @@ inline bool kbIntegrateFace
     sums.lastArea = 0;
 
     // the vertex values and the boundary crossings: the exact roots along
-    // the edges and the vertices on the surface
-    List<scalar> fv(nV);
+    // the edges (from the vertex values and the edge midpoint) and the
+    // vertices on the surface
+    constexpr label nVStack = 16;
+    scalar fvStack[nVStack];
+    List<scalar> fvHeap;
+    if (nV > nVStack) fvHeap.setSize(nV);
+    scalar* const fv = (nV > nVStack) ? fvHeap.data() : fvStack;
     scalar fmax = 0;
     forAll(F.p, i) { fv[i] = phi(F.p[i]); fmax = max(fmax, mag(fv[i])); }
     const scalar epsV = 1e-14*max(fmax, SMALL);
 
+    // A face on one side of the surface without the trace: along any line
+    // of the face plane phi is a quadratic whose second derivative is at
+    // most M = |b|_2 (the paraboloid; 2 for the sphere, 0 for a plane), so
+    // at x = sum lambda_i p_i in the convex polygon phi(x) >= sum lambda_i
+    // phi(p_i) - M/2 sum lambda_i |p_i - x|^2 >= min_i phi(p_i) - 2 M R^2,
+    // R the largest vertex distance from x0 (and symmetrically from above).
+    // Where every vertex value exceeds that bound (and the round-off band of
+    // the vertices on the surface) on one side, the face has no crossing
+    // and no enclosed ellipse: the result of the no-crossing branch below,
+    // without the edge roots and the conic.
+    {
+        scalar M = 0;
+        if (S.sphere) M = 2;
+        else if (S.paraboloid)
+        {
+            M = mag(0.5*(S.b11 + S.b22))
+              + std::sqrt(sqr(0.5*(S.b11 - S.b22)) + sqr(S.b12));
+        }
+        scalar R2 = 0;
+        forAll(F.p, i) R2 = max(R2, magSqr(F.p[i] - F.x0));
+        const scalar bound = max(2*M*R2, epsV);
+        scalar fminV = GREAT, fmaxV = -GREAT;
+        for (label i = 0; i < nV; ++i) { fminV = min(fminV, fv[i]); fmaxV = max(fmaxV, fv[i]); }
+        if (fminV > bound || fmaxV < -bound)
+        {
+            // the centroid value decides, as in the no-crossing branch
+            const scalar fc = phi(F.at(0, 0));
+            sums.lastArea = (fc < 0) ? A : 0;
+            sums.faceSum += ((F.x0 - S.o) & F.n)*sums.lastArea;
+            return true;
+        }
+    }
+
     struct crossing { scalar a, b; label br; scalar s; };
-    DynamicList<crossing> cr(8);
-    DynamicList<scalar> roots(4);
+    kbStackList<crossing, 16> cr;
+    kbStackList<scalar, 4> roots;
     scalar edgeArea = 0;   // the liquid pieces of the edges, 1/2 (P x Q)
     bool anyCrossing = false;
     forAll(F.p, i)
     {
         const label j = (i + 1) % nV;
         roots.clear();
-        segmentRoots(F.p[i], F.p[j], phi, roots);
+        segmentRootsFromValues(fv[i], fv[j], phi(0.5*(F.p[i] + F.p[j])), roots);
         for (label a = 1; a < roots.size(); ++a)
         {
             for (label k = a; k > 0 && roots[k] < roots[k - 1]; --k) Swap(roots[k], roots[k - 1]);
@@ -611,7 +711,7 @@ inline bool kbIntegrateFace
 
     // the arcs inside the polygon: (branch, s_a, s_b, endpoints)
     struct arc { label br; scalar sa, sb; scalar ax, ay, bx, by; bool exactEnds; };
-    DynamicList<arc> arcs(8);
+    kbStackList<arc, 16> arcs;
 
     if (!anyCrossing)
     {
@@ -721,7 +821,8 @@ inline bool kbIntegrateFace
 
     // the arcs inside the polygon, split to at most a quarter turn
     const List<Pair<scalar>>& g = gl12();
-    scalar arcArea = 0, arcLine = 0;
+    const scalar f1e2 = F.f1 & S.e2, f2e2 = F.f2 & S.e2;   // dt2 per dxi
+    scalar arcArea = 0, arcLine = 0, arcPatch = 0;
     forAll(arcs, ia)
     {
         const arc& ar = arcs[ia];
@@ -779,11 +880,13 @@ inline bool kbIntegrateFace
             // 70000 prisms per step on the translated plane (2026-10-25)
             const bool sideKnown = mag(rM) > 1e-9*Ls;
 
-            // the point of the arc over the chord parameter l and its derivative
+            // the point of the arc over the chord parameter l and its
+            // derivative; the quadratic coefficient along the chord's normal
+            // is the same at every l
+            const scalar al = C.Q11*nx*nx + 2*C.Q12*nx*ny + C.Q22*ny*ny;
             auto onArc = [&](const scalar l, scalar& x, scalar& y, scalar& dx, scalar& dy) -> bool
             {
                 const scalar cx = ax + l*ex, cy = ay + l*ey;
-                const scalar al = C.Q11*nx*nx + 2*C.Q12*nx*ny + C.Q22*ny*ny;
                 const scalar be = 2*((C.Q11*cx + C.Q12*cy + C.L1)*nx + (C.Q12*cx + C.Q22*cy + C.L2)*ny);
                 const scalar ga = C.q(cx, cy);
                 scalar r;
@@ -854,60 +957,66 @@ inline bool kbIntegrateFace
                 sLine = ((nu1*m1 + nu2*m2) >= 0) ? 1 : -1;
             }
 
-            // the integrands over l in [0, 1]
-            auto integrands = [&](const scalar l, scalar& fA, scalar& fL) -> bool
+            // the integrands over l in [0, 1]: the wetted area, the H1 line
+            // integral and the projected patch area oint t1 dt2 (dV/dc)
+            auto integrands = [&](const scalar l, scalar& fA, scalar& fL, scalar& fP) -> bool
             {
                 scalar x, y, dx, dy;
                 if (!onArc(l, x, y, dx, dy)) return false;
                 fA = 0.5*(x*dy - y*dx);
-                fL = 0;
+                fL = 0; fP = 0;
                 if (withLine)
                 {
                     const point X = F.at(x, y);
                     const scalar t1 = (X - S.o) & S.e1, t2 = (X - S.o) & S.e2;
                     const scalar H1 = S.c*t1 - (S.b11*t1*t1*t1/6 + 0.5*S.b12*t1*t1*t2 + 0.5*S.b22*t1*t2*t2);
-                    const scalar dt2 = dx*(F.f1 & S.e2) + dy*(F.f2 & S.e2);
+                    const scalar dt2 = dx*f1e2 + dy*f2e2;
                     fL = H1*dt2;
+                    fP = t1*dt2;
                 }
                 return true;
             };
-            auto gaussL = [&](const scalar l0, const scalar l1, scalar& IA, scalar& IL) -> bool
+            auto gaussL = [&](const scalar l0, const scalar l1, scalar& IA, scalar& IL, scalar& IP) -> bool
             {
-                IA = 0; IL = 0;
+                IA = 0; IL = 0; IP = 0;
                 for (const Pair<scalar>& gw : g)
                 {
-                    scalar fA, fL;
-                    if (!integrands(l0 + gw.first()*(l1 - l0), fA, fL)) return false;
+                    scalar fA, fL, fP;
+                    if (!integrands(l0 + gw.first()*(l1 - l0), fA, fL, fP)) return false;
                     IA += gw.second()*(l1 - l0)*fA;
                     IL += gw.second()*(l1 - l0)*fL;
+                    IP += gw.second()*(l1 - l0)*fP;
                 }
                 return true;
             };
+            // the adaptive refinement (a parent against its two halves): a
+            // plain recursion (the lambda passed to itself; a std::function
+            // allocated per arc before)
             bool ok = true;
-            std::function<void(scalar, scalar, scalar, scalar, label, scalar&, scalar&)> rec =
-                [&](scalar l0, scalar l1, scalar pA, scalar pL, label depth, scalar& oA, scalar& oL)
+            auto rec = [&](auto& self, scalar l0, scalar l1, scalar pA, scalar pL, scalar pP, label depth, scalar& oA, scalar& oL, scalar& oP) -> void
+            {
+                const scalar lm = 0.5*(l0 + l1);
+                scalar a0, L0, P0, a1, L1, P1;
+                if (!gaussL(l0, lm, a0, L0, P0) || !gaussL(lm, l1, a1, L1, P1)) { ok = false; oA = pA; oL = pL; oP = pP; return; }
+                ++sums.nLeaves;
+                const scalar cA = a0 + a1, cL = L0 + L1, cP = P0 + P1;
+                if ((mag(cA - pA) <= tolArea && mag(cL - pL) <= tolLine) || depth >= 20)
                 {
-                    const scalar lm = 0.5*(l0 + l1);
-                    scalar a0, L0, a1, L1;
-                    if (!gaussL(l0, lm, a0, L0) || !gaussL(lm, l1, a1, L1)) { ok = false; oA = pA; oL = pL; return; }
-                    ++sums.nLeaves;
-                    const scalar cA = a0 + a1, cL = L0 + L1;
-                    if ((mag(cA - pA) <= tolArea && mag(cL - pL) <= tolLine) || depth >= 20)
-                    {
-                        oA = cA; oL = cL; return;
-                    }
-                    scalar rA0, rL0, rA1, rL1;
-                    rec(l0, lm, a0, L0, depth + 1, rA0, rL0);
-                    rec(lm, l1, a1, L1, depth + 1, rA1, rL1);
-                    oA = rA0 + rA1; oL = rL0 + rL1;
-                };
-            scalar pA, pL;
-            if (!gaussL(0, 1, pA, pL)) return false;
-            scalar IA, IL;
-            rec(0, 1, pA, pL, 0, IA, IL);
+                    oA = cA; oL = cL; oP = cP; return;
+                }
+                scalar rA0, rL0, rP0, rA1, rL1, rP1;
+                self(self, l0, lm, a0, L0, P0, depth + 1, rA0, rL0, rP0);
+                self(self, lm, l1, a1, L1, P1, depth + 1, rA1, rL1, rP1);
+                oA = rA0 + rA1; oL = rL0 + rL1; oP = rP0 + rP1;
+            };
+            scalar pA, pL, pP;
+            if (!gaussL(0, 1, pA, pL, pP)) return false;
+            scalar IA, IL, IP;
+            rec(rec, 0, 1, pA, pL, pP, 0, IA, IL, IP);
             if (!ok) return false;
             arcArea += sArea*IA;
             arcLine += sLine*IL;
+            arcPatch += sLine*IP;
             ++sums.nArcs;
         }
     }
@@ -931,26 +1040,27 @@ inline bool kbIntegrateFace
                 << " l2 " << C.l2 << " K " << C.K
                 << " surface b11 " << S.b11 << " b12 " << S.b12 << " b22 " << S.b22
                 << " c " << S.c << " a1 " << S.a1 << " a2 " << S.a2
-                << " fv " << fv << nl;
+                << " fv " << UList<scalar>(fv, nV) << nl;
         }
         return false;
     }
     sums.lastArea = min(max(Awet, scalar(0)), A);
     sums.faceSum += ((F.x0 - S.o) & F.n)*sums.lastArea;
-    if (withLine) sums.lineSum += arcLine;
+    if (withLine) { sums.lineSum += arcLine; sums.patchSum += arcPatch; }
     return true;
 }
 
 
-//- The fan triangles of a polygon about its centroid, oriented so that
-//  their normals point away from the interior point xin, appended to faces.
+//- A polygon as one face when it is planar (kbWholeFace), else as its fan
+//  triangles about its vertex mean, oriented so that the normals point away
+//  from the interior point xin, appended to faces.
 inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kbFace>& faces)
 {
-    if (!kbFanFacesOn())
+    kbFace F;
+    F.p = poly;
+    F.setFrame();
+    if (kbWholeFace(F))
     {
-        kbFace F;
-        F.p = poly;
-        F.setFrame();
         if (((F.x0 - xin) & F.n) < 0)
         {
             F.reverse();
@@ -959,9 +1069,7 @@ inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kb
         if (mag(F.n) > 0 && F.Ls > SMALL) faces.append(F);
         return;
     }
-    point xc = Zero;
-    forAll(poly, i) xc += poly[i];
-    xc /= poly.size();
+    const point xc = F.x0;
     forAll(poly, i)
     {
         const label j = (i + 1) % poly.size();
@@ -980,15 +1088,19 @@ inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kb
 
 
 //- The liquid volume of the polyhedron given by its faces (outward
-//  oriented) under the paraboloid S. Returns false where a face is not
-//  resolved.
+//  oriented) under the paraboloid S, and, when asked (patchArea), the area
+//  of the paraboloid patch inside the polyhedron projected along e3, oint
+//  t1 dt2 around the same arcs: the derivative dV/dc of the volume in the
+//  offset c (raising the surface by dc adds a slab of that area). Returns
+//  false where a face is not resolved.
 inline bool kbPolyhedronLiquidVolume
 (
     const DynamicList<kbFace>& faces,
     const cellSurface& S,
     const scalar tolAbs,         // of the volume
     scalar& vLiq,
-    label& nLeaves
+    label& nLeaves,
+    scalar* patchArea = nullptr
 )
 {
     kbSums sums;
@@ -1008,12 +1120,14 @@ inline bool kbPolyhedronLiquidVolume
     }
     nLeaves += sums.nLeaves;
     vLiq = (sums.faceSum + sums.lineSum)/3.0;
+    if (patchArea) *patchArea = sums.patchSum;
     return true;
 }
 
 
-//- The faces of cellI as fan triangles, outward (the owner's face order,
-//  reversed for the neighbour).
+//- The faces of cellI, outward (the owner's face order, reversed for the
+//  neighbour): a planar face whole, a warped face as the fan triangles
+//  about the mesh's face centre (kbWholeFace).
 inline void kbCellFaces(const fvMesh& mesh, const label cellI, DynamicList<kbFace>& faces)
 {
     const pointField& P = mesh.points();
@@ -1028,14 +1142,16 @@ inline void kbCellFaces(const fvMesh& mesh, const label cellI, DynamicList<kbFac
         const face& f = fcs[faceI];
         const bool isOwner = (own[faceI] == cellI);
         const point& xf = Cf[faceI];
-        if (!kbFanFacesOn())
         {
             kbFace F;
             F.p.setSize(f.size());
             forAll(f, ip) F.p[ip] = isOwner ? P[f[ip]] : P[f[f.size() - 1 - ip]];
             F.setFrame();
-            if (F.Ls > SMALL) faces.append(F);
-            continue;
+            if (kbWholeFace(F))
+            {
+                if (F.Ls > SMALL) faces.append(F);
+                continue;
+            }
         }
         forAll(f, ip)
         {
@@ -1047,6 +1163,72 @@ inline void kbCellFaces(const fvMesh& mesh, const label cellI, DynamicList<kbFac
             else         { F.p[1] = P[ip1];   F.p[2] = P[f[ip]]; }
             F.setFrame();
             if (F.Ls > SMALL) faces.append(F);
+        }
+    }
+}
+
+
+//- The range [cMin, cMax] of the offset function g(x) = phi(x) + c =
+//  w - a.t - t^T b t/2 over the polyhedron given by its faces: the surface
+//  with the offset cMin grazes the cell from the empty side (below it the
+//  cell is entirely empty), the one with cMax from the liquid side (above it
+//  the cell is entirely liquid). g has no w^2 term, so dg/dw = 1 and its
+//  extrema over the cell lie on the boundary: at a vertex, at the interior
+//  stationary point of an edge (g is quadratic along it) or at the interior
+//  stationary point of a face plane (g is a quadratic in the plane
+//  coordinates, its coefficients from six values as in faceConic). Every
+//  candidate is a point of the cell, so a superfluous one (a saddle) cannot
+//  widen the range. The volume anchor takes cMin or cMax for a cell whose
+//  target is 0 or V (2026-10-25).
+inline void kbOffsetRange
+(
+    const DynamicList<kbFace>& faces,
+    const cellSurface& S,
+    scalar& cMin,
+    scalar& cMax
+)
+{
+    auto g = [&](const point& x) { return S.value(x) + S.c; };
+    cMin = GREAT; cMax = -GREAT;
+    auto take = [&](const scalar v) { cMin = min(cMin, v); cMax = max(cMax, v); };
+    forAll(faces, k)
+    {
+        const kbFace& F = faces[k];
+        const label nV = F.p.size();
+        for (label i = 0; i < nV; ++i)
+        {
+            const label j = (i + 1) % nV;
+            const scalar g0 = g(F.p[i]), g1 = g(F.p[j]), gm = g(0.5*(F.p[i] + F.p[j]));
+            take(g0);
+            // along the edge g(s) = g0 + B s + C s^2
+            const scalar C = 2*(g1 + g0 - 2*gm);
+            const scalar B = g1 - g0 - C;
+            if (mag(C) > 0)
+            {
+                const scalar s = -B/(2*C);
+                if (s > 0 && s < 1) take(g0 + B*s + C*s*s);
+            }
+        }
+        // the face plane, in the coordinates scaled by Ls
+        const scalar s = F.Ls;
+        const point& x0 = F.x0;
+        const scalar q0 = g(x0);
+        const scalar qp1 = g(x0 + s*F.f1), qm1 = g(x0 - s*F.f1);
+        const scalar qp2 = g(x0 + s*F.f2), qm2 = g(x0 - s*F.f2);
+        const scalar q11 = g(x0 + s*F.f1 + s*F.f2);
+        const scalar A11 = 0.5*(qp1 + qm1 - 2*q0);
+        const scalar A22 = 0.5*(qp2 + qm2 - 2*q0);
+        const scalar a1 = 0.25*(qp1 - qm1);
+        const scalar a2 = 0.25*(qp2 - qm2);
+        const scalar A12 = 0.5*(q11 - A11 - A22 - 2*a1 - 2*a2 - q0);
+        const scalar sc = max(mag(A11), max(mag(A22), mag(A12)));
+        const scalar det = A11*A22 - A12*A12;
+        if (sc > 0 && mag(det) > 1e-10*sc*sc)
+        {
+            // A11 x + A12 y = -a1, A12 x + A22 y = -a2
+            const scalar x1 = s*(-a1*A22 + a2*A12)/det;
+            const scalar x2 = s*(-a2*A11 + a1*A12)/det;
+            if (F.inside(x1, x2, 0)) take(g(F.at(x1, x2)));
         }
     }
 }
@@ -1078,7 +1260,8 @@ inline void kbPrismFaces(const fvMesh& mesh, const label faceI, const vector& d,
 
 
 //- The liquid area fraction of the face faceI displaced by d under S by the
-//  Green integral (fan triangles). Returns false where not resolved.
+//  Green integral: the whole polygon where it is planar, else its fan
+//  triangles (kbWholeFace). Returns false where not resolved.
 inline bool kbFaceLiquidFraction
 (
     const fvMesh& mesh,
@@ -1098,6 +1281,25 @@ inline bool kbFaceLiquidFraction
     const point xf = mesh.faceCentres()[faceI] + d;
     kbSums sums;
     scalar Awet = 0, Atot = 0;
+    {
+        kbFace F;
+        F.p.setSize(f.size());
+        forAll(f, ip) F.p[ip] = P[f[ip]] + d;
+        F.setFrame();
+        if (kbWholeFace(F))
+        {
+            if (!(F.Ls > SMALL)) { alphaf = 0; return true; }
+            const scalar At = F.area();
+            if (!kbIntegrateFace(F, S, tolRel*Af, GREAT, false, sums))
+            {
+                nLeaves += sums.nLeaves;
+                return false;
+            }
+            nLeaves += sums.nLeaves;
+            alphaf = (At > 0) ? sums.lastArea/At : 0;
+            return true;
+        }
+    }
     forAll(f, ip)
     {
         const label ip1 = f.nextLabel(ip);

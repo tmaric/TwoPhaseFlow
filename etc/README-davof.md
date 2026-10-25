@@ -572,7 +572,14 @@ models):
   by Green's theorem as well. The conic is classified in principal form (their Eqs. 26-34) to
   order the boundary crossings and to split long arcs; every arc is integrated as the graph
   over its chord with the exact root along the chord's normal, adaptive Gauss-Legendre 12
-  (`davofKromerBothe.H`). Non-planar faces as fan triangles. Falls back to `splitQuadrature`
+  (`davofKromerBothe.H`). A planar face (every vertex within 1e-10 L_s of the face plane) is
+  integrated whole, a warped face as the fan triangles about the face centre; the key
+  `kromerBotheFan` overrides the test (`auto`, the default, the test; `true` every face
+  fanned, the rule before 2026-10-25; `false` every face whole). The same choice applies to
+  the cell faces of the volume anchor, the top and bottom of the flux prisms and the displaced
+  faces of the face fractions. On the hexahedral sphere the whole faces cut the step by 45 %
+  at N = 64 and 40 % at N = 128, the end error changing in the eighth digit (L1(alphaf)
+  0.00195336 against 0.00195339). Falls back to `splitQuadrature`
   per polyhedron where a configuration is not resolved, and for a sphere surface; counted in
   the Info line ("volume rule kromerBothe fallbacks N") and, when any occur, by reason
   ("kromerBothe fallbacks by reason: conic, point, root, gradient, area, volume"). On a flat
@@ -592,9 +599,46 @@ models):
   circle trace up to the sliver's 12-point rule). For `clippingSurface exactSphere`; a
   paraboloid falls back to `splitQuadrature`, counted.
 
-Other algorithms of the curved flux, with their sources: the volume anchor's root by a bracket
-and the Illinois rule, M. Dowell, P. Jarratt, A modified regula falsi method for computing the
-root of an equation, BIT 11 (1971) 168-174, doi:10.1007/BF01934364; the six-coefficient fit by
+Other algorithms of the curved flux, with their sources: the volume anchor's root (key
+`anchorMethod`: `ccs`, the default; `newton`; `illinois`; `compare`; 2026-10-25). The slope
+dV/dc of the cell's liquid volume in the offset is the area of the wetted patch projected along
+the frame's axis, which the Kromer-Bothe rule returns as the line integral oint t1 dt2 around
+the trace arcs it walks for the volume anyway (`cellLiquidVolumeSlope`). `ccs`: the
+Consecutive Cubic Spline positioning of T. Marić, Iterative volume-of-fluid interface
+positioning in general polyhedrons with Consecutive Cubic Spline interpolation, J. Comput.
+Phys.: X 11 (2021) 100093, doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227, applied to the
+paraboloid: once the root is bracketed (a Newton step from the start), the iterate is the root
+of the cubic Hermite interpolant through the two bracket ends with the exact volumes and
+slopes, re-bracketed at every step, an iterate outside the bracket or a bracket not halved in
+two steps replaced by the bisection point; between the vertex offsets (the breakpoints of
+V(c), where its second derivative jumps) V is smooth, a cubic for a plane, so the model is
+exact there up to the quadrature. `newton`: Newton on the slope, safeguarded by the bracket
+the iterates build (an iterate outside it is replaced by the bisection point: the rtsafe of
+Press, Teukolsky, Vetterling, Flannery, Numerical Recipes, 3rd ed., Cambridge University
+Press, 2007, Sect. 4.6 and 9.4, ISBN 978-0-521-88068-8) and corrected by the quadratic model
+whose second derivative is the secant of the two latest slopes (Halley's step with that
+estimate: T. R. Scavo, J. B. Thoo, On the geometry of Halley's method, Amer. Math. Monthly 102
+(1995) 417-426, doi:10.2307/2975033). Both converge when the bracket closes to 1e-11 h or the
+Newton step r/A is below it with the residual within `anchorTolRel`; where the slope is not
+available (a fallback polyhedron, another rule) and no bracket exists yet, or with
+`anchorMethod illinois`, the root by a bracket of doubling steps and the Illinois rule,
+M. Dowell, P. Jarratt, A modified regula falsi method for computing the root of an equation,
+BIT 11 (1971) 168-174, doi:10.1007/BF01934364 (the only method until 2026-10-25: 6.2
+cell-volume evaluations per interface cell per step, 57 % of the advection step at N = 64).
+Where the target is 0 or V (a full or empty cell flagged as an interface cell) V(c) is flat on
+an interval of roots; Illinois stops at the first bracket end of its doubling steps (0.75 h or
+1.75 h from the start) and the ladder's ring row carries that choice; the offset of such a cell
+is DEFINED (2026-10-25) as the edge of the interval, the surface tangent to the cell (the first
+offset at which the cell is entirely liquid or entirely empty), computed exactly as the extremum
+of the offset function over the cell's vertices, edges and face planes (`kbOffsetRange`) and
+moved 1e-12 h onto the flat side; `ccs` and `newton` take it (the Info line counts these cells,
+"edge N"), `illinois` keeps its bracket end. `compare` runs Illinois and ccs from the same
+start, continues with ccs, counts the cells whose offsets differ by more than 1e-9 h (and those
+of them at the edge) in a second Info line and prints the first 20 per step. The Info line
+counts the anchor's evaluations ("evaluations N (per cell x)"). The anchor's two face-fraction
+diagnostics, the face residual before the anchor and the face shift after it (14 % of the
+step), are computed and printed only with `anchorDiagnostics true` (default false). The
+six-coefficient fit by
 Gauss-Newton with the damping of D. W. Marquardt, An algorithm for least-squares estimation of
 nonlinear parameters, J. Soc. Indust. Appl. Math. 11 (1963) 431-441, doi:10.1137/0111030; the
 six-point degree-4 triangle rule of the retired unsplit quadrature from D. A. Dunavant, High

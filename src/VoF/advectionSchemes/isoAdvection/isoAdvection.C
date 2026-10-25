@@ -167,12 +167,20 @@ Foam::advection::isoAdvection::isoAdvection
     anchorTolRel_(modelDict().getOrDefault<scalar>("anchorTolRel", 1e-11)),
     defectEvery_(modelDict().getOrDefault<label>("defectEvery", 10)),
     curvedDebug_(modelDict().getOrDefault<bool>("curvedDebug", false)),
+    anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
+    anchorMethod_(modelDict().getOrDefault<word>("anchorMethod", "ccs")),
     debugR0Max_(0),
     debugCellR0_(-1),
     debugSurface_(),
     debugAlpha_(0),
     nAnchorFail_(0),
     nAnchorLeaves_(0),
+    nAnchorEvals_(0),
+    nAnchorEdge_(0),
+    nCompare_(0),
+    nCompareDiff_(0),
+    nCompareDiffEdge_(0),
+    nCompareDiffResolved_(0),
     anchorShiftMax_(0),
     anchorShiftSum_(0),
     defectLevels_(modelDict().getOrDefault<label>("defectLevels", 3)),
@@ -272,11 +280,24 @@ Foam::advection::isoAdvection::isoAdvection
                         << "fitDof none needs fitAnchor volume (the offset"
                         << " comes from nowhere else)" << exit(FatalIOError);
                 }
+                if
+                (
+                    anchorMethod_ != "ccs" && anchorMethod_ != "newton"
+                 && anchorMethod_ != "illinois" && anchorMethod_ != "compare"
+                )
+                {
+                    FatalIOErrorInFunction(modelDict())
+                        << "anchorMethod '" << anchorMethod_
+                        << "' unknown. Valid: ccs, newton, illinois, compare."
+                        << exit(FatalIOError);
+                }
                 Info<< ", fitPriorWeight " << fitPriorWeight_ << ", fitTol "
                     << fitTol_ << ", fitMaxIter " << fitMaxIter_
                     << ", fitAnchor " << fitAnchor_ << ", fitDof " << fitDof_
-                    << ", anchorTolRel " << anchorTolRel_ << ", defectEvery "
-                    << defectEvery_;
+                    << ", anchorTolRel " << anchorTolRel_ << ", anchorMethod "
+                    << anchorMethod_ << ", defectEvery "
+                    << defectEvery_ << ", anchorDiagnostics "
+                    << (anchorDiagnostics_ ? "on" : "off");
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
 

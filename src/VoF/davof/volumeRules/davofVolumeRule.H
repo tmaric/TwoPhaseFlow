@@ -210,6 +210,23 @@ public:
             const scalar tolRel
         ) const = 0;
 
+        //- The liquid volume of celli under S and its slope in the offset
+        //  c of the surface, dV/dc = the area of the wetted patch projected
+        //  along e3 (the volume anchor's Newton derivative); dVdc is
+        //  negative where the rule cannot provide it (the default: the
+        //  volume alone, the anchor then brackets)
+        virtual scalar cellLiquidVolumeSlope
+        (
+            const label celli,
+            const davof::cellSurface& S,
+            const scalar tolRel,
+            scalar& dVdc
+        ) const
+        {
+            dVdc = -1;
+            return cellLiquidVolume(celli, S, tolRel);
+        }
+
         //- The liquid volume of the prism between facei - d and facei
         virtual scalar prismLiquidVolume
         (

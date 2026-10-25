@@ -50,7 +50,16 @@ Description
     tensor), all six fitted to the cell's own face fractions by the
     Gauss-Newton of leia's regeneration (2026-10-12) with the ring curvature
     tensor as the prior, from the one-scalar anchoring as the start; cells
-    whose fit does not converge keep the best iterate (counted).
+    whose fit does not converge keep the best iterate (counted). The volume
+    anchor (fitAnchor volume) positions the surface by its offset so that
+    the volume under it is alpha V, by the Consecutive Cubic Spline
+    positioning of T. Maric, Iterative volume-of-fluid interface positioning
+    in general polyhedrons with Consecutive Cubic Spline interpolation,
+    J. Comput. Phys.: X 11 (2021) 100093, doi:10.1016/j.jcpx.2021.100093,
+    arXiv:2012.02227, applied to the paraboloid with the exact volumes and
+    slopes of the volume rule (anchorMethod ccs, the default; newton and
+    illinois selectable), and takes the edge of the flat root interval for
+    a cell whose target is 0 or V.
 
 SourceFiles
     isoAdvectionCurved.C
@@ -64,6 +73,7 @@ SourceFiles
 #include "volFields.H"
 #include "processorPolyPatch.H"
 #include "PstreamBuffers.H"
+#include <cmath>
 
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
@@ -106,6 +116,42 @@ inline Foam::davof::cellSurface unpackSurface(const Foam::UList<Foam::scalar>& v
 
 constexpr Foam::label nPack = 21;
 
+// The root in (0, 1) of the cubic Hermite interpolant p(s) with p(0) = f0 < 0,
+// p(1) = f1 > 0 and the derivatives p'(0) = d0, p'(1) = d1 (in s): Newton on
+// the polynomial from the secant point, bisection where it leaves the
+// polynomial's own bracket. The volume anchor's Consecutive Cubic Spline step
+// (T. Maric, Iterative volume-of-fluid interface positioning in general
+// polyhedrons with Consecutive Cubic Spline interpolation, J. Comput. Phys.:
+// X 11 (2021) 100093, doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227).
+inline bool hermiteRoot01
+(
+    const Foam::scalar f0, const Foam::scalar d0,
+    const Foam::scalar f1, const Foam::scalar d1,
+    Foam::scalar& s
+)
+{
+    using Foam::scalar; using Foam::label; using Foam::mag;
+    auto p = [&](const scalar t, scalar& v, scalar& dv)
+    {
+        const scalar t2 = t*t, t3 = t2*t;
+        v = (2*t3 - 3*t2 + 1)*f0 + (t3 - 2*t2 + t)*d0 + (-2*t3 + 3*t2)*f1 + (t3 - t2)*d1;
+        dv = (6*t2 - 6*t)*f0 + (3*t2 - 4*t + 1)*d0 + (-6*t2 + 6*t)*f1 + (3*t2 - 2*t)*d1;
+    };
+    scalar a = 0, b = 1;
+    s = f0/(f0 - f1);
+    for (label it = 0; it < 60; ++it)
+    {
+        scalar v, dv;
+        p(s, v, dv);
+        if (v < 0) a = s; else b = s;
+        if (mag(v) <= 1e-15*(mag(f0) + mag(f1)) || b - a <= 1e-15) break;
+        scalar sn = (dv > 0) ? s - v/dv : 0.5*(a + b);
+        if (!(sn > a && sn < b)) sn = 0.5*(a + b);
+        s = sn;
+    }
+    return (s > 0 && s < 1);
+}
+
 } // End anonymous namespace
 
 
@@ -130,6 +176,12 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
     fitResSum_ = 0;
     nAnchorFail_ = 0;
     nAnchorLeaves_ = 0;
+    nAnchorEvals_ = 0;
+    nAnchorEdge_ = 0;
+    nCompare_ = 0;
+    nCompareDiff_ = 0;
+    nCompareDiffEdge_ = 0;
+    nCompareDiffResolved_ = 0;
     anchorShiftMax_ = 0;
     anchorShiftSum_ = 0;
 
@@ -300,20 +352,26 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         }
         else
         {
-            // the face residual of the surface as it stands (the one-scalar
-            // anchoring or the plane of the frame with the ring tensor)
-            scalarList aF;
-            fractionsOf(S, aF);
-            scalar rmax = 0;
-            forAll(aF, k) rmax = max(rmax, mag(aF[k] - tF[k]));
-            rmaxPre = rmax;
-            aFPre = aF;
             ++nFitConverged_;
-            fitResMax_ = max(fitResMax_, rmax);
-            fitResSum_ += rmax;
-            if (fitResidualPtr_)
+            // the face residual of the surface as it stands (the one-scalar
+            // anchoring or the plane of the frame with the ring tensor): a
+            // diagnostic of one face-fraction evaluation per face, computed
+            // only when it is printed (anchorDiagnostics) or written; the
+            // anchor event print below needs it (anchorDiagnostics on)
+            if (anchorDiagnostics_ || fitResidualPtr_)
             {
-                fitResidualPtr_->primitiveFieldRef()[celli] = rmax;
+                scalarList aF;
+                fractionsOf(S, aF);
+                scalar rmax = 0;
+                forAll(aF, k) rmax = max(rmax, mag(aF[k] - tF[k]));
+                rmaxPre = rmax;
+                aFPre = aF;
+                fitResMax_ = max(fitResMax_, rmax);
+                fitResSum_ += rmax;
+                if (fitResidualPtr_)
+                {
+                    fitResidualPtr_->primitiveFieldRef()[celli] = rmax;
+                }
             }
         }
 
@@ -321,128 +379,449 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         // the volume under the surface equals alpha_k V, the slopes and the
         // tensor from the face fit; the flux of the step is the volume under
         // the same surface by the same quadrature, so alpha_k stays the
-        // volume under the surface and feeds back into it. Newton with the
-        // wetted area as the derivative of the volume in the offset.
+        // volume under the surface and feeds back into it.
         if (fitAnchor_ == "volume")
         {
             const scalar Vc = V[celli];
             const scalar target = alpha1In_[celli]*Vc;
             const scalar mMag = max(mag(m[celli]), 1e-3*h*h);
-            bool okAnchor = false;
             // the cell volume under the surface by the volume rule at the
             // anchor's tolerance (anchorTolRel of V), the same rule as the
-            // flux, so that the anchored volume is the flux's volume
-            auto volumeOf = [&]() -> scalar
+            // flux, so that the anchored volume is the flux's volume; with
+            // it the slope dV/dc, the area of the wetted patch projected
+            // along e3 (the Kromer-Bothe rule walks it as oint t1 dt2 on
+            // the arcs it integrates anyway), negative where the rule has
+            // none (a fallback, another rule); every evaluation counted
+            scalar slope = -1;
+            auto volumeOfT = [&](const davof::cellSurface& T) -> scalar
             {
-                const scalar v = volumeRulePtr_->cellLiquidVolume(celli, S, anchorTolRel_);
-                anchorIterates.append(Pair<scalar>(S.c, v));
+                ++nAnchorEvals_;
+                const scalar v = volumeRulePtr_->cellLiquidVolumeSlope(celli, T, anchorTolRel_, slope);
+                anchorIterates.append(Pair<scalar>(T.c, v));
                 return v;
             };
-            // V(c) is non-decreasing in c (c larger: more liquid, dV/dc = the
-            // wetted area, zero where the surface has left the cell). A
-            // Newton guess with the wetted area, then a bracket of the root
-            // (the step doubled from h/4 until the residual changes sign;
-            // the volume is confined to [0, V], so a bracket exists within
-            // the cell's diagonal) and the Illinois rule inside it, to the
-            // tolerance or to a bracket of 1e-12 h; the secant alone failed
-            // in 3 to 50 cells per step where V(c) is flat or the start far.
+            // V(c) is non-decreasing in c (c larger: more liquid, dV/dc =
+            // the projected wetted patch area, zero where the surface has
+            // left the cell). anchorMethod ccs (the default): the
+            // Consecutive Cubic Spline positioning of T. Maric, J. Comput.
+            // Phys.: X 11 (2021) 100093, doi:10.1016/j.jcpx.2021.100093,
+            // arXiv:2012.02227, on the paraboloid: the root of the cubic
+            // Hermite interpolant through the bracket ends with the exact
+            // volumes and slopes, re-bracketed, bisection-safeguarded (the
+            // branch below). anchorMethod illinois (the method until
+            // 2026-10-25): a bracket of the root (the step doubled from h/4
+            // until the residual changes sign; the volume is confined to
+            // [0, V], so a bracket exists within the cell's diagonal) and
+            // the Illinois rule inside it (M. Dowell, P. Jarratt, BIT 11
+            // (1971) 168-174, doi:10.1007/BF01934364), to the tolerance or
+            // to a bracket of 1e-11 h; the secant alone failed in 3 to 50
+            // cells per step where V(c) is flat or the start far
+            // (2026-10-23).
+            // anchorMethod newton: Newton steps on that slope, safeguarded
+            // by the bracket the iterates build (an iterate outside it is
+            // replaced by the bisection point, as the rtsafe of W. H. Press,
+            // S. A. Teukolsky, W. T. Vetterling, B. P. Flannery, Numerical
+            // Recipes, 3rd ed., Cambridge University Press, 2007, Sect.
+            // 9.4, ISBN 978-0-521-88068-8), the step corrected by the
+            // quadratic model of V(c) whose second derivative is the secant
+            // of the two latest slopes (Halley's step with that estimate:
+            // T. R. Scavo, J. B. Thoo, On the geometry of Halley's method,
+            // Amer. Math. Monthly 102 (1995) 417-426, doi:10.2307/2975033);
+            // where the slope is not usable (a fallback, a vanishing patch)
+            // and no bracket exists yet, the bracket search and the Illinois
+            // rule take over from the last iterate. On the sphere's ring row
+            // (N = 32, Co 0.2) newton takes 3.7 evaluations per interface
+            // cell and step against 6.5 for illinois (2026-10-25).
             // The volume residual alone is no criterion for the OFFSET: a
             // residual of tol V is an offset error of tol V / A_patch, large
             // where the wetted patch is small (a corner cut), and the plane
             // test showed exactly those faces off by 2e-4. The bracket of
-            // the offset is therefore closed to 1e-11 h; the residual
-            // criterion applies only where it is round-off.
+            // the offset is therefore closed to 1e-11 h, or Newton's own
+            // step r/A_patch is below it; the residual criterion applies
+            // only where it is round-off.
+            // The root is NOT unique where the target is 0 or V (a full or
+            // empty cell flagged as an interface cell by |m_c| > wispTol
+            // V^(2/3)): V(c) is flat beyond the offset at which the surface
+            // leaves the cell's last corner, and any c there is a root.
+            // illinois stops at the first bracket end its doubling reaches
+            // (0.75 h or 1.75 h from the start on the sphere), newton near
+            // the edge (0.72 to 0.80 h), up to 0.95 h apart; the cell's own
+            // volume is the same, but its surface also cuts the prisms of
+            // its faces and the second-ring faces, so the runs differ (the
+            // sphere's ring row ended 0.5 % lower at N = 32 and 2.5 % lower
+            // at N = 64 with newton, 2026-10-25). The offset of such a cell
+            // is therefore DEFINED as the edge of the interval, the surface
+            // tangent to the cell (kbOffsetRange, exact), in ccs and newton;
+            // illinois keeps its bracket end as the ladder's reference path.
             const scalar tol = max(anchorTolRel_*Vc, 1e-14*Vc);
             const scalar cTol = 1e-11*h;
-            scalar c0 = S.c;
-            scalar r0 = volumeOf() - target;
+            const scalar cStart = S.c;
+            const scalar rStart = volumeOfT(S) - target;
+            const scalar AStart = slope;
             // the diagnostic of the quadrature (key curvedDebug): on an exact
             // state the surface before the anchor encloses alpha V, so r0 is
             // the quadrature's own error; the worst cell is printed with its
             // pyramids against the exact linear cut of the Detrixhe-Aslam tets
-            if (curvedDebug_ && mag(r0)/Vc > debugR0Max_)
+            if (curvedDebug_ && mag(rStart)/Vc > debugR0Max_)
             {
-                debugR0Max_ = mag(r0)/Vc;
+                debugR0Max_ = mag(rStart)/Vc;
                 debugCellR0_ = celli;
                 debugSurface_ = S;
                 debugAlpha_ = alpha1In_[celli];
             }
-            if (mag(r0) <= 1e-14*Vc)
+            // the root by the given method on the surface T (its offset set),
+            // from the start above; exitCode names the criterion that ended
+            // the search (0 none: the better bracket end is kept)
+            auto anchorSolve = [&]
+            (
+                const word& method, davof::cellSurface& T, label& exitCode
+            ) -> bool
             {
-                okAnchor = true;
-            }
-            else
-            {
-                // the bracket [lo, hi] with r(lo) < 0 < r(hi)
-                scalar lo, hi, rlo, rhi;
-                scalar step = min(mag(r0)/mMag, 0.25*h);
-                step = max(step, 1e-3*h);
-                if (r0 < 0)
+                bool okAnchor = false;
+                exitCode = 0;
+                T.c = cStart;
+                scalar c0 = cStart, r0 = rStart;
+                const scalar A0 = AStart;
+                auto volumeOf = [&]() -> scalar { return volumeOfT(T); };
+                // A cell whose target is 0 or V (within the anchor's
+                // residual tolerance 1e-14 V: a full or empty cell that
+                // counts as an interface cell) has an interval of roots, on
+                // which V(c) is flat. Its offset is DEFINED (Tomislav,
+                // 2026-10-25) as the edge of that interval, the surface
+                // tangent to the cell: the first offset at which the cell is
+                // entirely liquid (cMax of kbOffsetRange) or entirely empty
+                // (cMin), moved 1e-12 h onto the flat side so that no vertex
+                // lies exactly on the surface. Exact, without an evaluation.
+                // The method illinois keeps the bracket end it reaches there
+                // (the runs before this definition).
+                if
+                (
+                    method != "illinois"
+                 && (target <= 1e-14*Vc || target >= (1 - 1e-14)*Vc)
+                )
                 {
-                    lo = c0; rlo = r0; hi = c0; rhi = r0;
-                    for (label k = 0; k < 12 && rhi < 0; ++k)
-                    {
-                        hi = lo + step; S.c = hi; rhi = volumeOf() - target;
-                        if (rhi < 0) { lo = hi; rlo = rhi; }
-                        step *= 2;
-                    }
+                    DynamicList<davof::kbFace> cellFaces(24);
+                    davof::kbCellFaces(mesh_, celli, cellFaces);
+                    scalar cMin, cMax;
+                    davof::kbOffsetRange(cellFaces, T, cMin, cMax);
+                    const bool full = target >= (1 - 1e-14)*Vc;
+                    T.c = full ? cMax + 1e-12*h : cMin - 1e-12*h;
+                    exitCode = full ? 11 : 10;
+                    return true;
+                }
+                if (mag(r0) <= 1e-14*Vc)
+                {
+                    okAnchor = true;
+                    exitCode = 1;
                 }
                 else
                 {
-                    hi = c0; rhi = r0; lo = c0; rlo = r0;
-                    for (label k = 0; k < 12 && rlo > 0; ++k)
+                    // the bracket [lo, hi] with r(lo) < 0 < r(hi), by either method
+                    scalar lo = c0, hi = c0, rlo = r0, rhi = r0;
+                    bool haveLo = false, haveHi = false;
+                    if (method == "ccs")
                     {
-                        lo = hi - step; S.c = lo; rlo = volumeOf() - target;
-                        if (rlo > 0) { hi = lo; rhi = rlo; }
-                        step *= 2;
-                    }
-                }
-                if (rlo <= 0 && rhi >= 0)
-                {
-                    // Illinois (modified regula falsi), closed on the offset
-                    label side = 0;
-                    for (label it = 0; it < 80; ++it)
-                    {
-                        if (mag(rlo) <= 1e-14*Vc) { S.c = lo; okAnchor = true; break; }
-                        if (mag(rhi) <= 1e-14*Vc) { S.c = hi; okAnchor = true; break; }
-                        if (hi - lo <= cTol) { S.c = (rlo*hi - rhi*lo)/(rlo - rhi); if (!(S.c > lo && S.c < hi)) S.c = 0.5*(lo + hi); okAnchor = true; break; }
-                        scalar c1 = (rlo*hi - rhi*lo)/(rlo - rhi);
-                        // keep the iterate inside the bracket
-                        if (!(c1 > lo && c1 < hi)) c1 = 0.5*(lo + hi);
-                        S.c = c1;
-                        const scalar r1 = volumeOf() - target;
-                        if (mag(r1) <= 1e-14*Vc) { okAnchor = true; break; }
-                        if (mag(r1) <= tol && hi - lo <= 1e-6*h) { okAnchor = true; break; }
-                        if (r1 < 0)
+                        // Consecutive Cubic Spline positioning (T. Maric,
+                        // J. Comput. Phys.: X 11 (2021) 100093,
+                        // doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227)
+                        // on the paraboloid: once the root is bracketed, the
+                        // iterate is the root of the cubic Hermite
+                        // interpolant through the two bracket ends with the
+                        // exact values V and the exact slopes dV/dc (the
+                        // projected wetted patch area), re-bracketed at
+                        // every step; an iterate outside the bracket, or a
+                        // bracket not halved in two steps, is replaced by
+                        // the bisection point. Between the breakpoints of
+                        // V(c) (the vertex offsets, where d2V/dc2 jumps) V
+                        // is smooth, a cubic for a plane, so the cubic model
+                        // is exact there up to the quadrature; a bracket
+                        // across a breakpoint shrinks onto one piece within
+                        // a step or two. Until the bracket exists the step is
+                        // Newton's from the latest point (at most h/2); a
+                        // point without a usable slope falls to the bracket
+                        // search and the Illinois rule below.
+                        scalar c = c0, r = r0, A = A0;
+                        scalar Alo = -1, Ahi = -1;
+                        scalar wPrev = GREAT, wPrev2 = GREAT;
+                        for (label it = 0; it < 60; ++it)
                         {
-                            lo = c1; rlo = r1;
-                            if (side == -1) rhi *= 0.5;
-                            side = -1;
+                            if (r < 0) { lo = c; rlo = r; Alo = A; haveLo = true; }
+                            else { hi = c; rhi = r; Ahi = A; haveHi = true; }
+                            const bool bracketed = haveLo && haveHi;
+                            if (bracketed && hi - lo <= cTol)
+                            {
+                                T.c = (rlo*hi - rhi*lo)/(rlo - rhi);
+                                if (!(T.c > lo && T.c < hi)) T.c = 0.5*(lo + hi);
+                                okAnchor = true;
+                                exitCode = 3;
+                                break;
+                            }
+                            if (bracketed && mag(r) <= tol && hi - lo <= 1e-6*h)
+                            {
+                                okAnchor = true;
+                                exitCode = 4;
+                                break;
+                            }
+                            const bool slopeOK = std::isfinite(A) && A > 1e-12*h*h;
+                            if (slopeOK && mag(r) <= tol && mag(r/A) <= cTol)
+                            {
+                                T.c = c - r/A;
+                                okAnchor = true;
+                                exitCode = 2;
+                                break;
+                            }
+                            scalar cNew;
+                            if (bracketed)
+                            {
+                                const scalar w = hi - lo;
+                                const scalar sec = (rhi - rlo)/w;
+                                const scalar dlo = (std::isfinite(Alo) && Alo >= 0) ? Alo : sec;
+                                const scalar dhi = (std::isfinite(Ahi) && Ahi >= 0) ? Ahi : sec;
+                                scalar sRoot = 0.5;
+                                const bool ok = hermiteRoot01(rlo, dlo*w, rhi, dhi*w, sRoot);
+                                cNew = ok ? lo + sRoot*w : 0.5*(lo + hi);
+                                if (!(cNew > lo && cNew < hi) || w > 0.5*wPrev2)
+                                {
+                                    cNew = 0.5*(lo + hi);
+                                }
+                                wPrev2 = wPrev; wPrev = w;
+                            }
+                            else if (slopeOK)
+                            {
+                                scalar dc = -r/A;
+                                if (mag(dc) > 0.5*h) dc = (dc > 0) ? 0.5*h : -0.5*h;
+                                cNew = c + dc;
+                            }
+                            else
+                            {
+                                // no slope and no bracket: the bracket search
+                                break;
+                            }
+                            T.c = cNew; c = cNew;
+                            r = volumeOf() - target;
+                            A = slope;
+                            if (mag(r) <= 1e-14*Vc)
+                            {
+                                okAnchor = true;
+                                exitCode = 5;
+                                break;
+                            }
+                        }
+                        if (!okAnchor) { c0 = c; r0 = r; }
+                    }
+                    else if (method == "newton")
+                    {
+                        scalar c = c0, r = r0, A = A0;
+                        scalar cPrev = c0, APrev = A0;
+                        bool havePrev = false;
+                        for (label it = 0; it < 60; ++it)
+                        {
+                            if (r < 0) { lo = c; rlo = r; haveLo = true; }
+                            else { hi = c; rhi = r; haveHi = true; }
+                            const bool bracketed = haveLo && haveHi;
+                            if (bracketed && hi - lo <= cTol)
+                            {
+                                T.c = (rlo*hi - rhi*lo)/(rlo - rhi);
+                                if (!(T.c > lo && T.c < hi)) T.c = 0.5*(lo + hi);
+                                okAnchor = true;
+                                exitCode = 3;
+                                break;
+                            }
+                            if (bracketed && mag(r) <= tol && hi - lo <= 1e-6*h)
+                            {
+                                okAnchor = true;
+                                exitCode = 4;
+                                break;
+                            }
+                            const bool slopeOK = std::isfinite(A) && A > 1e-12*h*h;
+                            scalar cNew;
+                            if (slopeOK)
+                            {
+                                // the offset criterion on the plain Newton step
+                                // r/A, the first-order offset error of the
+                                // iterate (the corrected step below can be much
+                                // shorter where the slope changes fast)
+                                const scalar dcN = -r/A;
+                                if (mag(r) <= tol && mag(dcN) <= cTol)
+                                {
+                                    T.c = c + dcN;
+                                    okAnchor = true;
+                                    exitCode = 2;
+                                    break;
+                                }
+                                scalar dc = dcN;
+                                if (havePrev && c != cPrev)
+                                {
+                                    // the quadratic model V(c + dc) = V + A dc
+                                    // + D dc^2/2 with D from the two latest
+                                    // slopes; the correction keeps the sign of
+                                    // the step and at most doubles it
+                                    const scalar D = (A - APrev)/(c - cPrev);
+                                    const scalar den = A + 0.5*D*dc;
+                                    if (den > 0.5*A) dc = -r/den;
+                                }
+                                cNew = c + dc;
+                                if (bracketed)
+                                {
+                                    if (!(cNew > lo && cNew < hi)) cNew = 0.5*(lo + hi);
+                                }
+                                else if (mag(dc) > 0.5*h)
+                                {
+                                    cNew = c + ((dc > 0) ? 0.5*h : -0.5*h);
+                                }
+                            }
+                            else if (bracketed)
+                            {
+                                cNew = 0.5*(lo + hi);
+                            }
+                            else
+                            {
+                                // no slope and no bracket: the bracket search
+                                break;
+                            }
+                            cPrev = c; APrev = A; havePrev = true;
+                            T.c = cNew; c = cNew;
+                            r = volumeOf() - target;
+                            A = slope;
+                            if (mag(r) <= 1e-14*Vc)
+                            {
+                                okAnchor = true;
+                                exitCode = 5;
+                                break;
+                            }
+                        }
+                        // the bracket search and the Illinois rule continue
+                        // from the last iterate
+                        if (!okAnchor) { c0 = c; r0 = r; }
+                    }
+                    if (!okAnchor && !(haveLo && haveHi))
+                    {
+                        scalar step = min(mag(r0)/mMag, 0.25*h);
+                        step = max(step, 1e-3*h);
+                        if (r0 < 0)
+                        {
+                            lo = c0; rlo = r0; hi = c0; rhi = r0;
+                            for (label k = 0; k < 12 && rhi < 0; ++k)
+                            {
+                                hi = lo + step; T.c = hi; rhi = volumeOf() - target;
+                                if (rhi < 0) { lo = hi; rlo = rhi; }
+                                step *= 2;
+                            }
                         }
                         else
                         {
-                            hi = c1; rhi = r1;
-                            if (side == 1) rlo *= 0.5;
-                            side = 1;
+                            hi = c0; rhi = r0; lo = c0; rlo = r0;
+                            for (label k = 0; k < 12 && rlo > 0; ++k)
+                            {
+                                lo = hi - step; T.c = lo; rlo = volumeOf() - target;
+                                if (rlo > 0) { hi = lo; rhi = rlo; }
+                                step *= 2;
+                            }
                         }
                     }
+                    if (!okAnchor && rlo <= 0 && rhi >= 0)
+                    {
+                        // Illinois (modified regula falsi), closed on the offset
+                        label side = 0;
+                        for (label it = 0; it < 80; ++it)
+                        {
+                            if (mag(rlo) <= 1e-14*Vc) { T.c = lo; okAnchor = true; exitCode = 6; break; }
+                            if (mag(rhi) <= 1e-14*Vc) { T.c = hi; okAnchor = true; exitCode = 6; break; }
+                            if (hi - lo <= cTol) { T.c = (rlo*hi - rhi*lo)/(rlo - rhi); if (!(T.c > lo && T.c < hi)) T.c = 0.5*(lo + hi); okAnchor = true; exitCode = 7; break; }
+                            scalar c1 = (rlo*hi - rhi*lo)/(rlo - rhi);
+                            // keep the iterate inside the bracket
+                            if (!(c1 > lo && c1 < hi)) c1 = 0.5*(lo + hi);
+                            T.c = c1;
+                            const scalar r1 = volumeOf() - target;
+                            if (mag(r1) <= 1e-14*Vc) { okAnchor = true; exitCode = 8; break; }
+                            if (mag(r1) <= tol && hi - lo <= 1e-6*h) { okAnchor = true; exitCode = 9; break; }
+                            if (r1 < 0)
+                            {
+                                lo = c1; rlo = r1;
+                                if (side == -1) rhi *= 0.5;
+                                side = -1;
+                            }
+                            else
+                            {
+                                hi = c1; rhi = r1;
+                                if (side == 1) rlo *= 0.5;
+                                side = 1;
+                            }
+                        }
+                    }
+                    if (!okAnchor)
+                    {
+                        // no bracket (a cell the surface cannot fill or empty
+                        // within the search) or no convergence: keep the better
+                        // bracket end
+                        T.c = (mag(rlo) < mag(rhi)) ? lo : hi;
+                    }
                 }
-                if (!okAnchor)
+                return okAnchor;
+            };
+
+            label exitCode = 0;
+            bool okAnchor = false;
+            if (anchorMethod_ != "compare")
+            {
+                okAnchor = anchorSolve(anchorMethod_, S, exitCode);
+            }
+            else
+            {
+                // the diagnostic of the methods (anchorMethod compare): the
+                // ladder's illinois and ccs from the same start, the run
+                // continues with ccs; the cells whose offsets differ beyond
+                // 1e-9 h are counted (all, and those at the edge of the flat
+                // interval) and the first 20 per step printed with the
+                // volumes and slopes at both offsets
+                davof::cellSurface SI = S;
+                label exitI = 0;
+                const bool okI = anchorSolve("illinois", SI, exitI);
+                okAnchor = anchorSolve("ccs", S, exitCode);
+                if (mag(SI.c - S.c) > 1e-9*h)
                 {
-                    // no bracket (a cell the surface cannot fill or empty
-                    // within the search) or no convergence: keep the better
-                    // bracket end
-                    S.c = (mag(rlo) < mag(rhi)) ? lo : hi;
+                    ++nCompareDiff_;
+                    scalar AI = -1, AN = -1;
+                    const scalar vI = volumeRulePtr_->cellLiquidVolumeSlope(celli, SI, anchorTolRel_, AI);
+                    const scalar vN = volumeRulePtr_->cellLiquidVolumeSlope(celli, S, anchorTolRel_, AN);
+                    // the classes: the edge of the flat interval; a
+                    // difference the anchor cannot resolve (the two offsets
+                    // enclose less than ten times the residual round-off
+                    // 1e-14 V between them, |dc| A <= 1e-13 V: a nearly full
+                    // or empty cell whose root is ill-conditioned, the
+                    // slope A of the corner sliver small) or an illinois
+                    // failure; the rest would be a real disagreement
+                    const scalar dV = mag(SI.c - S.c)*max(max(AI, AN), scalar(0));
+                    if (exitCode >= 10) ++nCompareDiffEdge_;
+                    else if (dV <= 1e-13*Vc || !okI) ++nCompareDiffResolved_;
+                    if (nCompare_ < 20)
+                    {
+                        ++nCompare_;
+                        Pout<< "anchor compare: cell " << celli << " alpha " << alpha1In_[celli]
+                            << " h " << h << " c0/h " << cStart/h << " r0/V " << rStart/Vc
+                            << " A0/h^2 " << AStart/(h*h)
+                            << " | illinois ok " << okI << " exit " << exitI
+                            << " c/h " << SI.c/h << " r/V " << (vI - target)/Vc << " A/h^2 " << AI/(h*h)
+                            << " | ccs ok " << okAnchor << " exit " << exitCode
+                            << " c/h " << S.c/h << " r/V " << (vN - target)/Vc << " A/h^2 " << AN/(h*h)
+                            << " | (cCcs - cI)/h " << (S.c - SI.c)/h
+                            << " |dc| A/V " << dV/Vc << nl;
+                    }
                 }
             }
+            if (exitCode >= 10) ++nAnchorEdge_;
             if (!okAnchor) ++nAnchorFail_;
-            // the face fractions the anchored surface cuts against the targets
-            scalarList aF;
-            fractionsOf(S, aF);
-            scalar dmax = 0;
-            forAll(aF, k) dmax = max(dmax, mag(aF[k] - tF[k]));
-            anchorShiftMax_ = max(anchorShiftMax_, dmax);
-            anchorShiftSum_ += dmax;
+            // the face fractions the anchored surface cuts against the
+            // targets (the face shift): a diagnostic, computed when printed
+            // (anchorDiagnostics), with the event print below
+            if (anchorDiagnostics_)
+            {
+                scalarList aF;
+                fractionsOf(S, aF);
+                scalar dmax = 0;
+                forAll(aF, k) dmax = max(dmax, mag(aF[k] - tF[k]));
+                anchorShiftMax_ = max(anchorShiftMax_, dmax);
+                anchorShiftSum_ += dmax;
 
             // The event print of the plane test (2026-10-25): a plane-like
             // surface (|b| h below 1e-6) whose face residual before the
@@ -525,6 +904,7 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
                             << " " << S.value(P[f[ip]])/h << " " << S.value(P[ip1])/h << nl;
                     }
                 }
+            }
             }
         }
 
@@ -1060,6 +1440,8 @@ void Foam::advection::isoAdvection::reportCurved() const
     label nLeaves = nCurvedLeaves_, nFitC = nFitCells_, nFitConv = nFitConverged_;
     label nFitSt = nFitStalled_, nFitSing = nFitSingular_, nFitNoBr = nFitNoBracket_;
     label nFitNoFr = nFitNoFrame_, nAnchF = nAnchorFail_, nAnchL = nAnchorLeaves_;
+    label nAnchE = nAnchorEvals_, nAnchEdge = nAnchorEdge_;
+    label nCmpD = nCompareDiff_, nCmpDE = nCompareDiffEdge_, nCmpDR = nCompareDiffResolved_;
     label nDef = nDefectCells_, nRuleFb = nRuleFallback_ + volumeRulePtr_->nFallback();
     scalar fitRMax = fitResMax_, fitRSum = fitResSum_, ashMax = anchorShiftMax_;
     scalar ashSum = anchorShiftSum_, defMax = defectMax_, defSum = defectSum_;
@@ -1073,6 +1455,9 @@ void Foam::advection::isoAdvection::reportCurved() const
         reduce(nFitSing, sumOp<label>()); reduce(nFitNoBr, sumOp<label>());
         reduce(nFitNoFr, sumOp<label>()); reduce(nAnchF, sumOp<label>());
         reduce(nAnchL, sumOp<label>()); reduce(nDef, sumOp<label>());
+        reduce(nAnchE, sumOp<label>()); reduce(nAnchEdge, sumOp<label>());
+        reduce(nCmpD, sumOp<label>()); reduce(nCmpDE, sumOp<label>());
+        reduce(nCmpDR, sumOp<label>());
         reduce(nRuleFb, sumOp<label>());
         reduce(fitRMax, maxOp<scalar>()); reduce(fitRSum, sumOp<scalar>());
         reduce(ashMax, maxOp<scalar>()); reduce(ashSum, sumOp<scalar>());
@@ -1088,15 +1473,25 @@ void Foam::advection::isoAdvection::reportCurved() const
     {
         Info<< "; fit: cells " << nFitC << ", converged " << nFitConv
             << ", stalled " << nFitSt << ", singular " << nFitSing
-            << ", no bracket " << nFitNoBr << ", no frame " << nFitNoFr
-            << ", residual max " << fitRMax
-            << " mean " << fitRSum/max(nFitC, label(1));
+            << ", no bracket " << nFitNoBr << ", no frame " << nFitNoFr;
+        // the face residual is the fit's own with fitDof six, else a
+        // diagnostic computed only when anchorDiagnostics (or the field) is on
+        if (fitDof_ == "six" || anchorDiagnostics_ || fitResidualPtr_)
+        {
+            Info<< ", residual max " << fitRMax
+                << " mean " << fitRSum/max(nFitC, label(1));
+        }
         if (fitAnchor_ == "volume")
         {
-            Info<< "; volume anchor: failed " << nAnchF
-                << ", face shift max " << ashMax
-                << " mean " << ashSum/max(nFitC, label(1))
-                << ", leaves " << nAnchL;
+            Info<< "; volume anchor: failed " << nAnchF;
+            if (anchorDiagnostics_)
+            {
+                Info<< ", face shift max " << ashMax
+                    << " mean " << ashSum/max(nFitC, label(1));
+            }
+            Info<< ", leaves " << nAnchL << ", evaluations " << nAnchE
+                << " (per cell " << scalar(nAnchE)/max(nFitC, label(1)) << ")"
+                << ", edge " << nAnchEdge;
         }
     }
     if (nDef > 0)
@@ -1108,6 +1503,14 @@ void Foam::advection::isoAdvection::reportCurved() const
     Info<< "; volume rule " << volumeRulePtr_->type()
         << " fallbacks " << nRuleFb;
     Info<< endl;
+    if (anchorMethod_ == "compare")
+    {
+        Info<< "isoAdvection: anchor compare: illinois and ccs differ in "
+            << nCmpD << " cells, " << nCmpDE << " of them at the edge of the flat interval, "
+            << nCmpDR << " within the anchor's resolution or an illinois failure, "
+            << nCmpD - nCmpDE - nCmpDR << " other"
+            << endl;
+    }
     volumeRulePtr_->report();
 
     if (curvedDebug_ && debugCellR0_ >= 0)

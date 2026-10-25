@@ -54,6 +54,7 @@ SourceFiles
 #define kromerBotheVolumeRule_H
 
 #include "davofVolumeRule.H"
+#include "davofKromerBothe.H"
 
 namespace Foam
 {
@@ -80,6 +81,18 @@ class kromerBothe
         mutable scalar dbgMaxPrism_, dbgSumPrism_, dbgMaxCell_, dbgSumCell_;
         mutable label dbgNPrism_, dbgNCell_;
 
+        //- The faces of the last cell asked for (kbCellFaces with their
+        //  frames), kept for the next call on the same cell in the same
+        //  time step: the volume anchor evaluates one cell several times
+        //  under surfaces that differ in the offset only
+        mutable label cacheCell_;
+        mutable label cacheTimeIndex_;
+        mutable DynamicList<davof::kbFace> cacheFaces_;
+
+        //- The faces of the last prism, a buffer reused from prism to prism
+        //  (its lists keep their storage)
+        mutable DynamicList<davof::kbFace> prismFaces_;
+
 
 public:
 
@@ -103,6 +116,17 @@ public:
             const label celli,
             const davof::cellSurface& S,
             const scalar tolRel
+        ) const;
+
+        //- The cell volume with its slope dV/dc, the projected area of the
+        //  wetted patch (oint t1 dt2 around the trace arcs); -1 where the
+        //  polyhedron fell back to the split quadrature
+        virtual scalar cellLiquidVolumeSlope
+        (
+            const label celli,
+            const davof::cellSurface& S,
+            const scalar tolRel,
+            scalar& dVdc
         ) const;
 
         virtual scalar prismLiquidVolume
