@@ -1341,6 +1341,46 @@ inline void kbPrismFaces(const fvMesh& mesh, const label faceI, const vector& d,
 }
 
 
+//- The admissible range [vLo, vHi] of the net liquid volume of the prism
+//  of kbPrismFaces: the fan triangles of the face (about the apex the prism
+//  uses) that d sweeps along the face's direction (sign of d.S_f) bound it
+//  from above, those it sweeps backwards from below. Returns false, with
+//  vLo = 0 and vHi = |d.S_f| untouched, when no triangle is swept backwards
+//  (every planar face, and a warped face crossed steeply); true otherwise.
+inline bool kbPrismRange
+(
+    const fvMesh& mesh,
+    const label faceI,
+    const vector& d,
+    scalar& vLo,
+    scalar& vHi
+)
+{
+    const pointField& P = mesh.points();
+    const face& f = mesh.faces()[faceI];
+    const scalar dS = d & mesh.faceAreas()[faceI];
+    point xc = mesh.faceCentres()[faceI];
+    if (!kbPrismApexCentre())
+    {
+        xc = Zero;
+        forAll(f, i) xc += P[f[i]];
+        xc /= f.size();
+    }
+    scalar fwd = 0, back = 0;
+    forAll(f, i)
+    {
+        const label j = f.fcIndex(i);
+        const scalar dSt = 0.5*(d & ((P[f[i]] - xc) ^ (P[f[j]] - xc)));
+        const scalar s = (dS >= 0) ? dSt : -dSt;
+        if (s >= 0) fwd += s; else back -= s;
+    }
+    if (!(back > 0)) return false;
+    vLo = -back;
+    vHi = fwd;
+    return true;
+}
+
+
 //- The liquid area fraction of the face faceI displaced by d under S by the
 //  Green integral: the whole polygon where it is planar, else its fan
 //  triangles (kbWholeFace). Returns false where not resolved.

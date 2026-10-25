@@ -1165,11 +1165,21 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     davof::kbPrismFaces(mesh_, facei, d, faces);
     scalar v = 0;
     const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_);
-    const bool inRange = v >= -1e-9*prismVol && v <= (1 + 1e-9)*prismVol;
+    // the admissible range of the net liquid volume: [0, |d.S_f|] on a
+    // planar face; on a warped face whose fan triangles the displacement
+    // partly sweeps backwards [-V_back, V_fwd] (kbPrismRange, 2026-10-25:
+    // the clamp to [0, |d.S_f|] cut the exact net flux of the obliquely
+    // crossed warped faces of the perturbed plane)
+    scalar vLo = 0, vHi = prismVol;
+    const bool warpedRange = davof::kbPrismRange(mesh_, facei, d, vLo, vHi);
+    const bool inRange =
+        warpedRange
+      ? (v >= vLo - 1e-9*prismVol && v <= vHi + 1e-9*prismVol)
+      : (v >= -1e-9*prismVol && v <= (1 + 1e-9)*prismVol);
     if (resolved && !inRange) ++davof::kbFailCount(davof::KB_VOLUME);
     if (resolved && inRange)
     {
-        v = min(max(v, scalar(0)), prismVol);
+        v = min(max(v, vLo), vHi);
         if (debug_)
         {
             const scalar vs = splitPrismLiquidVolume(facei, d, S, tolRel);
@@ -1224,7 +1234,7 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
         return v;
     }
     ++nFallback_;
-    return min(max(fallbackPrismLiquidVolume(facei, d, S), scalar(0)), prismVol);
+    return min(max(fallbackPrismLiquidVolume(facei, d, S), vLo), vHi);
 }
 
 
