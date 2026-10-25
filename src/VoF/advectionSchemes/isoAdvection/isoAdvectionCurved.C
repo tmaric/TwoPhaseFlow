@@ -59,6 +59,7 @@ SourceFiles
 
 #include "isoAdvection.H"
 #include "davofCurvedGeometry.H"
+#include "davofKromerBothe.H"
 #include "interpolationCellPoint.H"
 #include "volFields.H"
 #include "processorPolyPatch.H"
@@ -275,6 +276,12 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         // All six coefficients (fitDof six); fitDof one keeps the one-scalar
         // anchoring, fitDof none the frame and the ring tensor only
         ++nFitCells_;
+        // the pre-anchor surface and its face residual, for the event print
+        // after the anchor
+        scalar rmaxPre = 0;
+        scalarList aFPre;
+        const davof::cellSurface Spre = S;
+        DynamicList<Pair<scalar>> anchorIterates(16);
         if (fitDof_ == "six")
         {
             const davof::paraboloidFitResult res = davof::fitParaboloidFull
@@ -299,6 +306,8 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             fractionsOf(S, aF);
             scalar rmax = 0;
             forAll(aF, k) rmax = max(rmax, mag(aF[k] - tF[k]));
+            rmaxPre = rmax;
+            aFPre = aF;
             ++nFitConverged_;
             fitResMax_ = max(fitResMax_, rmax);
             fitResSum_ += rmax;
@@ -325,7 +334,9 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             // flux, so that the anchored volume is the flux's volume
             auto volumeOf = [&]() -> scalar
             {
-                return volumeRulePtr_->cellLiquidVolume(celli, S, anchorTolRel_);
+                const scalar v = volumeRulePtr_->cellLiquidVolume(celli, S, anchorTolRel_);
+                anchorIterates.append(Pair<scalar>(S.c, v));
+                return v;
             };
             // V(c) is non-decreasing in c (c larger: more liquid, dV/dc = the
             // wetted area, zero where the surface has left the cell). A
@@ -432,6 +443,89 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             forAll(aF, k) dmax = max(dmax, mag(aF[k] - tF[k]));
             anchorShiftMax_ = max(anchorShiftMax_, dmax);
             anchorShiftSum_ += dmax;
+
+            // The event print of the plane test (2026-10-25): a plane-like
+            // surface (|b| h below 1e-6) whose face residual before the
+            // anchor exceeds 1e-6 is no round-off; the translated plane at
+            // N = 160 showed one such cell per run (residual 7.7e-5 and
+            // 2.1e-4, the anchored faces off by 4.2e-6 and 1.6e-4, then the
+            // transported fractions), with the targets at 1e-10. Printed: the
+            // surface, the anchor's iterates, per face the targets, the
+            // rule's fractions before and after the anchor and the quadratic
+            // face cut, per fan triangle the rule's wetted area against the
+            // quadratic cut with the vertex values, and the cell volume of
+            // the rule against the tight split quadrature. At most 4 per step.
+            const scalar bh = (mag(S.b11) + mag(S.b12) + mag(S.b22))*h;
+            static label nEventStep = -1, nEventPrinted = 0;
+            if (nEventStep != mesh_.time().timeIndex())
+            {
+                nEventStep = mesh_.time().timeIndex();
+                nEventPrinted = 0;
+            }
+            if (rmaxPre > 1e-6 && bh < 1e-6 && nEventPrinted < 4)
+            {
+                ++nEventPrinted;
+                auto phiS = [&](const point& x) { return S.value(x); };
+                const pointField& P = mesh_.points();
+                Pout<< "anchor event: cell " << celli << " h " << h
+                    << " alpha " << alpha1In_[celli] << " ok " << okAnchor
+                    << " residual before " << rmaxPre << " shift after " << dmax << nl
+                    << "  surface o " << S.o << " e3 " << S.e3 << " b " << S.b11
+                    << " " << S.b12 << " " << S.b22 << " c before " << Spre.c
+                    << " after " << S.c << " (c/h " << (S.c - Spre.c)/h << ")" << nl;
+                forAll(anchorIterates, it)
+                {
+                    Pout<< "  iterate " << it << " c " << anchorIterates[it].first()
+                        << " V " << anchorIterates[it].second()
+                        << " (V - target)/V " << (anchorIterates[it].second() - target)/Vc << nl;
+                }
+                {
+                    label nl2 = 0;
+                    const scalar vKb = volumeRulePtr_->cellLiquidVolume(celli, S, anchorTolRel_);
+                    const scalar vTight = davof::cellLiquidVolumeQuadric
+                    (
+                        mesh_, celli, phiS, 1e-15, 20, nl2
+                    );
+                    Pout<< "  cell volume: rule " << vKb << " tight split " << vTight
+                        << " (rule - tight)/V " << (vKb - vTight)/Vc
+                        << " target " << target << nl;
+                }
+                {
+                    const labelList& cp = mesh_.cellPoints()[celli];
+                    Pout<< "  vertex phi/h:";
+                    forAll(cp, ip) Pout<< " " << S.value(P[cp[ip]])/h;
+                    Pout<< nl;
+                }
+                forAll(cf, k)
+                {
+                    label nfb = 0;
+                    const scalar aq = volumeRulePtr_->davofVolumeRule::faceLiquidFraction(cf[k], vector::zero, S, nfb);
+                    Pout<< "  face " << cf[k] << " target " << tF[k]
+                        << " rule before " << (k < aFPre.size() ? aFPre[k] : -1)
+                        << " after " << aF[k] << " quadratic cut " << aq
+                        << " (rule - cut) " << aF[k] - aq << nl;
+                    // per fan triangle: the rule's area against the quadratic cut
+                    const face& f = mesh_.faces()[cf[k]];
+                    const point& xf = mesh_.faceCentres()[cf[k]];
+                    forAll(f, ip)
+                    {
+                        const label ip1 = f.nextLabel(ip);
+                        davof::kbFace F;
+                        F.p.setSize(3);
+                        F.p[0] = xf; F.p[1] = P[f[ip]]; F.p[2] = P[ip1];
+                        F.setFrame();
+                        davof::kbSums sums;
+                        const bool okT = davof::kbIntegrateFace(F, S, 1e-16*F.area(), GREAT, false, sums);
+                        label nfq = 0;
+                        const scalar aT = davof::triLiquidArea(xf, P[f[ip]], P[ip1], phiS, 6, nfq);
+                        Pout<< "    tri " << ip << " area " << F.area() << " wet rule " << sums.lastArea
+                            << (okT ? "" : " NOT RESOLVED") << " cut " << aT
+                            << " (rule - cut)/area " << (sums.lastArea - aT)/F.area()
+                            << " arcs " << sums.nArcs << " phi/h " << S.value(xf)/h
+                            << " " << S.value(P[f[ip]])/h << " " << S.value(P[ip1])/h << nl;
+                    }
+                }
+            }
         }
 
         cellSurfaces_[celli] = S;
