@@ -344,6 +344,14 @@ class isoAdvection
             //  the largest anchor residual before the anchor, printed with
             //  its pyramids against the linear tet cut
             bool curvedDebug_;
+
+            //- The volume anchor's face-fraction diagnostics (key
+            //  anchorDiagnostics, default off): the face residual of the
+            //  surface before the anchor and the face shift after it, two
+            //  face-fraction evaluations of every face of every interface
+            //  cell per step (14 % of the advection step at N = 64,
+            //  2026-10-25), printed in the Info line when on
+            bool anchorDiagnostics_;
             scalar debugR0Max_;
             label debugCellR0_;
             davof::cellSurface debugSurface_;

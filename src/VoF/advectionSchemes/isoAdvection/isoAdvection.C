@@ -167,6 +167,7 @@ Foam::advection::isoAdvection::isoAdvection
     anchorTolRel_(modelDict().getOrDefault<scalar>("anchorTolRel", 1e-11)),
     defectEvery_(modelDict().getOrDefault<label>("defectEvery", 10)),
     curvedDebug_(modelDict().getOrDefault<bool>("curvedDebug", false)),
+    anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
     debugR0Max_(0),
     debugCellR0_(-1),
     debugSurface_(),
@@ -276,7 +277,8 @@ Foam::advection::isoAdvection::isoAdvection
                     << fitTol_ << ", fitMaxIter " << fitMaxIter_
                     << ", fitAnchor " << fitAnchor_ << ", fitDof " << fitDof_
                     << ", anchorTolRel " << anchorTolRel_ << ", defectEvery "
-                    << defectEvery_;
+                    << defectEvery_ << ", anchorDiagnostics "
+                    << (anchorDiagnostics_ ? "on" : "off");
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
 

@@ -293,18 +293,23 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         }
         else
         {
-            // the face residual of the surface as it stands (the one-scalar
-            // anchoring or the plane of the frame with the ring tensor)
-            scalarList aF;
-            fractionsOf(S, aF);
-            scalar rmax = 0;
-            forAll(aF, k) rmax = max(rmax, mag(aF[k] - tF[k]));
             ++nFitConverged_;
-            fitResMax_ = max(fitResMax_, rmax);
-            fitResSum_ += rmax;
-            if (fitResidualPtr_)
+            // the face residual of the surface as it stands (the one-scalar
+            // anchoring or the plane of the frame with the ring tensor): a
+            // diagnostic of one face-fraction evaluation per face, computed
+            // only when it is printed (anchorDiagnostics) or written
+            if (anchorDiagnostics_ || fitResidualPtr_)
             {
-                fitResidualPtr_->primitiveFieldRef()[celli] = rmax;
+                scalarList aF;
+                fractionsOf(S, aF);
+                scalar rmax = 0;
+                forAll(aF, k) rmax = max(rmax, mag(aF[k] - tF[k]));
+                fitResMax_ = max(fitResMax_, rmax);
+                fitResSum_ += rmax;
+                if (fitResidualPtr_)
+                {
+                    fitResidualPtr_->primitiveFieldRef()[celli] = rmax;
+                }
             }
         }
 
@@ -425,13 +430,17 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
                 }
             }
             if (!okAnchor) ++nAnchorFail_;
-            // the face fractions the anchored surface cuts against the targets
-            scalarList aF;
-            fractionsOf(S, aF);
-            scalar dmax = 0;
-            forAll(aF, k) dmax = max(dmax, mag(aF[k] - tF[k]));
-            anchorShiftMax_ = max(anchorShiftMax_, dmax);
-            anchorShiftSum_ += dmax;
+            // the face fractions the anchored surface cuts against the
+            // targets (the face shift): a diagnostic, computed when printed
+            if (anchorDiagnostics_)
+            {
+                scalarList aF;
+                fractionsOf(S, aF);
+                scalar dmax = 0;
+                forAll(aF, k) dmax = max(dmax, mag(aF[k] - tF[k]));
+                anchorShiftMax_ = max(anchorShiftMax_, dmax);
+                anchorShiftSum_ += dmax;
+            }
         }
 
         cellSurfaces_[celli] = S;
@@ -994,15 +1003,23 @@ void Foam::advection::isoAdvection::reportCurved() const
     {
         Info<< "; fit: cells " << nFitC << ", converged " << nFitConv
             << ", stalled " << nFitSt << ", singular " << nFitSing
-            << ", no bracket " << nFitNoBr << ", no frame " << nFitNoFr
-            << ", residual max " << fitRMax
-            << " mean " << fitRSum/max(nFitC, label(1));
+            << ", no bracket " << nFitNoBr << ", no frame " << nFitNoFr;
+        // the face residual is the fit's own with fitDof six, else a
+        // diagnostic computed only when anchorDiagnostics (or the field) is on
+        if (fitDof_ == "six" || anchorDiagnostics_ || fitResidualPtr_)
+        {
+            Info<< ", residual max " << fitRMax
+                << " mean " << fitRSum/max(nFitC, label(1));
+        }
         if (fitAnchor_ == "volume")
         {
-            Info<< "; volume anchor: failed " << nAnchF
-                << ", face shift max " << ashMax
-                << " mean " << ashSum/max(nFitC, label(1))
-                << ", leaves " << nAnchL;
+            Info<< "; volume anchor: failed " << nAnchF;
+            if (anchorDiagnostics_)
+            {
+                Info<< ", face shift max " << ashMax
+                    << " mean " << ashSum/max(nFitC, label(1));
+            }
+            Info<< ", leaves " << nAnchL;
         }
     }
     if (nDef > 0)
