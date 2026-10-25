@@ -353,12 +353,16 @@ class isoAdvection
             //  2026-10-25), printed in the Info line when on
             bool anchorDiagnostics_;
 
-            //- The volume anchor's root finder (key anchorMethod): newton
-            //  (the default; Newton on the exact slope dV/dc, the projected
-            //  wetted patch area of the volume rule, safeguarded by the
-            //  bracket, falling back to illinois where the slope is not
-            //  available) or illinois (a bracket by doubling steps and the
-            //  Illinois rule, the method until 2026-10-25)
+            //- The volume anchor's root finder (key anchorMethod): illinois
+            //  (the default: a bracket by doubling steps and the Illinois
+            //  rule), newton (Newton on the exact slope dV/dc, the
+            //  projected wetted patch area of the volume rule, safeguarded
+            //  by the bracket, the bracket search and the Illinois rule
+            //  where the slope is not available; 3.7 against 6.5 volume
+            //  evaluations per cell on the sphere, but a different point of
+            //  the flat root interval of full and empty interface cells, see
+            //  isoAdvectionCurved.C) or compare (both, the run continues with
+            //  illinois, the cells whose offsets differ printed)
             word anchorMethod_;
             scalar debugR0Max_;
             label debugCellR0_;
@@ -369,6 +373,9 @@ class isoAdvection
 
             //- The cell-volume evaluations of the anchor in the step
             label nAnchorEvals_;
+
+            //- The cells printed by anchorMethod compare in the step
+            label nCompare_;
             scalar anchorShiftMax_;
             scalar anchorShiftSum_;
 
