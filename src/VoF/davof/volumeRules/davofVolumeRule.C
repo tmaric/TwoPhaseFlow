@@ -164,4 +164,20 @@ Foam::scalar Foam::davofVolumeRule::faceLiquidFraction
 }
 
 
+Foam::scalar Foam::davofVolumeRule::faceWettedArea
+(
+    const label facei,
+    const vector& d,
+    const davof::cellSurface& S,
+    vector& aWet,
+    label& nFallback
+) const
+{
+    return davof::faceCutDisplacedVector
+    (
+        mesh_, facei, d, [&](const point& x) { return S.value(x); }, aWet, nFallback
+    );
+}
+
+
 // ************************************************************************* //

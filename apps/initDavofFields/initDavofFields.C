@@ -39,6 +39,10 @@ Description
         wispTol      1e-6;      // interface cell: |m_c| > wispTol V_c^(2/3)
         signedDistance false;   // Newton-projected signed distance (ellipsoid)
         invert       false;
+        faceState    scalar;    // vector: also the wetted area vectors
+                                // wettedAreaDavof.<phase> (2026-10-25), the
+                                // sum over every face's fan triangles of the
+                                // wetted area vectors of the same cuts
 
     Prints sum(alpha V), the maximum clip of alpha to [0, 1], the number of
     faces that fell back to the Detrixhe-Aslam value (quadraticFaces) and the
@@ -85,6 +89,16 @@ int main(int argc, char *argv[])
     const scalar wispTol =
         initAlphaFieldDict.getOrDefault<scalar>("wispTol", 1e-6);
     const bool invert = initAlphaFieldDict.getOrDefault<bool>("invert", false);
+    const word faceState
+    (
+        initAlphaFieldDict.getOrDefault<word>("faceState", "scalar")
+    );
+    if (faceState != "scalar" && faceState != "vector")
+    {
+        FatalIOErrorInFunction(initAlphaFieldDict)
+            << "faceState '" << faceState << "' unknown. Valid: scalar, vector."
+            << exit(FatalIOError);
+    }
 
     Info<< "Reading field " << nameField << nl << endl;
     volScalarField alpha1
@@ -149,16 +163,52 @@ int main(int argc, char *argv[])
     // The consistency check before any inversion (mTet is the liquid's).
     const scalar maxConsistency = init.maxConsistency(alphaf, wispTol);
 
+    // faceState vector: the wetted area vectors of the same construction
+    autoPtr<surfaceVectorField> wetVecPtr;
+    scalar maxConsistencyVec = -1;
+    if (faceState == "vector")
+    {
+        wetVecPtr.reset
+        (
+            new surfaceVectorField
+            (
+                IOobject
+                (
+                    IOobject::groupName("wettedAreaDavof", alpha1.group()),
+                    runTime.timeName(),
+                    mesh,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                mesh,
+                dimensionedVector(dimArea, Zero),
+                calculatedFvsPatchVectorField::typeName
+            )
+        );
+        init.fillWettedArea(*wetVecPtr);
+        maxConsistencyVec = init.maxConsistency(alphaf, *wetVecPtr, wispTol);
+    }
+
     if (invert)
     {
         alpha1 = scalar(1) - alpha1;
         alphaf = scalar(1) - alphaf;
+        if (wetVecPtr)
+        {
+            *wetVecPtr = mesh.Sf() - *wetVecPtr;
+        }
     }
 
     // Round trip of the fractions through ASCII at full precision.
     IOstream::defaultPrecision(18);
     alpha1.write();
     alphaf.write();
+    if (wetVecPtr)
+    {
+        wetVecPtr->write();
+        Info<< "davof maxConsistency (wetted area vectors) = "
+            << maxConsistencyVec << endl;
+    }
 
     const scalarField& alpha = alpha1.internalField();
     Info<< "sum(alpha*V) = " << gSum(mesh.V()*alpha)

@@ -157,6 +157,10 @@ Foam::advection::isoAdvection::isoAdvection
     secondRingBest_(0),
     secondRingDist_(0),
     clippingSurface_(modelDict().getOrDefault<word>("clippingSurface", "none")),
+    faceState_(modelDict().getOrDefault<word>("faceState", "scalar")),
+    wetVecPtr_(nullptr),
+    tensorCentroid_(modelDict().getOrDefault<word>("tensorCentroid", "cut")),
+    nCentroidFail_(0),
     curvedTolRel_(modelDict().getOrDefault<scalar>("curvedTolRel", 1e-11)),
     curvedMaxDepth_(modelDict().getOrDefault<label>("curvedMaxDepth", 12)),
     fitPriorWeight_(modelDict().getOrDefault<scalar>("fitPriorWeight", 1e-2)),
@@ -303,6 +307,52 @@ Foam::advection::isoAdvection::isoAdvection
 
             // The rule for the volumes and face fractions under a surface
             volumeRulePtr_ = davofVolumeRule::New(mesh_, modelDict());
+        }
+
+        // The face state on warped faces (2026-10-25): the wetted area
+        // vector next to the scalar fraction, produced by the curved face
+        // update only
+        if (faceState_ != "scalar" && faceState_ != "vector")
+        {
+            FatalIOErrorInFunction(modelDict())
+                << "faceState '" << faceState_
+                << "' unknown. Valid: scalar, vector." << exit(FatalIOError);
+        }
+        if (tensorCentroid_ != "cut" && tensorCentroid_ != "anchored")
+        {
+            FatalIOErrorInFunction(modelDict())
+                << "tensorCentroid '" << tensorCentroid_
+                << "' unknown. Valid: cut, anchored." << exit(FatalIOError);
+        }
+        if (faceState_ == "vector")
+        {
+            if (clippingSurface_ == "none")
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "faceState vector needs a clippingSurface (the plane"
+                    << " sweep stores the scalar fraction only)"
+                    << exit(FatalIOError);
+            }
+            wetVecPtr_ = davofPtr_->wettedAreaPtr();
+            if (!wetVecPtr_)
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "faceState vector: the davof scheme holds no wetted"
+                    << " area vector field" << exit(FatalIOError);
+            }
+            Info<< "isoAdvection: faceState vector (the wetted area vector "
+                << wetVecPtr_->name() << " transported with alphaf)" << endl;
+        }
+        if (tensorCentroid_ == "anchored" && clippingSurface_ != "paraboloid")
+        {
+            FatalIOErrorInFunction(modelDict())
+                << "tensorCentroid anchored needs clippingSurface paraboloid"
+                << " (the ring tensor is fitted there only)" << exit(FatalIOError);
+        }
+        if (tensorCentroid_ == "anchored")
+        {
+            Info<< "isoAdvection: tensorCentroid anchored (the ring tensor's"
+                << " centroids re-anchored by the volume rule)" << endl;
         }
     }
     else if (modelDict().getOrDefault<word>("clippingSurface", "none") != "none")
@@ -823,6 +873,12 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
             (phif >= 0) ? alpha[own[facei]] : alpha[mesh_.faceNeighbour()[facei]];
         alphafPtr_->primitiveFieldRef()[facei] = af;
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
+        if (wetVecPtr_)
+        {
+            // the planar default of the vector state: alpha_up S_f (the
+            // fan triangles' area vectors sum to S_f)
+            wetVecPtr_->primitiveFieldRef()[facei] = af*mesh_.faceAreas()[facei];
+        }
         return;
     }
 
@@ -834,6 +890,11 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
         const scalar af = alpha[own[facei]];
         pf[facei - pbm[patchi].start()] = af;
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
+        if (wetVecPtr_)
+        {
+            wetVecPtr_->boundaryFieldRef()[patchi][facei - pbm[patchi].start()] =
+                af*mesh_.faceAreas()[facei];
+        }
     }
 }
 
@@ -1396,7 +1457,8 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
     surfaceScalarField& dVf,
     const surfaceScalarField& phi,
     bool returnSyncedFaces,
-    surfaceScalarField* alphaf
+    surfaceScalarField* alphaf,
+    surfaceVectorField* wetVec
 )
 {
     DynamicLabelList syncedFaces(0);
@@ -1437,6 +1499,15 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
                 );
                 toNbr << afPatch;
             }
+            if (wetVec)
+            {
+                const UIndirectList<vector> wvPatch
+                (
+                    wetVec->boundaryField()[patchi],
+                    surfCellFacesOnProcPatch
+                );
+                toNbr << wvPatch;
+            }
         }
 
         pBufs.finishedSends();
@@ -1459,6 +1530,11 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
             if (alphaf)
             {
                 fromNeighb >> nbrAf;
+            }
+            List<vector> nbrWv;
+            if (wetVec)
+            {
+                fromNeighb >> nbrWv;
             }
             if (returnSyncedFaces)
             {
@@ -1489,6 +1565,13 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
                 {
                     // The upwind side's face fraction, no sign change
                     alphaf->boundaryFieldRef()[patchi][facei] = nbrAf[i];
+                    if (wetVec)
+                    {
+                        // the wetted area vector is oriented with each
+                        // side's own outward patch face: the sign flips,
+                        // as the flux's does
+                        wetVec->boundaryFieldRef()[patchi][facei] = -nbrWv[i];
+                    }
                     const label meshFacei = procPatch.start() + facei;
                     wetFace_.set(meshFacei, (nbrAf[i] != 0) ? 1u : 0u);
                     if (!alphafSetFace_.test(meshFacei))

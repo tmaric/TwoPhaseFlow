@@ -145,6 +145,17 @@ public:
             label& nFallback
         ) const;
 
+        //- The wetted area vector by the Green integral per fan triangle
+        //  (kbFaceWettedArea); the quadratic cut where not resolved
+        virtual scalar faceWettedArea
+        (
+            const label facei,
+            const vector& d,
+            const davof::cellSurface& S,
+            vector& aWet,
+            label& nFallback
+        ) const;
+
         //- The debug statistics of the step against the split quadrature
         virtual void report() const;
 };

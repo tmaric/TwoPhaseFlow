@@ -236,6 +236,53 @@ bool Foam::functionObjects::areaFractionError::write()
         davofInit::areaNormal(mesh_, af, mCur, afCur);
         davofInit::areaNormal(mesh_, alphafEx, mEx, afEx);
 
+        // faceState vector (2026-10-25): m_c of both states from the wetted
+        // area vectors (the interface-cell set of the norms), and the
+        // vector error |a_f - a_f,exact|/|S_f| in the log; the .dat
+        // columns stay the scalar fractions'
+        const word wvName(IOobject::groupName("wettedAreaDavof", alpha.group()));
+        const bool haveVec = foundObject<surfaceVectorField>(wvName);
+        scalarField vecErr;
+        if (haveVec)
+        {
+            const surfaceVectorField& wv = lookupObject<surfaceVectorField>(wvName);
+            surfaceVectorField wvEx
+            (
+                IOobject
+                (
+                    "areaFractionError:wettedAreaExact",
+                    runTime.timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE,
+                    false
+                ),
+                mesh_,
+                dimensionedVector(dimArea, Zero),
+                calculatedFvsPatchVectorField::typeName
+            );
+            init.fillWettedArea(wvEx);
+            davofInit::areaNormal(mesh_, af, wv, mCur);
+            davofInit::areaNormal(mesh_, alphafEx, wvEx, mEx);
+            vecErr.setSize(mesh_.nFaces(), 0);
+            const vectorField& Sf = mesh_.faceAreas();
+            for (label facei = 0; facei < mesh_.nInternalFaces(); ++facei)
+            {
+                vecErr[facei] = mag(wv[facei] - wvEx[facei])/mag(Sf[facei]);
+            }
+            forAll(wv.boundaryField(), patchi)
+            {
+                const label start = mesh_.boundaryMesh()[patchi].start();
+                const fvsPatchVectorField& pv = wv.boundaryField()[patchi];
+                const fvsPatchVectorField& pe = wvEx.boundaryField()[patchi];
+                if (pv.size() != pe.size()) continue;
+                forAll(pv, i)
+                {
+                    vecErr[start + i] = mag(pv[i] - pe[i])/mag(Sf[start + i]);
+                }
+            }
+        }
+
         const labelUList& own = mesh_.faceOwner();
         const labelUList& nei = mesh_.faceNeighbour();
         const label nInt = mesh_.nInternalFaces();
@@ -303,6 +350,7 @@ bool Foam::functionObjects::areaFractionError::write()
         const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
 
         scalar sum = 0, sum2 = 0, worst = 0;
+        scalar vSum = 0, vWorst = 0;
         label nLocal = 0;
         forAll(hasValue, facei)
         {
@@ -327,6 +375,11 @@ bool Foam::functionObjects::areaFractionError::write()
             sum += e;
             sum2 += e*e;
             worst = max(worst, e);
+            if (haveVec)
+            {
+                vSum += vecErr[facei];
+                vWorst = max(vWorst, vecErr[facei]);
+            }
             ++nLocal;
             if (errPtr && facei < nInt)
             {
@@ -345,6 +398,14 @@ bool Foam::functionObjects::areaFractionError::write()
         L1 = sum/max(nFaces, label(1));
         L2 = Foam::sqrt(sum2/max(nFaces, label(1)));
         Linf = returnReduce(worst, maxOp<scalar>());
+        if (haveVec)
+        {
+            vSum = returnReduce(vSum, sumOp<scalar>());
+            vWorst = returnReduce(vWorst, maxOp<scalar>());
+            Log << type() << " " << name() << ": wetted area vector error"
+                << " |a_f - a_f,exact|/|S_f| L1 = " << vSum/max(nFaces, label(1))
+                << ", Linf = " << vWorst << endl;
+        }
 
         // The consistency of the transported state with the plane the
         // davof scheme positions in it (one extra reconstruction; -1 when

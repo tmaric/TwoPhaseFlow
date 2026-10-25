@@ -307,6 +307,31 @@ class isoAdvection
             //  clippingSurface)
             word clippingSurface_;
 
+            //- The face state on warped faces (key faceState, 2026-10-25):
+            //  scalar (alphaf alone, the default) or vector (alphaf and
+            //  the wetted area vector wettedAreaDavof.<group>, the sum over
+            //  the fan triangles of the wetted area times the triangle
+            //  normal, which carries the normal identity on non-planar
+            //  faces; registered by the davof scheme, set here by the
+            //  curved face update, the defaults alpha_up S_f and the
+            //  processor sync with the sign flipped). Needs a clipping
+            //  surface (the plane sweep produces no vector)
+            word faceState_;
+            surfaceVectorField* wetVecPtr_;
+
+            //- The centroids the ring Monge fit of the curvature tensor
+            //  reads (key tensorCentroid): cut (the alpha-positioned
+            //  plane's cut-polygon centroid, the default) or anchored (the
+            //  plane in the frame of the used normal re-anchored by the
+            //  volume rule's cell volume, o + c e3: on a warped cell the
+            //  cut polygon closes the wet part of a face by a chord, so
+            //  the cut centroid is off the fan polyhedron's plane by
+            //  O(warp) and the fitted tensor of an exact plane is not
+            //  zero; counted as anchor-centroid failures where the root
+            //  is not bracketed)
+            word tensorCentroid_;
+            label nCentroidFail_;
+
             //- The prism quadrature: relative tolerance of the flux volume
             //  and the maximum refinement depth (keys curvedTolRel,
             //  curvedMaxDepth)
@@ -539,7 +564,8 @@ class isoAdvection
                 surfaceScalarField& dVf,
                 const surfaceScalarField& phi,
                 bool returnSyncedFaces=false,
-                surfaceScalarField* alphaf = nullptr
+                surfaceScalarField* alphaf = nullptr,
+                surfaceVectorField* wetVec = nullptr
             );
 
 
@@ -642,6 +668,13 @@ public:
             //  interface cells and their neighbours from the surface of the
             //  upwind cell (second ring: the closest neighbouring surface)
             void curvedFlux(const scalar dt);
+
+            //- tensorCentroid anchored: for every interface cell the plane
+            //  in the frame of the used normal through the cut centroid
+            //  re-anchored by the volume rule's cell volume (the fan
+            //  polyhedron) to alpha_k V, the point o + c e3 handed to the
+            //  scheme as the centroid of the ring Monge fit
+            void anchorTensorCentroids();
 
             //- The Info line of the step
             void reportCurved() const;

@@ -162,6 +162,19 @@ inline bool& kbGrazingFixOn()
     return v;
 }
 
+//- The apex of the fan of a warped prism top and bottom (key
+//  kromerBothePrismApex, 2026-10-25): false (vertexMean, the default, the
+//  rule as before) fans them about the vertex mean, true (faceCentre) about
+//  the mesh face centre and its translate, the fan of the cell's face in
+//  kbCellFaces and of the displaced face in kbFaceLiquidFraction, so that
+//  the flux prism and the cells share one surface. Planar faces are
+//  integrated whole either way (kbWholeFace; no change on planar meshes).
+inline bool& kbPrismApexCentre()
+{
+    static bool v = false;
+    return v;
+}
+
 
 // * * * * * * * * * * * * * * The conic trace  * * * * * * * * * * * * * * //
 
@@ -1052,9 +1065,21 @@ inline bool kbIntegrateFace
 
 
 //- A polygon as one face when it is planar (kbWholeFace), else as its fan
-//  triangles about its vertex mean, oriented so that the normals point away
-//  from the interior point xin, appended to faces.
-inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kbFace>& faces)
+//  triangles about the apex (the mesh face centre, so that the fan is the
+//  face of the cell polyhedron; given by kbPrismFaces when
+//  kromerBothePrismApex is faceCentre, 2026-10-25) or about its vertex mean
+//  (without an apex, the default); oriented so that the normals point away
+//  from the interior point xin, appended to faces. On a warped face the two
+//  fans differ by a thin lens: a prism whose top is fanned about the vertex
+//  mean and a cell whose face is fanned about the face centre do not share
+//  that face's surface.
+inline void kbFanFaces
+(
+    const List<point>& poly,
+    const point& xin,
+    DynamicList<kbFace>& faces,
+    const point* apex = nullptr
+)
 {
     kbFace F;
     F.p = poly;
@@ -1069,7 +1094,7 @@ inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kb
         if (mag(F.n) > 0 && F.Ls > SMALL) faces.append(F);
         return;
     }
-    const point xc = F.x0;
+    const point xc = apex ? *apex : F.x0;
     forAll(poly, i)
     {
         const label j = (i + 1) % poly.size();
@@ -1235,17 +1260,23 @@ inline void kbOffsetRange
 
 
 //- The faces of the prism between the face faceI displaced by -d and the
-//  face: the fan triangles of both and the side parallelograms, outward.
+//  face: both (whole where planar, else the fan triangles about the mesh
+//  face centre and its translate, the same fan as the cell's face in
+//  kbCellFaces and the displaced face of kbFaceLiquidFraction) and the side
+//  parallelograms, outward.
 inline void kbPrismFaces(const fvMesh& mesh, const label faceI, const vector& d, DynamicList<kbFace>& faces)
 {
     const pointField& P = mesh.points();
     const face& f = mesh.faces()[faceI];
-    const point xin = mesh.faceCentres()[faceI] - 0.5*d;
+    const point& Cf = mesh.faceCentres()[faceI];
+    const point Cb = Cf - d;
+    const point xin = Cf - 0.5*d;
     faces.clear();
     List<point> top(f.size()), bottom(f.size());
     forAll(f, i) { top[i] = P[f[i]]; bottom[i] = P[f[i]] - d; }
-    kbFanFaces(top, xin, faces);
-    kbFanFaces(bottom, xin, faces);
+    const bool atCentre = kbPrismApexCentre();
+    kbFanFaces(top, xin, faces, atCentre ? &Cf : nullptr);
+    kbFanFaces(bottom, xin, faces, atCentre ? &Cb : nullptr);
     forAll(f, i)
     {
         const label j = f.fcIndex(i);
@@ -1316,6 +1347,80 @@ inline bool kbFaceLiquidFraction
         }
         Awet += sums.lastArea;
         Atot += At;
+    }
+    nLeaves += sums.nLeaves;
+    alphaf = (Atot > 0) ? Awet/Atot : 0;
+    return true;
+}
+
+
+//- The wetted area VECTOR of the face faceI displaced by d under S, in the
+//  face's orientation: the whole polygon's wetted area times its unit
+//  normal where the face is planar (kbWholeFace), else the sum over the fan
+//  triangles about the displaced face centre of each triangle's wetted area
+//  times its unit normal (the same faces as kbFaceLiquidFraction; the
+//  transported face state on warped faces, faceState vector, 2026-10-25;
+//  the first-moment identity needs nothing more because every fan triangle
+//  contains the face centre). alphaf receives the scalar fraction of
+//  kbFaceLiquidFraction. Returns false where not resolved.
+inline bool kbFaceWettedArea
+(
+    const fvMesh& mesh,
+    const label faceI,
+    const vector& d,
+    const cellSurface& S,
+    const scalar tolRel,
+    vector& aWet,
+    scalar& alphaf,
+    label& nLeaves
+)
+{
+    const pointField& P = mesh.points();
+    const face& f = mesh.faces()[faceI];
+    const vector& Sf = mesh.faceAreas()[faceI];
+    const scalar Af = mag(Sf);
+    aWet = Zero;
+    if (!(Af > 0)) { alphaf = 0; return true; }
+    const point xf = mesh.faceCentres()[faceI] + d;
+    kbSums sums;
+    scalar Awet = 0, Atot = 0;
+    {
+        kbFace F;
+        F.p.setSize(f.size());
+        forAll(f, ip) F.p[ip] = P[f[ip]] + d;
+        F.setFrame();
+        if (kbWholeFace(F))
+        {
+            if (!(F.Ls > SMALL)) { alphaf = 0; return true; }
+            const scalar At = F.area();
+            if (!kbIntegrateFace(F, S, tolRel*Af, GREAT, false, sums))
+            {
+                nLeaves += sums.nLeaves;
+                return false;
+            }
+            nLeaves += sums.nLeaves;
+            alphaf = (At > 0) ? sums.lastArea/At : 0;
+            aWet = sums.lastArea*F.n;
+            return true;
+        }
+    }
+    forAll(f, ip)
+    {
+        const label ip1 = f.nextLabel(ip);
+        kbFace F;
+        F.p.setSize(3);
+        F.p[0] = xf; F.p[1] = P[f[ip]] + d; F.p[2] = P[ip1] + d;
+        F.setFrame();
+        if (!(F.Ls > SMALL)) continue;
+        const scalar At = F.area();
+        if (!kbIntegrateFace(F, S, tolRel*Af, GREAT, false, sums))
+        {
+            nLeaves += sums.nLeaves;
+            return false;
+        }
+        Awet += sums.lastArea;
+        Atot += At;
+        aWet += sums.lastArea*F.n;
     }
     nLeaves += sums.nLeaves;
     alphaf = (Atot > 0) ? Awet/Atot : 0;

@@ -655,6 +655,70 @@ Kromer-Bothe rule for the paraboloid and are not implemented.
 
 The leia token is `TPF_VOLUME_RULE` (default `splitQuadrature`; `cases/davof/*Translation3D`).
 
+### Warped faces: the wetted area vector as the face state (branch davof-warped, 2026-10-25)
+
+On a non-planar face the wetted part's area vector a_f = sum_t A_wet,t n_t (the fan triangles
+(x_f, p_i, p_{i+1}) about the face centre, each with its own unit normal n_t) is not parallel to
+S_f, and alpha_f S_f does not carry the normal identity sum_f a_f^out = -A n. Every fan triangle
+contains x_f, so (x - x_f).n_t = 0 on it and the first moment of the wet part is
+int_f chi (x - x_c).n dS = (x_f - x_c).a_f: the vector alone (three scalars) is the transportable
+face state; no separate first moment is needed for the explicit position. On a planar face
+a_f = alpha_f S_f to round-off.
+
+Keys (the alpha-solver dictionary; every default is the behaviour before the keys, and every new
+branch sits behind a null pointer or a false flag, so the default runs are bit-identical):
+
+```
+faceState            scalar;      // | vector: wettedAreaDavof.<group> (surfaceVectorField, m^2)
+                                  //   transported next to alphaf; needs a clippingSurface
+tensorCentroid       cut;         // | anchored: the centroids of the ring Monge fit of the
+                                  //   curvature tensor re-anchored by the volume rule
+kromerBothePrismApex vertexMean;  // | faceCentre: the warped flux prism's top and bottom fanned
+                                  //   about the mesh face centre (the cell's own fan)
+```
+
+- Initialisation: `initDavofFields` with `faceState vector` in `initAlphaFieldDict` writes
+  `wettedAreaDavof.<phase>` from the same fan cuts as alphaf (detrixheAslam: the linear cut's wet
+  polygon per triangle, `davof::triNegativePolygon`; quadraticFaces: the quadratic fraction times
+  the triangle's area vector; exactSphere: alpha_f S_f, its faces are planar); `invert` maps it to
+  S_f - a_f; the consistency against the tet sum is printed for the vector state too.
+- Face update (`isoAdvectionCurved.C`): `davofVolumeRule::faceWettedArea` returns the
+  pre-image's wetted area vector with the fraction (Kromer-Bothe: `kbFaceWettedArea`, the Green
+  integral's wetted area per fan triangle, or of the whole face where it is planar, times its unit
+  normal; the base rule: the quadratic triangle cut per triangle, `faceCutDisplacedVector`). The
+  volume flux is unchanged. Faces no surface sets take alpha_up S_f (`setDefaultAreaFraction`).
+  Processor patches: the vector travels with alphaf in `syncProcPatches`, with its sign flipped
+  (each side's patch face is oriented outward from its own cell, as the flux).
+- Reconstruction (`davof.C`): m_c = sum_f a_f^out over the same wet-face list in the same order,
+  and the face moment of the explicit position (x_f - x_c).a_f. Everything downstream (the normal
+  models, the ring normal, the tensor fit, the positioning by alpha) reads m_c as before.
+- The tensor centroids. OpenFOAM's `cutCellPLIC` (the positioning by alpha) closes the wet part of
+  a warped face by the chord between the two edge crossings, while the fan face's wet region ends
+  at the plane's trace on the fan triangles: the cut is that of another polyhedron than the fan
+  polyhedron of the mesh, of the Detrixhe-Aslam alpha and of the volume rule, so the positioned
+  plane and its centroid are off the true plane by a fraction of h even for exact data, and the
+  ring Monge fit through those centroids returns a spurious tensor (a curved surface for a plane).
+  `tensorCentroid anchored` re-anchors, before the fit, every interface cell's plane in the frame
+  of its used normal through the cut centroid by the volume rule's cell volume (bracket over the
+  cell's extent along the normal, the Illinois rule of Dowell and Jarratt, BIT 11 (1971) 168-174,
+  doi:10.1007/BF01934364, to a residual of 1e-15 V or an offset bracket of 1e-13 h) and hands
+  o + c e3 to the fit (`davof::tensorCentres()`, exchanged across processors in place of
+  `centre_`); failures are counted in the Info line ("anchored centroids: failed N"). The scheme's
+  `centre_` (the surface origin, the exact model's evaluation point, the reconstruction error) is
+  unchanged; the offset of the surface is the volume anchor's in any case.
+- The prism apex. The Kromer-Bothe rule fans a warped prism's top and bottom about their vertex
+  mean, the cell's faces and the face fractions about the mesh face centre; on a warped face the two
+  fans differ by a thin lens, whose liquid enters the flux and not the cell's own volume.
+  `kromerBothePrismApex faceCentre` uses the mesh face centre and its translate.
+- Diagnostics: `areaFractionError` takes m_c of both states from the vectors when
+  `wettedAreaDavof` is registered (the interface-cell set of the norms) and logs the vector error
+  |a_f - a_f,exact|/|S_f| (L1, Linf); the .dat columns are unchanged. Its `consistency` column
+  compares m_c with the area vector of the CUT polygon, which carries the chord closure above on a
+  warped mesh, with either state.
+
+The leia tokens (both `cases/davof/*Translation3D`, defaults as above): `TPF_FACE_STATE` (also in
+`initAlphaFieldDict`), `TPF_TENSOR_CENTROID`, `TPF_KB_PRISM_APEX`.
+
 ### The mixed normal and the normal-source controls (2026-10-13, superseded by the normal models above)
 
 The closed loop (own normal from alphaf, the alpha-positioned plane, alphaf
