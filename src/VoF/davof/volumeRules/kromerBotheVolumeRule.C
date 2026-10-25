@@ -45,6 +45,8 @@ namespace
 {
     // the self-test (defined below)
     void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth);
+    // its vertex-grazing series under a plane (defined below)
+    void kbVertexGrazingTest(const Foam::scalar tolRel, const Foam::label maxDepth);
 }
 
 
@@ -476,6 +478,272 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
                 }
             }
         }
+    }
+    Info<< endl;
+
+    kbVertexGrazingTest(tolRel, maxDepth);
+}
+
+
+// The exact liquid area of a planar convex polygon under the plane phi (phi
+// linear): the polygon clipped to phi < 0 (Sutherland-Hodgman, the edge
+// crossings by linear interpolation, exact for a plane up to round-off), its
+// area vector by the shoelace sum about the first vertex.
+Foam::vector clippedAreaVector
+(
+    const Foam::List<Foam::point>& poly,
+    const std::function<Foam::scalar(const Foam::point&)>& phi
+)
+{
+    using namespace Foam;
+    DynamicList<point> c(poly.size() + 2);
+    forAll(poly, i)
+    {
+        const label j = (i + 1) % poly.size();
+        const scalar fi = phi(poly[i]), fj = phi(poly[j]);
+        if (fi < 0) c.append(poly[i]);
+        if ((fi < 0) != (fj < 0))
+        {
+            c.append(poly[i] + (fi/(fi - fj))*(poly[j] - poly[i]));
+        }
+    }
+    vector a = Zero;
+    for (label i = 1; i + 1 < c.size(); ++i)
+    {
+        a += 0.5*((c[i] - c[0]) ^ (c[i + 1] - c[0]));
+    }
+    return a;
+}
+
+
+// The vertex-grazing series (2026-10-25): boxes under a PLANE (b = 0, both
+// rules exact) through a point at the signed distance d (relative to the box
+// size) from one vertex, on the liquid and on the gas side, for the oblique
+// normal of the plane test and axis-near normals, with the grazed vertex the
+// highest (a corner cut of size d) or the median vertex along the normal (a
+// generic cut passing within d of it). The references are exact: the faces
+// clipped to the liquid side (clippedAreaVector) and the divergence theorem
+// about a point of the plane, where the cap contributes nothing; the split
+// rule is NOT the reference here. Compared: the cell volume (the Kromer-
+// Bothe polyhedron of fan faces, the split quadrature's pyramids from the
+// centre as in cellLiquidVolumeQuadric), the prism of the face x = x1 swept
+// back by an axis and by an oblique displacement (kbPrismFaces' faces, the
+// split rule's fan prisms as in faceSweptLiquidVolume) and the face fractions
+// (the Kromer-Bothe fan as in kbFaceLiquidFraction, the quadratic cut as in
+// faceCutDisplaced), each as |error| relative to the volume or the area.
+void kbVertexGrazingTest(const Foam::scalar tolRel, const Foam::label maxDepth)
+{
+    using namespace Foam;
+
+    struct Box { const char* name; vector L; };
+    const Box boxes[2] = {{"unit", vector(1, 1, 1)}, {"thin", vector(0.2, 1, 1)}};
+    struct Normal { const char* name; vector n; };
+    const Normal normals[4] =
+    {
+        {"oblique (0.3 0.5 0.8124)", vector(0.3, 0.5, 0.8124)},
+        {"diagonal (1 1 1)", vector(1, 1, 1)},
+        {"axis-near (1e-3 2e-3 1)", vector(1e-3, 2e-3, 1)},
+        {"axis-near (1 1e-7 3e-7)", vector(1, 1e-7, 3e-7)}
+    };
+    const scalar ds[5] = {1e-6, 1e-8, 1e-10, 1e-12, 1e-14};
+
+    // the maxima per rule and quantity over the series, per d
+    scalar mxKbC[5] = {0}, mxSpC[5] = {0}, mxKbP[5] = {0}, mxSpP[5] = {0}, mxKbF[5] = {0}, mxCutF[5] = {0};
+
+    Info<< "kromerBothe self-test, vertex grazing: boxes under a plane through a point at d"
+        << " (relative to the box size) from the highest or the median vertex along n;"
+        << " |error| against the exact clipped polyhedron, relative to V (cell, prism)"
+        << " or to the face area (faces, the maximum over the six)" << nl
+        << "  columns: box normal vertex d side | cell kb split | prism(axis) kb split"
+        << " | prism(oblique) kb split | face kb cut" << nl;
+
+    for (const Box& bx : boxes)
+    {
+        const scalar x0 = 0, y0 = 0, z0 = 0;
+        const scalar x1 = bx.L.x(), y1 = bx.L.y(), z1 = bx.L.z();
+        const scalar Lref = cmptMax(bx.L);
+        const point corners[8] =
+        {
+            point(x0,y0,z0), point(x1,y0,z0), point(x1,y1,z0), point(x0,y1,z0),
+            point(x0,y0,z1), point(x1,y0,z1), point(x1,y1,z1), point(x0,y1,z1)
+        };
+        // the six faces, outward (counterclockwise seen from outside)
+        List<List<point>> boxFaces(6, List<point>(4));
+        auto setQ = [&](label k, label a, label b, label c, label d)
+        {
+            boxFaces[k][0] = corners[a]; boxFaces[k][1] = corners[b];
+            boxFaces[k][2] = corners[c]; boxFaces[k][3] = corners[d];
+        };
+        setQ(0, 0, 3, 2, 1);   // z0
+        setQ(1, 4, 5, 6, 7);   // z1
+        setQ(2, 0, 1, 5, 4);   // y0
+        setQ(3, 3, 7, 6, 2);   // y1
+        setQ(4, 0, 4, 7, 3);   // x0
+        setQ(5, 1, 2, 6, 5);   // x1
+        const point xc(0.5*(x0 + x1), 0.5*(y0 + y1), 0.5*(z0 + z1));
+        const scalar Vbox = (x1 - x0)*(y1 - y0)*(z1 - z0);
+
+        for (const Normal& nm : normals)
+        {
+            const vector n = nm.n/mag(nm.n);
+            // the vertices ordered along n: the highest and the median
+            label order[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+            for (label i = 1; i < 8; ++i)
+                for (label j = i; j > 0 && (corners[order[j]] & n) < (corners[order[j - 1]] & n); --j)
+                    Swap(order[j], order[j - 1]);
+            const label vSel[2] = {order[7], order[4]};
+            const char* vName[2] = {"highest", "median"};
+
+            for (label iv = 0; iv < 2; ++iv)
+            {
+                const point& v = corners[vSel[iv]];
+                for (label id = 0; id < 5; ++id)
+                {
+                    for (const scalar side : {-1.0, 1.0})
+                    {
+                        // phi(x) = n.(x - p0), p0 = v + side d L n: phi(v) =
+                        // -side d L, side +1 the vertex on the liquid side
+                        const scalar dd = ds[id]*Lref;
+                        const point p0 = v + side*dd*n;
+                        davof::cellSurface S;
+                        S.paraboloid = true;          // the paraboloid path with b = 0
+                        S.o = p0;
+                        S.e3 = n;
+                        davof::frameOf(S.e3, S.e1, S.e2);
+                        S.b11 = 0; S.b12 = 0; S.b22 = 0; S.c = 0; S.a1 = 0; S.a2 = 0;
+                        std::function<scalar(const point&)> phi = [&](const point& x) { return S.value(x); };
+
+                        // the exact liquid volume of a convex polyhedron
+                        auto exactVolume = [&](const List<List<point>>& polys) -> scalar
+                        {
+                            scalar s = 0;
+                            for (const List<point>& poly : polys)
+                            {
+                                const vector a = clippedAreaVector(poly, phi);
+                                s += (poly[0] - p0) & a;
+                            }
+                            return s/3;
+                        };
+
+                        // the cell: Kromer-Bothe (fan faces) and split (pyramids)
+                        const scalar vRef = exactVolume(boxFaces);
+                        DynamicList<davof::kbFace> faces(24);
+                        for (const List<point>& poly : boxFaces) davof::kbFanFaces(poly, xc, faces);
+                        scalar vKb = 0;
+                        label nlk = 0;
+                        const bool okC = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*Vbox, vKb, nlk);
+                        scalar vSp = 0;
+                        label nls = 0;
+                        for (const List<point>& poly : boxFaces)
+                        {
+                            point fc = Zero;
+                            for (const point& q : poly) fc += q;
+                            fc /= poly.size();
+                            forAll(poly, i)
+                            {
+                                const label j = (i + 1) % poly.size();
+                                vSp += davof::pyramidLiquidVolume(xc, fc, poly[i], poly[j], phi, tolRel*Vbox, maxDepth, nls);
+                            }
+                        }
+                        const scalar eKbC = okC ? mag(vKb - vRef)/Vbox : GREAT;
+                        const scalar eSpC = mag(vSp - vRef)/Vbox;
+
+                        // the prisms of the face x = x1 swept back by dv: the
+                        // faces of kbPrismFaces, the fan prisms of the split rule
+                        auto prismErrors = [&](const vector& dv, scalar& eKb, scalar& eSp)
+                        {
+                            const List<point>& top = boxFaces[5];
+                            List<point> bottom(top.size());
+                            forAll(top, i) bottom[i] = top[i] - dv;
+                            point fc = Zero;
+                            for (const point& q : top) fc += q;
+                            fc /= top.size();
+                            const point xin = fc - 0.5*dv;
+                            DynamicList<davof::kbFace> pf(12);
+                            davof::kbFanFaces(top, xin, pf);
+                            davof::kbFanFaces(bottom, xin, pf);
+                            forAll(top, i)
+                            {
+                                const label j = (i + 1) % top.size();
+                                davof::kbFace F;
+                                F.p.setSize(4);
+                                F.p[0] = top[i]; F.p[1] = top[j]; F.p[2] = bottom[j]; F.p[3] = bottom[i];
+                                F.setFrame();
+                                if (((F.x0 - xin) & F.n) < 0) { F.reverse(); F.setFrame(); }
+                                pf.append(F);
+                            }
+                            // the exact reference from the same outward polygons
+                            List<List<point>> polys(pf.size());
+                            forAll(pf, k) polys[k] = pf[k].p;
+                            const scalar Vp = mag(dv & (0.5*((top[2] - top[0]) ^ (top[3] - top[1]))));
+                            const scalar vR = exactVolume(polys);
+                            scalar vK = 0;
+                            label nl1 = 0;
+                            const bool okP = davof::kbPolyhedronLiquidVolume(pf, S, tolRel*Vp, vK, nl1);
+                            scalar vS = 0;
+                            label nl2 = 0;
+                            forAll(top, i)
+                            {
+                                const label j = (i + 1) % top.size();
+                                vS += davof::prismLiquidVolume(fc, top[i], top[j], dv, phi, tolRel*Vp, maxDepth, nl2);
+                            }
+                            eKb = okP ? mag(vK - vR)/Vp : GREAT;
+                            eSp = mag(vS - vR)/Vp;
+                        };
+                        scalar eKbPa, eSpPa, eKbPo, eSpPo;
+                        prismErrors(vector(0.37*(x1 - x0), 0, 0), eKbPa, eSpPa);
+                        prismErrors(vector(0.37*(x1 - x0), 0.21*(y1 - y0), -0.13*(z1 - z0)), eKbPo, eSpPo);
+
+                        // the face fractions
+                        scalar eKbF = 0, eCutF = 0;
+                        for (const List<point>& poly : boxFaces)
+                        {
+                            point fc = Zero;
+                            for (const point& q : poly) fc += q;
+                            fc /= poly.size();
+                            const scalar A = mag(0.5*((poly[2] - poly[0]) ^ (poly[3] - poly[1])));
+                            const scalar aRef = mag(clippedAreaVector(poly, phi));
+                            scalar aKb = 0, aCut = 0;
+                            bool okF = true;
+                            forAll(poly, i)
+                            {
+                                const label j = (i + 1) % poly.size();
+                                davof::kbFace F;
+                                F.p.setSize(3);
+                                F.p[0] = fc; F.p[1] = poly[i]; F.p[2] = poly[j];
+                                F.setFrame();
+                                davof::kbSums sums;
+                                okF = davof::kbIntegrateFace(F, S, tolRel*A, GREAT, false, sums) && okF;
+                                aKb += sums.lastArea;
+                                label nfq = 0;
+                                aCut += davof::triLiquidArea(fc, poly[i], poly[j], phi, 6, nfq);
+                            }
+                            eKbF = max(eKbF, okF ? mag(aKb - aRef)/A : GREAT);
+                            eCutF = max(eCutF, mag(aCut - aRef)/A);
+                        }
+
+                        mxKbC[id] = max(mxKbC[id], eKbC); mxSpC[id] = max(mxSpC[id], eSpC);
+                        mxKbP[id] = max(mxKbP[id], max(eKbPa, eKbPo)); mxSpP[id] = max(mxSpP[id], max(eSpPa, eSpPo));
+                        mxKbF[id] = max(mxKbF[id], eKbF); mxCutF[id] = max(mxCutF[id], eCutF);
+
+                        Info<< "  " << bx.name << " | " << nm.name << " | " << vName[iv]
+                            << " | d " << ds[id] << " " << (side > 0 ? "liquid" : "gas")
+                            << " | alpha " << vRef/Vbox
+                            << " | cell " << eKbC << " " << eSpC
+                            << " | prism(axis) " << eKbPa << " " << eSpPa
+                            << " | prism(oblique) " << eKbPo << " " << eSpPo
+                            << " | face " << eKbF << " " << eCutF << nl;
+                    }
+                }
+            }
+        }
+    }
+    Info<< "kromerBothe self-test, vertex grazing: maxima over boxes, normals, vertices and sides" << nl;
+    for (label id = 0; id < 5; ++id)
+    {
+        Info<< "  d " << ds[id] << ": cell kb " << mxKbC[id] << " split " << mxSpC[id]
+            << " | prism kb " << mxKbP[id] << " split " << mxSpP[id]
+            << " | face kb " << mxKbF[id] << " cut " << mxCutF[id] << nl;
     }
     Info<< endl;
 }
