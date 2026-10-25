@@ -332,16 +332,50 @@ inline conic2D faceConic
         }
         return C;
     }
+    // one curvature at round-off and the slope along that axis as well: the
+    // conic is B u^2 + 2 l u + K = 0 in the other coordinate, two parallel
+    // lines, of which the second lies at -2 l/B, far outside any face when
+    // |B K| << l^2. On the translated plane the ring tensor's round-off
+    // curvature can rotate the principal axes onto the trace's direction, so
+    // that a line trace lands here (3 to 4 faces per step at N = 160 on the
+    // oblique arm, 2026-10-25): the near line is taken, in the stable form of
+    // the root.
+    auto nearLine = [&](const scalar B, const scalar l, const scalar K, scalar& u) -> bool
+    {
+        const scalar disc = l*l - B*K;
+        if (!(mag(l) > epsB) || disc < 0 || mag(B*K) > 1e-6*l*l) return false;
+        const scalar s = (l >= 0) ? 1 : -1;
+        u = -K/(l + s*std::sqrt(disc));
+        return true;
+    };
     if (z1)
     {
         if (mag(C.l1) > epsB) { C.kind = conic2D::PARABOLA; C.swapped = false; }
-        else C.kind = conic2D::DEGENERATE;
+        else
+        {
+            scalar u2;
+            if (nearLine(C.B2, C.l2, C.K, u2))
+            {
+                C.kind = conic2D::LINE;
+                C.d1 = 1; C.d2 = 0; C.p01 = 0; C.p02 = u2;
+            }
+            else C.kind = conic2D::DEGENERATE;
+        }
         return C;
     }
     if (z2)
     {
         if (mag(C.l2) > epsB) { C.kind = conic2D::PARABOLA; C.swapped = true; }
-        else C.kind = conic2D::DEGENERATE;
+        else
+        {
+            scalar u1;
+            if (nearLine(C.B1, C.l1, C.K, u1))
+            {
+                C.kind = conic2D::LINE;
+                C.d1 = 0; C.d2 = 1; C.p01 = u1; C.p02 = 0;
+            }
+            else C.kind = conic2D::DEGENERATE;
+        }
         return C;
     }
     C.uc1 = -C.l1/C.B1; C.uc2 = -C.l2/C.B2;
