@@ -96,9 +96,11 @@ Description
     2007, Sect. 4.6, ISBN 978-0-521-88068-8). A fully enclosed trace (an
     ellipse inside a face, their Section 3.6) is integrated as four arcs.
 
-    Non-planar mesh faces are integrated as the fan triangles about the face
-    centre (planar); the interior fan edges cancel in the line integrals and
-    carry the same face constant. The routines return false where the
+    A planar mesh face (every vertex within 1e-10 L_s of the face plane) is
+    integrated whole; a warped face as the fan triangles about the face
+    centre (planar), whose interior edges cancel in the line integrals and
+    carry the same face constant (kbWholeFace; the key kromerBotheFan
+    overrides the test). The routines return false where the
     configuration is not resolved (a degenerate conic with crossings, a
     failed root along an arc, an area outside [0, A]); the caller then falls
     back to the split quadrature of davofCurvedGeometry.H and counts.
@@ -130,12 +132,20 @@ inline label& kbMinSplit()
     return v;
 }
 
-//- Whether the top and bottom faces of a prism and the faces of a cell are
-//  integrated as fan triangles (true, the default; warped faces) or as whole
-//  polygons (planar faces only; a consistency check of the fan)
-inline bool& kbFanFacesOn()
+//- Whether the faces of a cell, the top and bottom of a prism and the
+//  displaced faces of the face fractions are integrated as fan triangles
+//  about the face centre or as whole polygons (key kromerBotheFan):
+//  -1 (auto, the default) fans a face only where it is not planar, i.e.
+//  max_i |(p_i - x_f).n| > 1e-10 L_s (kbWholeFace); 1 (true) forces the fan
+//  on every face (the rule before 2026-10-25); 0 (false) forces whole faces
+//  (a consistency check of the fan on a planar mesh). On the hexahedral
+//  sphere the whole faces cut the step by 45 % at N = 64 and 40 % at
+//  N = 128 against the fan, the end error changing in the eighth digit
+//  (L1(alphaf) 0.00195336 against 0.00195339), the arc quadrature's
+//  round-off of four times fewer arcs.
+inline label& kbFanMode()
 {
-    static bool v = true;
+    static label v = -1;
     return v;
 }
 
@@ -472,7 +482,28 @@ struct kbFace
         }
         return A;
     }
+
+    //- The largest distance of a vertex from the plane (x0, n), relative
+    //  to Ls: zero on a planar polygon
+    scalar warp() const
+    {
+        scalar dmax = 0;
+        forAll(p, i) dmax = max(dmax, mag((p[i] - x0) & n));
+        return dmax/max(Ls, VSMALL);
+    }
 };
+
+
+//- Whether the polygon F (its frame set) is integrated as one face: a
+//  planar polygon (warp at most 1e-10) in the auto mode of kbFanMode(),
+//  every polygon when whole faces are forced, none when fans are forced
+inline bool kbWholeFace(const kbFace& F)
+{
+    const label mode = kbFanMode();
+    if (mode > 0) return false;
+    if (mode == 0) return true;
+    return F.warp() <= 1e-10;
+}
 
 
 //- The accumulators of one polyhedron: the face sum of the divergence
@@ -884,15 +915,16 @@ inline bool kbIntegrateFace
 }
 
 
-//- The fan triangles of a polygon about its centroid, oriented so that
-//  their normals point away from the interior point xin, appended to faces.
+//- A polygon as one face when it is planar (kbWholeFace), else as its fan
+//  triangles about its vertex mean, oriented so that the normals point away
+//  from the interior point xin, appended to faces.
 inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kbFace>& faces)
 {
-    if (!kbFanFacesOn())
+    kbFace F;
+    F.p = poly;
+    F.setFrame();
+    if (kbWholeFace(F))
     {
-        kbFace F;
-        F.p = poly;
-        F.setFrame();
         if (((F.x0 - xin) & F.n) < 0)
         {
             F.reverse();
@@ -901,9 +933,7 @@ inline void kbFanFaces(const List<point>& poly, const point& xin, DynamicList<kb
         if (mag(F.n) > 0 && F.Ls > SMALL) faces.append(F);
         return;
     }
-    point xc = Zero;
-    forAll(poly, i) xc += poly[i];
-    xc /= poly.size();
+    const point xc = F.x0;
     forAll(poly, i)
     {
         const label j = (i + 1) % poly.size();
@@ -954,8 +984,9 @@ inline bool kbPolyhedronLiquidVolume
 }
 
 
-//- The faces of cellI as fan triangles, outward (the owner's face order,
-//  reversed for the neighbour).
+//- The faces of cellI, outward (the owner's face order, reversed for the
+//  neighbour): a planar face whole, a warped face as the fan triangles
+//  about the mesh's face centre (kbWholeFace).
 inline void kbCellFaces(const fvMesh& mesh, const label cellI, DynamicList<kbFace>& faces)
 {
     const pointField& P = mesh.points();
@@ -970,14 +1001,16 @@ inline void kbCellFaces(const fvMesh& mesh, const label cellI, DynamicList<kbFac
         const face& f = fcs[faceI];
         const bool isOwner = (own[faceI] == cellI);
         const point& xf = Cf[faceI];
-        if (!kbFanFacesOn())
         {
             kbFace F;
             F.p.setSize(f.size());
             forAll(f, ip) F.p[ip] = isOwner ? P[f[ip]] : P[f[f.size() - 1 - ip]];
             F.setFrame();
-            if (F.Ls > SMALL) faces.append(F);
-            continue;
+            if (kbWholeFace(F))
+            {
+                if (F.Ls > SMALL) faces.append(F);
+                continue;
+            }
         }
         forAll(f, ip)
         {
@@ -1020,7 +1053,8 @@ inline void kbPrismFaces(const fvMesh& mesh, const label faceI, const vector& d,
 
 
 //- The liquid area fraction of the face faceI displaced by d under S by the
-//  Green integral (fan triangles). Returns false where not resolved.
+//  Green integral: the whole polygon where it is planar, else its fan
+//  triangles (kbWholeFace). Returns false where not resolved.
 inline bool kbFaceLiquidFraction
 (
     const fvMesh& mesh,
@@ -1040,6 +1074,25 @@ inline bool kbFaceLiquidFraction
     const point xf = mesh.faceCentres()[faceI] + d;
     kbSums sums;
     scalar Awet = 0, Atot = 0;
+    {
+        kbFace F;
+        F.p.setSize(f.size());
+        forAll(f, ip) F.p[ip] = P[f[ip]] + d;
+        F.setFrame();
+        if (kbWholeFace(F))
+        {
+            if (!(F.Ls > SMALL)) { alphaf = 0; return true; }
+            const scalar At = F.area();
+            if (!kbIntegrateFace(F, S, tolRel*Af, GREAT, false, sums))
+            {
+                nLeaves += sums.nLeaves;
+                return false;
+            }
+            nLeaves += sums.nLeaves;
+            alphaf = (At > 0) ? sums.lastArea/At : 0;
+            return true;
+        }
+    }
     forAll(f, ip)
     {
         const label ip1 = f.nextLabel(ip);

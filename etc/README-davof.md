@@ -572,7 +572,14 @@ models):
   by Green's theorem as well. The conic is classified in principal form (their Eqs. 26-34) to
   order the boundary crossings and to split long arcs; every arc is integrated as the graph
   over its chord with the exact root along the chord's normal, adaptive Gauss-Legendre 12
-  (`davofKromerBothe.H`). Non-planar faces as fan triangles. Falls back to `splitQuadrature`
+  (`davofKromerBothe.H`). A planar face (every vertex within 1e-10 L_s of the face plane) is
+  integrated whole, a warped face as the fan triangles about the face centre; the key
+  `kromerBotheFan` overrides the test (`auto`, the default, the test; `true` every face
+  fanned, the rule before 2026-10-25; `false` every face whole). The same choice applies to
+  the cell faces of the volume anchor, the top and bottom of the flux prisms and the displaced
+  faces of the face fractions. On the hexahedral sphere the whole faces cut the step by 45 %
+  at N = 64 and 40 % at N = 128, the end error changing in the eighth digit (L1(alphaf)
+  0.00195336 against 0.00195339). Falls back to `splitQuadrature`
   per polyhedron where a configuration is not resolved, and for a sphere surface; counted in
   the Info line ("volume rule kromerBothe fallbacks N") and, when any occur, by reason
   ("kromerBothe fallbacks by reason: conic, point, root, gradient, area, volume"). On a flat

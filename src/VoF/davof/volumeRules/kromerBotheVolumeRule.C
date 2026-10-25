@@ -64,11 +64,34 @@ Foam::davofVolumeRules::kromerBothe::kromerBothe
 {
     // the debug knobs of davofKromerBothe.H
     davof::kbMinSplit() = dict.getOrDefault<label>("kromerBotheMinSplit", 1);
-    davof::kbFanFacesOn() = dict.getOrDefault<bool>("kromerBotheFan", true);
+    // kromerBotheFan: auto (the default: a face is fanned only where it is
+    // warped) | true (every face fanned) | false (every face whole)
+    davof::kbFanMode() = -1;
+    if (const entry* ePtr = dict.findEntry("kromerBotheFan", keyType::LITERAL))
+    {
+        ITstream& is = ePtr->stream();
+        const token tok(is);
+        word fan("auto");
+        if (tok.isWord()) fan = tok.wordToken();
+        else if (tok.isNumber()) fan = (tok.number() != 0) ? "true" : "false";
+        if (fan == "auto") davof::kbFanMode() = -1;
+        else if (fan == "true" || fan == "on" || fan == "yes") davof::kbFanMode() = 1;
+        else if (fan == "false" || fan == "off" || fan == "no") davof::kbFanMode() = 0;
+        else
+        {
+            FatalIOErrorInFunction(dict)
+                << "kromerBotheFan '" << fan
+                << "' unknown. Valid: auto, true, false." << exit(FatalIOError);
+        }
+    }
+    Info<< "kromerBothe: fan faces "
+        << (davof::kbFanMode() < 0 ? "auto (warped faces only)"
+          : (davof::kbFanMode() > 0 ? "true (every face)" : "false (whole faces)"))
+        << endl;
     if (debug_)
     {
         Info<< "kromerBothe: minSplit " << davof::kbMinSplit()
-            << ", fan faces " << davof::kbFanFacesOn() << endl;
+            << ", fan mode " << davof::kbFanMode() << endl;
         kbSelfTest(tolRel_, maxDepth_);
     }
 }
@@ -354,9 +377,15 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
                     const scalar z0 = xin.z() - 0.5*h, z1 = xin.z() + 0.5*h;
                     const scalar pv = dx*h*h;
                     DynamicList<davof::kbFace> faces(12);
+                    // the box face each kbFace belongs to (one whole face or
+                    // four fan triangles per quad, by kbFanMode)
+                    DynamicList<label> quadOf(12);
+                    label nQuad = 0;
                     auto quad = [&](point a, point bq, point cq, point d) {
                         List<point> poly(4); poly[0] = a; poly[1] = bq; poly[2] = cq; poly[3] = d;
                         davof::kbFanFaces(poly, xin, faces);
+                        while (quadOf.size() < faces.size()) quadOf.append(nQuad);
+                        ++nQuad;
                     };
                     quad(point(x0,y0,z0), point(x1,y0,z0), point(x1,y1,z0), point(x0,y1,z0));
                     quad(point(x0,y0,z1), point(x1,y0,z1), point(x1,y1,z1), point(x0,y1,z1));
@@ -395,7 +424,7 @@ void kbSelfTest(const Foam::scalar tolRel, const Foam::label maxDepth)
                         {
                             davof::kbSums sums;
                             davof::kbIntegrateFace(faces[k], T, 1e-16*pv, 1e-16*pv, true, sums);
-                            const label bf = k/4;   // four fan triangles per box face, in the order quad() was called
+                            const label bf = quadOf[k];   // the box face, in the order quad() was called
                             wetF[bf] += sums.lastArea; lineF[bf] += sums.lineSum; termF[bf] += sums.faceSum;
                         }
                         const char* names[6] = {"z0 (n -z)", "z1 (n +z)", "y0 (n -y)", "y1 (n +y)", "x0 (n -x)", "x1 (n +x)"};
