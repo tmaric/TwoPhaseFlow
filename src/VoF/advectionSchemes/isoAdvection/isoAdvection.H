@@ -399,7 +399,9 @@ class isoAdvection
             //  pre-image and the face), trapezoidal (phi_f dt times the
             //  mean of the face fractions at t^n and t^{n+1}) or simpson
             //  (with the half-step pre-image's fraction, phi_f dt
-            //  (a^n + 4 a^{n+1/2} + a^{n+1})/6); see isoAdvectionCurved.C
+            //  (a^n + 4 a^{n+1/2} + a^{n+1})/6) or simpsonSplit (Simpson's
+            //  rule on the sub-intervals between the passages of the trace
+            //  over the face's vertices); see isoAdvectionCurved.C
             word fluxIntegration_;
             scalar debugR0Max_;
             label debugCellR0_;

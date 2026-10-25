@@ -664,9 +664,15 @@ alpha_f^{n+1/2} + alpha_f^{n+1})/6 with alpha_f^{n+1/2} the liquid fraction of t
 pre-image f - d/2 under the same surface (one more face fraction per face instead of the prism's
 faces). The fraction of a face is a cubic in time between the passages of the trace over the
 face's vertices, so Simpson's rule is exact on a step without such a passage and the
-trapezoidal rule is second order. The signs follow the prism path (the flux carries the sign of
-phi_f); a face that does not sweep (|d . S_f| below 1e-10 |d| |S_f|) gets no flux in every mode.
-The leia token is `TPF_FLUX_INTEGRATION` (default `prism`).
+trapezoidal rule is second order. `simpsonSplit`: Simpson's rule on the sub-intervals between
+those passages, whose times are predictable: the roots sigma in (0, 1) of phi(x_v - sigma d) = 0
+along the trajectory of every vertex of the face over the step (and of the face centre, the apex
+of a warped face's fan), a quadratic in sigma for the paraboloid; each sub-interval takes the
+pre-image fractions at its ends and its midpoint (two more face fractions per sub-interval, and
+few faces have a breakpoint in a step), so that on the plane the rule is exact in every step; the
+time-quadrature analogue of the split quadrature's breakpoints. The signs follow the prism path
+(the flux carries the sign of phi_f); a face that does not sweep (|d . S_f| below 1e-10 |d| |S_f|)
+gets no flux in every mode. The leia token is `TPF_FLUX_INTEGRATION` (default `prism`).
 
 The leia token is `TPF_VOLUME_RULE` (default `splitQuadrature`; `cases/davof/*Translation3D`).
 

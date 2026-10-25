@@ -1389,6 +1389,9 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         // fraction of a face is a cubic in time between the passages of
         // the trace over the face's vertices, so Simpson's rule is exact
         // there and the trapezoidal rule is second order (2026-10-25).
+        // simpsonSplit: Simpson's rule on the sub-intervals between those
+        // passages, whose times are the roots of phi along each vertex's
+        // trajectory over the step (exact on the plane in every step).
         if (!(boundary && phiF < 0))
         {
             // a face parallel to the displacement sweeps no volume: the
@@ -1411,16 +1414,56 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             }
             else if (sweeps)
             {
+                // the fraction of the face at the time t^n + sigma dt is the
+                // liquid fraction of the pre-image f - sigma d under S
+                // (sigma = 0: the stored fraction a0; sigma = 1: af)
                 const scalar a0 = faceValue(*alphafPtr_, facei);
                 const scalar a1 = min(max(af, scalar(0)), scalar(1));
+                auto fracAt = [&](const scalar sigma) -> scalar
+                {
+                    label nfbS = 0;
+                    const scalar a = volumeRulePtr_->faceLiquidFraction(facei, -sigma*d, S, nfbS);
+                    nCurvedFallback_ += nfbS;
+                    return min(max(a, scalar(0)), scalar(1));
+                };
                 scalar aMean = 0.5*(a0 + a1);
                 if (fluxIntegration_ == "simpson")
                 {
-                    label nfbH = 0;
-                    scalar ah = volumeRulePtr_->faceLiquidFraction(facei, -0.5*d, S, nfbH);
-                    nCurvedFallback_ += nfbH;
-                    ah = min(max(ah, scalar(0)), scalar(1));
-                    aMean = (a0 + 4*ah + a1)/6;
+                    aMean = (a0 + 4*fracAt(0.5) + a1)/6;
+                }
+                else if (fluxIntegration_ == "simpsonSplit")
+                {
+                    // Simpson's rule on the sub-intervals between the
+                    // breakpoints of the face fraction in time: the times at
+                    // which the trace of S passes a vertex of the face (and
+                    // the face centre, the apex of a warped face's fan), the
+                    // roots sigma in (0, 1) of phi(x_v - sigma d) = 0, a
+                    // quadratic in sigma for the paraboloid; between them the
+                    // fraction of a planar polygon under a plane is a
+                    // quadratic in time and Simpson's rule is exact. The
+                    // time-quadrature analogue of the split quadrature's
+                    // breakpoints (davofCurvedGeometry.H), 2026-10-25.
+                    auto phi = [&](const point& x) { return S.value(x); };
+                    const face& fc = mesh_.faces()[facei];
+                    const pointField& P = mesh_.points();
+                    DynamicList<scalar> sig(16);
+                    forAll(fc, ip)
+                    {
+                        davof::segmentRoots(P[fc[ip]], P[fc[ip]] - d, phi, sig);
+                    }
+                    davof::segmentRoots(Cf[facei], Cf[facei] - d, phi, sig);
+                    Foam::sort(sig);
+                    scalar integral = 0, sa = 0, fa = a0;
+                    for (label k = 0; k <= sig.size(); ++k)
+                    {
+                        const scalar sb = (k < sig.size()) ? sig[k] : scalar(1);
+                        if (sb - sa <= 1e-12) continue;
+                        const scalar fb = (k < sig.size()) ? fracAt(sb) : a1;
+                        const scalar fm = fracAt(0.5*(sa + sb));
+                        integral += (sb - sa)/6*(fa + 4*fm + fb);
+                        sa = sb; fa = fb;
+                    }
+                    aMean = integral;
                 }
                 dVfNew = phiF*dt*aMean;
             }
