@@ -600,32 +600,42 @@ models):
   paraboloid falls back to `splitQuadrature`, counted.
 
 Other algorithms of the curved flux, with their sources: the volume anchor's root (key
-`anchorMethod`: `illinois`, the default; `newton`; `compare`, 2026-10-25). `newton`: Newton on the exact slope dV/dc, the area of the
-wetted patch projected along the frame's axis, which the Kromer-Bothe rule returns as the line
-integral oint t1 dt2 around the trace arcs it walks for the volume anyway
-(`cellLiquidVolumeSlope`), safeguarded by the bracket the iterates build (an iterate outside
-it is replaced by the bisection point: the rtsafe of Press, Teukolsky, Vetterling, Flannery,
-Numerical Recipes, 3rd ed., Cambridge University Press, 2007, Sect. 9.4, ISBN
-978-0-521-88068-8) and corrected by the quadratic model whose second derivative is the secant
-of the two latest slopes (Halley's step with that estimate: T. R. Scavo, J. B. Thoo, On the
-geometry of Halley's method, Amer. Math. Monthly 102 (1995) 417-426, doi:10.2307/2975033);
-converged when the bracket closes to 1e-11 h or Newton's own step is below it with the
-residual within `anchorTolRel`; where the slope is not available (a fallback polyhedron,
-another rule) and no bracket exists yet, or with `anchorMethod illinois`, the root by a
-bracket of doubling steps and the Illinois rule, M. Dowell, P. Jarratt, A modified regula
-falsi method for computing the root of an equation, BIT 11 (1971) 168-174,
-doi:10.1007/BF01934364 (the only method until 2026-10-25: 6.2 cell-volume evaluations per
-interface cell per step, 57 % of the advection step at N = 64). Newton takes 3.7 evaluations per
-cell against 6.5 for Illinois on the sphere's ring row (N = 32, Co 0.2) and finds the same root
-wherever the root is unique; where the target is 0 or V (a full or empty cell flagged as an
-interface cell) V(c) is flat on an interval of roots, Illinois stops at the first bracket end of
-its doubling steps (0.75 h or 1.75 h from the start), Newton at the interval's edge (0.72 to
-0.80 h), and since the cell's surface also cuts the prisms of its faces and the second-ring faces
-the runs differ (the ring row ends 0.5 % lower at N = 32 and 2.5 % lower at N = 64 with Newton;
-the exact row and the plane at round-off, apart from one vertex-grazing event, see the
-davof-perf report). Illinois stays the default until that interval has a defined point;
-`compare` runs both, continues with Illinois and prints the cells whose offsets differ by more
-than 1e-9 h. The Info line counts the anchor's evaluations ("evaluations N (per cell x)"). The anchor's two face-fraction
+`anchorMethod`: `ccs`, the default; `newton`; `illinois`; `compare`; 2026-10-25). The slope
+dV/dc of the cell's liquid volume in the offset is the area of the wetted patch projected along
+the frame's axis, which the Kromer-Bothe rule returns as the line integral oint t1 dt2 around
+the trace arcs it walks for the volume anyway (`cellLiquidVolumeSlope`). `ccs`: the
+Consecutive Cubic Spline positioning of T. Marić, Iterative volume-of-fluid interface
+positioning in general polyhedrons with Consecutive Cubic Spline interpolation, J. Comput.
+Phys.: X 11 (2021) 100093, doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227, applied to the
+paraboloid: once the root is bracketed (a Newton step from the start), the iterate is the root
+of the cubic Hermite interpolant through the two bracket ends with the exact volumes and
+slopes, re-bracketed at every step, an iterate outside the bracket or a bracket not halved in
+two steps replaced by the bisection point; between the vertex offsets (the breakpoints of
+V(c), where its second derivative jumps) V is smooth, a cubic for a plane, so the model is
+exact there up to the quadrature. `newton`: Newton on the slope, safeguarded by the bracket
+the iterates build (an iterate outside it is replaced by the bisection point: the rtsafe of
+Press, Teukolsky, Vetterling, Flannery, Numerical Recipes, 3rd ed., Cambridge University
+Press, 2007, Sect. 4.6 and 9.4, ISBN 978-0-521-88068-8) and corrected by the quadratic model
+whose second derivative is the secant of the two latest slopes (Halley's step with that
+estimate: T. R. Scavo, J. B. Thoo, On the geometry of Halley's method, Amer. Math. Monthly 102
+(1995) 417-426, doi:10.2307/2975033). Both converge when the bracket closes to 1e-11 h or the
+Newton step r/A is below it with the residual within `anchorTolRel`; where the slope is not
+available (a fallback polyhedron, another rule) and no bracket exists yet, or with
+`anchorMethod illinois`, the root by a bracket of doubling steps and the Illinois rule,
+M. Dowell, P. Jarratt, A modified regula falsi method for computing the root of an equation,
+BIT 11 (1971) 168-174, doi:10.1007/BF01934364 (the only method until 2026-10-25: 6.2
+cell-volume evaluations per interface cell per step, 57 % of the advection step at N = 64).
+Where the target is 0 or V (a full or empty cell flagged as an interface cell) V(c) is flat on
+an interval of roots; Illinois stops at the first bracket end of its doubling steps (0.75 h or
+1.75 h from the start) and the ladder's ring row carries that choice; the offset of such a cell
+is DEFINED (2026-10-25) as the edge of the interval, the surface tangent to the cell (the first
+offset at which the cell is entirely liquid or entirely empty), computed exactly as the extremum
+of the offset function over the cell's vertices, edges and face planes (`kbOffsetRange`) and
+moved 1e-12 h onto the flat side; `ccs` and `newton` take it (the Info line counts these cells,
+"edge N"), `illinois` keeps its bracket end. `compare` runs Illinois and ccs from the same
+start, continues with ccs, counts the cells whose offsets differ by more than 1e-9 h (and those
+of them at the edge) in a second Info line and prints the first 20 per step. The Info line
+counts the anchor's evaluations ("evaluations N (per cell x)"). The anchor's two face-fraction
 diagnostics, the face residual before the anchor and the face shift after it (14 % of the
 step), are computed and printed only with `anchorDiagnostics true` (default false). The
 six-coefficient fit by

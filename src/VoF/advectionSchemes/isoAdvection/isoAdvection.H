@@ -353,16 +353,20 @@ class isoAdvection
             //  2026-10-25), printed in the Info line when on
             bool anchorDiagnostics_;
 
-            //- The volume anchor's root finder (key anchorMethod): illinois
-            //  (the default: a bracket by doubling steps and the Illinois
-            //  rule), newton (Newton on the exact slope dV/dc, the
-            //  projected wetted patch area of the volume rule, safeguarded
-            //  by the bracket, the bracket search and the Illinois rule
-            //  where the slope is not available; 3.7 against 6.5 volume
-            //  evaluations per cell on the sphere, but a different point of
-            //  the flat root interval of full and empty interface cells, see
-            //  isoAdvectionCurved.C) or compare (both, the run continues with
-            //  illinois, the cells whose offsets differ printed)
+            //- The volume anchor's root finder (key anchorMethod): ccs (the
+            //  default: Consecutive Cubic Spline positioning on the
+            //  paraboloid, the root of the cubic Hermite interpolant through
+            //  the bracket ends with the exact values and slopes dV/dc, the
+            //  projected wetted patch area of the volume rule, re-bracketed
+            //  and bisection-safeguarded; T. Maric, J. Comput. Phys.: X 11
+            //  (2021) 100093, doi:10.1016/j.jcpx.2021.100093,
+            //  arXiv:2012.02227), newton (safeguarded Newton on that slope),
+            //  illinois (a bracket by doubling steps and the Illinois rule,
+            //  the method until 2026-10-25) or compare (illinois and ccs,
+            //  the run continues with ccs, the cells whose offsets differ
+            //  counted and printed). ccs and newton take the edge of the
+            //  flat root interval for a cell whose target is 0 or V (see
+            //  isoAdvectionCurved.C); illinois keeps its bracket end there.
             word anchorMethod_;
             scalar debugR0Max_;
             label debugCellR0_;
@@ -374,8 +378,15 @@ class isoAdvection
             //- The cell-volume evaluations of the anchor in the step
             label nAnchorEvals_;
 
-            //- The cells printed by anchorMethod compare in the step
+            //- The cells anchored at the edge of the flat interval (a
+            //  target of 0 or V) in the step
+            label nAnchorEdge_;
+
+            //- anchorMethod compare: the cells printed in the step, the
+            //  cells whose offsets differ, those of them at the edge
             label nCompare_;
+            label nCompareDiff_;
+            label nCompareDiffEdge_;
             scalar anchorShiftMax_;
             scalar anchorShiftSum_;
 

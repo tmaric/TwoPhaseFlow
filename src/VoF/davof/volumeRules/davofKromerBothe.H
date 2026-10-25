@@ -1168,6 +1168,72 @@ inline void kbCellFaces(const fvMesh& mesh, const label cellI, DynamicList<kbFac
 }
 
 
+//- The range [cMin, cMax] of the offset function g(x) = phi(x) + c =
+//  w - a.t - t^T b t/2 over the polyhedron given by its faces: the surface
+//  with the offset cMin grazes the cell from the empty side (below it the
+//  cell is entirely empty), the one with cMax from the liquid side (above it
+//  the cell is entirely liquid). g has no w^2 term, so dg/dw = 1 and its
+//  extrema over the cell lie on the boundary: at a vertex, at the interior
+//  stationary point of an edge (g is quadratic along it) or at the interior
+//  stationary point of a face plane (g is a quadratic in the plane
+//  coordinates, its coefficients from six values as in faceConic). Every
+//  candidate is a point of the cell, so a superfluous one (a saddle) cannot
+//  widen the range. The volume anchor takes cMin or cMax for a cell whose
+//  target is 0 or V (2026-10-25).
+inline void kbOffsetRange
+(
+    const DynamicList<kbFace>& faces,
+    const cellSurface& S,
+    scalar& cMin,
+    scalar& cMax
+)
+{
+    auto g = [&](const point& x) { return S.value(x) + S.c; };
+    cMin = GREAT; cMax = -GREAT;
+    auto take = [&](const scalar v) { cMin = min(cMin, v); cMax = max(cMax, v); };
+    forAll(faces, k)
+    {
+        const kbFace& F = faces[k];
+        const label nV = F.p.size();
+        for (label i = 0; i < nV; ++i)
+        {
+            const label j = (i + 1) % nV;
+            const scalar g0 = g(F.p[i]), g1 = g(F.p[j]), gm = g(0.5*(F.p[i] + F.p[j]));
+            take(g0);
+            // along the edge g(s) = g0 + B s + C s^2
+            const scalar C = 2*(g1 + g0 - 2*gm);
+            const scalar B = g1 - g0 - C;
+            if (mag(C) > 0)
+            {
+                const scalar s = -B/(2*C);
+                if (s > 0 && s < 1) take(g0 + B*s + C*s*s);
+            }
+        }
+        // the face plane, in the coordinates scaled by Ls
+        const scalar s = F.Ls;
+        const point& x0 = F.x0;
+        const scalar q0 = g(x0);
+        const scalar qp1 = g(x0 + s*F.f1), qm1 = g(x0 - s*F.f1);
+        const scalar qp2 = g(x0 + s*F.f2), qm2 = g(x0 - s*F.f2);
+        const scalar q11 = g(x0 + s*F.f1 + s*F.f2);
+        const scalar A11 = 0.5*(qp1 + qm1 - 2*q0);
+        const scalar A22 = 0.5*(qp2 + qm2 - 2*q0);
+        const scalar a1 = 0.25*(qp1 - qm1);
+        const scalar a2 = 0.25*(qp2 - qm2);
+        const scalar A12 = 0.5*(q11 - A11 - A22 - 2*a1 - 2*a2 - q0);
+        const scalar sc = max(mag(A11), max(mag(A22), mag(A12)));
+        const scalar det = A11*A22 - A12*A12;
+        if (sc > 0 && mag(det) > 1e-10*sc*sc)
+        {
+            // A11 x + A12 y = -a1, A12 x + A22 y = -a2
+            const scalar x1 = s*(-a1*A22 + a2*A12)/det;
+            const scalar x2 = s*(-a2*A11 + a1*A12)/det;
+            if (F.inside(x1, x2, 0)) take(g(F.at(x1, x2)));
+        }
+    }
+}
+
+
 //- The faces of the prism between the face faceI displaced by -d and the
 //  face: the fan triangles of both and the side parallelograms, outward.
 inline void kbPrismFaces(const fvMesh& mesh, const label faceI, const vector& d, DynamicList<kbFace>& faces)
