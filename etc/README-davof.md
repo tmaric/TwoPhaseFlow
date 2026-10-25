@@ -710,6 +710,32 @@ kromerBothePrismApex vertexMean;  // | faceCentre: the warped flux prism's top a
   mean, the cell's faces and the face fractions about the mesh face centre; on a warped face the two
   fans differ by a thin lens, whose liquid enters the flux and not the cell's own volume.
   `kromerBothePrismApex faceCentre` uses the mesh face centre and its translate.
+- The flux prism over a warped face (two fixes found on the perturbed plane's oblique arm,
+  U = (1 0 0), where every row and face state failed at 2e-3 to 1e-2 while the normal arm was
+  exact; unconditional, the faces of a prism over a planar face unchanged vertex for vertex
+  (there the interior-point test and the sign of d.S_f agree) and the hexahedral gate
+  bit-identical): (1) `kbPrismFaces` oriented the prism's fan triangles and sides by an
+  interior-point test, which on a thin prism over a warped face (d nearly parallel to the face)
+  reads the warp; they are now oriented by the sign of d.S_f (`kbOrientedFan`), and the
+  split-quadrature fallback `faceSweptLiquidVolume` gives a fan triangle that d sweeps backwards
+  its negative sign. (2) The net liquid volume through such a face lies in [-V_back, V_fwd] (the
+  backward and forward triangle sweeps), not in [0, |d.S_f|]; the rule's range check and clamps
+  use that range (`kbPrismRange`) where a triangle is swept backwards.
+- Measured on the perturbed hexahedra (every vertex displaced by up to 0.1 h; leia
+  `planeTranslation3D_perturbedWarped`, Co 0.2, N = 20/40/80, both arms, the volume-anchored
+  ring-tensor paraboloid with the Kromer-Bothe rule, `kromerBothePrismApex faceCentre`): with
+  `faceState vector` and `tensorCentroid anchored` the exact-normal row is at round-off on both
+  arms at every N (run maxima of L1(alphaf) 1e-14 to 6e-14, L1(n) 1e-14), the ring-normal row at
+  round-off on both arms at N = 20 and 40 and on the normal arm at N = 80; on the oblique arm at
+  N = 80 isolated single-face events (steps 17, 36, 62, 71; Linf up to 4.8e-5, L1 up to 1.1e-8)
+  appear at faces with a vertex 2e-4 h from the start-of-step plane next to a cell the plane
+  enters, followed by second-layer bounding in 30 to 45 cells per step (open; the vertex-grazing
+  configuration of the hexahedral ring row's oblique-arm residue). The scalar state fails in the
+  ring row (L1(n) 2.1e-3 to 2.4e-3, L1(alphaf) 2.6e-4 to 4.1e-4, flat in N); `tensorCentroid cut`
+  fails in every row at 1.3e-5 to 1.7e-5, flat in N; `kromerBothePrismApex vertexMean` fails
+  at 2e-5 to 3.5e-5 with everything else in place. On the hexahedra `faceState scalar` is
+  bit-identical with the unmodified build (8a1c5e4) in every number of areaFractionError.dat,
+  error.dat and volumeFractionError.dat (8 cases), `vector` at round-off.
 - Diagnostics: `areaFractionError` takes m_c of both states from the vectors when
   `wettedAreaDavof` is registered (the interface-cell set of the norms) and logs the vector error
   |a_f - a_f,exact|/|S_f| (L1, Linf); the .dat columns are unchanged. Its `consistency` column
