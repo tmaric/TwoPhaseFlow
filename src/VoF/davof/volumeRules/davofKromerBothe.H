@@ -454,6 +454,20 @@ struct kbSums
 };
 
 
+//- The reasons for which the rule leaves a face or a polyhedron unresolved
+//  (and the volume rule falls back), counted per step and printed by the
+//  rule's report(): a degenerate or empty conic with crossings, a conic
+//  point that does not exist, a chord-normal root that does not exist, a
+//  vanishing gradient on the arc, a wetted area outside [0, A], a volume
+//  outside [0, V].
+enum kbFail { KB_CONIC = 0, KB_AT, KB_ROOT, KB_GRAD, KB_AREA, KB_VOLUME, KB_NFAIL };
+inline label& kbFailCount(const label r)
+{
+    static label c[KB_NFAIL] = {};
+    return c[r];
+}
+
+
 //- The trace arcs and the wetted area of one face under the surface S;
 //  accumulates into sums. Returns false where the configuration is not
 //  resolved.
@@ -571,6 +585,7 @@ inline bool kbIntegrateFace
     {
         if (C.kind == conic2D::DEGENERATE || C.kind == conic2D::EMPTY)
         {
+            ++kbFailCount(KB_CONIC);
             return false;
         }
         forAll(cr, i) C.paramOf(cr[i].a, cr[i].b, cr[i].br, cr[i].s);
@@ -664,12 +679,12 @@ inline bool kbIntegrateFace
             const scalar s1 = ar.sa + (ar.sb - ar.sa)*(k + 1)/m;
             scalar ax, ay, bx, by;
             if (k == 0 && ar.exactEnds) { ax = ar.ax; ay = ar.ay; }
-            else if (!C.at(ar.br, s0, ax, ay)) return false;
+            else if (!C.at(ar.br, s0, ax, ay)) { ++kbFailCount(KB_AT); return false; }
             if (k == m - 1 && ar.exactEnds) { bx = ar.bx; by = ar.by; }
-            else if (!C.at(ar.br, s1, bx, by)) return false;
+            else if (!C.at(ar.br, s1, bx, by)) { ++kbFailCount(KB_AT); return false; }
             // the side of the chord the arc lies on, from its midpoint
             scalar mx, my;
-            if (!C.at(ar.br, 0.5*(s0 + s1), mx, my)) return false;
+            if (!C.at(ar.br, 0.5*(s0 + s1), mx, my)) { ++kbFailCount(KB_AT); return false; }
 
             const scalar ex = bx - ax, ey = by - ay;
             const scalar Le = std::sqrt(ex*ex + ey*ey);
@@ -688,13 +703,13 @@ inline bool kbIntegrateFace
                 scalar r;
                 if (mag(al) <= 1e-14*(mag(be)/Ls + mag(ga)/(Ls*Ls)))
                 {
-                    if (!(mag(be) > 0)) return false;
+                    if (!(mag(be) > 0)) { ++kbFailCount(KB_ROOT); return false; }
                     r = -ga/be;
                 }
                 else
                 {
                     const scalar disc = be*be - 4*al*ga;
-                    if (disc < 0) return false;
+                    if (disc < 0) { ++kbFailCount(KB_ROOT); return false; }
                     const scalar sq = std::sqrt(disc);
                     const scalar qq = -0.5*(be + ((be >= 0) ? sq : -sq));
                     const scalar ra = (qq != 0) ? ga/qq : -be/(2*al);
@@ -709,7 +724,7 @@ inline bool kbIntegrateFace
                 scalar gx, gy;
                 C.gradq(x, y, gx, gy);
                 const scalar gn = gx*nx + gy*ny;
-                if (!(mag(gn) > 0)) return false;
+                if (!(mag(gn) > 0)) { ++kbFailCount(KB_GRAD); return false; }
                 const scalar rp = -(gx*ex + gy*ey)/gn;
                 dx = ex + rp*nx; dy = ey + rp*ny;
                 return true;
@@ -800,6 +815,7 @@ inline bool kbIntegrateFace
     const scalar Awet = edgeArea + arcArea;
     if (Awet < -1e-9*A || Awet > (1 + 1e-9)*A)
     {
+        ++kbFailCount(KB_AREA);
         return false;
     }
     sums.lastArea = min(max(Awet, scalar(0)), A);

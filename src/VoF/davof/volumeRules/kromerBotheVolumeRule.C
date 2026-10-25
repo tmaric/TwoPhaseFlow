@@ -527,11 +527,10 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolume
     davof::kbCellFaces(mesh_, celli, faces);
     scalar v = 0;
     const scalar Vc = mesh_.V()[celli];
-    if
-    (
-        davof::kbPolyhedronLiquidVolume(faces, S, tolRel*Vc, v, nLeaves_)
-     && v >= -1e-9*Vc && v <= (1 + 1e-9)*Vc
-    )
+    const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*Vc, v, nLeaves_);
+    const bool inRange = v >= -1e-9*Vc && v <= (1 + 1e-9)*Vc;
+    if (resolved && !inRange) ++davof::kbFailCount(davof::KB_VOLUME);
+    if (resolved && inRange)
     {
         if (debug_)
         {
@@ -572,11 +571,10 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
     DynamicList<davof::kbFace> faces(12);
     davof::kbPrismFaces(mesh_, facei, d, faces);
     scalar v = 0;
-    if
-    (
-        davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_)
-     && v >= -1e-9*prismVol && v <= (1 + 1e-9)*prismVol
-    )
+    const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_);
+    const bool inRange = v >= -1e-9*prismVol && v <= (1 + 1e-9)*prismVol;
+    if (resolved && !inRange) ++davof::kbFailCount(davof::KB_VOLUME);
+    if (resolved && inRange)
     {
         v = min(max(v, scalar(0)), prismVol);
         if (debug_)
@@ -639,6 +637,25 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
 
 void Foam::davofVolumeRules::kromerBothe::report() const
 {
+    // the reasons of the step's fallbacks (every processor's own count)
+    {
+        label n[davof::KB_NFAIL];
+        label tot = 0;
+        for (label r = 0; r < davof::KB_NFAIL; ++r)
+        {
+            n[r] = davof::kbFailCount(r);
+            davof::kbFailCount(r) = 0;
+            if (Pstream::parRun()) reduce(n[r], sumOp<label>());
+            tot += n[r];
+        }
+        if (tot > 0)
+        {
+            Info<< "kromerBothe fallbacks by reason: conic " << n[davof::KB_CONIC]
+                << ", point " << n[davof::KB_AT] << ", root " << n[davof::KB_ROOT]
+                << ", gradient " << n[davof::KB_GRAD] << ", area " << n[davof::KB_AREA]
+                << ", volume " << n[davof::KB_VOLUME] << endl;
+        }
+    }
     if (!debug_) return;
     scalar mp = dbgMaxPrism_, sp = dbgSumPrism_, mc = dbgMaxCell_, sc = dbgSumCell_;
     label np = dbgNPrism_, nc = dbgNCell_;
