@@ -1453,15 +1453,43 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     }
                     davof::segmentRoots(Cf[facei], Cf[facei] - d, phi, sig);
                     Foam::sort(sig);
-                    scalar integral = 0, sa = 0, fa = a0;
-                    for (label k = 0; k <= sig.size(); ++k)
+                    // the breakpoints: coincident roots clustered within
+                    // 1e-9 of the step; three or more vertices meeting the
+                    // surface at one time mean the face lies on the surface
+                    // then (a face parallel to a plane that passes it) and
+                    // its fraction JUMPS there, so the end values of such a
+                    // breakpoint are the one-sided limits, evaluated 1e-9
+                    // of the step before and after it (the pre-image is then
+                    // entirely on one side and the fraction exactly 0 or 1);
+                    // at an isolated passage the fraction is continuous and
+                    // the end value is taken at the breakpoint itself
+                    DynamicList<scalar> br(16);
+                    DynamicList<label> brCount(16);
+                    forAll(sig, i)
                     {
-                        const scalar sb = (k < sig.size()) ? sig[k] : scalar(1);
-                        if (sb - sa <= 1e-12) continue;
-                        const scalar fb = (k < sig.size()) ? fracAt(sb) : a1;
-                        const scalar fm = fracAt(0.5*(sa + sb));
-                        integral += (sb - sa)/6*(fa + 4*fm + fb);
-                        sa = sb; fa = fb;
+                        if (br.size() && sig[i] - br.last() <= 1e-9) ++brCount.last();
+                        else { br.append(sig[i]); brCount.append(1); }
+                    }
+                    const scalar delta = 1e-9;
+                    scalar integral = 0, sa = 0, fa = a0;
+                    for (label k = 0; k <= br.size(); ++k)
+                    {
+                        const scalar sb = (k < br.size()) ? br[k] : scalar(1);
+                        const bool jump = (k < br.size()) && brCount[k] >= 3;
+                        if (sb - sa > 1e-12)
+                        {
+                            const scalar fb =
+                                (k == br.size()) ? a1
+                              : (jump ? fracAt(max(sb - delta, sa)) : fracAt(sb));
+                            const scalar fm = fracAt(0.5*(sa + sb));
+                            integral += (sb - sa)/6*(fa + 4*fm + fb);
+                            fa = fb;
+                        }
+                        if (k < br.size())
+                        {
+                            sa = sb;
+                            if (jump) fa = fracAt(min(sb + delta, scalar(1)));
+                        }
                     }
                     aMean = integral;
                 }

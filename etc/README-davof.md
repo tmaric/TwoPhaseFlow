@@ -670,7 +670,12 @@ along the trajectory of every vertex of the face over the step (and of the face 
 of a warped face's fan), a quadratic in sigma for the paraboloid; each sub-interval takes the
 pre-image fractions at its ends and its midpoint (two more face fractions per sub-interval, and
 few faces have a breakpoint in a step), so that on the plane the rule is exact in every step; the
-time-quadrature analogue of the split quadrature's breakpoints. The signs follow the prism path
+time-quadrature analogue of the split quadrature's breakpoints. Where three or more vertices
+meet the surface at one time the face lies on the surface then (a face parallel to a plane that
+passes it, every flux face of the plane test's normal arm) and its fraction jumps from 0 to 1 or
+back; the end values of such a breakpoint are the one-sided limits, evaluated 1e-9 of the step
+before and after it (the pre-image is then entirely on one side); `simpson` and `trapezoidal`
+cannot integrate that jump, which is why they fail on the normal arm. The signs follow the prism path
 (the flux carries the sign of phi_f); a face that does not sweep (|d . S_f| below 1e-10 |d| |S_f|)
 gets no flux in every mode. The leia token is `TPF_FLUX_INTEGRATION` (default `prism`).
 
