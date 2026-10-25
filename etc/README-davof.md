@@ -574,7 +574,14 @@ models):
   over its chord with the exact root along the chord's normal, adaptive Gauss-Legendre 12
   (`davofKromerBothe.H`). Non-planar faces as fan triangles. Falls back to `splitQuadrature`
   per polyhedron where a configuration is not resolved, and for a sphere surface; counted in
-  the Info line ("volume rule kromerBothe fallbacks N").
+  the Info line ("volume rule kromerBothe fallbacks N") and, when any occur, by reason
+  ("kromerBothe fallbacks by reason: conic, point, root, gradient, area, volume"). On a flat
+  arc (a line trace, or a parabola of round-off curvature, as on the translated plane where
+  the ring tensor is 1e-10) the arc's midpoint lies on its chord to round-off and the root
+  along the chord's normal is the one nearest to the chord; selecting it by the arc's side
+  took the far root of the near-degenerate quadratic in up to 70000 prisms per step and
+  sent them to the capped fallback (fixed 2026-10-25; the plane test is at round-off and
+  without fallbacks since).
 - `exactSphere`: S. Strobl, A. Formella, T. Pöschel, Exact calculation of the overlap volume of
   spheres and mesh elements, J. Comput. Phys. 311 (2016) 158-172, doi:10.1016/j.jcp.2016.02.003,
   through the authors' reference implementation (`davof/thirdParty/overlap/overlap.hpp`, MIT,
