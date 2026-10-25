@@ -726,16 +726,16 @@ kromerBothePrismApex vertexMean;  // | faceCentre: the warped flux prism's top a
   ring-tensor paraboloid with the Kromer-Bothe rule, `kromerBothePrismApex faceCentre`): with
   `faceState vector` and `tensorCentroid anchored` the exact-normal row is at round-off on both
   arms at every N (run maxima of L1(alphaf) 1e-14 to 6e-14, L1(n) 1e-14), the ring-normal row at
-  round-off on both arms at N = 20 and 40 and on the normal arm at N = 80; on the oblique arm at
-  N = 80 isolated single-face events (steps 17, 36, 62, 71; Linf up to 4.8e-5, L1 up to 1.1e-8)
-  appear at faces with a vertex 2e-4 h from the start-of-step plane next to a cell the plane
-  enters, followed by second-layer bounding in 30 to 45 cells per step (open; the vertex-grazing
-  configuration of the hexahedral ring row's oblique-arm residue). The scalar state fails in the
+  round-off on both arms at every N as well (before the davof-sliver merge f133781 the oblique arm
+  at N = 80 had isolated single-face events, L1 up to 1.1e-8, at faces with a vertex 2e-4 h from
+  the start-of-step plane: the dropped sliver arc that merge removes; on f133781 the case is at
+  7.0e-14). The scalar state fails in the
   ring row (L1(n) 2.1e-3 to 2.4e-3, L1(alphaf) 2.6e-4 to 4.1e-4, flat in N); `tensorCentroid cut`
   fails in every row at 1.3e-5 to 1.7e-5, flat in N; `kromerBothePrismApex vertexMean` fails
   at 2e-5 to 3.5e-5 with everything else in place. On the hexahedra `faceState scalar` is
-  bit-identical with the unmodified build (8a1c5e4) in every number of areaFractionError.dat,
-  error.dat and volumeFractionError.dat (8 cases), `vector` at round-off.
+  bit-identical with the unmodified build (8a1c5e4 before the rebase, f133781 after it) in every
+  number of areaFractionError.dat, error.dat and volumeFractionError.dat (8 cases), `vector` at
+  round-off.
 - Diagnostics: `areaFractionError` takes m_c of both states from the vectors when
   `wettedAreaDavof` is registered (the interface-cell set of the norms) and logs the vector error
   |a_f - a_f,exact|/|S_f| (L1, Linf); the .dat columns are unchanged. Its `consistency` column
