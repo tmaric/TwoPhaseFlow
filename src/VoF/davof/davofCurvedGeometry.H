@@ -259,14 +259,11 @@ inline const List<Pair<scalar>>& gl12()
 }
 
 
-//- The roots in (0, 1) of the quadric phi along the segment p0 -> p1
-//  (three evaluations: phi is quadratic in the parameter), appended to r.
-template<class PhiAt>
-inline void segmentRoots(const point& p0, const point& p1, PhiAt&& phi, DynamicList<scalar>& r)
+//- The roots in (0, 1) of the quadratic through the values f0, fm, f1 at
+//  the parameters 0, 1/2, 1, appended to r (any list with append()).
+template<class RootList>
+inline void segmentRootsFromValues(const scalar f0, const scalar f1, const scalar fm, RootList& r)
 {
-    const scalar f0 = phi(p0);
-    const scalar f1 = phi(p1);
-    const scalar fm = phi(0.5*(p0 + p1));
     const scalar C = 2*(f1 + f0 - 2*fm);
     const scalar B = f1 - f0 - C;
     const scalar scale = mag(f0) + mag(B) + mag(C);
@@ -289,6 +286,18 @@ inline void segmentRoots(const point& p0, const point& p1, PhiAt&& phi, DynamicL
     if (r1 > r2) Swap(r1, r2);
     if (r1 > 0 && r1 < 1) r.append(r1);
     if (r2 > 0 && r2 < 1 && r2 != r1) r.append(r2);
+}
+
+
+//- The roots in (0, 1) of the quadric phi along the segment p0 -> p1
+//  (three evaluations: phi is quadratic in the parameter), appended to r.
+template<class PhiAt, class RootList>
+inline void segmentRoots(const point& p0, const point& p1, PhiAt&& phi, RootList& r)
+{
+    const scalar f0 = phi(p0);
+    const scalar f1 = phi(p1);
+    const scalar fm = phi(0.5*(p0 + p1));
+    segmentRootsFromValues(f0, f1, fm, r);
 }
 
 

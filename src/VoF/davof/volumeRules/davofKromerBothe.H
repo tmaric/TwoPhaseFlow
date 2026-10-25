@@ -115,6 +115,7 @@ SourceFiles
 
 #include "davofCurvedGeometry.H"
 #include <cmath>
+#include <vector>
 
 namespace Foam
 {
@@ -535,6 +536,34 @@ inline label& kbFailCount(const label r)
 }
 
 
+//- A list of trivially copyable T with N entries on the stack and the heap
+//  beyond (the boundary crossings, the roots along an edge and the arcs of
+//  one face: a handful each, allocated per face and per evaluation before,
+//  13 % of the advection step in the allocator, 2026-10-25)
+template<class T, int N>
+class kbStackList
+{
+    T buf_[N];
+    std::vector<T> heap_;
+    label n_ = 0;
+
+public:
+
+    label size() const { return n_; }
+    bool empty() const { return n_ == 0; }
+    void clear() { n_ = 0; heap_.clear(); }
+    void append(const T& v)
+    {
+        if (n_ < N) { buf_[n_++] = v; return; }
+        if (heap_.empty()) heap_.assign(buf_, buf_ + N);
+        heap_.push_back(v);
+        ++n_;
+    }
+    T& operator[](const label i) { return (n_ <= N) ? buf_[i] : heap_[i]; }
+    const T& operator[](const label i) const { return (n_ <= N) ? buf_[i] : heap_[i]; }
+};
+
+
 //- The trace arcs and the wetted area of one face under the surface S;
 //  accumulates into sums. Returns false where the configuration is not
 //  resolved.
@@ -555,22 +584,27 @@ inline bool kbIntegrateFace
     sums.lastArea = 0;
 
     // the vertex values and the boundary crossings: the exact roots along
-    // the edges and the vertices on the surface
-    List<scalar> fv(nV);
+    // the edges (from the vertex values and the edge midpoint) and the
+    // vertices on the surface
+    constexpr label nVStack = 16;
+    scalar fvStack[nVStack];
+    List<scalar> fvHeap;
+    if (nV > nVStack) fvHeap.setSize(nV);
+    scalar* const fv = (nV > nVStack) ? fvHeap.data() : fvStack;
     scalar fmax = 0;
     forAll(F.p, i) { fv[i] = phi(F.p[i]); fmax = max(fmax, mag(fv[i])); }
     const scalar epsV = 1e-14*max(fmax, SMALL);
 
     struct crossing { scalar a, b; label br; scalar s; };
-    DynamicList<crossing> cr(8);
-    DynamicList<scalar> roots(4);
+    kbStackList<crossing, 16> cr;
+    kbStackList<scalar, 4> roots;
     scalar edgeArea = 0;   // the liquid pieces of the edges, 1/2 (P x Q)
     bool anyCrossing = false;
     forAll(F.p, i)
     {
         const label j = (i + 1) % nV;
         roots.clear();
-        segmentRoots(F.p[i], F.p[j], phi, roots);
+        segmentRootsFromValues(fv[i], fv[j], phi(0.5*(F.p[i] + F.p[j])), roots);
         for (label a = 1; a < roots.size(); ++a)
         {
             for (label k = a; k > 0 && roots[k] < roots[k - 1]; --k) Swap(roots[k], roots[k - 1]);
@@ -614,7 +648,7 @@ inline bool kbIntegrateFace
 
     // the arcs inside the polygon: (branch, s_a, s_b, endpoints)
     struct arc { label br; scalar sa, sb; scalar ax, ay, bx, by; bool exactEnds; };
-    DynamicList<arc> arcs(8);
+    kbStackList<arc, 16> arcs;
 
     if (!anyCrossing)
     {
@@ -724,6 +758,7 @@ inline bool kbIntegrateFace
 
     // the arcs inside the polygon, split to at most a quarter turn
     const List<Pair<scalar>>& g = gl12();
+    const scalar f1e2 = F.f1 & S.e2, f2e2 = F.f2 & S.e2;   // dt2 per dxi
     scalar arcArea = 0, arcLine = 0, arcPatch = 0;
     forAll(arcs, ia)
     {
@@ -767,11 +802,13 @@ inline bool kbIntegrateFace
             // 70000 prisms per step on the translated plane (2026-10-25)
             const bool sideKnown = mag(rM) > 1e-9*Ls;
 
-            // the point of the arc over the chord parameter l and its derivative
+            // the point of the arc over the chord parameter l and its
+            // derivative; the quadratic coefficient along the chord's normal
+            // is the same at every l
+            const scalar al = C.Q11*nx*nx + 2*C.Q12*nx*ny + C.Q22*ny*ny;
             auto onArc = [&](const scalar l, scalar& x, scalar& y, scalar& dx, scalar& dy) -> bool
             {
                 const scalar cx = ax + l*ex, cy = ay + l*ey;
-                const scalar al = C.Q11*nx*nx + 2*C.Q12*nx*ny + C.Q22*ny*ny;
                 const scalar be = 2*((C.Q11*cx + C.Q12*cy + C.L1)*nx + (C.Q12*cx + C.Q22*cy + C.L2)*ny);
                 const scalar ga = C.q(cx, cy);
                 scalar r;
@@ -842,7 +879,7 @@ inline bool kbIntegrateFace
                     const point X = F.at(x, y);
                     const scalar t1 = (X - S.o) & S.e1, t2 = (X - S.o) & S.e2;
                     const scalar H1 = S.c*t1 - (S.b11*t1*t1*t1/6 + 0.5*S.b12*t1*t1*t2 + 0.5*S.b22*t1*t2*t2);
-                    const scalar dt2 = dx*(F.f1 & S.e2) + dy*(F.f2 & S.e2);
+                    const scalar dt2 = dx*f1e2 + dy*f2e2;
                     fL = H1*dt2;
                     fP = t1*dt2;
                 }
@@ -861,28 +898,30 @@ inline bool kbIntegrateFace
                 }
                 return true;
             };
+            // the adaptive refinement (a parent against its two halves): a
+            // plain recursion (the lambda passed to itself; a std::function
+            // allocated per arc before)
             bool ok = true;
-            std::function<void(scalar, scalar, scalar, scalar, scalar, label, scalar&, scalar&, scalar&)> rec =
-                [&](scalar l0, scalar l1, scalar pA, scalar pL, scalar pP, label depth, scalar& oA, scalar& oL, scalar& oP)
+            auto rec = [&](auto& self, scalar l0, scalar l1, scalar pA, scalar pL, scalar pP, label depth, scalar& oA, scalar& oL, scalar& oP) -> void
+            {
+                const scalar lm = 0.5*(l0 + l1);
+                scalar a0, L0, P0, a1, L1, P1;
+                if (!gaussL(l0, lm, a0, L0, P0) || !gaussL(lm, l1, a1, L1, P1)) { ok = false; oA = pA; oL = pL; oP = pP; return; }
+                ++sums.nLeaves;
+                const scalar cA = a0 + a1, cL = L0 + L1, cP = P0 + P1;
+                if ((mag(cA - pA) <= tolArea && mag(cL - pL) <= tolLine) || depth >= 20)
                 {
-                    const scalar lm = 0.5*(l0 + l1);
-                    scalar a0, L0, P0, a1, L1, P1;
-                    if (!gaussL(l0, lm, a0, L0, P0) || !gaussL(lm, l1, a1, L1, P1)) { ok = false; oA = pA; oL = pL; oP = pP; return; }
-                    ++sums.nLeaves;
-                    const scalar cA = a0 + a1, cL = L0 + L1, cP = P0 + P1;
-                    if ((mag(cA - pA) <= tolArea && mag(cL - pL) <= tolLine) || depth >= 20)
-                    {
-                        oA = cA; oL = cL; oP = cP; return;
-                    }
-                    scalar rA0, rL0, rP0, rA1, rL1, rP1;
-                    rec(l0, lm, a0, L0, P0, depth + 1, rA0, rL0, rP0);
-                    rec(lm, l1, a1, L1, P1, depth + 1, rA1, rL1, rP1);
-                    oA = rA0 + rA1; oL = rL0 + rL1; oP = rP0 + rP1;
-                };
+                    oA = cA; oL = cL; oP = cP; return;
+                }
+                scalar rA0, rL0, rP0, rA1, rL1, rP1;
+                self(self, l0, lm, a0, L0, P0, depth + 1, rA0, rL0, rP0);
+                self(self, lm, l1, a1, L1, P1, depth + 1, rA1, rL1, rP1);
+                oA = rA0 + rA1; oL = rL0 + rL1; oP = rP0 + rP1;
+            };
             scalar pA, pL, pP;
             if (!gaussL(0, 1, pA, pL, pP)) return false;
             scalar IA, IL, IP;
-            rec(0, 1, pA, pL, pP, 0, IA, IL, IP);
+            rec(rec, 0, 1, pA, pL, pP, 0, IA, IL, IP);
             if (!ok) return false;
             arcArea += sArea*IA;
             arcLine += sLine*IL;
@@ -910,7 +949,7 @@ inline bool kbIntegrateFace
                 << " l2 " << C.l2 << " K " << C.K
                 << " surface b11 " << S.b11 << " b12 " << S.b12 << " b22 " << S.b22
                 << " c " << S.c << " a1 " << S.a1 << " a2 " << S.a2
-                << " fv " << fv << nl;
+                << " fv " << UList<scalar>(fv, nV) << nl;
         }
         return false;
     }

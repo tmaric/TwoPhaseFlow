@@ -60,7 +60,11 @@ Foam::davofVolumeRules::kromerBothe::kromerBothe
     debug_(dict.getOrDefault<bool>("volumeRuleDebug", false)),
     nDebugPrinted_(0),
     dbgMaxPrism_(0), dbgSumPrism_(0), dbgMaxCell_(0), dbgSumCell_(0),
-    dbgNPrism_(0), dbgNCell_(0)
+    dbgNPrism_(0), dbgNCell_(0),
+    cacheCell_(-1),
+    cacheTimeIndex_(-1),
+    cacheFaces_(24),
+    prismFaces_(12)
 {
     // the debug knobs of davofKromerBothe.H
     davof::kbMinSplit() = dict.getOrDefault<label>("kromerBotheMinSplit", 1);
@@ -566,8 +570,16 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolumeSlope
         ++nFallback_;
         return splitCellLiquidVolume(celli, S, tolRel);
     }
-    DynamicList<davof::kbFace> faces(24);
-    davof::kbCellFaces(mesh_, celli, faces);
+    // the cell's faces with their frames depend on the mesh only: built once
+    // per cell and time step, reused by the anchor's evaluations
+    const label timeIndex = mesh_.time().timeIndex();
+    if (celli != cacheCell_ || timeIndex != cacheTimeIndex_)
+    {
+        davof::kbCellFaces(mesh_, celli, cacheFaces_);
+        cacheCell_ = celli;
+        cacheTimeIndex_ = timeIndex;
+    }
+    const DynamicList<davof::kbFace>& faces = cacheFaces_;
     scalar v = 0, patchArea = 0;
     const scalar Vc = mesh_.V()[celli];
     const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*Vc, v, nLeaves_, &patchArea);
@@ -625,7 +637,7 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::prismLiquidVolume
         ++nFallback_;
         return splitPrismLiquidVolume(facei, d, S, tolRel);
     }
-    DynamicList<davof::kbFace> faces(12);
+    DynamicList<davof::kbFace>& faces = prismFaces_;
     davof::kbPrismFaces(mesh_, facei, d, faces);
     scalar v = 0;
     const bool resolved = davof::kbPolyhedronLiquidVolume(faces, S, tolRel*prismVol, v, nLeaves_);
