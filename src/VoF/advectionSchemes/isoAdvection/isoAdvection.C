@@ -308,12 +308,13 @@ Foam::advection::isoAdvection::isoAdvection
             (
                 fluxIntegration_ != "prism" && fluxIntegration_ != "trapezoidal"
              && fluxIntegration_ != "simpson" && fluxIntegration_ != "simpsonSplit"
-             && fluxIntegration_ != "gaussSplit"
+             && fluxIntegration_ != "gaussSplit" && fluxIntegration_ != "simpsonSplitS"
             )
             {
                 FatalIOErrorInFunction(modelDict())
                     << "fluxIntegration '" << fluxIntegration_
-                    << "' unknown. Valid: prism, trapezoidal, simpson, simpsonSplit, gaussSplit."
+                    << "' unknown. Valid: prism, trapezoidal, simpson, simpsonSplit,"
+                    << " simpsonSplitS, gaussSplit."
                     << exit(FatalIOError);
             }
             Info<< ", fluxIntegration " << fluxIntegration_

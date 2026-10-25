@@ -1465,8 +1465,18 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     }
                     aMean = integral;
                 }
-                else if (fluxIntegration_ == "simpsonSplit")
+                else if (fluxIntegration_ == "simpsonSplit" || fluxIntegration_ == "simpsonSplitS")
                 {
+                    // simpsonSplitS: the same rule with every value a
+                    // fraction under S, the first one the face's own
+                    // fraction under S at sigma = 0 instead of the stored
+                    // a0 (which differs from it by the anchor's face shift
+                    // under a curved surface), and the values at every
+                    // breakpoint taken as one-sided limits 1e-12 of the step
+                    // before and after it instead of at the breakpoint, the
+                    // instant at which a pre-image vertex lies exactly on
+                    // the surface (2026-10-25)
+                    const bool oneSided = (fluxIntegration_ == "simpsonSplitS");
                     // Simpson's rule on the sub-intervals between the
                     // breakpoints of the face fraction in time: the times at
                     // which the trace of S passes a vertex of the face (and
@@ -1504,17 +1514,22 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                         if (br.size() && sig[i] - br.last() <= 1e-9) ++brCount.last();
                         else { br.append(sig[i]); brCount.append(1); }
                     }
-                    const scalar delta = 1e-9;
-                    scalar integral = 0, sa = 0, fa = a0;
+                    scalar integral = 0, sa = 0;
+                    scalar fa = oneSided ? fracAt(0) : a0;
                     for (label k = 0; k <= br.size(); ++k)
                     {
                         const scalar sb = (k < br.size()) ? br[k] : scalar(1);
                         const bool jump = (k < br.size()) && brCount[k] >= 3;
+                        // the one-sided limits: 1e-9 of the step at a jump
+                        // (the pre-image entirely on one side), 1e-12 at a
+                        // continuous breakpoint of simpsonSplitS
+                        const scalar delta = jump ? 1e-9 : 1e-12;
+                        const bool sided = jump || oneSided;
                         if (sb - sa > 1e-12)
                         {
                             const scalar fb =
                                 (k == br.size()) ? a1
-                              : (jump ? fracAt(max(sb - delta, sa)) : fracAt(sb));
+                              : (sided ? fracAt(max(sb - delta, sa)) : fracAt(sb));
                             const scalar fm = fracAt(0.5*(sa + sb));
                             integral += (sb - sa)/6*(fa + 4*fm + fb);
                             fa = fb;
@@ -1522,7 +1537,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                         if (k < br.size())
                         {
                             sa = sb;
-                            if (jump) fa = fracAt(min(sb + delta, scalar(1)));
+                            if (sided) fa = fracAt(min(sb + delta, scalar(1)));
                         }
                     }
                     aMean = integral;

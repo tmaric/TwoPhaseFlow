@@ -675,7 +675,12 @@ meet the surface at one time the face lies on the surface then (a face parallel 
 passes it: an axis-aligned plane on a hexahedral mesh; not the plane test, whose plane is
 oblique to the mesh) and its fraction jumps from 0 to 1 or back; the end values of such a
 breakpoint are the one-sided limits, evaluated 1e-9 of the step before and after it (the
-pre-image is then entirely on one side). `gaussSplit`: the three-point Gauss-Legendre rule on
+pre-image is then entirely on one side). `simpsonSplitS`: the same rule with every value a
+fraction under the surface S, the first one the face's own fraction under S at sigma = 0 instead
+of the stored alpha_f^n (which differs from it by the anchor's face shift under a curved
+surface), and the values at every breakpoint the one-sided limits 1e-12 of the step before and
+after it instead of the value at the breakpoint, where a pre-image vertex lies exactly on the
+surface. `gaussSplit`: the three-point Gauss-Legendre rule on
 the same sub-intervals (exact for a quintic in time); its nodes lie inside the sub-intervals, so
 no face fraction is evaluated at a breakpoint, the instant at which a vertex of the pre-image
 lies exactly on the surface (the degenerate configuration of the face integral), and the stored
