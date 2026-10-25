@@ -587,7 +587,11 @@ inline scalar prismLiquidVolume
 
 
 //- The liquid volume flux prism of the face faceI (fan of triangles about
-//  the face centre) displaced by -d, under phi.
+//  the face centre) displaced by -d, under phi. A fan triangle of a warped
+//  face whose normal makes d.n_t of the other sign than d.S_f is swept
+//  backwards and enters with a negative sign (2026-10-25; every triangle of
+//  a planar face has the face's sign, so nothing changes there): the net
+//  liquid volume through the face.
 template<class PhiAt>
 inline scalar faceSweptLiquidVolume
 (
@@ -604,14 +608,24 @@ inline scalar faceSweptLiquidVolume
     const face& f = mesh.faces()[faceI];
     const point& xf = mesh.faceCentres()[faceI];
     const vector& Sf = mesh.faceAreas()[faceI];
-    const scalar prismVol = mag(d & Sf);
+    const scalar dS = d & Sf;
+    const scalar prismVol = mag(dS);
     if (prismVol <= VSMALL) return 0;
     const scalar tolAbs = tolRel*prismVol;
     scalar v = 0;
     forAll(f, ip)
     {
         const label ip1 = f.nextLabel(ip);
-        v += prismLiquidVolume(xf, P[f[ip]], P[ip1], d, phi, tolAbs, maxDepth, nLeaves);
+        const scalar vt = prismLiquidVolume(xf, P[f[ip]], P[ip1], d, phi, tolAbs, maxDepth, nLeaves);
+        const scalar dSt = d & ((P[f[ip]] - xf) ^ (P[ip1] - xf));
+        if (dSt*dS < 0)
+        {
+            v -= vt;
+        }
+        else
+        {
+            v += vt;
+        }
     }
     return v;
 }

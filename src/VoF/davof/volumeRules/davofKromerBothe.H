@@ -1259,24 +1259,75 @@ inline void kbOffsetRange
 }
 
 
+//- A polygon in the vertex order of a mesh face (its natural normal along
+//  S_f) as one face when planar (kbWholeFace), else as the fan triangles
+//  (xc, p_i, p_{i+1}) about the apex (or the vertex mean without one), each
+//  kept in that orientation when keep is true and reversed otherwise,
+//  appended to faces. The orientation is the face's, not an interior-point
+//  test: on a thin prism over a warped face (the displacement nearly
+//  parallel to the face) the interior point lies nearly in the face and the
+//  test (x_t - x_in).n_t of a fan triangle reads the warp, not the side
+//  (2026-10-25: 220 prisms per step out of range on the perturbed plane's
+//  oblique arm, the flux and alpha off by 2e-3).
+inline void kbOrientedFan
+(
+    const List<point>& poly,
+    const point* apex,
+    const bool keep,
+    DynamicList<kbFace>& faces
+)
+{
+    kbFace F;
+    F.p = poly;
+    F.setFrame();
+    if (kbWholeFace(F))
+    {
+        if (!keep) { F.reverse(); F.setFrame(); }
+        if (mag(F.n) > 0 && F.Ls > SMALL) faces.append(F);
+        return;
+    }
+    const point xc = apex ? *apex : F.x0;
+    forAll(poly, i)
+    {
+        const label j = (i + 1) % poly.size();
+        kbFace T;
+        T.p.setSize(3);
+        T.p[0] = xc; T.p[1] = poly[i]; T.p[2] = poly[j];
+        T.setFrame();
+        if (!keep) { T.reverse(); T.setFrame(); }
+        if (mag(T.n) > 0 && T.Ls > SMALL) faces.append(T);
+    }
+}
+
+
 //- The faces of the prism between the face faceI displaced by -d and the
-//  face: both (whole where planar, else the fan triangles about the mesh
-//  face centre and its translate, the same fan as the cell's face in
-//  kbCellFaces and the displaced face of kbFaceLiquidFraction) and the side
-//  parallelograms, outward.
+//  face, outward: the face itself and its translate (whole where planar,
+//  else the fan triangles about the vertex mean or, with
+//  kromerBothePrismApex faceCentre, about the mesh face centre and its
+//  translate, the fan of the cell's face in kbCellFaces and of the displaced
+//  face in kbFaceLiquidFraction) and the side parallelograms. The
+//  orientation follows the sign of d.S_f (the top, the face itself, faces
+//  along +d): the top keeps the face's vertex order when d.S_f > 0, the
+//  bottom the opposite, and a side (p_i, p_j, p_j - d, p_i - d), whose
+//  natural normal is along d x (p_j - p_i), is reversed when d.S_f > 0. A
+//  fan triangle of a warped face that the displacement sweeps backwards
+//  (d.n_t of the other sign) then enters with its signed volume: the rule
+//  returns the net liquid volume through the face. Where the former
+//  interior-point test was right (every prism of a planar mesh) the faces
+//  are the same, vertex for vertex.
 inline void kbPrismFaces(const fvMesh& mesh, const label faceI, const vector& d, DynamicList<kbFace>& faces)
 {
     const pointField& P = mesh.points();
     const face& f = mesh.faces()[faceI];
     const point& Cf = mesh.faceCentres()[faceI];
     const point Cb = Cf - d;
-    const point xin = Cf - 0.5*d;
+    const bool along = ((d & mesh.faceAreas()[faceI]) > 0);
     faces.clear();
     List<point> top(f.size()), bottom(f.size());
     forAll(f, i) { top[i] = P[f[i]]; bottom[i] = P[f[i]] - d; }
     const bool atCentre = kbPrismApexCentre();
-    kbFanFaces(top, xin, faces, atCentre ? &Cf : nullptr);
-    kbFanFaces(bottom, xin, faces, atCentre ? &Cb : nullptr);
+    kbOrientedFan(top, atCentre ? &Cf : nullptr, along, faces);
+    kbOrientedFan(bottom, atCentre ? &Cb : nullptr, !along, faces);
     forAll(f, i)
     {
         const label j = f.fcIndex(i);
@@ -1284,7 +1335,7 @@ inline void kbPrismFaces(const fvMesh& mesh, const label faceI, const vector& d,
         F.p.setSize(4);
         F.p[0] = top[i]; F.p[1] = top[j]; F.p[2] = bottom[j]; F.p[3] = bottom[i];
         F.setFrame();
-        if (((F.x0 - xin) & F.n) < 0) { F.reverse(); F.setFrame(); }
+        if (along) { F.reverse(); F.setFrame(); }
         if (F.Ls > SMALL) faces.append(F);
     }
 }
