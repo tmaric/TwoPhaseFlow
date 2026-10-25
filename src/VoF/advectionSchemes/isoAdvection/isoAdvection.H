@@ -393,6 +393,14 @@ class isoAdvection
             //  flat root interval for a cell whose target is 0 or V (see
             //  isoAdvectionCurved.C); illinois keeps its bracket end there.
             word anchorMethod_;
+
+            //- The volume flux of a face (key fluxIntegration): prism (the
+            //  default, the liquid volume of the prism between the face's
+            //  pre-image and the face), trapezoidal (phi_f dt times the
+            //  mean of the face fractions at t^n and t^{n+1}) or simpson
+            //  (with the half-step pre-image's fraction, phi_f dt
+            //  (a^n + 4 a^{n+1/2} + a^{n+1})/6); see isoAdvectionCurved.C
+            word fluxIntegration_;
             scalar debugR0Max_;
             label debugCellR0_;
             davof::cellSurface debugSurface_;

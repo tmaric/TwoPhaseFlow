@@ -173,6 +173,7 @@ Foam::advection::isoAdvection::isoAdvection
     curvedDebug_(modelDict().getOrDefault<bool>("curvedDebug", false)),
     anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
     anchorMethod_(modelDict().getOrDefault<word>("anchorMethod", "ccs")),
+    fluxIntegration_(modelDict().getOrDefault<word>("fluxIntegration", "prism")),
     debugR0Max_(0),
     debugCellR0_(-1),
     debugSurface_(),
@@ -303,7 +304,19 @@ Foam::advection::isoAdvection::isoAdvection
                     << defectEvery_ << ", anchorDiagnostics "
                     << (anchorDiagnostics_ ? "on" : "off");
             }
-            Info<< ", defectLevels " << defectLevels_ << ")" << endl;
+            if
+            (
+                fluxIntegration_ != "prism" && fluxIntegration_ != "trapezoidal"
+             && fluxIntegration_ != "simpson"
+            )
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "fluxIntegration '" << fluxIntegration_
+                    << "' unknown. Valid: prism, trapezoidal, simpson."
+                    << exit(FatalIOError);
+            }
+            Info<< ", fluxIntegration " << fluxIntegration_
+                << ", defectLevels " << defectLevels_ << ")" << endl;
 
             // The rule for the volumes and face fractions under a surface
             volumeRulePtr_ = davofVolumeRule::New(mesh_, modelDict());

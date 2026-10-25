@@ -1359,35 +1359,11 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         // The displacement of the step at the face
         const vector d = UInterp.interpolate(Cf[facei], local)*dt;
 
-        // The volume flux: the liquid volume of the prism between f - d and f
-        if (!(boundary && phiF < 0))
-        {
-            // a face parallel to the displacement sweeps no volume: the
-            // test is relative (the round-off product of 1e-28 of an
-            // axis-aligned face and displacement built a flat prism whose
-            // face sum was 5e-14, five percent of the cell, 2026-10-24; the
-            // zero components of the face area vectors carry 1e-14 of
-            // round-off, so the threshold is 1e-10: a sweep below 1e-10 of
-            // a normal flux is taken as none)
-            scalar vLiq = 0;
-            if (mag(d & Sf[facei]) > 1e-10*mag(d)*mag(Sf[facei]))
-            {
-                vLiq = volumeRulePtr_->prismLiquidVolume(facei, d, S, curvedTolRel_);
-            }
-            const scalar dVfNew = (phiF >= 0 ? vLiq : -vLiq);
-            if (boundary)
-            {
-                setFaceValue(dVf_, facei, dVfNew);
-            }
-            else
-            {
-                dVfIn[facei] = dVfNew;
-            }
-        }
-
         // The face fraction: the pre-image's liquid fraction under the
         // surface; with faceState vector its wetted area vector as well
-        // (the pre-image's fan triangles are translates of the face's)
+        // (the pre-image's fan triangles are translates of the face's).
+        // Computed before the flux, which the trapezoidal and Simpson
+        // integrations below form from it; the prism path does not use it
         label nfb = 0;
         scalar af;
         vector aWet(Zero);
@@ -1400,6 +1376,64 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             af = volumeRulePtr_->faceLiquidFraction(facei, -d, S, nfb);
         }
         nCurvedFallback_ += nfb;
+
+        // The volume flux. fluxIntegration prism: the liquid volume of the
+        // prism between f - d and f, the exact time integral of the wetted
+        // face fraction over the step for a uniform translation.
+        // trapezoidal and simpson: the phase-specific flux phi_f times that
+        // time integral by a quadrature in time of the face fractions the
+        // loop has, alpha_f^n (the stored fraction, before the update
+        // below), alpha_f^{n+1} (the pre-image's, af) and, for Simpson's
+        // rule, alpha_f^{n+1/2}, the liquid fraction of the half-step
+        // pre-image f - d/2 under the same surface; no prism volume. The
+        // fraction of a face is a cubic in time between the passages of
+        // the trace over the face's vertices, so Simpson's rule is exact
+        // there and the trapezoidal rule is second order (2026-10-25).
+        if (!(boundary && phiF < 0))
+        {
+            // a face parallel to the displacement sweeps no volume: the
+            // test is relative (the round-off product of 1e-28 of an
+            // axis-aligned face and displacement built a flat prism whose
+            // face sum was 5e-14, five percent of the cell, 2026-10-24; the
+            // zero components of the face area vectors carry 1e-14 of
+            // round-off, so the threshold is 1e-10: a sweep below 1e-10 of
+            // a normal flux is taken as none)
+            scalar dVfNew = 0;
+            const bool sweeps = mag(d & Sf[facei]) > 1e-10*mag(d)*mag(Sf[facei]);
+            if (fluxIntegration_ == "prism")
+            {
+                scalar vLiq = 0;
+                if (sweeps)
+                {
+                    vLiq = volumeRulePtr_->prismLiquidVolume(facei, d, S, curvedTolRel_);
+                }
+                dVfNew = (phiF >= 0 ? vLiq : -vLiq);
+            }
+            else if (sweeps)
+            {
+                const scalar a0 = faceValue(*alphafPtr_, facei);
+                const scalar a1 = min(max(af, scalar(0)), scalar(1));
+                scalar aMean = 0.5*(a0 + a1);
+                if (fluxIntegration_ == "simpson")
+                {
+                    label nfbH = 0;
+                    scalar ah = volumeRulePtr_->faceLiquidFraction(facei, -0.5*d, S, nfbH);
+                    nCurvedFallback_ += nfbH;
+                    ah = min(max(ah, scalar(0)), scalar(1));
+                    aMean = (a0 + 4*ah + a1)/6;
+                }
+                dVfNew = phiF*dt*aMean;
+            }
+            if (boundary)
+            {
+                setFaceValue(dVf_, facei, dVfNew);
+            }
+            else
+            {
+                dVfIn[facei] = dVfNew;
+            }
+        }
+
         if (af < -1e-12 || af > 1 + 1e-12)
         {
             ++nAlphafClipped_;

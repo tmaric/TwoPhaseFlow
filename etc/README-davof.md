@@ -653,6 +653,21 @@ Desjardins, First moments of a polyhedron clipped by a paraboloid, SIAM J. Sci. 
 (2023) A2250-A2274, doi:10.1137/22M1524308, arXiv:2210.07772, are the alternative to the
 Kromer-Bothe rule for the paraboloid and are not implemented.
 
+The volume flux of a face (key `fluxIntegration`, 2026-10-25): the phase-specific flux is phi_f
+times the time integral of the wetted face fraction over the step. `prism` (the default): the
+liquid volume of the prism between the face's pre-image f - d and f under the upwind surface,
+that integral exactly for a uniform translation, by the volume rule. `trapezoidal`: phi_f dt
+(alpha_f^n + alpha_f^{n+1})/2 from the face fractions the loop has, alpha_f^n the stored
+fraction and alpha_f^{n+1} the pre-image's liquid fraction under the same surface, which the
+face update computes in the same pass; no prism volume. `simpson`: phi_f dt (alpha_f^n + 4
+alpha_f^{n+1/2} + alpha_f^{n+1})/6 with alpha_f^{n+1/2} the liquid fraction of the half-step
+pre-image f - d/2 under the same surface (one more face fraction per face instead of the prism's
+faces). The fraction of a face is a cubic in time between the passages of the trace over the
+face's vertices, so Simpson's rule is exact on a step without such a passage and the
+trapezoidal rule is second order. The signs follow the prism path (the flux carries the sign of
+phi_f); a face that does not sweep (|d . S_f| below 1e-10 |d| |S_f|) gets no flux in every mode.
+The leia token is `TPF_FLUX_INTEGRATION` (default `prism`).
+
 The leia token is `TPF_VOLUME_RULE` (default `splitQuadrature`; `cases/davof/*Translation3D`).
 
 ### Warped faces: the wetted area vector as the face state (branch davof-warped, 2026-10-25)
