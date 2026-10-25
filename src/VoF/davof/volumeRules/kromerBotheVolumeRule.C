@@ -539,6 +539,19 @@ Foam::scalar Foam::davofVolumeRules::kromerBothe::cellLiquidVolume
             dbgMaxCell_ = max(dbgMaxCell_, rel);
             dbgSumCell_ += rel;
             ++dbgNCell_;
+            // the cells whose volume the two rules disagree on beyond
+            // round-off (on the translated plane at N = 160 a few cells per
+            // step reach 2e-10 of the cell while every prism agrees to 6e-14,
+            // 2026-10-25): the per-face breakdown names the face
+            if (nDebugPrinted_ < 12 && rel > 1e-12)
+            {
+                ++nDebugPrinted_;
+                Pout<< "kromerBothe cell mismatch: cell " << celli << " V " << Vc
+                    << " kb " << v << " split " << vs << " diff/V " << (v - vs)/Vc
+                    << " alpha_kb " << v/Vc << " surface o " << S.o << " e3 " << S.e3
+                    << " c " << S.c << " b " << S.b11 << " " << S.b12 << " " << S.b22 << nl;
+                printFaces(faces, S, tolRel*Vc);
+            }
         }
         return min(max(v, scalar(0)), Vc);
     }
