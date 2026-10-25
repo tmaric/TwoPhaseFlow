@@ -52,6 +52,14 @@ namespace
         const Foam::scalar bL, const char* pass, const bool withSplit
     );
     void kbEventCellTest(const char* pass);
+    void kbEventCellScan
+    (
+        const char* pass, const char* name,
+        const Foam::label i, const Foam::label j, const Foam::label k,
+        const Foam::point& o, const Foam::vector& e3,
+        const Foam::scalar b11, const Foam::scalar b12, const Foam::scalar b22,
+        const Foam::scalar cAnchor
+    );
 }
 
 
@@ -669,12 +677,17 @@ void kbVertexGrazingTest
             for (label i = 1; i < 8; ++i)
                 for (label j = i; j > 0 && (corners[order[j]] & n) < (corners[order[j - 1]] & n); --j)
                     Swap(order[j], order[j - 1]);
-            const label vSel[2] = {order[7], order[4]};
-            const char* vName[2] = {"highest", "median"};
+            // the grazed point: the highest and the median vertex, and the
+            // centre of the face x = x1 (the apex of its fan triangles in the
+            // cell and in the prism's top: the anchor event at step 102 of
+            // the Co 0.2 plane case had its dropped sliver there)
+            const point fcX1 = 0.25*(corners[1] + corners[2] + corners[5] + corners[6]);
+            const point vSel[3] = {corners[order[7]], corners[order[4]], fcX1};
+            const char* vName[3] = {"highest", "median", "face centre"};
 
-            for (label iv = 0; iv < 2; ++iv)
+            for (label iv = 0; iv < 3; ++iv)
             {
-                const point& v = corners[vSel[iv]];
+                const point& v = vSel[iv];
                 for (label id = 0; id < 5; ++id)
                 {
                     for (const scalar side : {-1.0, 1.0})
@@ -863,18 +876,60 @@ void kbVertexGrazingTest
 }
 
 
-// The cell of the anchor event of the translated plane (N = 160, Co 0.5, ring
-// row, oblique arm, step 12, cell 2815517 = (157, 156, 109), h = 2.5e-5),
-// with the surface as the solver printed it, the offset scanned over 1e-15 m
-// about the anchored value (the rule's volume toggled by 1.24e-5 of the cell
-// between offsets 1e-16 m apart): the Kromer-Bothe volume against the exact
-// plane volume plus the first-order cap moment (b h ~ 1e-12, second order
-// 1e-24), the maximum and the number of offsets above 1e-12 of the cell.
+// The cells of the anchor events of the translated plane (N = 160, ring row,
+// oblique arm, h = 2.5e-5): Co 0.5 step 12, cell 2815517 = (157, 156, 109),
+// a vertex 2e-4 h inside the liquid; Co 0.2 step 102, cell 3427807 =
+// (127, 143, 133), a face centre 1.9e-4 h inside. The surface as the solver
+// printed it, the offset scanned over 1e-15 m about the anchored value (the
+// rule's volume toggled by 1.2e-5 of the cell between offsets 1e-16 m apart):
+// the Kromer-Bothe volume against the exact plane volume plus the first-order
+// cap moment (b h ~ 1e-12, second order 1e-24), the maximum and the number of
+// offsets above 1e-12 of the cell.
 void kbEventCellTest(const char* pass)
+{
+    struct EventCell
+    {
+        const char* name;
+        Foam::label i, j, k;
+        Foam::point o;
+        Foam::vector e3;
+        Foam::scalar b11, b12, b22, c;
+    };
+    const EventCell cells[2] =
+    {
+        {
+            "Co 0.5 step 12 cell 2815517", 157, 156, 109,
+            Foam::point(0.003937499998253168, 0.00391249999825285, 0.002737302906693282),
+            Foam::vector(-0.3000009360043708, -0.5000015600073782, -0.8124025346998184),
+            -1.182816158405161e-08, 5.056734871100458e-09, 5.603200686295972e-08,
+            -8.473360899599996e-11
+        },
+        {
+            "Co 0.2 step 102 cell 3427807", 127, 143, 133,
+            Foam::point(0.003189997953676344, 0.003592995493897087, 0.0033456890041218),
+            Foam::vector(-0.3000009360039511, -0.5000015600066313, -0.812402534700433),
+            -6.987968795410825e-09, 4.442046833528177e-10, -1.159328084991024e-08,
+            -4.531655948356755e-10
+        }
+    };
+    for (const EventCell& ec : cells)
+    {
+        kbEventCellScan(pass, ec.name, ec.i, ec.j, ec.k, ec.o, ec.e3, ec.b11, ec.b12, ec.b22, ec.c);
+    }
+}
+
+
+void kbEventCellScan
+(
+    const char* pass, const char* name,
+    const Foam::label i, const Foam::label j, const Foam::label k,
+    const Foam::point& o, const Foam::vector& e3,
+    const Foam::scalar b11, const Foam::scalar b12, const Foam::scalar b22,
+    const Foam::scalar cAnchor
+)
 {
     using namespace Foam;
     const scalar h = 2.5e-5;
-    const label i = 157, j = 156, k = 109;
     const scalar x0 = i*h, y0 = j*h, z0 = k*h, x1 = x0 + h, y1 = y0 + h, z1 = z0 + h;
     const point corners[8] =
     {
@@ -889,12 +944,11 @@ void kbEventCellTest(const char* pass)
 
     davof::cellSurface S;
     S.paraboloid = true;
-    S.o = point(0.003937499998253168, 0.00391249999825285, 0.002737302906693282);
-    S.e3 = vector(-0.3000009360043708, -0.5000015600073782, -0.8124025346998184);
+    S.o = o;
+    S.e3 = e3;
     davof::frameOf(S.e3, S.e1, S.e2);
-    S.b11 = -1.182816158405161e-08; S.b12 = 5.056734871100458e-09; S.b22 = 5.603200686295972e-08;
+    S.b11 = b11; S.b12 = b12; S.b22 = b22;
     S.a1 = 0; S.a2 = 0;
-    const scalar cAnchor = -8.473360899599996e-11;
 
     DynamicList<davof::kbFace> faces(24);
     for (const List<point>& poly : boxFaces) davof::kbFanFaces(poly, xc, faces);
@@ -923,7 +977,7 @@ void kbEventCellTest(const char* pass)
         if (e > 1e-12) ++nBad;
         if (e > eMax) { eMax = e; cWorst = S.c; }
     }
-    Info<< "kromerBothe self-test, the anchor-event cell [" << pass << "]: " << nScan
+    Info<< "kromerBothe self-test, the anchor-event cell " << name << " [" << pass << "]: " << nScan
         << " offsets within 1e-15 m of " << cAnchor << ": max |kb - exact|/V " << eMax
         << " at c " << cWorst << ", " << nBad << " offsets above 1e-12, " << nFail
         << " unresolved" << endl;
