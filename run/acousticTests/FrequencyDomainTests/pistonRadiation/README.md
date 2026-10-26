@@ -95,7 +95,7 @@ Then execute:
 ./Allrun
 ```
 
-## Analytical comparison (COMSOL-style on-axis)
+## Comparison with the exact field
 
 After a solve, run:
 
@@ -103,51 +103,53 @@ After a solve, run:
 python3 postprocess_compare.py
 ```
 
-The default exterior-field reconstruction follows the COMSOL baffled-piston
-setup: a spherical source surface at PML_RMIN is completed across the rigid
-baffle using sound-hard symmetry and evaluated with the full finite-distance
-Kirchhoff--Helmholtz integral.
-
-Optional reconstruction settings include changing the source radius, disabling
-the symmetry completion for diagnostics, and running the analytical quadrature
-validation:
+The reference is the exact pressure of a uniform piston in a rigid baffle (the
+Rayleigh integral), evaluated in `piston_reference.py` as plane wave minus edge
+wave: the integral over the piston surface reduces exactly to a line integral
+over the rim.  On the axis this gives the closed form
+`rho c u0 [exp(ikz) - exp(ik sqrt(z^2 + a^2))]`.  `validate_reference.py` checks
+the reference against the on-axis closed form, a direct surface quadrature of
+the Rayleigh integral, node doubling and continuity at the rim:
 
 ```bash
-python3 postprocess_compare.py --r-src 0.18 --r-far 4.0
-python3 postprocess_compare.py --source-symmetry none --output-name hemisphereDiagnostic
-python3 validate_kirchhoff.py
+python3 validate_reference.py
 ```
 
-Outputs are written to:
+The cell-centre pressure is compared with the reference at the same cell
+centres, without interpolation and without an extrapolation surface:
 
-- `postProcessing/analyticalCompare/<latestTime>/onAxisComparison.png`
-- `postProcessing/analyticalCompare/<latestTime>/onAxisComparison.csv`
-- `postProcessing/analyticalCompare/<latestTime>/farFieldPatternComparison.png`
-- `postProcessing/analyticalCompare/<latestTime>/farFieldPatternComparison.csv`
-- `postProcessing/analyticalCompare/<latestTime>/metrics.txt`
+- `field_relL2`: volume-weighted complex-pressure error in the physical region
+  (`r, z <= PML_RMIN`);
+- `axis_relL2`, `axis_relLinf`: complex-pressure errors in the cell row next to
+  the symmetry axis;
+- `*_magnitude_relL2`: the same norms of `|p|`.
+
+The pressure level on the arc `r = 0.9 PML_RMIN` (`--r-arc`) is probed for
+plotting only.  Outputs are written to
+`postProcessing/analyticalCompare/<latestTime>/`:
+
+- `onAxisComparison.csv`, `onAxisComparison.png`
+- `arcComparison.csv`, `arcComparison.png`
+- `fieldError.png` (pointwise error in the physical region)
+- `fieldComparison.csv.gz` (all cells of the physical region)
+- `metrics.txt`
 
 ## Mesh convergence batch
 
-Run the near- and far-field analytical comparisons for 20, 30, 40, 60, and
-80 cells per wavelength:
+Run the comparison for 20, 30, 40, 60, and 80 cells per wavelength:
 
 ```bash
 ./meshConv.sh
 ```
 
-Outputs are archived in `meshConvergence/`, including per-resolution comparison
-CSVs/plots, `metrics_summary.csv`, aggregate convergence plots, and LaTeX-ready
-tables:
-
-- `meshConvergence/nearField_convergence_table.tex`
-- `meshConvergence/farField_convergence_table.tex`
-
-The summary CSV reports `h_over_lambda`, near-field relative `L2` and `Linf`
-errors, and the far-field pressure-magnitude relative `L2` error.
+`meshConv.sh` first runs `validate_reference.py`.  Outputs are archived in
+`meshConvergence/`: per-resolution comparison CSVs and plots,
+`metrics_summary.csv`, aggregate plots and the LaTeX table
+`meshConvergence/piston_convergence_table.tex` (errors and observed orders).
 
 Optional overrides:
 
 ```bash
 MESH_CONV_RESOLUTIONS="20 50" ./meshConv.sh
-POSTPROCESS_ARGS="--n-points 300 --n-theta 91" ./meshConv.sh
+POSTPROCESS_ARGS="--n-theta 91" ./meshConv.sh
 ```
