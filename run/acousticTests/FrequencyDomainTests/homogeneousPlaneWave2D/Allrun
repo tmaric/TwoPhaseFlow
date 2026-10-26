@@ -34,4 +34,6 @@ runApplication setPMLFields
 runApplication decomposePar -force
 runParallel "$SOLVER"
 runApplication reconstructPar -latestTime
+# Cell volumes for the volume-weighted error norms of postprocess.py
+runApplication postProcess -func writeCellVolumes -latestTime
 python3 postprocess.py
