@@ -785,8 +785,10 @@ Output in `postProcessing/tiltDiagnostics/`:
   (|a_k|/h^2), `nFaces, nTraced` (faces of k with a trace), `nForeign` (traced faces set by a cell
   other than k), `nNoSurface` (traced faces no surface set), `sumAbsW, maxW, tauMeas` (|tau_meas|),
   `tauPred` (|tau_pred|), `tauDiff` (|tau_meas - tau_pred|), `cosine` (of the two), `maxNeighbourTilt`
-  (max_f e_u, radians), `maxNeighbourOffset` (max_f |p_u|/h), `selfTilt, selfOffset` (e_k and p_k/h
-  of k's own surface at t^n; -1 and 0 without one), `exactCut` (1 when Pi^{n+1} cuts the cell).
+  (max_f e_u, radians, through atan2 of the sine and the cosine: acos floors a tilt at 1.5e-8),
+  `maxNeighbourOffset` (max_f |p_u|/h), `maxTraceDist` (max_f |d_u(m_f)|/h, the distance of the
+  setting surface from the exact plane at the trace midpoint), `selfTilt, selfOffset` (e_k and
+  p_k/h of k's own surface at t^n; -1 and 0 without one), `exactCut` (1 when Pi^{n+1} cuts the cell).
 - `ownSetsTrace.csv`, appended: `step, celli, ownSetsTrace` for every cell with a surface in the
   step, 1 when a face that surface set carries a trace. The cell line of step s is joined with the
   flag of step s + 1 (the surface built from those fractions sets faces in the next step's update).

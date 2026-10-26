@@ -328,8 +328,10 @@ void Foam::advection::isoAdvection::tiltDiagCells()
             tiltXStar_[u] = C[u] + ((xu - C[u]) & S.e3)*S.e3;
             tiltCutOK_[u] = false;
         }
-        const scalar cosE = min(max(S.e3 & nP, scalar(-1)), scalar(1));
-        tiltTilt_[u] = std::acos(cosE);
+        // the angle through atan2 of the sine and the cosine: acos of a
+        // dot product rounded to 1 - 1e-16 floors the angle at 1.5e-8,
+        // above every tilt of the first steps of the plane test
+        tiltTilt_[u] = std::atan2(mag(S.e3 ^ nP), S.e3 & nP);
         tiltOffset_[u] = (tiltXStar_[u] - xP0) & nP;
     };
 
@@ -347,7 +349,7 @@ void Foam::advection::isoAdvection::tiltDiagCells()
     os.precision(12);
     os  << "step,celli,alpha,A_over_h2,a_over_h2,nFaces,nTraced,nForeign,nNoSurface,"
         << "sumAbsW,maxW,tauMeas,tauPred,tauDiff,cosine,maxNeighbourTilt,"
-        << "maxNeighbourOffset,selfTilt,selfOffset,exactCut" << nl;
+        << "maxNeighbourOffset,maxTraceDist,selfTilt,selfOffset,exactCut" << nl;
 
     label nWritten = 0;
     for (label celli = 0; celli < nCells; ++celli)
@@ -386,7 +388,7 @@ void Foam::advection::isoAdvection::tiltDiagCells()
         // The prediction over the traced faces
         vector tauPred(Zero);
         label nTraced = 0, nForeign = 0, nNoSurface = 0;
-        scalar sumAbsW = 0, maxW = 0, maxTilt = 0, maxOffset = 0;
+        scalar sumAbsW = 0, maxW = 0, maxTilt = 0, maxOffset = 0, maxTraceDist = 0;
         forAll(cf, k)
         {
             const label f = cf[k];
@@ -421,6 +423,7 @@ void Foam::advection::isoAdvection::tiltDiagCells()
             maxW = max(maxW, mag(w));
             maxTilt = max(maxTilt, tiltTilt_[u]);
             maxOffset = max(maxOffset, mag(tiltOffset_[u])/h);
+            maxTraceDist = max(maxTraceDist, mag(du)/h);
         }
 
         scalar selfTilt = -1, selfOffset = 0;
@@ -440,8 +443,8 @@ void Foam::advection::isoAdvection::tiltDiagCells()
             << nForeign << ',' << nNoSurface << ',' << sumAbsW << ','
             << maxW << ',' << magM << ',' << magP << ','
             << mag(tauMeas - tauPred) << ',' << cosine << ','
-            << maxTilt << ',' << maxOffset << ',' << selfTilt << ','
-            << selfOffset << ',' << exactCut << nl;
+            << maxTilt << ',' << maxOffset << ',' << maxTraceDist << ','
+            << selfTilt << ',' << selfOffset << ',' << exactCut << nl;
         ++nWritten;
     }
     Info<< "isoAdvection: tiltDiagnostics: " << nWritten
