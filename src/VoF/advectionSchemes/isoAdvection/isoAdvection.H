@@ -457,6 +457,48 @@ class isoAdvection
             autoPtr<volScalarField> paraboloidDefectPtr_;
 
 
+        // DAVOF tilt diagnostics (isoAdvectionTiltDiagnostics.C, 2026-10-26;
+        // key tiltDiagnostics, default false: the per-cell prediction of
+        // the turn of the own normal on the translated plane from the
+        // surfaces that set the faces; serial only, zero cost when off)
+
+            //- The switch
+            bool tiltDiagnostics_;
+
+            //- The exact plane of the exactNormal dictionary: the point at
+            //  t = 0, the unit normal OUT of the liquid (its sign checked
+            //  against alpha at the first step), the velocity
+            point tiltPlaneP0_;
+            vector tiltPlaneN_;
+            vector tiltPlaneU_;
+            bool tiltSignChecked_;
+
+            //- The output directory
+            fileName tiltDir_;
+
+            //- Per face: the index of the step's record (-1 none); per
+            //  record: the face, the cell whose surface set it (-1 none),
+            //  the displacement of the step, the trace of the exact plane
+            //  on the pre-image (its length, midpoint, presence)
+            labelList tiltFaceRec_;
+            DynamicList<label> tiltRecFace_;
+            DynamicList<label> tiltRecCell_;
+            DynamicList<vector> tiltRecD_;
+            DynamicList<scalar> tiltRecEll_;
+            DynamicList<point> tiltRecM_;
+            DynamicList<bool> tiltRecTrace_;
+
+            //- Per cell, cached per step (stamp = the step): the centroid
+            //  of the wetted patch of the surface's tangent plane in the
+            //  cell, its tilt against the exact normal, its offset from
+            //  the exact plane, whether the plane cut the cell
+            labelList tiltStamp_;
+            vectorField tiltXStar_;
+            scalarField tiltTilt_;
+            scalarField tiltOffset_;
+            boolList tiltCutOK_;
+
+
     // Private Member Functions
 
         //- No copy construct
@@ -678,6 +720,33 @@ public:
 
             //- The Info line of the step
             void reportCurved() const;
+
+
+        // DAVOF tilt diagnostics (isoAdvectionTiltDiagnostics.C)
+
+            //- Read the exact plane, create the directory (the constructor)
+            void tiltDiagSetup();
+
+            //- Reset the face records (the start of curvedFlux)
+            void tiltDiagBegin();
+
+            //- Record the cell whose surface set the face (-1 none) and
+            //  the displacement (processFace)
+            void tiltDiagRecordFace
+            (
+                const label facei,
+                const label surfCell,
+                const vector& d
+            );
+
+            //- The traces of the exact plane at t^n on the pre-images of
+            //  the recorded faces; the sign check; the ownSetsTrace list
+            //  (the end of curvedFlux)
+            void tiltDiagFaces(const scalar dt);
+
+            //- The per-cell lines of the step from the final face
+            //  fractions (the end of advect)
+            void tiltDiagCells();
 
 
 public:

@@ -507,6 +507,10 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         // The faces with a non-zero fraction, ascending, for the davof
         // scheme's area sums
         publishWetFaces();
+
+        // DAVOF: the tilt diagnostic's per-cell lines from the final
+        // fractions of the step (isoAdvectionTiltDiagnostics.C)
+        if (tiltDiagnostics_) tiltDiagCells();
     }
 
     advectionTime_ += (mesh_.time().elapsedCpuTime() - advectionStartTime);

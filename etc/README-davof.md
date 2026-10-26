@@ -746,6 +746,55 @@ kromerBothePrismApex vertexMean;  // | faceCentre: the warped flux prism's top a
 The leia tokens (both `cases/davof/*Translation3D`, defaults as above): `TPF_FACE_STATE` (also in
 `initAlphaFieldDict`), `TPF_TENSOR_CENTROID`, `TPF_KB_PRISM_APEX`.
 
+### The tilt diagnostic of the curved loop on the translated plane (branch davof-tiltdiag, 2026-10-26)
+
+The own normal of the curved loop fails the plane gate by a slow geometric growth of the
+face-fraction error (a factor 1.10 to 1.26 per step at N = 80, Co 0.2 on the normal arm) although
+every operation of the loop is exact for a plane. The claimed mechanism: a_k = -sum_f alpha_f S_f
+(S_f outward, the own normal out of the liquid) is exact for the fractions of ONE surface, but the
+fractions of cell k's faces are set by DIFFERENT surfaces, each face by the surface of the cell the
+code chose for it (`curvedFlux`: the upwind cell by the sign of phi_f, the lexicographically smaller
+centre on a zero-flux face, the closest second-ring surface where neither cell has one). The key
+`tiltDiagnostics true;` (isoAdvector dictionary, default false, serial only, needs a
+`clippingSurface` and the `exactNormal` plane; `isoAdvectionTiltDiagnostics.C`) records the cell
+u(f) whose surface set every face where the choice is made (`surfaceOf` returns it) and writes, at
+the end of every step, for every cell with 0 < alpha < 1 the measured turn of the own normal
+against the linearised prediction:
+
+    tau_meas = (a_k - (a_k.n) n)/|a_k|,   tau_pred = (1/A_k) sum_f ell_f d_{u(f)}(m_f) t_f
+
+over the faces f of k whose pre-image f - U dt carries a trace of the exact plane Pi^n (the plane
+of `exactNormal` translated by U0 t^n; ell_f the trace length, m_f its midpoint, both from the
+face polygon shifted by -U dt), d_u(x) = (x - x_u).n_u the signed distance from the tangent plane
+of u's surface at its origin (n_u = e3, out of the liquid; x_u = o + c e3; on the plane case the
+ring tensor is round-off, so the surface is that plane), t_f the unit transverse part of the
+outward face normal, A_k the wetted patch area of the exact plane Pi^{n+1} in cell k
+(`cutCellPLIC`). The sign of the exact normal is checked against alpha at the first step (the
+alphaFieldFunctions plane has its gradient INTO the liquid, as the scheme's normals; the diagnostic
+uses the outward normal and prints which side the liquid lies on). The weights
+w_f = ell_f |m_f - x*_u|/A_k, x*_u the centroid of the wetted patch of u's tangent plane in cell u
+(`cutCellPLIC`; the cell centre projected onto the plane where it does not cut the cell), the
+neighbour's tilt e_u = angle(n_u, n) and offset p_u = (x*_u - x_Pi).n from Pi^n. Cost when on: one
+plane-polygon intersection per processed face and two plane cuts per interface cell per step;
+when off one tested bool per face.
+
+Output in `postProcessing/tiltDiagnostics/`:
+
+- `cells_<step>.csv` (step = the time index of the step, the fractions at its end), one line per
+  cell with 0 < alpha < 1: `step, celli, alpha, A_over_h2` (A_k/h^2, h = V^(1/3)), `a_over_h2`
+  (|a_k|/h^2), `nFaces, nTraced` (faces of k with a trace), `nForeign` (traced faces set by a cell
+  other than k), `nNoSurface` (traced faces no surface set), `sumAbsW, maxW, tauMeas` (|tau_meas|),
+  `tauPred` (|tau_pred|), `tauDiff` (|tau_meas - tau_pred|), `cosine` (of the two), `maxNeighbourTilt`
+  (max_f e_u, radians), `maxNeighbourOffset` (max_f |p_u|/h), `selfTilt, selfOffset` (e_k and p_k/h
+  of k's own surface at t^n; -1 and 0 without one), `exactCut` (1 when Pi^{n+1} cuts the cell).
+- `ownSetsTrace.csv`, appended: `step, celli, ownSetsTrace` for every cell with a surface in the
+  step, 1 when a face that surface set carries a trace. The cell line of step s is joined with the
+  flag of step s + 1 (the surface built from those fractions sets faces in the next step's update).
+
+leia: `TPF_TILT_DIAGNOSTICS` (default false; `cases/davof/planeTranslation3D`), the study
+`config/davof/planeTranslation3D_hexParaboloidTiltDiag.yaml` and the summary
+`workflow/scripts/tilt_diagnostics_summary.py` (the four analyses as CSV next to advectorVoF.csv).
+
 ### The mixed normal and the normal-source controls (2026-10-13, superseded by the normal models above)
 
 The closed loop (own normal from alphaf, the alpha-positioned plane, alphaf

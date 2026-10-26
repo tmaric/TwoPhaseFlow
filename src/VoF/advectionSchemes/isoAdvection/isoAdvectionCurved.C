@@ -1068,6 +1068,9 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     // calls and cannot be asked again here)
     buildCellSurfaces(mesh_.time().value() - dt);
 
+    // the tilt diagnostic's face records of the step
+    if (tiltDiagnostics_) tiltDiagBegin();
+
     interpolationCellPoint<vector> UInterp(U_);
 
     const labelList& own = mesh_.faceOwner();
@@ -1262,14 +1265,19 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         const label up, const label other,
         const davof::cellSurface* remote, const bool remoteHas,
         const davof::cellSurface* remoteRing, const bool remoteRingHas, const scalar remoteRingDist,
-        const point& xf, bool& secondRing
+        const point& xf, bool& secondRing, label& surfCell
     ) -> const davof::cellSurface*
     {
+        // surfCell: the local cell whose surface is returned (-1 for a
+        // remote surface or none), for the tilt diagnostic's record of
+        // the choice; the choice itself is unchanged
         secondRing = false;
-        if (up >= 0 && hasSurface_.test(up)) return &cellSurfaces_[up];
-        if (other >= 0 && hasSurface_.test(other)) return &cellSurfaces_[other];
+        surfCell = -1;
+        if (up >= 0 && hasSurface_.test(up)) { surfCell = up; return &cellSurfaces_[up]; }
+        if (other >= 0 && hasSurface_.test(other)) { surfCell = other; return &cellSurfaces_[other]; }
         if (remoteHas) return remote;
         const davof::cellSurface* best = nullptr;
+        label bestCell = -1;
         scalar dMin = GREAT;
         // the closest surface; ties (two surfaces at the same distance,
         // common on a Cartesian mesh with a symmetric interface) are broken
@@ -1286,29 +1294,29 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             }
             return false;
         };
-        auto considerD = [&](const davof::cellSurface& T, const scalar d)
+        auto considerD = [&](const davof::cellSurface& T, const scalar d, const label c)
         {
             if (!best || d < dMin*(1 - 1e-9))
             {
-                dMin = d; best = &T;
+                dMin = d; best = &T; bestCell = c;
             }
             else if (d <= dMin*(1 + 1e-9) && lexLess(T.o, best->o))
             {
-                dMin = min(dMin, d); best = &T;
+                dMin = min(dMin, d); best = &T; bestCell = c;
             }
         };
-        auto consider = [&](const davof::cellSurface& T, const point& o)
+        auto consider = [&](const davof::cellSurface& T, const point& o, const label c)
         {
-            considerD(T, magSqr(xf - o));
+            considerD(T, magSqr(xf - o), c);
         };
-        if (remoteRingHas) considerD(*remoteRing, remoteRingDist);
+        if (remoteRingHas) considerD(*remoteRing, remoteRingDist, -1);
         auto scan = [&](const label c)
         {
             if (c < 0) return;
             for (const label nb : cellCells[c])
             {
                 if (!hasSurface_.test(nb)) continue;
-                consider(cellSurfaces_[nb], cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o);
+                consider(cellSurfaces_[nb], cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o, nb);
             }
             // the remote face neighbours of c across the processor patches
             if (Pstream::parRun())
@@ -1321,13 +1329,14 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     const label pf = cf - pbm[patchi].start();
                     if (!nbrHas[patchi][pf]) continue;
                     const davof::cellSurface& T = nbrSurface[patchi][pf];
-                    consider(T, T.o);
+                    consider(T, T.o, -1);
                 }
             }
         };
         scan(up);
         scan(other);
         secondRing = (best != nullptr);
+        surfCell = bestCell;
         return best;
     };
 
@@ -1344,20 +1353,28 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     )
     {
         bool secondRing = false;
+        label surfCell = -1;
         const davof::cellSurface* Sp = surfaceOf
         (
             up, other, remote, remoteHas, remoteRing, remoteRingHas, remoteRingDist,
-            Cf[facei], secondRing
+            Cf[facei], secondRing, surfCell
         );
         if (!Sp)
         {
             ++nCurvedSkipped_;
+            if (tiltDiagnostics_)
+            {
+                tiltDiagRecordFace(facei, -1, UInterp.interpolate(Cf[facei], local)*dt);
+            }
             return;
         }
         const davof::cellSurface& S = *Sp;
 
         // The displacement of the step at the face
         const vector d = UInterp.interpolate(Cf[facei], local)*dt;
+
+        // the tilt diagnostic: the cell whose surface sets this face
+        if (tiltDiagnostics_) tiltDiagRecordFace(facei, surfCell, d);
 
         // The volume flux: the liquid volume of the prism between f - d and f
         if (!(boundary && phiF < 0))
@@ -1498,6 +1515,11 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nCurvedLeaves_ = volumeRulePtr_->nLeaves();
     nRuleFallback_ += volumeRulePtr_->nFallback();
     volumeRulePtr_->resetCounters();
+
+    // the tilt diagnostic: the traces of the exact plane at t^n on the
+    // pre-images of the recorded faces, and which cells' surfaces set a
+    // traced face in this step
+    if (tiltDiagnostics_) tiltDiagFaces(dt);
 
     // The paraboloid defect: alpha_k against the volume under the cell's
     // surface, at the start of the step (diagnostic, every defectEvery-th

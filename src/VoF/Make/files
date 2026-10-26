@@ -47,6 +47,7 @@ advectionSchemes/newAdvectionSchemes.C
 advectionSchemes/advectionSchemes.C
 advectionSchemes/isoAdvection/isoAdvection.C
 advectionSchemes/isoAdvection/isoAdvectionCurved.C
+advectionSchemes/isoAdvection/isoAdvectionTiltDiagnostics.C
 advectionSchemes/geoAdvection/geoAdvection.C
 advectionSchemes/MULES/MULESScheme.C
 

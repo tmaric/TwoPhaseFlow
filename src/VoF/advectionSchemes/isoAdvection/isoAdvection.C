@@ -211,7 +211,25 @@ Foam::advection::isoAdvection::isoAdvection
     defectSum_(0),
     nDefectCells_(0),
     fitResidualPtr_(nullptr),
-    paraboloidDefectPtr_(nullptr)
+    paraboloidDefectPtr_(nullptr),
+    tiltDiagnostics_(modelDict().getOrDefault<bool>("tiltDiagnostics", false)),
+    tiltPlaneP0_(Zero),
+    tiltPlaneN_(Zero),
+    tiltPlaneU_(Zero),
+    tiltSignChecked_(false),
+    tiltDir_(),
+    tiltFaceRec_(0),
+    tiltRecFace_(0),
+    tiltRecCell_(0),
+    tiltRecD_(0),
+    tiltRecEll_(0),
+    tiltRecM_(0),
+    tiltRecTrace_(0),
+    tiltStamp_(0),
+    tiltXStar_(0),
+    tiltTilt_(0),
+    tiltOffset_(0),
+    tiltCutOK_(0)
 {
    cutFaceAdvect::debug = debug;
 
@@ -354,6 +372,24 @@ Foam::advection::isoAdvection::isoAdvection
             Info<< "isoAdvection: tensorCentroid anchored (the ring tensor's"
                 << " centroids re-anchored by the volume rule)" << endl;
         }
+        // The tilt diagnostic of the curved loop on the translated plane
+        if (tiltDiagnostics_)
+        {
+            if (clippingSurface_ == "none")
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "tiltDiagnostics needs a clippingSurface (the surfaces"
+                    << " that set the faces are recorded in the curved flux)"
+                    << exit(FatalIOError);
+            }
+            tiltDiagSetup();
+        }
+    }
+    else if (modelDict().getOrDefault<bool>("tiltDiagnostics", false))
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "tiltDiagnostics needs the davof reconstruction scheme with"
+            << " stored face fractions and a clippingSurface" << exit(FatalIOError);
     }
     else if (modelDict().getOrDefault<word>("clippingSurface", "none") != "none")
     {
