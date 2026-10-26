@@ -25,6 +25,10 @@ acousticInterface
 
 Copyable snippets for all three combinations are under `examples/`.
 
+The velocity written by the solver is recovered from the face fluxes in
+interface cells; see [the velocity recovery](../acousticVelocityRecovery/README.md).
+With `flux plicTransmission` the Gauss gradient is kept.
+
 Compile the library and solver once. Switching any supported combination then
 requires only changing the dictionary and starting another run. Changing the
 selection during an existing run is not supported.

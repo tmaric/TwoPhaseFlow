@@ -59,6 +59,7 @@ Description
 #include "processorPolyPatch.H"
 #include "processorLduInterface.H"
 #include "acousticInterface.H"
+#include "reconstructPressureAcceleration.H"
 #include <cmath>
 
 static inline scalar twoPi() { return constant::mathematical::twoPi; }
@@ -103,6 +104,60 @@ int main(int argc, char *argv[])
     // Zeroing this coefficient removes both the old implicit face term and
     // its explicit nonorthogonal correction on replaced faces.
     interfaceModel.mask(invRhof);
+
+    // Velocity recovery. The cell-centred Gauss gradient divided by the cell
+    // density is wrong beside a gas-liquid interface; there the velocity is
+    // reconstructed from the face fluxes of the solved pressure operator, with
+    // density weights in mixed cells (as in acousticWaveFoam).
+    //   gaussGradient:  Gauss gradient everywhere
+    //   interfaceCells: face-flux recovery in mixed cells and cells beside the
+    //                   interface, Gauss gradient elsewhere (default)
+    //   allCells:       face-flux recovery everywhere
+    // Mixed cells are those the PLIC reconstruction treats as interface cells.
+    // plicTransmission carries the flux of its interface faces in a separate
+    // operator and keeps the Gauss gradient.
+    const word velocityRecovery
+    (
+        transportProperties.getOrDefault<word>("velocityRecovery", "interfaceCells")
+    );
+    if
+    (
+        velocityRecovery != "gaussGradient"
+     && velocityRecovery != "interfaceCells"
+     && velocityRecovery != "allCells"
+    )
+    {
+        FatalIOErrorInFunction(transportProperties)
+            << "velocityRecovery " << velocityRecovery << " unknown; valid: "
+            << "gaussGradient interfaceCells allCells" << exit(FatalIOError);
+    }
+    const scalar mixedTol =
+        mesh.lookupObject<reconstructionSchemes>("reconstructionScheme")
+        .modelDict().getOrDefault<scalar>("surfCellTol", 1e-8);
+    const bool faceFluxRecovery =
+        velocityRecovery != "gaussGradient" && !interfaceModel.transmission();
+    if (interfaceModel.transmission() && velocityRecovery != "gaussGradient")
+    {
+        WarningInFunction
+            << "flux plicTransmission: the velocity is the Gauss gradient "
+            << "divided by the cell density, not the face-flux recovery."
+            << nl << endl;
+    }
+    const boolList recoveryCells
+    (
+        velocityRecovery == "interfaceCells"
+      ? acoustic::interfaceVelocityCells(alpha1, alphaf, mixedTol)
+      : boolList(mesh.nCells(), true)
+    );
+    label nRecoveryCells = 0;
+    forAll(recoveryCells, celli)
+    {
+        nRecoveryCells += recoveryCells[celli];
+    }
+    Info<< "Velocity recovery: " << velocityRecovery
+        << (faceFluxRecovery ? "" : " (Gauss gradient)") << ", "
+        << returnReduce(nRecoveryCells, sumOp<label>())
+        << " recovered cells" << nl << endl;
 
     while (simple.loop())
     {
@@ -184,6 +239,46 @@ int main(int argc, char *argv[])
 
         Ure == 1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pim);
         Uim == -1/(2*constant::mathematical::pi*f*rho) * fvc::grad(Pre);
+        if (faceFluxRecovery)
+        {
+            const volVectorField recoveredRe
+            (
+                acoustic::reconstructPressureAcceleration
+                (
+                    acoustic::laplacianFaceFlux(invRhof, Pim)(), invRhof, alpha1, mixedTol
+                )/(twoPi()*f)
+            );
+            const volVectorField recoveredIm
+            (
+               -acoustic::reconstructPressureAcceleration
+                (
+                    acoustic::laplacianFaceFlux(invRhof, Pre)(), invRhof, alpha1, mixedTol
+                )/(twoPi()*f)
+            );
+            forAll(recoveryCells, celli)
+            {
+                if (recoveryCells[celli])
+                {
+                    Ure[celli] = recoveredRe[celli];
+                    Uim[celli] = recoveredIm[celli];
+                }
+            }
+            // Boundary faces of recovered cells take the recovered value
+            forAll(Ure.boundaryField(), patchi)
+            {
+                const labelUList& faceCells = mesh.boundary()[patchi].faceCells();
+                fvPatchVectorField& pRe = Ure.boundaryFieldRef()[patchi];
+                fvPatchVectorField& pIm = Uim.boundaryFieldRef()[patchi];
+                forAll(faceCells, facei)
+                {
+                    if (recoveryCells[faceCells[facei]])
+                    {
+                        pRe[facei] = recoveredRe.boundaryField()[patchi][facei];
+                        pIm[facei] = recoveredIm.boundaryField()[patchi][facei];
+                    }
+                }
+            }
+        }
         pa == Foam::sqrt(Pim*Pim + Pre*Pre);
         pr == 0.25*compressibility*(Pre*Pre + Pim*Pim)
             - 0.25*rho*((Ure&Ure) + (Uim&Uim));
