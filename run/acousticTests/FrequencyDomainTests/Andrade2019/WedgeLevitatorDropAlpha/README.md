@@ -83,6 +83,12 @@ Directional rectangular-PML damping is controlled with:
 `SIGMA_MAX` remains available for backward compatibility and initializes the
 x- and y-direction values when they are not set explicitly.
 
+The case sets `wedgeAzimuthalStretch true` in `constant/transportProperties`.
+In the axisymmetric wedge, `setPMLFields` then also writes the azimuthal
+damping `sigma.zz = (1/r) int sigma.xx dr`, so that the Cartesian PML equals
+the radial (cylindrical) PML. Without it, the radial PML is not exact in
+the wedge and adds a mesh-independent error. The keyword is off by default.
+
 ## Performance studies
 
 `runPerformanceScaling.sh` generates CSV data for strong scaling and

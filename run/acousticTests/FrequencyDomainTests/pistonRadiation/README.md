@@ -31,6 +31,9 @@ The meridional domain is rectangular.  The physical region extends to
 `PML_RMIN` in the radial and axial directions, and the PML continues to
 `PML_RMAX`.  Damping is active only towards the outer radial and upper
 boundaries; the symmetry axis and rigid baffle are not damped.
+`wedgeAzimuthalStretch true` in `constant/transportProperties` makes
+`setPMLFields` add the azimuthal damping `sigma.zz = (1/r) int sigma.xx dr`,
+so that the Cartesian PML equals the radial (cylindrical) PML in the wedge.
 
 ## Contributor quick check (recommended)
 

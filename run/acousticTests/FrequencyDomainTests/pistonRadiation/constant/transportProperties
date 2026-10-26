@@ -40,6 +40,8 @@ wl              #eval{$cg/$f};             // wavelength
 cellSize        #eval{$wl/$cellsPerLambda};
 
 PMLType         rectangle;
+// Wedge: azimuthal stretch (1/r) int sigma_r dr of the cylindrical PML
+wedgeAzimuthalStretch true;
 PMLMax          (0.28 0.28 100);
 PMLMin          (-100 -100 -100);          // disable damping at axis/baffle
 sigmaMaxVector  (-100000 -100000 0); // radial, axial, wedge

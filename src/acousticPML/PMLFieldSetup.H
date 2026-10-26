@@ -18,9 +18,44 @@ struct Config
     scalar po;
     vector PMLMax;
     vector PMLMin;
+
+    // Axisymmetric wedge: azimuthal stretch of the cylindrical PML
+    bool wedgeStretch;
+    direction axialDir;
+    direction radialDir;
+    direction azimuthalDir;
 };
 
-inline Config readConfig(const IOdictionary& transportProperties)
+
+// Coordinate direction of a wedge vector; the wedge must be aligned with the
+// coordinate axes.
+inline direction wedgeCoordinateDirection(const vector& v, const word& name)
+{
+    direction dir = 0;
+    for (direction cmpt = 1; cmpt < vector::nComponents; ++cmpt)
+    {
+        if (mag(v.component(cmpt)) > mag(v.component(dir)))
+        {
+            dir = cmpt;
+        }
+    }
+
+    if (mag(v.component(dir)) < 1 - 1e-6*mag(v))
+    {
+        FatalErrorInFunction
+            << "wedgeAzimuthalStretch requires the wedge " << name << ' ' << v
+            << " to be aligned with a coordinate axis."
+            << exit(FatalError);
+    }
+
+    return dir;
+}
+
+inline Config readConfig
+(
+    const fvMesh& mesh,
+    const IOdictionary& transportProperties
+)
 {
     Config cfg;
 
@@ -70,15 +105,107 @@ inline Config readConfig(const IOdictionary& transportProperties)
     cfg.PMLMax = PMLMax.value();
     cfg.PMLMin = PMLMin.value();
 
+    // In an axisymmetric wedge the Cartesian tensor reproduces the exact
+    // radial stretch r~ = r + (1/(i omega)) int sigma_r dr only together with
+    // the azimuthal stretch s_phi = r~/r, i.e.
+    // sigma_phi(r) = (1/r) int_0^r sigma_r(r') dr'. The wedge axis must pass
+    // through the origin.
+    cfg.wedgeStretch =
+        transportProperties.getOrDefault<bool>("wedgeAzimuthalStretch", false);
+    cfg.axialDir = 0;
+    cfg.radialDir = 0;
+    cfg.azimuthalDir = 0;
+
+    if (cfg.wedgeStretch)
+    {
+        const wedgePolyPatch* wedgePtr = nullptr;
+        for (const polyPatch& patch : mesh.boundaryMesh())
+        {
+            if (isA<wedgePolyPatch>(patch))
+            {
+                wedgePtr = &refCast<const wedgePolyPatch>(patch);
+                break;
+            }
+        }
+
+        if (!wedgePtr)
+        {
+            FatalErrorInFunction
+                << "wedgeAzimuthalStretch is enabled but the mesh has no "
+                << "wedge patch."
+                << exit(FatalError);
+        }
+
+        cfg.axialDir = wedgeCoordinateDirection(wedgePtr->axis(), "axis");
+        cfg.azimuthalDir =
+            wedgeCoordinateDirection(wedgePtr->centreNormal(), "centre normal");
+        cfg.radialDir = 3 - cfg.axialDir - cfg.azimuthalDir;
+
+        if
+        (
+            cfg.PMLMin.component(cfg.radialDir) + cfg.L > 0
+         && mag(cfg.sigmaMaxVector.component(cfg.radialDir)) > 0
+        )
+        {
+            FatalErrorInFunction
+                << "wedgeAzimuthalStretch does not support radial damping "
+                << "next to the axis: set PMLMin component "
+                << label(cfg.radialDir) << " below -L."
+                << exit(FatalError);
+        }
+
+        const scalar span = mag(mesh.bounds().span());
+        if (gMin(mesh.points().component(cfg.radialDir)) < -1e-9*span)
+        {
+            FatalErrorInFunction
+                << "wedgeAzimuthalStretch assumes that the wedge axis passes "
+                << "through the origin and the mesh lies on its positive "
+                << "radial side."
+                << exit(FatalError);
+        }
+    }
+
     return cfg;
 }
 
-inline tensor evaluateSigma(const point& x, const Config& cfg)
+
+// Primitive of the radial damping profile, F(r) = int^r sigma_r(r') dr'.
+inline scalar radialDampingIntegral(const scalar r, const Config& cfg)
+{
+    const scalar rMax = cfg.PMLMax.component(cfg.radialDir);
+    const scalar s = max((r - (rMax - cfg.L))/cfg.L, scalar(0));
+
+    return cfg.sigmaMaxVector.component(cfg.radialDir)
+       *(
+            cfg.L*Foam::pow(min(s, scalar(1)), cfg.po + 1)/(cfg.po + 1)
+          + max(r - rMax, scalar(0))
+        );
+}
+
+inline tensor evaluateSigma(const point& pt, const Config& cfg)
 {
     vector damping(Zero);
 
+    // Wedge: the radial profile is evaluated at the distance from the axis
+    point x(pt);
+    scalar r = 0;
+    if (cfg.wedgeStretch)
+    {
+        r = Foam::sqrt
+        (
+            sqr(pt.component(cfg.radialDir))
+          + sqr(pt.component(cfg.azimuthalDir))
+        );
+        x.component(cfg.radialDir) = r;
+    }
+
     for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
     {
+        if (cfg.wedgeStretch && cmpt == cfg.azimuthalDir)
+        {
+            continue;
+        }
+
         const scalar distToMax =
             cfg.PMLMax.component(cmpt) - x.component(cmpt);
         const scalar distToMin =
@@ -96,6 +223,12 @@ inline tensor evaluateSigma(const point& x, const Config& cfg)
             damping.component(cmpt) =
                 cfg.sigmaMaxVector.component(cmpt)*Foam::pow(s, cfg.po);
         }
+    }
+
+    if (cfg.wedgeStretch && r > VSMALL)
+    {
+        damping.component(cfg.azimuthalDir) =
+            (radialDampingIntegral(r, cfg) - radialDampingIntegral(0, cfg))/r;
     }
 
     return tensor

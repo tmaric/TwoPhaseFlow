@@ -40,6 +40,8 @@ k               #eval{2.0*pi()*$f/$soundSpeed};
 L               __PML_L__;
 
 PMLType         rectangle;
+// Wedge: azimuthal stretch (1/r) int sigma_r dr of the cylindrical PML
+wedgeAzimuthalStretch true;
 PMLMax          (__PML_MAX_X__ __PML_MAX_Y__ __PML_MAX_Z__);
 PMLMin          (__PML_MIN_X__ __PML_MIN_Y__ __PML_MIN_Z__);
 sigmaMax        __SIGMA_MAX__;
