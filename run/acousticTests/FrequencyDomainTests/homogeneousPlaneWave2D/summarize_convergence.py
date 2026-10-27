@@ -41,27 +41,32 @@ def main() -> None:
         for key in sorted(groups):
             writer.writerows(groups[key])
 
+    # one colour per mesh family and boundary treatment, for contrast
     colors = {
-        "orthogonal": "#0072B2",
-        "warpedInterior": "#009E73",
+        ("orthogonal", "dirichlet"): "C0",
+        ("orthogonal", "mixed"): "C1",
+        ("warpedInterior", "dirichlet"): "C2",
+        ("warpedInterior", "mixed"): "C3",
     }
     plot_family_labels = {
-        "orthogonal": "Orthogonal",
-        "warpedInterior": "Non-orthogonal",
+        "orthogonal": "orthogonal",
+        "warpedInterior": "non-orthogonal interior",
     }
     table_family_labels = {
         "orthogonal": "Orthogonal",
         "warpedInterior": "Non-orthogonal interior",
     }
     boundary_labels = {"dirichlet": "Dirichlet", "mixed": "Mixed"}
+    plot_boundary_labels = {"dirichlet": "Dirichlet", "mixed": "mixed"}
     markers = {"dirichlet": "o", "mixed": "s"}
-    fig, axes = plt.subplots(1, 2, figsize=(9.2, 4.0))
+    fig, axes = plt.subplots(1, 2, figsize=(9.0, 3.8))
     for (family, boundary), group in sorted(groups.items()):
         x = [1/float(row["cellsPerWavelength"]) for row in group]
-        label = f"{plot_family_labels[family]}, {boundary_labels[boundary]}"
-        axes[0].loglog(x, [float(row["pressureRelL2"]) for row in group], marker=markers[boundary], color=colors[family], ls="-" if boundary == "dirichlet" else "--", label=label)
-        axes[1].loglog(x, [float(row["velocityRelL2"]) for row in group], marker=markers[boundary], color=colors[family], ls="-" if boundary == "dirichlet" else "--", label=label)
-    for ax, ylabel in zip(axes, [r"$E_2(P)$", r"$E_2(\mathbf{u})$"]):
+        label = f"{plot_family_labels[family]}, {plot_boundary_labels[boundary]}"
+        style = dict(marker=markers[boundary], color=colors[(family, boundary)], ls="-" if boundary == "dirichlet" else "--", label=label)
+        axes[0].loglog(x, [float(row["pressureRelL2"]) for row in group], **style)
+        axes[1].loglog(x, [float(row["velocityRelL2"]) for row in group], **style)
+    for ax, ylabel in zip(axes, [r"Relative pressure $L_2$ error", r"Relative velocity $L_2$ error"]):
         ax.set_xlabel(r"$h/\lambda$")
         ax.set_ylabel(ylabel)
         ax.grid(True, which="both", alpha=0.3)
@@ -70,17 +75,7 @@ def main() -> None:
         ax.set_xticks([1/value for value in tick_cells])
         ax.set_xticklabels([rf"$1/{value}$" for value in tick_cells])
         ax.xaxis.set_minor_formatter(mticker.NullFormatter())
-    axes[0].legend(
-        loc="upper right",
-        fontsize=7,
-        frameon=True,
-        framealpha=1.0,
-        edgecolor="0.75",
-        borderpad=0.25,
-        labelspacing=0.25,
-        handlelength=1.6,
-        handletextpad=0.4,
-    )
+    axes[0].legend(loc="upper right", fontsize=7)
     fig.tight_layout()
     fig.savefig(out_dir / "homogeneous_convergence.png", dpi=220)
     fig.savefig(out_dir / "homogeneous_convergence.pdf")
