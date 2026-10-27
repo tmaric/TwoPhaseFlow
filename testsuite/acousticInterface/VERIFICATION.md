@@ -196,6 +196,22 @@ measurements, not a performance scaling study. The new stencil increases
 stored nonzeros by about 4.6% and factor memory relative to the geometric-only
 case by about 10%. The direct-solver bottleneck remains.
 
+### Penetrable sphere with PML in a wedge
+
+`sphere_pml.py` combines the curved VOF interface with PML truncation. A
+sphere of radius `a=0.001 m` lies on the axis of a one-degree wedge; an
+axial point source at `y=2.5a` is an excluded box carrying the exact total
+pressure (`sphere_reference.py`: point source and fluid-sphere multipole
+series, 61 orders, with checks of the interface conditions using analytic
+derivatives, the incident expansion, the homogeneous limit and the series
+truncation). The physical region
+`r<=4a, -4a<=y<=6a` uses uniform cells `h=a/N` and exterior `ka=1`, and is
+truncated by exact outer pressure (`dirichlet`), by the PML with
+`wedgeAzimuthalStretch` (`pml`), or by the same PML without the azimuthal
+stretch (`pmlCartesian`). The interface method is
+`plicAverage/legacy`. Material pairs are `waterInAir`, `oilInWater` and
+`airInWater`; the host occupies the gas slot of the solver.
+
 ## Oblique interfaces and iteration failures
 
 The oblique tests use a fixed physical plane and 2D meshes sheared relative to
@@ -315,6 +331,10 @@ python3 testsuite/acousticInterface/audit_parallel.py \
 python3 testsuite/acousticInterface/advanced.py \
     --output /absolute/new-oblique-study --scenario oblique \
     --mesh-style regular --sizes 48,96,192 --angles 15,45,75 --ranks 1,4
+
+python3 testsuite/acousticInterface/sphere_pml.py \
+    --output /absolute/new-sphere-pml-study \
+    --materials waterInAir,oilInWater --sizes 8,16,32,64
 
 python3 testsuite/acousticInterface/summarize.py \
     --results .review-testing/interface-implementation \
