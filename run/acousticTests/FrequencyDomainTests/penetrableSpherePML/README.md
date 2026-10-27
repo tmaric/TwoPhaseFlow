@@ -19,6 +19,8 @@ excluded box whose faces carry the exact total pressure. The physical region
   serial versus eight-rank comparison.
 - `Allrun`: the full study; `Allclean` removes `studyResults/`.
 
+The same sphere with exact boundary data and no PML is `../penetrableSphere`.
+
 ## Truncations
 
 - `dirichlet`: exact total pressure on the outer boundary of the physical
