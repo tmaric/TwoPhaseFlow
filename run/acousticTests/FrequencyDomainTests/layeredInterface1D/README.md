@@ -62,6 +62,12 @@ difference from the serial `legacy` pressure of the same configuration,
 `parallelDifference` from the serial pressure of the same mode, and
 `pressureRelL2`, the cell-centre error `P_relL2` of `metrics.txt`.
 
+## Profile figures
+
+`plot_profiles.py <case> <output.pdf> --panels Pre,Pim` plots numerical and
+analytical pressure profiles of a solved case from its comparison CSV;
+`--panels` takes any of `Pre`, `Pim` and `abs`.
+
 ## Interpretation
 `metrics.txt` reports `P_relL2`, the relative complex-pressure error at the
 cell centres of the complete domain, from the driven boundary through the

@@ -83,6 +83,7 @@ def main() -> None:
     )
     fig.tight_layout()
     fig.savefig(out_dir / "homogeneous_convergence.png", dpi=220)
+    fig.savefig(out_dir / "homogeneous_convergence.pdf")
 
     selected = []
     for key in sorted(groups):
