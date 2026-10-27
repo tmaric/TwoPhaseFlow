@@ -254,7 +254,10 @@ def main():
     tools = {t: Path(shutil.which(t)).resolve() for t in ("setAlphaField", "setPMLFields")}
     hashes = {"acousticHelmholtzFoam": sha(exe), "libacousticInterface": sha(lib),
               **{t: sha(p) for t, p in tools.items()}}
-    git = lambda *a: subprocess.check_output(["git", *a], cwd=HERE, text=True).strip()
+    def git(*a):
+        # None when the case runs from a copy outside the repository
+        r = subprocess.run(["git", *a], cwd=HERE, capture_output=True, text=True)
+        return r.stdout.strip() if r.returncode == 0 else None
     pml_length = args.pml_thickness*A
     (out/"settings.json").write_text(json.dumps(dict(
         vars(args), output=str(out), pmlLength=pml_length, sphereRadius=A, sourceHeight=D,
