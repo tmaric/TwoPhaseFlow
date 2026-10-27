@@ -118,6 +118,10 @@ DRIVE_F=25250
 # ---------------------------------------------------------------------------
 # Initial drop setup (setAlphaField)
 # ---------------------------------------------------------------------------
+# Drop mode:
+# - ellipsoid: drop initialized with setAlphaField
+# - empty: empty levitator, alpha.water = 0
+: "${DROP_MODE:=ellipsoid}"
 # Initial spherical/equivalent drop radius [m].
 : "${DROP_RADIUS:=0.001}"
 : "${DROP_EQUIV_RADIUS:=${DROP_RADIUS}}"
@@ -129,5 +133,8 @@ DRIVE_F=25250
 : "${DROP_CENTER_Y:=0.00382}"
 : "${DROP_CENTER_Z:=1e-8}"
 
-# Aspect-ratio set used by runHeightSweep.sh to reproduce Fig. 4.
-: "${FIG4_ASPECT_RATIOS:=1 2 3}"
+# Series used by runHeightSweep.sh to reproduce Fig. 4: the empty levitator
+# (FIG4_EMPTY=1) and the drop aspect ratios. An empty FIG4_ASPECT_RATIOS
+# runs only the empty levitator.
+: "${FIG4_EMPTY:=1}"
+: "${FIG4_ASPECT_RATIOS=1 2 3}"

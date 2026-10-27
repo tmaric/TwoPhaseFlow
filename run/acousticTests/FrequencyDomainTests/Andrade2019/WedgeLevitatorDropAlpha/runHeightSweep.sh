@@ -25,13 +25,19 @@ run_series()
 {
     seriesKey="$1"
     seriesLabel="$2"
-    aspectRatio="$3"
+    dropMode="$3"
+    aspectRatio="$4"
 
     echo "Series ${seriesLabel}"
-    horizontalLongAxis="$(
-        awk -v r="$DROP_EQUIV_RADIUS" -v ar="$aspectRatio" \
-            'BEGIN{printf "%.16g", r*exp(log(ar)/3.0)}'
-    )"
+    horizontalLongAxis="$DROP_EQUIV_RADIUS"
+    initialization="empty"
+    if [ "$dropMode" = "ellipsoid" ]; then
+        horizontalLongAxis="$(
+            awk -v r="$DROP_EQUIV_RADIUS" -v ar="$aspectRatio" \
+                'BEGIN{printf "%.16g", r*exp(log(ar)/3.0)}'
+        )"
+        initialization="setAlphaField"
+    fi
 
     i=0
     while [ "$i" -lt "$SWEEP_POINTS" ]; do
@@ -59,6 +65,7 @@ run_series()
         rm -rf postProcessing/reflectorForce
 
         HEIGHT_FAC="$fac" \
+        DROP_MODE="$dropMode" \
         DROP_RADIUS="$DROP_EQUIV_RADIUS" \
         DROP_HORIZONTAL_LONG_AXIS="$horizontalLongAxis" \
         TPF_INTERNAL_SWEEP_RUN=1 \
@@ -73,12 +80,16 @@ run_series()
         fnWedge="$(awk 'BEGIN{v=""} /^[[:space:]]*#/ {next} NF>=2 {v=$2} END{if(v==""){exit 1}else{print v}}' "${forceFile}")"
         fnAxisym="$(awk -v f="$fnWedge" -v m="$axisymFactor" 'BEGIN{printf "%.16g", f*m}')"
         printf "%s,%s,%s,%.16g,%d,%.16g,%.16g,%.16g,%.16g,%.16g,%.16g\n" \
-            "$seriesKey" "$seriesLabel" "setAlphaField" "$aspectRatio" "$i" \
+            "$seriesKey" "$seriesLabel" "$initialization" "$aspectRatio" "$i" \
             "$dMm" "$dVal" "$fac" "$fnWedge" "$fnAxisym" "$axisymFactor" >> "${csvFile}"
 
         i=$((i+1))
     done
 }
+
+if [ "$FIG4_EMPTY" = "1" ]; then
+    run_series "empty" "Empty levitator" "empty" "0"
+fi
 
 for aspectRatio in $FIG4_ASPECT_RATIOS; do
     if ! awk -v ar="$aspectRatio" 'BEGIN{exit !(ar > 0)}'; then
@@ -93,7 +104,7 @@ for aspectRatio in $FIG4_ASPECT_RATIOS; do
         seriesLabel="Oblate spheroid (a/b=${aspectRatio})"
     fi
 
-    run_series "$seriesKey" "$seriesLabel" "$aspectRatio"
+    run_series "$seriesKey" "$seriesLabel" "ellipsoid" "$aspectRatio"
 done
 
 python3 plotHeightSweep.py "${csvFile}" "${fig4Base}"

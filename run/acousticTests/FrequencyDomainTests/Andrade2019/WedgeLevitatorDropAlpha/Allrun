@@ -31,9 +31,20 @@ runApplication extrudeMesh
 ./postMesh
 
 restore0Dir
-runApplication setAlphaField
-
-./refineAlphaInterface
+case "${DROP_MODE}" in
+    ellipsoid)
+        runApplication setAlphaField
+        ./refineAlphaInterface
+        ;;
+    empty)
+        foamDictionary -entry internalField -set "uniform 0" 0/alpha.water \
+            > /dev/null
+        ;;
+    *)
+        echo "Unsupported DROP_MODE='${DROP_MODE}'. Use 'ellipsoid' or 'empty'." >&2
+        exit 1
+        ;;
+esac
 
 rm -f 0/Pim.in
 

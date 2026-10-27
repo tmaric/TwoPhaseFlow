@@ -24,13 +24,18 @@ Edit one file and regenerate all dependent inputs automatically.
 `Allrun` already calls `./prepareCase`, so manual rendering is optional.
 
 By default `RUN_MODE=singlePoint`, which preserves the original DropAlpha
-single-case run. `Allrun` always initializes the ellipsoid with
-`setAlphaField` and always solves with `acousticHelmholtzFoam`. To launch the
-height sweep from this case:
+single-case run. `Allrun` initializes the ellipsoid with `setAlphaField`
+(`DROP_MODE=ellipsoid`) or runs the empty levitator with `alpha.water = 0`
+(`DROP_MODE=empty`), and always solves with `acousticHelmholtzFoam`. To launch
+the height sweep from this case:
 
 ```bash
 RUN_MODE=fullFig4Sweep ./Allrun
 ```
+
+The sweep runs the empty levitator (`FIG4_EMPTY=1`) and the drop aspect ratios
+in `FIG4_ASPECT_RATIOS`. Set `FIG4_EMPTY=0` to skip the empty levitator, or
+`FIG4_ASPECT_RATIOS=` to run only the empty levitator.
 
 For a small smoke test:
 
