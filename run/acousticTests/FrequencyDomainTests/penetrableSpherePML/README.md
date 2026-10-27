@@ -42,7 +42,8 @@ thickness in units of `a` (`--pml-thickness`). The interface method is
 | `oilInWater` | 1000, 1500 | 920, 1450 |
 | `airInWater` | 1000, 1500 | 1.2, 343 |
 
-The host occupies the gas slot (`rhog`, `cg`) of the solver.
+The host occupies the gas slot (`rhog`, `cg`) of the solver. `Allrun` runs
+`waterInAir` and `oilInWater`; `airInWater` is available with `--materials`.
 
 ## Usage
 
