@@ -6,6 +6,8 @@
 #   solve       (sbatch) -> blockMesh | setAlphaField | generateUVortex2D | advectorVoF
 #   aggregate   (local)  -> convergence.csv + convergence_table.tex
 #   visualize   (sbatch) -> interface PNGs at t = 0, T/4, T/2, 3T/4, T via foamlib
+#   plot_evolution       -> snapshots every 0.1T against the exact interface,
+#                           and an animation of both runs side by side
 #
 # One sbatch per case; all cases run concurrently. Backends are selected with
 # --workflow-profile only, exactly as in the leia workflow.
@@ -124,6 +126,9 @@ rule all:
         os.path.join(RESULTS, "frame_identity_check.txt"),
         os.path.join(RESULTS, "interface_moving_frame.png"),
         os.path.join(RESULTS, "interface_non_moving_frame.png"),
+        os.path.join(RESULTS, "interface_evolution.png"),
+        os.path.join(RESULTS, "interface_evolution.pdf"),
+        os.path.join(RESULTS, "interface_evolution.gif"),
 
 
 # -- the case-local flux generator, built once into FOAM_USER_APPBIN ----------
@@ -306,6 +311,45 @@ rule visualize:
             --out-moving {output.moving} \
             --out-static {output.static}
         """
+
+# -- interface evolution every 0.1T, and the animation -----------------------
+# The recipe's marker figure redrawn from the solver output, with the exact
+# interface computed independently underneath. Same two runs as the snapshots.
+rule plot_evolution:
+    input:
+        framed=os.path.join(
+            RUNS, f"viz_{VIZ_SCHEME}_frameA_N{VIZ_N}", "volumeFractionError.dat"
+        ),
+        plain=os.path.join(
+            RUNS, f"viz_{VIZ_SCHEME}_none_N{VIZ_N}", "volumeFractionError.dat"
+        ),
+    output:
+        png=os.path.join(RESULTS, "interface_evolution.png"),
+        pdf=os.path.join(RESULTS, "interface_evolution.pdf"),
+        gif=os.path.join(RESULTS, "interface_evolution.gif"),
+    params:
+        framed_case=os.path.join(RUNS, f"viz_{VIZ_SCHEME}_frameA_N{VIZ_N}"),
+        plain_case=os.path.join(RUNS, f"viz_{VIZ_SCHEME}_none_N{VIZ_N}"),
+        N=VIZ_N,
+        scheme=VIZ_SCHEME,
+        end_time=config["end_time"],
+        period=config["period"],
+        centre=config["frame"]["rotation_centre"],
+        revolutions=config["frame"]["revolutions"],
+        script=os.path.join(WF, "scripts", "plot_evolution.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} \
+            --framed-case {params.framed_case} \
+            --plain-case  {params.plain_case} \
+            --n {params.N} --scheme {params.scheme} \
+            --end-time {params.end_time} --period {params.period} \
+            --centre "{params.centre}" \
+            --revolutions {params.revolutions} \
+            --out {output.png} --out-anim {output.gif}
+        """
+
 
 # -- code-path equivalence ---------------------------------------------------
 # Section 4.2 of the manuscript claims that the moving-frame code path with the

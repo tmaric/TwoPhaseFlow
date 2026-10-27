@@ -65,7 +65,8 @@ def _iso_block(
 
 
 def _write_time_control(case: str, N: int, max_alpha_co: float,
-                        u_max: float, end_time: float) -> None:
+                        u_max: float, end_time: float,
+                        write_interval: float) -> None:
     """Fix the time step from the known maximum speed.
 
     dt = Co*h/max|w|, with max|w| the exact maximum of the laboratory field
@@ -76,15 +77,24 @@ def _write_time_control(case: str, N: int, max_alpha_co: float,
     The step count is rounded up to a multiple of four so that t = T/4, T/2,
     3T/4 and T all land exactly on a step and the write-time adjustment is a
     no-op -- OpenFOAM's adjustableRunTime otherwise shifts dt to reach a write
-    time, which makes the write interval part of the protocol.
+    time, which makes the write interval part of the protocol. When the write
+    interval divides T more finely (the evolution snapshots, every T/40) the
+    count is a multiple of that number of writes as well. For the convergence
+    cases, written at T/2, this is still four, so their step count is unchanged.
     """
     ctrl = os.path.join(case, "system", "controlDict")
     with open(ctrl) as fh:
         s = fh.read()
+    writes = end_time / write_interval
+    if abs(writes - round(writes)) > 1e-9:
+        raise ValueError(
+            f"write interval {write_interval:g} does not divide endTime {end_time:g}"
+        )
+    multiple = math.lcm(4, int(round(writes)))
     # u_max is max||w||_1, because OpenFOAM's Courant number is
     # 0.5*sum_f|phi_f|*dt/V = (|wx|+|wy|+|wz|)*dt/h on a Cartesian cell
     dt_target = max_alpha_co / (float(N) * u_max)
-    steps = 4 * int(math.ceil(end_time / (4.0 * dt_target)))
+    steps = multiple * int(math.ceil(end_time / (multiple * dt_target)))
     dt = end_time / steps
     s = re.sub(r"^adjustTimeStep\s.*$", "adjustTimeStep  no;", s, flags=re.M)
     s = re.sub(r"^deltaT\s.*$", f"deltaT          {dt:.10g};", s, flags=re.M)
@@ -164,4 +174,4 @@ def build_case(
     open(p, "w").write(s)
 
     _write_decomposition(case, np)
-    _write_time_control(case, N, max_alpha_co, u_max, end_time)
+    _write_time_control(case, N, max_alpha_co, u_max, end_time, write_interval)
