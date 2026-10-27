@@ -30,7 +30,8 @@ The damping sweep holds the mesh, PML thickness, and polynomial order fixed:
 ./run_pml_sensitivity.sh
 ```
 
-Outputs are written to `postProcessing/pmlSensitivity`.
+Outputs (summary CSV, table, PNG and PDF figure) are written to
+`postProcessing/pmlSensitivity`.
 
 ## Mesh sensitivity
 
@@ -41,7 +42,8 @@ faces and uses the same whole-domain complex-pressure error:
 ./run_pml_mesh_sensitivity.sh
 ```
 
-Outputs are written to `postProcessing/pmlMeshSensitivity`.
+Outputs (summary CSV, table with the observed order, PNG and PDF figure) are
+written to `postProcessing/pmlMeshSensitivity`.
 
 ## Face-area comparison
 
@@ -58,11 +60,11 @@ python3 run_face_area_comparison.py --output studyResults/faceAreaComparison
 `face-area-comparison.csv` reports `referenceDifference`, the relative
 difference from the serial `legacy` pressure of the same configuration,
 `parallelDifference` from the serial pressure of the same mode, and
-`pressureRelL2` at the cell centres. The sweeps report `P_relL2` at 1200
-points interpolated from the cell values, so the two errors differ.
+`pressureRelL2`, the cell-centre error `P_relL2` of `metrics.txt`.
 
 ## Interpretation
-`metrics.txt` reports `P_relL2`, the relative complex-pressure error over all
-uniformly sampled points from the driven boundary through the outer PML
-boundary. Component and pressure-amplitude errors are retained as secondary
-diagnostics; the paper uses `P_relL2` as the quantitative measure.
+`metrics.txt` reports `P_relL2`, the relative complex-pressure error at the
+cell centres of the complete domain, from the driven boundary through the
+outer PML boundary, weighted by the cell volumes. Component and
+pressure-amplitude errors are secondary diagnostics. The comparison CSV and
+plots use 1200 points probed linearly along the domain.

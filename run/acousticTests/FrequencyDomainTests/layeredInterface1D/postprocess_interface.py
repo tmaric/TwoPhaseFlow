@@ -81,6 +81,24 @@ def probe_line(vtu: pathlib.Path, p1: tuple[float, float, float], p2: tuple[floa
     return pts[:, 0], pre + 1j*pim
 
 
+def cell_values(vtu: pathlib.Path):
+    """Centres, volumes and complex pressure of the axis-aligned cells."""
+    reader = vtkXMLUnstructuredGridReader()
+    reader.SetFileName(str(vtu))
+    reader.Update()
+    grid = reader.GetOutput()
+    bounds = np.array([grid.GetCell(i).GetBounds() for i in range(grid.GetNumberOfCells())])
+    data = grid.GetCellData()
+    if bounds.size == 0 or data.GetArray("Pre") is None or data.GetArray("Pim") is None:
+        raise RuntimeError("Missing cells or cell pressure")
+    x = 0.5*(bounds[:, 0] + bounds[:, 1])
+    volume = np.prod(bounds[:, 1::2] - bounds[:, 0::2], axis=1)
+    p = vtk_to_numpy(data.GetArray("Pre")) + 1j*vtk_to_numpy(data.GetArray("Pim"))
+    if not (np.isfinite(p).all() and (volume > 0).all()):
+        raise RuntimeError("Nonfinite cell pressure or degenerate cells")
+    return x, volume, p
+
+
 def analytical_pressure(
     x: np.ndarray,
     rho1: float,
@@ -167,22 +185,24 @@ def main():
         pml_order,
         R,
     )
-    # Use the complete gas--liquid--PML domain for the verification norm.
     if not (np.isfinite(pc).all() and np.isfinite(pc_th).all()):
         raise RuntimeError("Nonfinite numerical or analytical pressure")
-    compare_mask = np.ones(len(pc), dtype=bool)
-    p_rel_l2 = np.linalg.norm((pc - pc_th)[compare_mask]) / max(
-        np.linalg.norm(pc_th[compare_mask]), 1e-30
+
+    # Verification norm: cell centres of the complete gas--liquid--PML domain,
+    # weighted by cell volume; the probed line is used for plotting only.
+    xc, volume, pcell = cell_values(vtu)
+    pcell_th = analytical_pressure(
+        xc, rho1, c1, c2, piston_u, k1, k2, x_int, pml_start, x_max,
+        sigma_max, pml_order, R,
     )
-    pre_rel_l2 = np.linalg.norm((pc.real - pc_th.real)[compare_mask]) / max(
-        np.linalg.norm(pc_th.real[compare_mask]), 1e-30
-    )
-    pim_rel_l2 = np.linalg.norm((pc.imag - pc_th.imag)[compare_mask]) / max(
-        np.linalg.norm(pc_th.imag[compare_mask]), 1e-30
-    )
-    pabs_rel_l2 = np.linalg.norm((np.abs(pc) - np.abs(pc_th))[compare_mask]) / max(
-        np.linalg.norm(np.abs(pc_th)[compare_mask]), 1e-30
-    )
+
+    def rel_l2(error, reference):
+        return np.sqrt(np.sum(volume*np.abs(error)**2)/max(np.sum(volume*np.abs(reference)**2), 1e-300))
+
+    p_rel_l2 = rel_l2(pcell - pcell_th, pcell_th)
+    pre_rel_l2 = rel_l2(pcell.real - pcell_th.real, pcell_th.real)
+    pim_rel_l2 = rel_l2(pcell.imag - pcell_th.imag, pcell_th.imag)
+    pabs_rel_l2 = rel_l2(np.abs(pcell) - np.abs(pcell_th), np.abs(pcell_th))
 
     out_dir = case_dir / "postProcessing" / "interfaceValidation" / t
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -224,9 +244,10 @@ def main():
         fobj.write(f"sigmaMax = {sigma_max:.8e}\n")
         fobj.write(f"PML_order = {pml_order:.8e}\n")
         fobj.write("errorDomain = whole domain including PML\n")
-        fobj.write("sampling = VTK cell-to-point conversion and linear line probing\n")
-        fobj.write(f"nSamples = {len(x)}\n")
-        fobj.write("weights = uniform; all probe samples valid\n")
+        fobj.write("errorPoints = cell centres\n")
+        fobj.write("weights = cell volumes\n")
+        fobj.write(f"nCells = {len(xc)}\n")
+        fobj.write(f"profileSamples = {len(x)} (linear line probe; profile CSV and plots only)\n")
         fobj.write(f"P_relL2 = {p_rel_l2:.8e}\n")
         fobj.write(f"Pre_relL2 = {pre_rel_l2:.8e}\n")
         fobj.write(f"Pim_relL2 = {pim_rel_l2:.8e}\n")

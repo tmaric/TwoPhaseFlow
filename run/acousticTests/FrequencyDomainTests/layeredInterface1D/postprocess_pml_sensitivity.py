@@ -78,6 +78,7 @@ def main() -> None:
     ax.legend(loc="best")
     fig.tight_layout()
     fig.savefig(out_dir / "pml_sigma_sensitivity.png")
+    fig.savefig(out_dir / "pml_sigma_sensitivity.pdf")
 
     with (out_dir / "pml_sigma_sensitivity_table.tex").open("w", encoding="utf-8") as fobj:
         fobj.write("\\begin{table}[htbp]\n")

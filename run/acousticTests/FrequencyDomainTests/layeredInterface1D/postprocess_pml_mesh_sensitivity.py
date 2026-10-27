@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import math
 import pathlib
 
 import matplotlib.pyplot as plt
@@ -87,6 +88,7 @@ def main() -> None:
     ax.legend(loc="best")
     fig.tight_layout()
     fig.savefig(out_dir / "pml_mesh_sensitivity.png")
+    fig.savefig(out_dir / "pml_mesh_sensitivity.pdf")
 
     sigma = rows[0]["sigmaMax"] if rows else 0.0
     sigma_text = f"{abs(sigma)/1.0e5:.1f}\\times10^5"
@@ -100,19 +102,25 @@ def main() -> None:
             f"$\\sigma_{{\\max}}={sigma_text}\\,\\mathrm{{s^{{-1}}}}$.}}\n"
         )
         fobj.write("    \\label{tab:pmlMeshSensitivity}\n")
-        fobj.write("    \\begin{tabular}{rrrrr}\n")
+        fobj.write("    \\begin{tabular}{rrrrrr}\n")
         fobj.write("        \\toprule\n")
         fobj.write(
             "        $N_x$ & $\\Delta x$ [$\\mathrm{m}$] & "
-            "$E_P$ & $E_{P_{\\mathrm{re}}}$ & $E_{P_{\\mathrm{im}}}$ \\\\\n"
+            "$E_P$ & $q_P$ & $E_{P_{\\mathrm{re}}}$ & $E_{P_{\\mathrm{im}}}$ \\\\\n"
         )
         fobj.write("        \\midrule\n")
-        for row in rows:
+        for i, row in enumerate(rows):
+            # observed order of E_P from the previous mesh
+            order = (
+                f"{math.log(rows[i-1]['P_relL2']/row['P_relL2'])/math.log(row['NX']/rows[i-1]['NX']):.2f}"
+                if i else "--"
+            )
             fobj.write(
                 "        "
                 f"{row['NX']} & "
                 f"{scientific_tex(row['dx_m'])} & "
                 f"{scientific_tex(row['P_relL2'])} & "
+                f"{order} & "
                 f"{scientific_tex(row['Pre_relL2'])} & "
                 f"{scientific_tex(row['Pim_relL2'])} \\\\\n"
             )
