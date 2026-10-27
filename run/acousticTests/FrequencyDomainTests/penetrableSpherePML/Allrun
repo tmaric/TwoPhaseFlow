@@ -1,0 +1,20 @@
+#!/bin/sh
+# Penetrable sphere with PML: convergence for three material pairs with the
+# levitator-like PML (sigmaMax/omega = 12.6, L = 3.25a), the PML at
+# sigmaMax/omega = 6.3, L = 6.5a, and serial versus eight ranks.
+set -eu
+cd "${0%/*}" || exit 1
+
+sizes="${SPHERE_SIZES:-8,16,32,64}"
+rankSizes="${SPHERE_RANK_SIZES:-16,32}"
+
+./Allclean
+python3 sphere_pml.py --output studyResults/main \
+    --materials waterInAir,oilInWater,airInWater --sizes "$sizes"
+python3 sphere_pml.py --output studyResults/softPML \
+    --materials waterInAir,oilInWater --truncations pml,pmlCartesian \
+    --sigma-factor 6.3 --pml-thickness 6.5 --sizes "$sizes"
+python3 sphere_pml.py --output studyResults/ranks8 \
+    --materials waterInAir,oilInWater --truncations pml \
+    --sizes "$rankSizes" --ranks 8
+python3 summarize_sphere_pml.py studyResults

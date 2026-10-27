@@ -2,7 +2,7 @@
 """Exact time-harmonic pressure for an axial point source and a fluid sphere.
 
 Convention exp(-i omega t); outgoing waves use h_l = j_l + i y_l, as in
-sphere_pressure of advanced.py. Axisymmetry axis = y; sphere of radius a
+testsuite/acousticInterface/advanced.py. Axisymmetry axis = y; sphere of radius a
 centred at the origin; point source at (0, d, 0) with d > a, normalised to
 1 Pa (incident field) at the sphere centre. Pressure and rho^-1 dp/dr are
 continuous at r = a.

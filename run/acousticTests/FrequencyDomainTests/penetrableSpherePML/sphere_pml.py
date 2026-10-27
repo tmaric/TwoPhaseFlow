@@ -15,13 +15,12 @@ interface method is plicAverage/legacy. Errors are volume-weighted relative
 complex-pressure L2 norms in the physical region against sphere_reference.py.
 Runs the binaries found in PATH; no build commands.
 """
-import argparse, json, math, os, shutil, subprocess
+import argparse, hashlib, json, math, os, re, shutil, subprocess, time
 from pathlib import Path
 import numpy as np
 import sphere_reference
-from advanced import header, mesh_lists, values
-from compare import REPO, configure, field, input_snapshot, run, sha, solve, source_snapshot
 
+HERE = Path(__file__).resolve().parent
 A, D, S = 1e-3, 2.5e-3, 0.25e-3          # sphere radius, source height, hole half-size
 K = 1/A                                   # host wavenumber
 XP, YMIN, YMAX = 4*A, -4*A, 6*A           # physical region (radius, axial range)
@@ -31,6 +30,71 @@ THETA = math.radians(0.5)
 MATERIALS = {"waterInAir": ((1.2, 343.0), (1000.0, 1500.0)),
              "oilInWater": ((1000.0, 1500.0), (920.0, 1450.0)),
              "airInWater": ((1000.0, 1500.0), (1.2, 343.0))}
+
+def header(name, kind="dictionary"):
+    return f"FoamFile {{ version 2.0; format ascii; class {kind}; object {name}; }}\n"
+
+def values(x):
+    return "nonuniform List<scalar>\n" + str(len(x)) + "\n(\n" + "\n".join(f"{v:.17g}" for v in x) + "\n)"
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+def run(argv, case, log):
+    with (case/log).open("w") as f:
+        r = subprocess.run(list(map(str, argv)), cwd=case, stdout=f, stderr=subprocess.STDOUT)
+    if r.returncode:
+        raise RuntimeError(f"Exit {r.returncode}: {case/log}")
+
+def field(path, count=None):
+    """Internal field of an ascii volField; vectors and tensors as rows."""
+    m = re.search(r"internalField\s+nonuniform\s+List<(\w+)>\s+(\d+)\s*\((.*?)\)\s*;",
+                  Path(path).read_text(), re.S)
+    if not m:
+        raise ValueError(f"cannot parse {path}")
+    n, width = int(m[2]), {"scalar": 1, "vector": 3, "tensor": 9}[m[1]]
+    v = np.fromstring(m[3].replace("(", " ").replace(")", " "), sep=" ")
+    if v.size != n*width or (count is not None and n != count) or not np.isfinite(v).all():
+        raise ValueError(f"invalid field {path}")
+    return v.reshape(n, width) if width > 1 else v
+
+def patch_centres(case):
+    """Type and face centres of every boundary patch."""
+    root = case/"constant/polyMesh"
+    def body(name):
+        t = (root/name).read_text()
+        return re.search(r"\n\s*(\d+)\s*\n\s*\(\s*\n(.*?)\n\s*\)\s*\n", t, re.S)[2]
+    pts = np.fromstring(body("points").replace("(", " ").replace(")", " "), sep=" ").reshape(-1, 3)
+    faces = [np.fromstring(f, sep=" ", dtype=int) for f in re.findall(r"\d+\(([^)]+)\)", body("faces"))]
+    out = {}
+    for name, raw in re.findall(r"(\w+)\s*\{([^{}]*)\}", (root/"boundary").read_text()):
+        if "nFaces" in raw:
+            n = int(re.search(r"nFaces\s+(\d+)", raw)[1]); st = int(re.search(r"startFace\s+(\d+)", raw)[1])
+            typ = re.search(r"type\s+(\w+)", raw)[1]
+            out[name] = (typ, np.array([pts[faces[i]].mean(axis=0) for i in range(st, st+n)]).reshape(-1, 3))
+    return out
+
+def solve(case, exe, ranks):
+    """Run the solver; require End, the selected interface method and residuals <= 1e-10."""
+    t0 = time.monotonic()
+    if ranks > 1:
+        run(["foamDictionary", "system/decomposeParDict", "-entry", "numberOfSubdomains", "-set", ranks],
+            case, "log.ranks")
+        run(["decomposePar"], case, "log.decomposePar")
+        run(["mpirun", "-np", ranks, exe, "-parallel"], case, "log.solver")
+        run(["reconstructPar", "-latestTime"], case, "log.reconstructPar")
+    else:
+        run([exe], case, "log.solver")
+    seconds = time.monotonic()-t0
+    text = (case/"log.solver").read_text()
+    if not re.search(r"^End$", text, re.M):
+        raise RuntimeError("solver did not finish")
+    if "acousticInterface: areaFraction=plicAverage flux=legacy" not in text:
+        raise RuntimeError("selected interface method not confirmed in log")
+    res = [float(x) for x in re.findall(r"relativeResidual=([+\deE.-]+)", text)]
+    if not res or not np.isfinite(res).all() or max(res) > 1e-10:
+        raise RuntimeError(f"residual gate failed: {res}")
+    return seconds, res
 
 def exact(points, material):
     (rhog, cg), (rhol, cl) = MATERIALS[material]
@@ -88,6 +152,7 @@ divSchemes { default none; }
 laplacianSchemes { default Gauss linear corrected; }
 interpolationSchemes { default linear; }
 snGradSchemes { default corrected; }
+acousticInterface { areaFraction plicAverage; flux legacy; writeDiagnostics false; }
 """)
     (dest/"system/decomposeParDict").write_text(header("decomposeParDict") + "numberOfSubdomains 8;\nmethod scotch;\n")
     # PMLMin/PMLMax are the outer domain edges; damping acts within L of them.
@@ -110,7 +175,7 @@ PMLMin (-100 {ylo:.17g} -100); PMLMax ({xmax:.17g} {yhi:.17g} 100);
     run(["foamDictionary", boundary, "-entry", "entry0/source/type", "-set", "patch"], dest, "log.sourceType")
     run(["foamDictionary", boundary, "-entry", "entry0/source/inGroups", "-remove"], dest, "log.sourceGroups")
     run(["checkMesh"], dest, "log.checkMesh")
-    _, _, patches = mesh_lists(dest)
+    patches = patch_centres(dest)
     if patches["source"][0] != "patch" or not len(patches["source"][1]):
         raise RuntimeError("source patch not usable")
     fields = {"Pre": ("volScalarField", "[1 -1 -2 0 0 0 0]", "0"),
@@ -152,7 +217,6 @@ PMLMin (-100 {ylo:.17g} -100); PMLMax ({xmax:.17g} {yhi:.17g} 100);
             raise RuntimeError("PML damping not confined to the layer")
         if stretched != (truncation == "pml") or np.any(sg[:, 8] != 0) != stretched:
             raise RuntimeError("azimuthal stretch does not match the truncation")
-    input_snapshot(dest)
     return dict(h=h, nr=nr, ny=ny, cells=len(C), frequency=freq, sigmaMax=sigma)
 
 def metrics(case, prepared, material):
@@ -190,13 +254,14 @@ def main():
     tools = {t: Path(shutil.which(t)).resolve() for t in ("setAlphaField", "setPMLFields")}
     hashes = {"acousticHelmholtzFoam": sha(exe), "libacousticInterface": sha(lib),
               **{t: sha(p) for t, p in tools.items()}}
-    source_snapshot(out, exe, lib)
+    git = lambda *a: subprocess.check_output(["git", *a], cwd=HERE, text=True).strip()
     pml_length = args.pml_thickness*A
     (out/"settings.json").write_text(json.dumps(dict(
         vars(args), output=str(out), pmlLength=pml_length, sphereRadius=A, sourceHeight=D,
         hostWavenumber=K, po=PO, binaries={t: str(p) for t, p in tools.items()} | {"solver": str(exe)},
-        sha256=hashes, revision=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()),
-        indent=2))
+        sha256=hashes, scripts={p.name: sha(p) for p in (HERE/"sphere_pml.py", HERE/"sphere_reference.py")},
+        revision=git("rev-parse", "HEAD"), caseStatus=git("status", "--porcelain", "."),
+        OpenFOAM=os.environ.get("WM_PROJECT_VERSION")), indent=2))
     results, fields = [], {}
     for material in args.materials.split(","):
         (rhog, cg), (rhol, cl) = MATERIALS[material]
@@ -213,7 +278,6 @@ def main():
                 try:
                     entry.update(prepare(prepared, material, trunc, n, args.sigma_factor, pml_length))
                     shutil.copytree(prepared, case)
-                    configure(case, "geometry", diagnostics=False)
                     seconds, residuals = solve(case, exe, args.ranks)
                     p, V, m = metrics(case, prepared, material)
                     fields[(material, trunc, n)] = p
