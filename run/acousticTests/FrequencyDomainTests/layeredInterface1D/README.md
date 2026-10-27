@@ -58,8 +58,8 @@ python3 run_face_area_comparison.py --output studyResults/faceAreaComparison
 `face-area-comparison.csv` reports `referenceDifference`, the relative
 difference from the serial `legacy` pressure of the same configuration,
 `parallelDifference` from the serial pressure of the same mode, and
-`pressureRelL2` at the cell centres, which differs slightly from the
-1200-point sampled `P_relL2` of the sweeps.
+`pressureRelL2` at the cell centres. The sweeps report `P_relL2` at 1200
+points interpolated from the cell values, so the two errors differ.
 
 ## Interpretation
 `metrics.txt` reports `P_relL2`, the relative complex-pressure error over all
