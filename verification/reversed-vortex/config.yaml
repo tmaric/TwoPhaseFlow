@@ -37,7 +37,9 @@ np:
 viz:
   N: 128
   scheme: plicRDF
-  write_interval: 2             # writes t = 0, T/4, T/2, 3T/4, T
+  # every T/40: the quarter-period snapshots, the 0.1T evolution figure and the
+  # animation frames all come from the same two runs
+  write_interval: 0.2
 
 runs_dir: runs
 results_dir: results
