@@ -43,6 +43,24 @@ faces and uses the same whole-domain complex-pressure error:
 
 Outputs are written to `postProcessing/pmlMeshSensitivity`.
 
+## Face-area comparison
+
+Both material orderings at `NX = 8000`, the five damping values and the five
+aligned meshes are solved with `areaFraction legacy` (original donor-based
+selection) and `areaFraction plicAverage` (geometric averaging), both with
+`flux legacy`, serially and on 4 and 8 ranks:
+
+```bash
+python3 run_face_area_comparison.py --output studyResults/faceAreaComparison
+```
+
+`--configs` (`NX:sigmaMax:forward|reverse`) and `--ranks` select a subset.
+`face-area-comparison.csv` reports `referenceDifference`, the relative
+difference from the serial `legacy` pressure of the same configuration,
+`parallelDifference` from the serial pressure of the same mode, and
+`pressureRelL2` at the cell centres, which differs slightly from the
+1200-point sampled `P_relL2` of the sweeps.
+
 ## Interpretation
 `metrics.txt` reports `P_relL2`, the relative complex-pressure error over all
 uniformly sampled points from the driven boundary through the outer PML
