@@ -19,7 +19,8 @@ excluded box whose faces carry the exact total pressure. The physical region
   serial versus eight-rank comparison.
 - `Allrun`: the full study; `Allclean` removes `studyResults/`.
 
-The same sphere with exact boundary data and no PML is `../penetrableSphere`.
+`../penetrableSphere` tests a water sphere in a three-dimensional cube with
+plane-wave incidence and exact boundary data, without PML.
 
 ## Truncations
 
