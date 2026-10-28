@@ -99,6 +99,7 @@ rule all:
         os.path.join(RESULTS, "convergence_shape_error.png"),
         os.path.join(RESULTS, "convergence_shape_error.pdf"),
         os.path.join(RESULTS, "potential_check.txt"),
+        os.path.join(RESULTS, "support_extent.txt"),
         os.path.join(RESULTS, "interface3d_moving_frame.png"),
         os.path.join(RESULTS, "interface3d_non_moving_frame.png"),
 
@@ -303,6 +304,34 @@ rule check_potential:
             --field {params.field} --swirl {params.swirl} \
             --lz {params.lz} --n 64 \
             --out {output}
+        """
+
+
+# -- how far the material reaches --------------------------------------------
+# The manuscript sizes the domain by the swept extent of the material: the
+# largest distance from the rotation axis and the highest point reached. Both
+# come from exact trajectories, so the bound has the same provenance as the
+# tables instead of being read off a VOF field.
+rule support_extent:
+    output:
+        os.path.join(RESULTS, "support_extent.txt"),
+    params:
+        field=config["base_field"],
+        alpha_dict=os.path.join(TEMPLATE, "system", "setAlphaFieldDict"),
+        axis=config["frame"]["rotation_centre"],
+        swirl=SWIRL_XY,
+        period=config["period"],
+        lz=config["domain_height"],
+        ns=",".join(str(n) for n in NS),
+        script=os.path.join(WF, "scripts", "support_extent.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} \
+            --field {params.field} --alpha-dict {params.alpha_dict} \
+            --axis "{params.axis}" --swirl {params.swirl} \
+            --period {params.period} --lz {params.lz} \
+            --resolutions {params.ns} --out {output}
         """
 
 
