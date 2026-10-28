@@ -232,13 +232,19 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     }
     const point xq = traceBack(xf, UInterp.interpolate(xf, donor));
 
-    // The out-of-donor count: any traced point outside the donor
-    bool outOfDonor = !inCell(xq, donor, 1e-9);
-    forAll(q, i)
+    // The out-of-donor count: any traced point outside the donor, of the
+    // faces that sweep a volume (a face parallel to the velocity carries no
+    // flux, and its traced vertices leave the donor along its side faces by
+    // construction; the studies of 2026-10-28 counted those faces too)
+    if (sweeps)
     {
-        if (!inCell(q[i], donor, 1e-9)) outOfDonor = true;
+        bool outOfDonor = !inCell(xq, donor, 1e-9);
+        forAll(q, i)
+        {
+            if (!inCell(q[i], donor, 1e-9)) outOfDonor = true;
+        }
+        if (outOfDonor) ++nSweptOutOfDonor_;
     }
-    if (outOfDonor) ++nSweptOutOfDonor_;
 
     // The triangle list, outward for phi_f > 0 (the face fan along S_f, the
     // pre-image fan reversed, the lateral quads split along one diagonal)
