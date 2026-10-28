@@ -69,7 +69,9 @@ SourceFiles
 #include "isoAdvection.H"
 #include "davofCurvedGeometry.H"
 #include "davofKromerBothe.H"
+#include "davofOrbit.H"
 #include "interpolationCellPoint.H"
+#include "volPointInterpolation.H"
 #include "volFields.H"
 #include "processorPolyPatch.H"
 #include "PstreamBuffers.H"
@@ -193,9 +195,14 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         const point origin0 = ed.get<point>("origin");
         const vector U0 = ed.getOrDefault<vector>("U0", vector::zero);
         const scalar R = ed.get<scalar>("radius");
+        // the rotation about an axis (omega, axisPoint; davofOrbit.H,
+        // 2026-10-28), zero by default
+        vector omega;
+        point axisPoint;
+        davof::readOrbit(ed, origin0, omega, axisPoint);
         davof::cellSurface S;
         S.sphere = true;
-        S.o = origin0 + U0*tState;
+        S.o = davof::orbitOrigin(origin0, U0, omega, axisPoint, tState);
         S.R = R;
         forAll(interfaceLabels, i)
         {
@@ -214,8 +221,16 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
     {
         anchorTensorCentroids();
     }
-    davofPtr_->updateCurvatureTensor();
-    const symmTensorField& B = davofPtr_->curvatureTensor().primitiveField();
+    // clippingSurface plane (2026-10-28): the same path with a zero tensor
+    // (the plane in the frame of the used normal, positioned by the volume
+    // anchor); the ring tensor is neither requested nor read
+    const bool planeSurface = (clippingSurface_ == "plane");
+    const symmTensorField* Bp = nullptr;
+    if (!planeSurface)
+    {
+        davofPtr_->updateCurvatureTensor();
+        Bp = &davofPtr_->curvatureTensor().primitiveField();
+    }
     const vectorField& usedN = davofPtr_->usedNormals();
     const vectorField& normal = surf_->normal().primitiveField();
     const vectorField& centre = surf_->centre().primitiveField();
@@ -270,11 +285,19 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         davof::frameOf(S.e3, S.e1, S.e2);
         S.o = (mag(normal[celli]) > 0) ? centre[celli] : C[celli];
         S.c = 0;
-        const symmTensor& Bc = B[celli];
-        S.b11 = -(S.e1 & (Bc & S.e1));
-        S.b12 = -(S.e1 & (Bc & S.e2));
-        S.b22 = -(S.e2 & (Bc & S.e2));
-        S.paraboloid = true;
+        if (planeSurface)
+        {
+            S.b11 = S.b12 = S.b22 = 0;
+            S.paraboloid = false;
+        }
+        else
+        {
+            const symmTensor& Bc = (*Bp)[celli];
+            S.b11 = -(S.e1 & (Bc & S.e1));
+            S.b12 = -(S.e1 & (Bc & S.e2));
+            S.b22 = -(S.e2 & (Bc & S.e2));
+            S.paraboloid = true;
+        }
         const scalar h = Foam::cbrt(V[celli]);
 
         // The targets: the cell's own face fractions, weighted by the areas
@@ -1055,6 +1078,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nCurvedFallback_ = 0;
     nCurvedLeaves_ = 0;
     nRuleFallback_ = 0;
+    nSweptFaces_ = nSweptFlips_ = nSweptOutOfDonor_ = nSweptClipTris_ = 0;
+    sweptClosureMax_ = 0;
     volumeRulePtr_->resetCounters();
     if (mesh_.time().timeIndex() % max(defectEvery_, label(1)) == 0 || mesh_.time().timeIndex() <= 1)
     {
@@ -1069,6 +1094,16 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     buildCellSurfaces(mesh_.time().value() - dt);
 
     interpolationCellPoint<vector> UInterp(U_);
+
+    // fluxIntegration sweptFace: the velocity at the mesh points (the
+    // volPointInterpolation of U) for the backward trace of the face
+    // vertices (isoAdvectionSwept.C)
+    tmp<pointVectorField> tUp;
+    if (fluxIntegration_ == "sweptFace")
+    {
+        tUp = volPointInterpolation::New(mesh_).interpolate(U_);
+    }
+    const pointVectorField* UpPtr = tUp.valid() ? &tUp() : nullptr;
 
     const labelList& own = mesh_.faceOwner();
     const labelList& nei = mesh_.faceNeighbour();
@@ -1359,15 +1394,36 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         // The displacement of the step at the face
         const vector d = UInterp.interpolate(Cf[facei], local)*dt;
 
+        // a face parallel to the displacement sweeps no volume: the
+        // test is relative (the round-off product of 1e-28 of an
+        // axis-aligned face and displacement built a flat prism whose
+        // face sum was 5e-14, five percent of the cell, 2026-10-24; the
+        // zero components of the face area vectors carry 1e-14 of
+        // round-off, so the threshold is 1e-10: a sweep below 1e-10 of
+        // a normal flux is taken as none)
+        const bool sweeps = mag(d & Sf[facei]) > 1e-10*mag(d)*mag(Sf[facei]);
+
         // The face fraction: the pre-image's liquid fraction under the
         // surface; with faceState vector its wetted area vector as well
         // (the pre-image's fan triangles are translates of the face's).
         // Computed before the flux, which the trapezoidal and Simpson
-        // integrations below form from it; the prism path does not use it
+        // integrations below form from it; the prism path does not use it.
+        // sweptFace: the fraction, the vector and the flux volume vSwept
+        // come from the one routine of isoAdvectionSwept.C (the traced
+        // pre-image's fan clipped by the donor's plane)
         label nfb = 0;
         scalar af;
         vector aWet(Zero);
-        if (wetVecPtr_)
+        scalar vSwept = 0;
+        if (fluxIntegration_ == "sweptFace")
+        {
+            sweptFaceFlux
+            (
+                facei, local, S, dt, phiF, sweeps, UInterp, *UpPtr,
+                af, aWet, vSwept
+            );
+        }
+        else if (wetVecPtr_)
         {
             af = volumeRulePtr_->faceWettedArea(facei, -d, S, aWet, nfb);
         }
@@ -1394,15 +1450,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         // trajectory over the step (exact on the plane in every step).
         if (!(boundary && phiF < 0))
         {
-            // a face parallel to the displacement sweeps no volume: the
-            // test is relative (the round-off product of 1e-28 of an
-            // axis-aligned face and displacement built a flat prism whose
-            // face sum was 5e-14, five percent of the cell, 2026-10-24; the
-            // zero components of the face area vectors carry 1e-14 of
-            // round-off, so the threshold is 1e-10: a sweep below 1e-10 of
-            // a normal flux is taken as none)
             scalar dVfNew = 0;
-            const bool sweeps = mag(d & Sf[facei]) > 1e-10*mag(d)*mag(Sf[facei]);
             if (fluxIntegration_ == "prism")
             {
                 scalar vLiq = 0;
@@ -1411,6 +1459,13 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     vLiq = volumeRulePtr_->prismLiquidVolume(facei, d, S, curvedTolRel_);
                 }
                 dVfNew = (phiF >= 0 ? vLiq : -vLiq);
+            }
+            else if (fluxIntegration_ == "sweptFace")
+            {
+                // the liquid volume of the swept volume under the donor's
+                // plane (zero where the face does not sweep), with the
+                // sign of phi_f as the prism's
+                dVfNew = (phiF >= 0 ? vSwept : -vSwept);
             }
             else if (sweeps)
             {
@@ -1745,7 +1800,7 @@ void Foam::advection::isoAdvection::reportCurved() const
         << " boundary), " << nSkip << " skipped, "
         << nClip << " clips, " << nLin
         << " linear cuts, " << nLeaves << " quadrature leaves";
-    if (clippingSurface_ == "paraboloid")
+    if (clippingSurface_ != "exactSphere")
     {
         Info<< "; fit: cells " << nFitC << ", converged " << nFitConv
             << ", stalled " << nFitSt << ", singular " << nFitSing
@@ -1782,6 +1837,21 @@ void Foam::advection::isoAdvection::reportCurved() const
     }
     Info<< "; volume rule " << volumeRulePtr_->type()
         << " fallbacks " << nRuleFb;
+    if (fluxIntegration_ == "sweptFace")
+    {
+        label nSw = nSweptFaces_, nSwFlip = nSweptFlips_;
+        label nSwOut = nSweptOutOfDonor_, nSwClip = nSweptClipTris_;
+        scalar swClos = sweptClosureMax_;
+        if (Pstream::parRun())
+        {
+            reduce(nSw, sumOp<label>()); reduce(nSwFlip, sumOp<label>());
+            reduce(nSwOut, sumOp<label>()); reduce(nSwClip, sumOp<label>());
+            reduce(swClos, maxOp<scalar>());
+        }
+        Info<< "; swept faces " << nSw << ", flips " << nSwFlip
+            << ", out of donor " << nSwOut << ", clipped triangles " << nSwClip
+            << ", closure max " << swClos;
+    }
     Info<< endl;
     if (anchorMethod_ == "compare")
     {

@@ -27,6 +27,7 @@ License
 
 #include "exactNormal.H"
 #include "davof.H"
+#include "davofOrbit.H"
 #include "implicitFunction.H"
 #include "addToRunTimeSelectionTable.H"
 #include "profiling.H"
@@ -58,10 +59,18 @@ Foam::davofNormalModels::exact::exact
     exactNormalDict_(dict.subDict("exactNormal")),
     functionType_(exactNormalDict_.get<word>("functionType")),
     origin0_(exactNormalDict_.get<vector>("origin")),
-    U0_(exactNormalDict_.get<vector>("U0"))
+    U0_(exactNormalDict_.get<vector>("U0")),
+    omega_(Zero),
+    axisPoint_(origin0_)
 {
+    davof::readOrbit(exactNormalDict_, origin0_, omega_, axisPoint_);
     Info<< "davof: exact normal (" << functionType_ << ", origin "
-        << origin0_ << ", U0 " << U0_ << ")" << endl;
+        << origin0_ << ", U0 " << U0_;
+    if (mag(omega_) > 0)
+    {
+        Info<< ", omega " << omega_ << " about " << axisPoint_;
+    }
+    Info<< ")" << endl;
 }
 
 
@@ -76,7 +85,7 @@ void Foam::davofNormalModels::exact::modelNormals
     addProfilingInFunction(geometricVoF);
     dictionary funcDict(exactNormalDict_);
     funcDict.set("type", functionType_);
-    funcDict.set("origin", origin0_ + U0_*tState);
+    funcDict.set("origin", davof::orbitOrigin(origin0_, U0_, omega_, axisPoint_, tState));
     autoPtr<implicitFunction> func
     (
         implicitFunction::New(functionType_, funcDict)

@@ -68,6 +68,8 @@ SourceFiles
 #include "davofFaceClipping.H"
 #include "davofCurvedGeometry.H"
 #include "davofVolumeRule.H"
+#include "interpolationCellPoint.H"
+#include "pointFields.H"
 #include "bitSet.H"
 #include "zeroField.H"
 
@@ -406,8 +408,26 @@ class isoAdvection
             //  sigma = 0 instead of the stored one, one-sided limits at the
             //  breakpoints) or gaussSplit (the three-point Gauss rule on
             //  those sub-intervals, no value at a breakpoint and none from
-            //  the stored fraction); see isoAdvectionCurved.C
+            //  the stored fraction), or sweptFace (the semi-Lagrangian
+            //  swept-face flux: the face's vertices and centre traced
+            //  backward, the swept volume's triangles clipped by the
+            //  donor's PLANE, the flux and the new face fraction from the
+            //  same clips; planes only, one donor cell; isoAdvectionSwept.C,
+            //  2026-10-28); see isoAdvectionCurved.C
             word fluxIntegration_;
+
+            //- fluxIntegration sweptFace: the tolerance of the plane test
+            //  max|b_ij| h of the donor's surface (key sweptPlaneTol,
+            //  default 1e-6; a surface above it is a FatalError) and the
+            //  counters of the step: the faces computed, the sign flips of
+            //  the triangle list, the faces whose pre-image leaves the
+            //  donor, the clipped triangles, the largest closure residual
+            scalar sweptPlaneTol_;
+            label nSweptFaces_;
+            label nSweptFlips_;
+            label nSweptOutOfDonor_;
+            label nSweptClipTris_;
+            scalar sweptClosureMax_;
             scalar debugR0Max_;
             label debugCellR0_;
             davof::cellSurface debugSurface_;
@@ -693,6 +713,30 @@ public:
 
             //- The Info line of the step
             void reportCurved() const;
+
+            //- fluxIntegration sweptFace (isoAdvectionSwept.C): the liquid
+            //  volume vLiq of the volume swept by facei between its traced
+            //  pre-image and itself under the PLANE S of the cell donor
+            //  (positive; the caller gives it the sign of phiF), the
+            //  pre-image's face fraction af and wetted area vector aWet in
+            //  the face's orientation. sweeps false (the displacement
+            //  parallel to the face): the fraction only, no volume, no
+            //  orientation count. UInterp interpolates U in a cell, Up is
+            //  the volPointInterpolation of U at the vertices.
+            void sweptFaceFlux
+            (
+                const label facei,
+                const label donor,
+                const davof::cellSurface& S,
+                const scalar dt,
+                const scalar phiF,
+                const bool sweeps,
+                const interpolationCellPoint<vector>& UInterp,
+                const pointVectorField& Up,
+                scalar& af,
+                vector& aWet,
+                scalar& vLiq
+            );
 
 
 public:

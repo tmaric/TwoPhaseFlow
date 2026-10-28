@@ -134,6 +134,12 @@ class areaFractionError
         //- U0 not given: taken from the velocity field when uniform
         bool U0FromField_;
 
+        //- The rotation about an axis (keys omega, rad/s, default zero;
+        //  axisPoint, default origin): the body's origin at t is
+        //  davof::orbitOrigin (davofOrbit.H, 2026-10-28)
+        vector omega_;
+        point axisPoint_;
+
         word davofMethod_;
 
         scalar wispTol_;

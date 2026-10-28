@@ -174,6 +174,12 @@ Foam::advection::isoAdvection::isoAdvection
     anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
     anchorMethod_(modelDict().getOrDefault<word>("anchorMethod", "ccs")),
     fluxIntegration_(modelDict().getOrDefault<word>("fluxIntegration", "prism")),
+    sweptPlaneTol_(modelDict().getOrDefault<scalar>("sweptPlaneTol", 1e-6)),
+    nSweptFaces_(0),
+    nSweptFlips_(0),
+    nSweptOutOfDonor_(0),
+    nSweptClipTris_(0),
+    sweptClosureMax_(0),
     debugR0Max_(0),
     debugCellR0_(-1),
     debugSurface_(),
@@ -243,11 +249,19 @@ Foam::advection::isoAdvection::isoAdvection
         // per cell replaces the plane sweep (isoAdvectionCurved.C)
         if (clippingSurface_ != "none")
         {
-            if (clippingSurface_ != "exactSphere" && clippingSurface_ != "paraboloid")
+            // plane (2026-10-28): the paraboloid path with a zero curvature
+            // tensor, i.e. the plane in the frame of the used normal
+            // positioned by the volume anchor (fitDof none or one, fitAnchor
+            // volume), the surface of the swept-face flux
+            if
+            (
+                clippingSurface_ != "exactSphere" && clippingSurface_ != "paraboloid"
+             && clippingSurface_ != "plane"
+            )
             {
                 FatalIOErrorInFunction(modelDict())
                     << "clippingSurface '" << clippingSurface_
-                    << "' unknown. Valid: none, exactSphere, paraboloid."
+                    << "' unknown. Valid: none, exactSphere, paraboloid, plane."
                     << exit(FatalIOError);
             }
             if (clipCorrects_)
@@ -265,7 +279,14 @@ Foam::advection::isoAdvection::isoAdvection
                 << " (the volume flux and the face update from one surface"
                 << " per cell; curvedTolRel " << curvedTolRel_
                 << ", curvedMaxDepth " << curvedMaxDepth_;
-            if (clippingSurface_ == "paraboloid")
+            if (clippingSurface_ == "plane" && fitDof_ == "six")
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "clippingSurface plane needs fitDof none or one (the"
+                    << " six-coefficient fit would set a curvature tensor)"
+                    << exit(FatalIOError);
+            }
+            if (clippingSurface_ != "exactSphere")
             {
                 if (fitAnchor_ != "faces" && fitAnchor_ != "volume")
                 {
@@ -309,16 +330,28 @@ Foam::advection::isoAdvection::isoAdvection
                 fluxIntegration_ != "prism" && fluxIntegration_ != "trapezoidal"
              && fluxIntegration_ != "simpson" && fluxIntegration_ != "simpsonSplit"
              && fluxIntegration_ != "gaussSplit" && fluxIntegration_ != "simpsonSplitS"
+             && fluxIntegration_ != "sweptFace"
             )
             {
                 FatalIOErrorInFunction(modelDict())
                     << "fluxIntegration '" << fluxIntegration_
                     << "' unknown. Valid: prism, trapezoidal, simpson, simpsonSplit,"
-                    << " simpsonSplitS, gaussSplit."
+                    << " simpsonSplitS, gaussSplit, sweptFace."
                     << exit(FatalIOError);
             }
-            Info<< ", fluxIntegration " << fluxIntegration_
-                << ", defectLevels " << defectLevels_ << ")" << endl;
+            if (fluxIntegration_ == "sweptFace" && clippingSurface_ == "exactSphere")
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "fluxIntegration sweptFace needs a plane surface"
+                    << " (clippingSurface plane, or paraboloid with a zero"
+                    << " tensor); exactSphere is a sphere" << exit(FatalIOError);
+            }
+            Info<< ", fluxIntegration " << fluxIntegration_;
+            if (fluxIntegration_ == "sweptFace")
+            {
+                Info<< " (sweptPlaneTol " << sweptPlaneTol_ << ")";
+            }
+            Info<< ", defectLevels " << defectLevels_ << ")" << endl;
 
             // The rule for the volumes and face fractions under a surface
             volumeRulePtr_ = davofVolumeRule::New(mesh_, modelDict());

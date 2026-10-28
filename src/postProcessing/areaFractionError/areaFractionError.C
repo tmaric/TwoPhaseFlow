@@ -32,6 +32,7 @@ License
 #include "reconstructionSchemes.H"
 #include "implicitFunction.H"
 #include "davofInit.H"
+#include "davofOrbit.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "profiling.H"
@@ -83,6 +84,8 @@ Foam::functionObjects::areaFractionError::areaFractionError
     origin0_(Zero),
     U0_(Zero),
     U0FromField_(true),
+    omega_(Zero),
+    axisPoint_(Zero),
     davofMethod_("quadraticFaces"),
     wispTol_(1e-3),
     consistency_(true),
@@ -108,6 +111,7 @@ bool Foam::functionObjects::areaFractionError::read(const dictionary& dict)
     origin0_ = dict.get<vector>("origin");
     U0FromField_ = !dict.found("U0");
     U0_ = dict.getOrDefault<vector>("U0", vector::zero);
+    davof::readOrbit(dict, origin0_, omega_, axisPoint_);
     davofMethod_ = dict.getOrDefault<word>("davofMethod", "quadraticFaces");
     wispTol_ = dict.getOrDefault<scalar>("wispTol", 1e-3);
     consistency_ = dict.getOrDefault<Switch>("consistency", Switch(true));
@@ -152,10 +156,11 @@ bool Foam::functionObjects::areaFractionError::write()
         reduce(U0, maxMagSqrOp<vector>());
     }
 
-    // The implicit function translated to time t
+    // The implicit function translated (and, with omega, turned about the
+    // axis through axisPoint) to time t
     dictionary funcDict(dict_);
     funcDict.set("type", functionType_);
-    funcDict.set("origin", origin0_ + U0*t);
+    funcDict.set("origin", davof::orbitOrigin(origin0_, U0, omega_, axisPoint_, t));
 
     autoPtr<implicitFunction> func
     (

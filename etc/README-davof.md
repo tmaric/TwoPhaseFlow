@@ -689,6 +689,53 @@ prism volume is; three face fractions per sub-interval. The signs follow the pri
 (the flux carries the sign of phi_f); a face that does not sweep (|d . S_f| below 1e-10 |d| |S_f|)
 gets no flux in every mode. The leia token is `TPF_FLUX_INTEGRATION` (default `prism`).
 
+`sweptFace` (branch davof-swept, 2026-10-28; `isoAdvectionSwept.C`; the working note
+`leia/docs/davof/davof-swept-volume` and its Python prototype): the semi-Lagrangian swept-face
+flux. The prism assumes that the face translates by the displacement of its centre, so under a
+non-uniform velocity its volume is not the volume the face sweeps. Here the face's vertices p_i
+and centre x_f are traced BACKWARD along the velocity over the step to the pre-image f' (p_i',
+x_f'), as in the face-vertex flux computation of T. Maric, H. Marschall, D. Bothe, An enhanced
+un-split face-vertex flux-based VoF method, J. Comput. Phys. 371 (2018) 967-993,
+doi:10.1016/j.jcp.2018.03.048; the swept volume is the closed list of 4F planar triangles (the
+fan (x_f, p_i, p_{i+1}) on the face, the fan (x_f', p_{i+1}', p_i') on the pre-image, reversed,
+and the two triangles (p_i, p_i', p_{i+1}'), (p_i, p_{i+1}', p_{i+1}) of every lateral quad),
+outward for phi_f > 0 with S_f owner -> neighbour and reversed for phi_f < 0; the signed volume
+(1/6) sum p.(q x r) checks the orientation and the list is flipped where it is negative
+(counted). Every triangle is clipped against the donor cell's PLANE (liquid where
+(x - x0).n <= 0, the wet polygon's area vector a_T^- by `davof::triNegativePolygon`), and
+
+    V_f^-         = (1/3) sum_T (p_T - x0) . a_T^-        (p_T any vertex of T, x0 on the plane)
+    alpha_f^{n+1} = (a_{f'}^- . A_{f'}) / |A_{f'}|^2      (a_{f'}^- the wet area vector of the
+                                                          pre-image fan, A_{f'} its area vector)
+
+so that the flux volume and the new face fraction come from the same clips of the same donor
+plane (the divergence theorem for x on the truncated volume; the cap's integral of x.n is
+(x0.n) times its area, fixed by the closure of the wet boundary, and vanishes with x0 on the
+plane). dVf carries the sign of phi_f as the prism's does; both cells of a face see the same
+volume; the bounding and the clipping of alpha are unchanged. SCOPE AND LIMITS: (1) PLANES
+ONLY, since the formula needs x.n constant on the cap: the donor's surface must be a plane, a
+`cellSurface` without the paraboloid flag or one whose tensor is at round-off, max|b_ij| h below
+`sweptPlaneTol` (default 1e-6; the translated plane's ring tensor gives 2e-14); a true
+paraboloid or a sphere surface (`clippingSurface exactSphere`) is a FatalError, never a silent
+fallback. (2) ONE DONOR CELL: the whole swept volume is clipped by the donor's plane; the faces
+whose pre-image points leave the donor (the face-plane test at 1e-9 h) are counted per step and
+the multi-cell cut is not implemented. (3) TRAJECTORIES: the backward midpoint rule (explicit
+RK2, second order in dt), the vertex velocities by `volPointInterpolation`, the face centre's
+the cell-point interpolate in the donor (the prism's d = U(x_f) dt, so for a uniform U the
+pre-image is f - d and the swept volume IS the prism), the midpoint velocity the cell-point
+interpolate in the cell that holds the midpoint (the donor, a face neighbour, else the mesh
+search; a midpoint outside the mesh or across a processor boundary takes the Euler step, exact
+for a uniform U as well). The Info line gains `; swept faces N, flips F, out of donor D, clipped
+triangles T, closure max C` (C = |sum_T a_T| / sum_T |a_T| over the lists, round-off by
+construction); leia's `tpf_advection_metrics.py` parses it. Cost per face: 4F triangle clips
+(three signed distances, at most two crossings each), no quadrature, no volume rule.
+
+`clippingSurface plane` (2026-10-28, with the swept flux): the paraboloid path with a zero
+curvature tensor, i.e. the plane in the frame of the normal the scheme used, positioned by the
+volume anchor (`fitDof none` or `one`, `fitAnchor volume`; `fitDof six` is refused), for the
+volume flux and the face update as the paraboloid is; the ring tensor is neither requested nor
+read. The surface of the swept-face flux on a curved interface (leia rows `davof-planeSurf-*`).
+
 The leia token is `TPF_VOLUME_RULE` (default `splitQuadrature`; `cases/davof/*Translation3D`).
 
 ### Warped faces: the wetted area vector as the face state (branch davof-warped, 2026-10-25)

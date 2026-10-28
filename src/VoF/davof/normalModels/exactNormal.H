@@ -40,7 +40,12 @@ Description
             origin       (0.5 0.5 0.5);   // at t = 0
             radius       0.15;            // and the function's other keys
             U0           (1 0 0);
+            omega        (0 0 0);         // optional: the angular velocity
+            axisPoint    (0.5 0.5 0.5);   // optional: a point of the axis
         }
+
+    With omega the origin moves on the circle about the axis through
+    axisPoint (the solid-body rotation benchmark), davof::orbitOrigin.
 
 SourceFiles
     exactNormal.C
@@ -76,6 +81,12 @@ class exact
         word functionType_;
         vector origin0_;
         vector U0_;
+
+        //- The rotation about an axis (keys omega, rad/s, default zero;
+        //  axisPoint, default origin): the body's origin at t is
+        //  davof::orbitOrigin (davofOrbit.H, 2026-10-28)
+        vector omega_;
+        point axisPoint_;
 
 
 public:
