@@ -72,6 +72,8 @@ SourceFiles
 #include "davofOrbit.H"
 #include "interpolationCellPoint.H"
 #include "volPointInterpolation.H"
+#include "indexedOctree.H"
+#include "treeDataCell.H"
 #include "volFields.H"
 #include "processorPolyPatch.H"
 #include "PstreamBuffers.H"
@@ -1102,6 +1104,11 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     if (fluxIntegration_ == "sweptFace")
     {
         tUp = volPointInterpolation::New(mesh_).interpolate(U_);
+        // the search structures of the trace's cell lookup (the octree and
+        // the tet base points of polyMesh::findCell), built here on every
+        // rank: their construction is collective
+        (void)mesh_.tetBasePtIs();
+        (void)mesh_.cellTree();
     }
     const pointVectorField* UpPtr = tUp.valid() ? &tUp() : nullptr;
 

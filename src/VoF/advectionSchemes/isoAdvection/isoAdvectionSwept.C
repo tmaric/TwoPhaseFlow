@@ -84,9 +84,9 @@ Description
       displacement d = U(x_f) dt, so for a uniform U the pre-image is the
       prism's f - d and the swept volume IS the prism). The midpoint velocity
       is the cell-point interpolate in the cell that holds the midpoint (the
-      donor, a face neighbour, else the mesh search); a midpoint outside the
-      mesh, or across a processor boundary, takes the Euler step x - dt U(x)
-      (exact for a uniform U as well).
+      donor, a cell sharing a vertex with it, else the mesh's octree search);
+      a midpoint outside the mesh, or across a processor boundary, takes the
+      Euler step x - dt U(x) (exact for a uniform U as well).
 
     - DIAGNOSTICS per step in the Info line: the faces computed, the sign
       flips, the faces out of the donor, the largest closure residual
@@ -127,7 +127,6 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     const vectorField& Sf = mesh_.faceAreas();
     const labelList& own = mesh_.faceOwner();
     const cellList& cells = mesh_.cells();
-    const labelListList& cellCells = mesh_.cellCells();
     const label F = f.size();
     const scalar h = Foam::cbrt(mesh_.V()[donor]);
 
@@ -183,32 +182,33 @@ void Foam::advection::isoAdvection::sweptFaceFlux
         return true;
     };
 
+    // The cell that holds a point of the trajectory: the donor, else the
+    // cells sharing a vertex with the donor (a midpoint lies within Co h/2
+    // of the donor's boundary, inside that ring for Co < 1), else the mesh's
+    // octree search (CELL_TETS; the tree and the tet base points are built
+    // once per step in curvedFlux, on every rank; the face-plane search of
+    // polyMesh::findCell scans every cell and is not used); -1 outside the
+    // mesh or across a processor boundary
+    const labelListList& cellPoints = mesh_.cellPoints();
+    const labelListList& pointCells = mesh_.pointCells();
+    auto cellOf = [&](const point& x) -> label
+    {
+        if (inCell(x, donor, 1e-12)) return donor;
+        for (const label pi : cellPoints[donor])
+        {
+            for (const label c : pointCells[pi])
+            {
+                if (c != donor && inCell(x, c, 1e-12)) return c;
+            }
+        }
+        return mesh_.findCell(x, polyMesh::CELL_TETS);
+    };
+
     // The velocity at a point of the trajectory: the cell-point interpolate
-    // in the cell that holds the point (the donor, one of its face
-    // neighbours, else the mesh search); nothing where no local cell holds
-    // it (outside the mesh, or across a processor boundary)
+    // in the cell that holds the point; nothing where no local cell holds it
     auto velocityNear = [&](const point& x, bool& found) -> vector
     {
-        label c = -1;
-        if (inCell(x, donor, 1e-12))
-        {
-            c = donor;
-        }
-        else
-        {
-            for (const label nb : cellCells[donor])
-            {
-                if (inCell(x, nb, 1e-12))
-                {
-                    c = nb;
-                    break;
-                }
-            }
-            if (c < 0)
-            {
-                c = mesh_.findCell(x, polyMesh::FACE_PLANES);
-            }
-        }
+        const label c = cellOf(x);
         found = (c >= 0);
         return found ? UInterp.interpolate(x, c) : vector(Zero);
     };
