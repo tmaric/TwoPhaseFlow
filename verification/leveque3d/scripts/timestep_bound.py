@@ -105,7 +105,7 @@ def wmax1_3d(T, period, revolutions, field, centre=(0.5, 0.5), n=170, nt=420):
 
 
 CASES = [
-    ("reversed-vortex", wmax1_2d(8.0, 8.0, 1.0, 0.25), 8.0,
+    ("reversed-vortex", wmax1_2d(8.0, 16.0, 1.0, 0.0), 8.0,
      (32, 64, 128, 256, 512, 1024, 2048)),
     ("deformation-sphere3d", wmax1_3d(3.0, 6.0, 1.0, "spiralling"), 3.0,
      (32, 64, 128, 256)),

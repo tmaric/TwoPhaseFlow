@@ -26,11 +26,10 @@ end_time: 3
 period: 6
 write_interval: 1.5
 
-# The unit cube is invariant under the base field, and the material was measured
-# to stay within horizontal radius 0.46 of the axis through (0.5, 0.5), so a
-# z-parallel rotation about that axis keeps it inside the cube. The margin is
-# 0.04, i.e. 1.3 cells at N=32 and 5 at N=128, so watch E_mass at the coarsest
-# level exactly as in the 2D study.
+# The unit cube is invariant under the base field, and the material stays within
+# horizontal radius 0.388 of the axis through (0.5, 0.5) (exact trajectories,
+# results/support_extent.txt), so a z-parallel rotation about that axis keeps it
+# inside the cube with a margin of 0.112: 3.6 cells at N=32, 14 at N=128.
 frame:
   rotation_centre: "(0.5 0.5 0)"
   swirl_centre: "(0.5 0.5 0)"
@@ -44,8 +43,8 @@ np:
   256: 64
 
 viz:
-  # the material never leaves z <= 0.773; drawing the full unit cube
-  # wastes two thirds of the frame
+  # the material never leaves z <= 0.758 (results/support_extent.txt);
+  # drawing the full unit cube wastes a fifth of the frame
   z_clip: 0.8
   N: 128
   scheme: plicRDF
