@@ -70,6 +70,7 @@ SourceFiles
 #include "davofVolumeRule.H"
 #include "interpolationCellPoint.H"
 #include "pointFields.H"
+#include "OFstream.H"
 #include "bitSet.H"
 #include "zeroField.H"
 
@@ -475,6 +476,23 @@ class isoAdvection
             //  while the volume was better: the key separates the two.
             word sweptCellsFaceUpdate_;
 
+            //- sweptFaceCells, the face update: the rule for a part of the
+            //  pre-image lying in a cell plane (key sweptCoplanar):
+            //  donorSide (the default since 2026-10-29: the part belongs to
+            //  the cell on the donor's side of the plane) or both (counted
+            //  in both cells sharing the plane, the defect of the first
+            //  ladder: every face parallel to the velocity got the sum of
+            //  two fractions); the coplanar parts met in the step
+            word sweptCoplanar_;
+            label nSweptCoplanar_;
+
+            //- The one-step face dump of sweptFaceCells (key sweptFaceDump,
+            //  default false): postProcessing/sweptFaceDump/faces.csv and
+            //  pieces.csv at the first step (serial runs)
+            bool sweptFaceDump_;
+            autoPtr<OFstream> dumpFaces_;
+            autoPtr<OFstream> dumpPieces_;
+
             //- The kinematic consistency of the swept fluxes (key
             //  sweptScaleToPhi, default false, 2026-10-29): the liquid volume
             //  of the swept volume scaled by |phi_f| dt / V_swept, so that a
@@ -842,6 +860,21 @@ public:
                 point& xq,
                 label& preSign,
                 scalar& vTotal
+            );
+
+            //- One row of the face dump (sweptFaceDump)
+            void writeFaceDump
+            (
+                const label facei,
+                const label donor,
+                const scalar phiF,
+                const bool sweeps,
+                const scalar afPieces,
+                const scalar afDonor,
+                const scalar afUsed,
+                const bool rankFallback,
+                const vector& Apre,
+                const label nPieces
             );
 
             //- The class of the cells the pre-image points q (vertices)

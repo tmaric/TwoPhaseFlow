@@ -1084,6 +1084,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     sweptClosureMax_ = 0;
     nSweptPieces_ = nSweptBeyond_ = nSweptRankFallback_ = nSweptPartialCells_ = 0;
     nSweptDegenerate_ = 0;
+    nSweptCoplanar_ = 0;
     sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
     if (sweptClassify_)
     {
@@ -1907,18 +1908,22 @@ void Foam::advection::isoAdvection::reportCurved() const
     {
         label nPc = nSweptPieces_, nBey = nSweptBeyond_, nRk = nSweptRankFallback_;
         label nPart = nSweptPartialCells_, nDeg = nSweptDegenerate_;
+        label nCop = nSweptCoplanar_;
         scalar beyMax = sweptBeyondMax_, pcClos = sweptPieceClosureMax_;
         if (Pstream::parRun())
         {
             reduce(nPc, sumOp<label>()); reduce(nBey, sumOp<label>());
             reduce(nRk, sumOp<label>()); reduce(nPart, sumOp<label>());
-            reduce(nDeg, sumOp<label>());
+            reduce(nDeg, sumOp<label>()); reduce(nCop, sumOp<label>());
             reduce(beyMax, maxOp<scalar>()); reduce(pcClos, maxOp<scalar>());
         }
         Info<< "; cells: pieces " << nPc << ", beyond layer " << nBey
             << " (max " << beyMax << "), rank fallbacks " << nRk
             << ", partial cells " << nPart << ", degenerate " << nDeg
             << ", piece closure max " << pcClos;
+        // the coplanar parts of the face update, a separate clause so that
+        // the converter's pattern of the clause above stays valid
+        Info<< "; coplanar pre-image parts " << nCop;
     }
     if (sweptClassify_)
     {

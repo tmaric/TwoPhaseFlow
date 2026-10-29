@@ -331,29 +331,69 @@ inline pieceResult sweptPieceVolume
 
 //- The wetted area vector of the pre-image fan triangles T (in the face's
 //  orientation) inside the cell planes, clipped by the PLIC half-space when
-//  wetPlane; coverage as above
+//  wetPlane; coverage as above.
+//
+//  A COPLANAR part (a polygon whose vertices all lie within 1e-10 of its
+//  size of a cell plane: the pre-image of a face parallel to the velocity
+//  lies in the face's own plane, which is a face plane of the two cells on
+//  either side of it) passes the inside test of BOTH cells with a zero
+//  signed distance, so without a rule it is counted twice, once under each
+//  cell's PLIC plane (the defect found 2026-10-29: the face fraction of
+//  every face parallel to the velocity was the sum of two fractions). With
+//  nRef non-zero a coplanar part belongs to the cell whose outward normal
+//  on that plane points along nRef (the donor's side: nRef is the donor's
+//  outward normal through the face) and is dropped for the cell across;
+//  with nRef zero it is kept in both (the defective rule, kept for the
+//  comparison). aCell returns the part inside the cell planes before the
+//  PLIC clip; coplanarHit whether a coplanar part was met.
 inline vector sweptPieceArea
 (
     const UList<FixedList<point, 3>>& T,
     const UList<halfSpace>& cellPlanes,
     const bool wetPlane,
     const halfSpace& plic,
-    scalar& coverage
+    scalar& coverage,
+    const vector& nRef = vector::zero,
+    vector* aCell = nullptr,
+    bool* coplanarHit = nullptr
 )
 {
     vector a(Zero);
     coverage = 0;
+    if (aCell) *aCell = Zero;
+    if (coplanarHit) *coplanarHit = false;
+    const bool tie = (magSqr(nRef) > 0);
     forAll(T, k)
     {
         clipPolygon poly;
         poly.setTriangle(T[k][0], T[k][1], T[k][2]);
         forAll(cellPlanes, i)
         {
+            // the coplanar test: every vertex within 1e-10 of the polygon's
+            // size of the plane
+            scalar L = 0, sMax = 0;
+            for (label j = 0; j < poly.n; ++j)
+            {
+                L = max(L, mag(poly.p[j] - poly.p[0]));
+                sMax = max(sMax, mag((poly.p[j] - cellPlanes[i].x0) & cellPlanes[i].n));
+            }
+            if (poly.n >= 3 && L > 0 && sMax <= 1e-10*L)
+            {
+                if (coplanarHit) *coplanarHit = true;
+                if (tie && (cellPlanes[i].n & nRef) <= 0)
+                {
+                    poly.n = 0;     // the part belongs to the cell across
+                    break;
+                }
+                continue;           // inside (the donor's side, or no rule)
+            }
             clipByHalfSpace(poly, cellPlanes[i]);
             if (poly.n < 3) break;
         }
         if (poly.n < 3) continue;
-        coverage += mag(poly.areaVector());
+        const vector ac = poly.areaVector();
+        coverage += mag(ac);
+        if (aCell) *aCell += ac;
         if (wetPlane)
         {
             clipByHalfSpace(poly, plic);

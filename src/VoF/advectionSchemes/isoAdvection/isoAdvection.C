@@ -193,6 +193,11 @@ Foam::advection::isoAdvection::isoAdvection
     sweptPieceClosureMax_(0),
     nSweptDegenerate_(0),
     sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
+    sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
+    nSweptCoplanar_(0),
+    sweptFaceDump_(modelDict().getOrDefault<bool>("sweptFaceDump", false)),
+    dumpFaces_(),
+    dumpPieces_(),
     sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
     debugR0Max_(0),
     debugCellR0_(-1),
@@ -375,7 +380,14 @@ Foam::advection::isoAdvection::isoAdvection
                             << "sweptCellsFaceUpdate '" << sweptCellsFaceUpdate_
                             << "' unknown. Valid: pieces, donor." << exit(FatalIOError);
                     }
-                    Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_;
+                    if (sweptCoplanar_ != "donorSide" && sweptCoplanar_ != "both")
+                    {
+                        FatalIOErrorInFunction(modelDict())
+                            << "sweptCoplanar '" << sweptCoplanar_
+                            << "' unknown. Valid: donorSide, both." << exit(FatalIOError);
+                    }
+                    Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
+                        << ", sweptCoplanar " << sweptCoplanar_;
                 }
                 Info<< ")";
             }

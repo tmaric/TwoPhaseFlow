@@ -131,6 +131,8 @@ SourceFiles
 #include "pointFields.H"
 #include "FixedList.H"
 #include "boundBox.H"
+#include "OFstream.H"
+#include "OSspecific.H"
 
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
@@ -526,6 +528,19 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     }
     const point xf = Cf[facei];
 
+    // The coplanar rule of the face update (sweptCoplanar, davofSweptPieces.H):
+    // donorSide gives a part of the pre-image lying in a cell plane to the
+    // cell on the donor's side of that plane, nRef the donor's outward
+    // normal through the face; both keeps it in both cells (the defect)
+    const vector SfOut = (own[facei] == donor) ? Sf[facei] : -Sf[facei];
+    const vector nRef =
+        (sweptCoplanar_ == "donorSide") ? SfOut/max(mag(SfOut), VSMALL) : vector(Zero);
+
+    // the one-step face dump (sweptFaceDump): the pieces of the face update
+    const bool dump = sweptFaceDump_ && mesh_.time().timeIndex() == 1;
+    struct pieceRow { label cell; word cls; vector aw; vector ac; bool cop; };
+    DynamicList<pieceRow> pieceRows(dump ? 16 : 0);
+
     // The pieces
     scalar threeV = 0;
     vector aPreWet(Zero);
@@ -588,9 +603,17 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             }
         }
         scalar cov = 0;
-        const vector aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov);
+        vector ac(Zero);
+        bool cop = false;
+        const vector aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov, nRef, &ac, &cop);
         coveragePre += cov;
+        if (cop) ++nSweptCoplanar_;
         if (wetPlane || wet) aPreWet += aw;
+        if (dump && cov > 0)
+        {
+            word cls = (c == donor) ? "donor" : (wetPlane ? "interface" : (a0[c] >= 1 - 1e-8 ? "full" : (a0[c] <= 1e-8 ? "empty" : "wisp")));
+            pieceRows.append({c, cls, (wetPlane || wet) ? aw : vector(Zero), ac, cop});
+        }
     }
 
     // the parts of the boundary beyond the ring: skipped, counted
@@ -606,11 +629,47 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         }
     }
 
+    // the face update of sweptFace: the pre-image fan clipped by the
+    // donor's plane alone (sweptCellsFaceUpdate donor; computed for the dump
+    // as well)
+    auto donorWet = [&]() -> vector
+    {
+        vector nRaw; point x0;
+        planeOf(S, donor, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
+        vector w(Zero);
+        forAll(Tpre, i)
+        {
+            const FixedList<point, 3>& t = Tpre[i];
+            const scalar s0 = (t[0] - x0) & nRaw, s1 = (t[1] - x0) & nRaw, s2 = (t[2] - x0) & nRaw;
+            if (s0 <= 0 && s1 <= 0 && s2 <= 0)
+            {
+                w += 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
+            }
+            else if (!(s0 > 0 && s1 > 0 && s2 > 0))
+            {
+                vector aw; point xw;
+                davof::triNegativePolygon(t[0], t[1], t[2], s0, s1, s2, aw, xw);
+                w += aw;
+            }
+        }
+        return w;
+    };
+    const scalar A2 = magSqr(aPreFull);
+    auto fractionOf = [&](const vector& w) -> scalar
+    {
+        return (A2 > VSMALL) ? (w & aPreFull)/A2 : 0;
+    };
+
     if (rankFallback)
     {
         // the one-donor clip of this face (counted)
         ++nSweptRankFallback_;
         sweptFaceFlux(facei, donor, S, dt, phiF, sweeps, UInterp, Up, af, aWet, vLiq);
+        if (dump)
+        {
+            writeFaceDump(facei, donor, phiF, sweeps, fractionOf(aPreWet), af, af, true,
+                aPreFull, pieceRows.size());
+        }
         return;
     }
 
@@ -621,32 +680,65 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     {
         vLiq *= mag(phiF)*dt/vTotal;
     }
+    const scalar afPieces = fractionOf(aPreWet);
+    const vector wDonor = (dump || sweptCellsFaceUpdate_ == "donor") ? donorWet() : vector(Zero);
     if (sweptCellsFaceUpdate_ == "donor")
     {
-        // the face update of sweptFace: the pre-image fan clipped by the
-        // donor's plane alone (the flux above stays piecewise)
-        vector nRaw; point x0;
-        planeOf(S, donor, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
-        aPreWet = Zero;
-        forAll(Tpre, i)
-        {
-            const FixedList<point, 3>& t = Tpre[i];
-            const scalar s0 = (t[0] - x0) & nRaw, s1 = (t[1] - x0) & nRaw, s2 = (t[2] - x0) & nRaw;
-            if (s0 <= 0 && s1 <= 0 && s2 <= 0)
-            {
-                aPreWet += 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
-            }
-            else if (!(s0 > 0 && s1 > 0 && s2 > 0))
-            {
-                vector aw; point xw;
-                davof::triNegativePolygon(t[0], t[1], t[2], s0, s1, s2, aw, xw);
-                aPreWet += aw;
-            }
-        }
+        aPreWet = wDonor;
     }
     aWet = aPreWet;
-    const scalar A2 = magSqr(aPreFull);
-    af = (A2 > VSMALL) ? (aWet & aPreFull)/A2 : 0;
+    af = fractionOf(aWet);
+
+    if (dump)
+    {
+        writeFaceDump(facei, donor, phiF, sweeps, afPieces, fractionOf(wDonor), af, false,
+            aPreFull, pieceRows.size());
+        for (const pieceRow& r : pieceRows)
+        {
+            dumpPieces_() << facei << ',' << r.cell << ',' << r.cls << ','
+                << r.aw.x() << ',' << r.aw.y() << ',' << r.aw.z() << ','
+                << r.ac.x() << ',' << r.ac.y() << ',' << r.ac.z() << ','
+                << (r.cop ? 1 : 0) << nl;
+        }
+    }
+}
+
+
+void Foam::advection::isoAdvection::writeFaceDump
+(
+    const label facei,
+    const label donor,
+    const scalar phiF,
+    const bool sweeps,
+    const scalar afPieces,
+    const scalar afDonor,
+    const scalar afUsed,
+    const bool rankFallback,
+    const vector& Apre,
+    const label nPieces
+)
+{
+    if (!dumpFaces_)
+    {
+        const fileName dir(mesh_.time().globalPath()/"postProcessing"/"sweptFaceDump");
+        mkDir(dir);
+        dumpFaces_.reset(new OFstream(dir/"faces.csv"));
+        dumpFaces_().precision(16);
+        dumpFaces_() << "facei,owner,neighbour,donor,phi,sweeps,afPieces,afDonor,afUsed,"
+            << "rankFallback,nPieces,Apre_x,Apre_y,Apre_z,Sf_x,Sf_y,Sf_z,Cf_x,Cf_y,Cf_z" << nl;
+        dumpPieces_.reset(new OFstream(dir/"pieces.csv"));
+        dumpPieces_().precision(16);
+        dumpPieces_() << "facei,cell,class,aWet_x,aWet_y,aWet_z,aCell_x,aCell_y,aCell_z,coplanar" << nl;
+    }
+    const vector& S = mesh_.faceAreas()[facei];
+    const point& C = mesh_.faceCentres()[facei];
+    const label nb = mesh_.isInternalFace(facei) ? mesh_.faceNeighbour()[facei] : -1;
+    dumpFaces_() << facei << ',' << mesh_.faceOwner()[facei] << ',' << nb << ',' << donor << ','
+        << phiF << ',' << (sweeps ? 1 : 0) << ',' << afPieces << ',' << afDonor << ',' << afUsed << ','
+        << (rankFallback ? 1 : 0) << ',' << nPieces << ','
+        << Apre.x() << ',' << Apre.y() << ',' << Apre.z() << ','
+        << S.x() << ',' << S.y() << ',' << S.z() << ','
+        << C.x() << ',' << C.y() << ',' << C.z() << nl;
 }
 
 
