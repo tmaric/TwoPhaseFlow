@@ -1082,6 +1082,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nRuleFallback_ = 0;
     nSweptFaces_ = nSweptFlips_ = nSweptOutOfDonor_ = nSweptClipTris_ = 0;
     sweptClosureMax_ = 0;
+    if (sweptClassify_)
+    {
+        nSweptClass_ = label(0);
+        sweptClass_.setSize(mesh_.nFaces());
+        sweptClass_ = -1;
+    }
     volumeRulePtr_->resetCounters();
     if (mesh_.time().timeIndex() % max(defectEvery_, label(1)) == 0 || mesh_.time().timeIndex() <= 1)
     {
@@ -1422,12 +1428,16 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         scalar af;
         vector aWet(Zero);
         scalar vSwept = 0;
+        pointField qSw;
+        point xqSw(Zero);
         if (fluxIntegration_ == "sweptFace")
         {
             sweptFaceFlux
             (
                 facei, local, S, dt, phiF, sweeps, UInterp, *UpPtr,
-                af, aWet, vSwept
+                af, aWet, vSwept,
+                sweptClassify_ ? &qSw : nullptr,
+                sweptClassify_ ? &xqSw : nullptr
             );
         }
         else if (wetVecPtr_)
@@ -1439,6 +1449,24 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             af = volumeRulePtr_->faceLiquidFraction(facei, -d, S, nfb);
         }
         nCurvedFallback_ += nfb;
+
+        // The pre-image classification (sweptClassify): the traced
+        // pre-image of the swept flux, the translated one f - d of the
+        // other fluxes
+        if (sweptClassify_)
+        {
+            if (fluxIntegration_ != "sweptFace")
+            {
+                const face& fc = mesh_.faces()[facei];
+                const pointField& P = mesh_.points();
+                qSw.setSize(fc.size());
+                forAll(fc, ip) qSw[ip] = P[fc[ip]] - d;
+                xqSw = Cf[facei] - d;
+            }
+            const label cls = classifyPreImage(local, qSw, xqSw);
+            sweptClass_[facei] = cls;
+            ++nSweptClass_[cls];
+        }
 
         // The volume flux. fluxIntegration prism: the liquid volume of the
         // prism between f - d and f, the exact time integral of the wetted
@@ -1858,6 +1886,16 @@ void Foam::advection::isoAdvection::reportCurved() const
         Info<< "; swept faces " << nSw << ", flips " << nSwFlip
             << ", out of donor " << nSwOut << ", clipped triangles " << nSwClip
             << ", closure max " << swClos;
+    }
+    if (sweptClassify_)
+    {
+        FixedList<label, 5> nc(nSweptClass_);
+        if (Pstream::parRun())
+        {
+            forAll(nc, k) reduce(nc[k], sumOp<label>());
+        }
+        Info<< "; pre-image classes: donor " << nc[0] << ", interface " << nc[1]
+            << ", full " << nc[2] << ", empty " << nc[3] << ", outside " << nc[4];
     }
     Info<< endl;
     if (anchorMethod_ == "compare")

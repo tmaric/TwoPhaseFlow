@@ -428,6 +428,26 @@ class isoAdvection
             label nSweptOutOfDonor_;
             label nSweptClipTris_;
             scalar sweptClosureMax_;
+
+            //- The pre-image classification diagnostic (key sweptClassify,
+            //  default false; isoAdvectionSwept.C, 2026-10-29), for the
+            //  prism and the swept flux alike: per face the class of the
+            //  cells its pre-image points (vertices and centre) reach
+            //  beyond the donor, 0 the donor only, 1 an interface cell (a
+            //  cell with a surface), 2 a full cell, 3 an empty cell, 4 a
+            //  cell outside the donor's vertex ring or outside the mesh
+            //  (the priority 1 > 2 > 3 where points reach several), counted
+            //  per step; the first cell that leaves [0, 1] by more than
+            //  1e-10 after the conservative bounding is printed once with
+            //  its faces' fluxes before and after the bounding and their
+            //  classes (serial runs); the mass sum(alpha V) after the
+            //  advection, the bounding and the clipping is printed every
+            //  step relative to its value at t^n
+            bool sweptClassify_;
+            labelList sweptClass_;
+            FixedList<label, 5> nSweptClass_;
+            bool sweptEventReported_;
+            scalarField dVfBeforeBound_;
             scalar debugR0Max_;
             label debugCellR0_;
             davof::cellSurface debugSurface_;
@@ -735,8 +755,20 @@ public:
                 const pointVectorField& Up,
                 scalar& af,
                 vector& aWet,
-                scalar& vLiq
+                scalar& vLiq,
+                pointField* qOut = nullptr,
+                point* xqOut = nullptr
             );
+
+            //- The class of the cells the pre-image points q (vertices)
+            //  and xq (centre) of a face of the cell donor reach beyond
+            //  the donor (sweptClassify_; the codes above)
+            label classifyPreImage
+            (
+                const label donor,
+                const pointField& q,
+                const point& xq
+            ) const;
 
 
 public:

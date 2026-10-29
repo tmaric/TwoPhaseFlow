@@ -478,6 +478,20 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
 
     alpha1_.correctBoundaryConditions();
 
+    // DAVOF curved loop: the mass sum(alpha V) through the stages of the
+    // step, relative to its value at t^n (2026-10-29; a print only)
+    const bool massReport = (davofPtr_ && clippingSurface_ != "none");
+    scalar massOld = 0, massAdv = 0;
+    if (massReport)
+    {
+        massOld = gSum(alpha1_.oldTime().primitiveField()*mesh_.V());
+        massAdv = gSum(alpha1In_*mesh_.V());
+    }
+    if (sweptClassify_)
+    {
+        dVfBeforeBound_ = dVf_.primitiveField();
+    }
+
     // Adjust dVf for unbounded cells
     limitFluxes
     (
@@ -491,9 +505,68 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     Info<< "isoAdvection: After conservative bounding: min(alpha) = "
         << minAlpha << ", max(alpha) = 1 + " << maxAlphaMinus1 << endl;
 
+    // The first cell that leaves [0, 1] by more than 1e-10 after the
+    // conservative bounding (sweptClassify): the cell, its alpha before
+    // and after the step, its faces with phi, dVf before and after the
+    // bounding, the pre-image class and the other cell's state (serial)
+    if (sweptClassify_ && !sweptEventReported_ && !Pstream::parRun())
+    {
+        label worst = -1;
+        scalar excess = 1e-10;
+        forAll(alpha1In_, celli)
+        {
+            const scalar e = max(-alpha1In_[celli], alpha1In_[celli] - 1);
+            if (e > excess) { excess = e; worst = celli; }
+        }
+        if (worst >= 0)
+        {
+            sweptEventReported_ = true;
+            const scalarField& a0 = alpha1_.oldTime().primitiveField();
+            const labelList& own = mesh_.faceOwner();
+            const labelList& nei = mesh_.faceNeighbour();
+            static const char* clsName[6] =
+                {"donorOnly", "interfaceNbr", "fullNbr", "emptyNbr", "outside", "notSwept"};
+            Info<< "isoAdvection: FIRST UNBOUNDED CELL after the bounding: step "
+                << mesh_.time().timeIndex() << " cell " << worst
+                << " centre " << mesh_.cellCentres()[worst]
+                << " alpha old " << a0[worst] << " new " << alpha1In_[worst]
+                << " surface " << (hasSurface_.test(worst) ? "yes" : "no")
+                << " V " << mesh_.V()[worst] << nl;
+            for (const label facei : mesh_.cells()[worst])
+            {
+                const bool internal = mesh_.isInternalFace(facei);
+                const label other = internal ? (own[facei] == worst ? nei[facei] : own[facei]) : -1;
+                const scalar sgn = (own[facei] == worst) ? 1 : -1;   // out of the cell
+                const label cls = (sweptClass_.size() > facei) ? sweptClass_[facei] : -1;
+                Info<< "    face " << facei << (internal ? "" : " (boundary)")
+                    << " phi out " << sgn*faceValue(phi_, facei)
+                    << " dVf out before " << sgn*(internal ? dVfBeforeBound_[facei] : faceValue(dVf_, facei))
+                    << " after " << sgn*faceValue(dVf_, facei)
+                    << " class " << clsName[(cls >= 0 && cls < 5) ? cls : 5];
+                if (other >= 0)
+                {
+                    Info<< " other cell " << other << " alpha old " << a0[other]
+                        << " new " << alpha1In_[other]
+                        << " surface " << (hasSurface_.test(other) ? "yes" : "no");
+                }
+                Info<< nl;
+            }
+            Info<< endl;
+        }
+    }
+
     // Apply non-conservative bounding mechanisms (clipping and snapping)
     // Note: We should be able to write out alpha before this is done!
     applyBruteForceBounding();
+
+    if (massReport)
+    {
+        const scalar massBound = gSum(alpha1In_*mesh_.V());
+        const scalar ref = max(mag(massOld), VSMALL);
+        Info<< "isoAdvection: mass change relative to sum(alpha V) at t^n: advection "
+            << (massAdv - massOld)/ref << ", bounding " << (massBound - massAdv)/ref
+            << ", clipping " << (gSum(alpha1In_*mesh_.V()) - massBound)/ref << endl;
+    }
 
     // DAVOF: the faces no plane has set carry the upwind cell's new alpha
     if (storeAreaFractions_ && alphafPtr_)

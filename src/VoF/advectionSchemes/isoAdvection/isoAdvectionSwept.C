@@ -118,7 +118,9 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     const pointVectorField& Up,
     scalar& af,
     vector& aWet,
-    scalar& vLiq
+    scalar& vLiq,
+    pointField* qOut,
+    point* xqOut
 )
 {
     const face& f = mesh_.faces()[facei];
@@ -231,6 +233,8 @@ void Foam::advection::isoAdvection::sweptFaceFlux
         q[i] = traceBack(P[f[i]], Up[f[i]]);
     }
     const point xq = traceBack(xf, UInterp.interpolate(xf, donor));
+    if (qOut) *qOut = q;
+    if (xqOut) *xqOut = xq;
 
     // The out-of-donor count: any traced point outside the donor, of the
     // faces that sweep a volume (a face parallel to the velocity carries no
@@ -340,6 +344,61 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     af = (A2 > VSMALL) ? (aWet & Apre)/A2 : 0;
 
     ++nSweptFaces_;
+}
+
+
+Foam::label Foam::advection::isoAdvection::classifyPreImage
+(
+    const label donor,
+    const pointField& q,
+    const point& xq
+) const
+{
+    const vectorField& Cf = mesh_.faceCentres();
+    const vectorField& Sf = mesh_.faceAreas();
+    const labelList& own = mesh_.faceOwner();
+    const cellList& cells = mesh_.cells();
+    const labelListList& cellPoints = mesh_.cellPoints();
+    const labelListList& pointCells = mesh_.pointCells();
+    const scalar h = Foam::cbrt(mesh_.V()[donor]);
+    // the start-of-step volume fractions
+    const scalarField& a0 = alpha1_.oldTime().primitiveField();
+
+    auto inCell = [&](const point& x, const label c) -> bool
+    {
+        for (const label cf : cells[c])
+        {
+            const vector nOut = (own[cf] == c) ? Sf[cf] : -Sf[cf];
+            if (((x - Cf[cf]) & nOut) > 1e-9*h*mag(nOut)) return false;
+        }
+        return true;
+    };
+    // the class of one point: 0 donor, 1 interface, 2 full, 3 empty, 4 outside
+    auto classOf = [&](const point& x) -> label
+    {
+        if (inCell(x, donor)) return 0;
+        for (const label pi : cellPoints[donor])
+        {
+            for (const label c : pointCells[pi])
+            {
+                if (c == donor || !inCell(x, c)) continue;
+                if (hasSurface_.test(c)) return 1;
+                if (a0[c] >= 1 - 1e-8) return 2;
+                if (a0[c] <= 1e-8) return 3;
+                return 1;   // a partial cell without a surface counts as interface
+            }
+        }
+        return 4;
+    };
+    // the priority 1 > 2 > 3 > 4 > 0 over the points
+    static const label rank[5] = {0, 4, 3, 2, 1};
+    label best = classOf(xq);
+    forAll(q, i)
+    {
+        const label c = classOf(q[i]);
+        if (rank[c] > rank[best]) best = c;
+    }
+    return best;
 }
 
 
