@@ -121,6 +121,9 @@ rule all:
     input:
         os.path.join(RESULTS, "convergence.csv"),
         os.path.join(RESULTS, "convergence_table.tex"),
+        os.path.join(RESULTS, "timestep_bound.json"),
+        os.path.join(RESULTS, "courant_check.txt"),
+        os.path.join(RESULTS, "frame_only_check.txt"),
         os.path.join(RESULTS, "convergence_shape_error.png"),
         os.path.join(RESULTS, "convergence_shape_error.pdf"),
         os.path.join(RESULTS, "frame_identity_check.txt"),
@@ -142,8 +145,63 @@ rule tools:
         command -v generateUVortex2D
         """
 
+FIELD = "vortex"
+SWIRL_ARG = "(0.5 0.5 0)"
 
-def _materialize(params, wildcards, output, write_interval):
+
+# -- the time-step bound ------------------------------------------------------
+# max||w||_1 over the domain and the period, from the same config values the
+# cases are built from. build_case reads it from here; it is never copied by
+# hand, which is how the 2D bound once drifted from the case it was meant for.
+BOUND = os.path.join(RESULTS, "timestep_bound.json")
+
+
+rule timestep_bound:
+    output:
+        BOUND,
+    params:
+        field=FIELD,
+        end_time=config["end_time"],
+        period=config["period"],
+        revolutions=config["frame"]["revolutions"],
+        translation=config["frame"]["translation_amplitude"],
+        centre=config["frame"]["rotation_centre"],
+        swirl=SWIRL_ARG,
+        co=config["max_alpha_co"],
+        ns=",".join(str(n) for n in NS),
+        script=os.path.join(WF, "scripts", "timestep_bound.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} --field {params.field} \
+            --end-time {params.end_time} --period {params.period} \
+            --revolutions {params.revolutions} --translation {params.translation} \
+            --centre "{params.centre}" --swirl "{params.swirl}" \
+            --max-alpha-co {params.co} --resolutions {params.ns} --out {output}
+        """
+
+
+# -- the Courant number every run reached ------------------------------------
+rule courant_check:
+    input:
+        expand(os.path.join(RUNS, "{case}", "volumeFractionError.dat"), case=ALL_CASES),
+    output:
+        os.path.join(RESULTS, "courant_check.txt"),
+    params:
+        runs=RUNS,
+        cases=",".join(ALL_CASES),
+        co=config["max_alpha_co"],
+        script=os.path.join(WF, "scripts", "courant_check.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} --runs {params.runs} --cases {params.cases} \
+            --max-alpha-co {params.co} --out {output}
+        """
+
+
+def _materialize(params, wildcards, output, write_interval, bound):
+    import json
     import materialize
 
     materialize.build_case(
@@ -160,6 +218,7 @@ def _materialize(params, wildcards, output, write_interval):
         translation_amplitude=params.translation,
         np=params.np,
         max_alpha_co=params.max_alpha_co,
+        u_max=json.load(open(bound))["u_max"],
     )
     open(output[0], "w").close()
 
@@ -167,7 +226,8 @@ def _materialize(params, wildcards, output, write_interval):
 # -- materialise one convergence case ----------------------------------------
 rule materialize:
     input:
-        rules.tools.output,
+        tools=rules.tools.output,
+        bound=BOUND,
     output:
         os.path.join(RUNS, "{scheme}_{frame}_N{N}", ".materialized"),
     params:
@@ -183,13 +243,14 @@ rule materialize:
         np=lambda w: ranks(w.N),
         max_alpha_co=config["max_alpha_co"],
     run:
-        _materialize(params, wildcards, output, WRITE_INTERVAL)
+        _materialize(params, wildcards, output, WRITE_INTERVAL, input.bound)
 
 
 # -- materialise one snapshot case (finer write interval) --------------------
 rule materialize_viz:
     input:
-        rules.tools.output,
+        tools=rules.tools.output,
+        bound=BOUND,
     output:
         os.path.join(RUNS, VIZ_CASE, ".materialized"),
     params:
@@ -207,7 +268,7 @@ rule materialize_viz:
         np=ranks(VIZ_N),
         max_alpha_co=config["max_alpha_co"],
     run:
-        _materialize(params, wildcards, output, VIZ_WI)
+        _materialize(params, wildcards, output, VIZ_WI, input.bound)
 
 
 # -- run one convergence case ------------------------------------------------
@@ -403,4 +464,30 @@ rule plot_convergence:
         VIZ_PRE + """
         python3 {params.script} --csv {input.csv} --out {output.png} \
             --title "{params.title}"
+        """
+
+
+# -- the error of the frame alone --------------------------------------------
+# alpha = 0 leaves a solid-body revolution of the disc. Section 4.2 quotes its
+# convergence; this rule is where those numbers come from.
+FO_SCHEME = config.get("frame_only", {}).get("scheme", "plicRDF")
+FO_NS = [int(n) for n in config.get("frame_only", {}).get("resolutions", [64, 128, 256])]
+
+
+rule frame_only:
+    input:
+        expand(os.path.join(RUNS, FO_SCHEME + "_frameOnly_N{N}", "volumeFractionError.dat"),
+               N=FO_NS),
+    output:
+        os.path.join(RESULTS, "frame_only_check.txt"),
+    params:
+        ns=",".join(str(n) for n in FO_NS),
+        scheme=FO_SCHEME,
+        end_time=config["end_time"],
+        script=os.path.join(WF, "scripts", "frame_only.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} --dat {input} --ns {params.ns} \
+            --scheme {params.scheme} --end-time {params.end_time} --out {output}
         """

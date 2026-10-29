@@ -56,8 +56,8 @@ field_label: "3D shear flow"
 # fixed one violates the limit outright on fine meshes.
 max_alpha_co: 0.2
 
-# max||w||_1 of the laboratory field over the domain and the
-# period, from scripts/timestep_bound.py. The time step is fixed at
-# dt = max_alpha_co*h/u_max, so the Courant number is that value in
-# every cell at every step and both columns take the same step.
-u_max: 2.344226
+# The time step is fixed at dt = max_alpha_co*h/u_max, with u_max the
+# maximum of ||w||_1 over the domain and the period. The timestep_bound
+# rule computes it from the values above into results/timestep_bound.json;
+# it is never copied by hand. courant_check then reads the Courant number
+# each run reached from its log.

@@ -96,6 +96,8 @@ rule all:
     input:
         os.path.join(RESULTS, "convergence.csv"),
         os.path.join(RESULTS, "convergence_table.tex"),
+        os.path.join(RESULTS, "timestep_bound.json"),
+        os.path.join(RESULTS, "courant_check.txt"),
         os.path.join(RESULTS, "convergence_shape_error.png"),
         os.path.join(RESULTS, "convergence_shape_error.pdf"),
         os.path.join(RESULTS, "potential_check.txt"),
@@ -103,8 +105,63 @@ rule all:
         os.path.join(RESULTS, "interface3d_moving_frame.png"),
         os.path.join(RESULTS, "interface3d_non_moving_frame.png"),
 
+FIELD = config["base_field"]
+SWIRL_ARG = config["frame"]["swirl_centre"]
 
-def _materialize(params, wildcards, output, write_interval):
+
+# -- the time-step bound ------------------------------------------------------
+# max||w||_1 over the domain and the period, from the same config values the
+# cases are built from. build_case reads it from here; it is never copied by
+# hand, which is how the 2D bound once drifted from the case it was meant for.
+BOUND = os.path.join(RESULTS, "timestep_bound.json")
+
+
+rule timestep_bound:
+    output:
+        BOUND,
+    params:
+        field=FIELD,
+        end_time=config["end_time"],
+        period=config["period"],
+        revolutions=config["frame"]["revolutions"],
+        translation=config["frame"]["translation_amplitude"],
+        centre=config["frame"]["rotation_centre"],
+        swirl=SWIRL_ARG,
+        co=config["max_alpha_co"],
+        ns=",".join(str(n) for n in NS),
+        script=os.path.join(WF, "scripts", "timestep_bound.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} --field {params.field} \
+            --end-time {params.end_time} --period {params.period} \
+            --revolutions {params.revolutions} --translation {params.translation} \
+            --centre "{params.centre}" --swirl "{params.swirl}" \
+            --max-alpha-co {params.co} --resolutions {params.ns} --out {output}
+        """
+
+
+# -- the Courant number every run reached ------------------------------------
+rule courant_check:
+    input:
+        expand(os.path.join(RUNS, "{case}", "volumeFractionError.dat"), case=ALL_CASES),
+    output:
+        os.path.join(RESULTS, "courant_check.txt"),
+    params:
+        runs=RUNS,
+        cases=",".join(ALL_CASES),
+        co=config["max_alpha_co"],
+        script=os.path.join(WF, "scripts", "courant_check.py"),
+    threads: 1
+    shell:
+        VIZ_PRE + """
+        python3 {params.script} --runs {params.runs} --cases {params.cases} \
+            --max-alpha-co {params.co} --out {output}
+        """
+
+
+def _materialize(params, wildcards, output, write_interval, bound):
+    import json
     import materialize3d
 
     materialize3d.build_case(
@@ -125,11 +182,14 @@ def _materialize(params, wildcards, output, write_interval):
         np=params.np,
         max_alpha_co=params.max_alpha_co,
         domain_height=params.domain_height,
+        u_max=json.load(open(bound))["u_max"],
     )
     open(output[0], "w").close()
 
 
 rule materialize:
+    input:
+        bound=BOUND,
     output:
         os.path.join(RUNS, "{scheme}_{frame}_N{N}", ".materialized"),
     params:
@@ -149,10 +209,12 @@ rule materialize:
         max_alpha_co=config["max_alpha_co"],
         domain_height=config["domain_height"],
     run:
-        _materialize(params, wildcards, output, WRITE_INTERVAL)
+        _materialize(params, wildcards, output, WRITE_INTERVAL, input.bound)
 
 
 rule materialize_viz:
+    input:
+        bound=BOUND,
     output:
         os.path.join(RUNS, VIZ_CASE, ".materialized"),
     params:
@@ -172,7 +234,7 @@ rule materialize_viz:
         max_alpha_co=config["max_alpha_co"],
         domain_height=config["domain_height"],
     run:
-        _materialize(params, wildcards, output, VIZ_WI)
+        _materialize(params, wildcards, output, VIZ_WI, input.bound)
 
 
 rule solve:
