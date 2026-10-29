@@ -33,6 +33,12 @@ np:
   1024: 16
   2048: 32
 
+# Section 4.2: the error of the frame alone (alpha = 0), checked by the
+# frame_only rule.
+frame_only:
+  scheme: plicRDF
+  resolutions: [64, 128, 256]
+
 # Which case the interface snapshots are made from.
 viz:
   N: 128
@@ -63,8 +69,8 @@ equivalence:
 # fixed one violates the limit outright on fine meshes.
 max_alpha_co: 0.2
 
-# max||w||_1 of the laboratory field over the domain and the
-# period, from scripts/timestep_bound.py. The time step is fixed at
-# dt = max_alpha_co*h/u_max, so the Courant number is that value in
-# every cell at every step and both columns take the same step.
-u_max: 1.607679
+# The time step is fixed at dt = max_alpha_co*h/u_max, with u_max the
+# maximum of ||w||_1 over the domain and the period. The timestep_bound
+# rule computes it from the values above into results/timestep_bound.json;
+# it is never copied by hand. courant_check then reads the Courant number
+# each run reached from its log.

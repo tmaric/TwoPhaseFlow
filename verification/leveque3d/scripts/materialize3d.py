@@ -129,9 +129,13 @@ def build_case(
     nz_factor: int = 2,
     np: int = 1,
     max_alpha_co: float = 0.2,
-    u_max: float = 4.750393,
+    u_max: float = None,
     domain_height: float = 2.0,
 ) -> None:
+    if u_max is None:
+        # never fall back to a hand-copied number: that is how the 2D
+        # bound once drifted from the case it was meant for
+        raise ValueError("u_max must come from results/timestep_bound.json")
     if os.path.exists(case):
         shutil.rmtree(case)
     shutil.copytree(template, case)

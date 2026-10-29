@@ -85,7 +85,8 @@ def wmax1_2d(T, period, revolutions, amp, centre=(0.5, 0.5), n=900, nt=1200):
     return best
 
 
-def wmax1_3d(T, period, revolutions, field, centre=(0.5, 0.5), n=170, nt=420):
+def wmax1_3d(T, period, revolutions, field, centre=(0.5, 0.5), swirl=(0.5, 0.5),
+             n=170, nt=420):
     g = (np.arange(n) + 0.5) / n
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
     thd = 2 * PI * revolutions / T
@@ -96,7 +97,7 @@ def wmax1_3d(T, period, revolutions, field, centre=(0.5, 0.5), n=170, nt=420):
         a = math.cos(2 * PI * t / period) if period > 0 else 1.0
         rx, ry = X - centre[0], Y - centre[1]
         xix, xiy = centre[0] + (rx * ct + ry * st), centre[1] + (-rx * st + ry * ct)
-        ux, uy, uz = u0_3d(xix, xiy, Z, field)
+        ux, uy, uz = u0_3d(xix, xiy, Z, field, swirl)
         ux, uy, uz = a * ux, a * uy, a * uz
         Ux = thd * (-ry) + (ux * ct - uy * st)
         Uy = thd * (rx) + (ux * st + uy * ct)
@@ -104,21 +105,61 @@ def wmax1_3d(T, period, revolutions, field, centre=(0.5, 0.5), n=170, nt=420):
     return best
 
 
-CASES = [
-    ("reversed-vortex", wmax1_2d(8.0, 16.0, 1.0, 0.0), 8.0,
-     (32, 64, 128, 256, 512, 1024, 2048)),
-    ("deformation-sphere3d", wmax1_3d(3.0, 6.0, 1.0, "spiralling"), 3.0,
-     (32, 64, 128, 256)),
-    ("leveque3d", wmax1_3d(3.0, 6.0, 1.0, "leveque"), 3.0, (32, 64, 128, 256)),
-]
+def steps_for(N, co, u_max, end_time, multiple=4):
+    """The step count build_case writes for a convergence case."""
+    dt_target = co / (float(N) * u_max)
+    return multiple * int(math.ceil(end_time / (multiple * dt_target)))
+
+
+def main():
+    import argparse
+    import json
+
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--field", required=True, choices=["vortex", "spiralling", "leveque"])
+    ap.add_argument("--end-time", type=float, required=True)
+    ap.add_argument("--period", type=float, required=True)
+    ap.add_argument("--revolutions", type=float, required=True)
+    ap.add_argument("--translation", type=float, default=0.0)
+    ap.add_argument("--centre", required=True, help='rotation centre, e.g. "(0.5 0 0.5)"')
+    ap.add_argument("--swirl", default="(0.5 0.5 0)", help="3D shear swirl axis")
+    ap.add_argument("--max-alpha-co", type=float, required=True)
+    ap.add_argument("--resolutions", required=True, help="comma-separated N")
+    ap.add_argument("--out", required=True)
+    a = ap.parse_args()
+
+    c = [float(v) for v in a.centre.strip("()").split()]
+    sw = [float(v) for v in a.swirl.strip("()").split()]
+    if a.field == "vortex":
+        centre = (c[0], c[2])                  # the 2D case lives in the x-z plane
+        framed = wmax1_2d(a.end_time, a.period, a.revolutions, a.translation, centre)
+        plain = wmax1_2d(a.end_time, a.period, 0.0, 0.0, centre)
+    else:
+        if a.translation != 0.0:
+            raise SystemExit("the 3D bound has no translating frame")
+        centre = (c[0], c[1])
+        framed = wmax1_3d(a.end_time, a.period, a.revolutions, a.field, centre, sw[:2])
+        plain = wmax1_3d(a.end_time, a.period, 0.0, a.field, centre, sw[:2])
+
+    Ns = [int(n) for n in a.resolutions.split(",")]
+    out = {
+        "u_max": framed,
+        "u_max_unframed": plain,
+        "norm": "max over domain and period of ||w||_1",
+        "field": a.field,
+        "end_time": a.end_time,
+        "period": a.period,
+        "revolutions": a.revolutions,
+        "translation": a.translation,
+        "rotation_centre": list(centre),
+        "max_alpha_co": a.max_alpha_co,
+        "convergence_steps": {str(N): steps_for(N, a.max_alpha_co, framed, a.end_time)
+                              for N in Ns},
+    }
+    with open(a.out, "w") as fh:
+        json.dump(out, fh, indent=2)
+    print(json.dumps(out, indent=2))
+
 
 if __name__ == "__main__":
-    print("max ||w||_1 over the domain and the period, and the fixed step it gives\n")
-    for name, w, T, Ns in CASES:
-        print(f"### {name}:  max||w||_1 = {w:.6f}   (T = {T:g})")
-        for N in Ns:
-            dt_t = 0.2 / (N * w)
-            steps = 4 * math.ceil(T / (4 * dt_t))
-            dt = T / steps
-            print(f"    N={N:5d}  steps={steps:8d}  dt={dt:.6e}  Co={w * dt * N:.4f}")
-        print()
+    main()

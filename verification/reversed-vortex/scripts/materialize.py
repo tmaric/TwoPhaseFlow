@@ -33,11 +33,15 @@ def _iso_block(
     """The isoAdvector dictionary, with or without the moving frame."""
     if frame == "none":
         return "isoAdvector\n{\n    period      %g;\n}" % period
+    base_amplitude = 1.0
     if frame == "frameId":
         # The identity frame: the moving-frame code path with the frame itself
         # switched off, so the result must reproduce the unframed run exactly.
         revolutions = 0.0
         translation_amplitude = 0.0
+    elif frame == "frameOnly":
+        # alpha = 0: the frame alone, a solid-body revolution of the disc
+        base_amplitude = 0.0
     elif frame != "frameA":
         raise ValueError(f"unknown frame: {frame!r}")
     return (
@@ -50,7 +54,7 @@ def _iso_block(
         "        revolutions          %g;\n"
         "        endTime              %g;\n"
         "        period               %g;\n"
-        "        baseAmplitude        1;\n"
+        "        baseAmplitude        %g;\n"
         "        translationAmplitude %g;\n"
         "    }\n"
         "}"
@@ -60,6 +64,7 @@ def _iso_block(
         revolutions,
         end_time,
         period,
+        base_amplitude,
         translation_amplitude,
     )
 
@@ -134,8 +139,12 @@ def build_case(
     translation_amplitude: float,
     np: int = 1,
     max_alpha_co: float = 0.2,
-    u_max: float = 1.607679,
+    u_max: float = None,
 ) -> None:
+    if u_max is None:
+        # never fall back to a hand-copied number: that is how the 2D
+        # bound once drifted from the case it was meant for
+        raise ValueError("u_max must come from results/timestep_bound.json")
     if os.path.exists(case):
         shutil.rmtree(case)
     shutil.copytree(template, case)
