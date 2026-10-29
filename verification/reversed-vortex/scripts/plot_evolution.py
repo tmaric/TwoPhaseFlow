@@ -114,7 +114,8 @@ def frame_axes(ax):
 def label_points(curves):
     """For each curve, the point farthest from every other curve.
 
-    Labels go where a curve is most alone, so they rarely sit on a neighbour.
+    Labels go where a curve is most alone, so they rarely sit on a neighbour,
+    and away from labels already placed, so two labels do not overlap.
     """
     pts = [np.vstack(c)[:: max(1, len(np.vstack(c)) // 400)] for c in curves]
     out = []
@@ -126,9 +127,15 @@ def label_points(curves):
         o = np.vstack(others)
         d = np.min(np.hypot(p[:, None, 0] - o[None, :, 0],
                             p[:, None, 1] - o[None, :, 1]), axis=1)
+        if out:
+            # a label is about 0.08 wide; closer than that to a placed one overlaps
+            q = np.array(out)
+            dl = np.min(np.hypot(p[:, None, 0] - q[None, :, 0],
+                                 p[:, None, 1] - q[None, :, 1]), axis=1)
+            d = np.where(dl > 0.1, d, d - 1.0)
         # keep labels off the domain edge
         d = np.where((p[:, 0] > 0.06) & (p[:, 0] < 0.94) &
-                     (p[:, 1] > 0.06) & (p[:, 1] < 0.94), d, -1.0)
+                     (p[:, 1] > 0.06) & (p[:, 1] < 0.94), d, -2.0)
         out.append(p[int(np.argmax(d))])
     return out
 
