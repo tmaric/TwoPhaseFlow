@@ -192,6 +192,7 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptPartialCells_(0),
     sweptPieceClosureMax_(0),
     nSweptDegenerate_(0),
+    sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
     sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
     debugR0Max_(0),
     debugCellR0_(-1),
@@ -365,7 +366,18 @@ Foam::advection::isoAdvection::isoAdvection
             if (swept)
             {
                 Info<< " (sweptPlaneTol " << sweptPlaneTol_ << ", sweptScaleToPhi "
-                    << (sweptScaleToPhi_ ? "true" : "false") << ")";
+                    << (sweptScaleToPhi_ ? "true" : "false");
+                if (fluxIntegration_ == "sweptFaceCells")
+                {
+                    if (sweptCellsFaceUpdate_ != "pieces" && sweptCellsFaceUpdate_ != "donor")
+                    {
+                        FatalIOErrorInFunction(modelDict())
+                            << "sweptCellsFaceUpdate '" << sweptCellsFaceUpdate_
+                            << "' unknown. Valid: pieces, donor." << exit(FatalIOError);
+                    }
+                    Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_;
+                }
+                Info<< ")";
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
 

@@ -465,6 +465,16 @@ class isoAdvection
             scalar sweptPieceClosureMax_;
             label nSweptDegenerate_;
 
+            //- sweptFaceCells: the face update (key sweptCellsFaceUpdate):
+            //  pieces (the default; the pre-image fan cut into the cells'
+            //  pieces, each wet, dry or clipped by its cell's plane, the
+            //  same clip as the flux) or donor (the pre-image fan clipped
+            //  by the donor's plane alone, the face update of sweptFace;
+            //  the flux stays piecewise). The ladder of 2026-10-29 found the
+            //  piecewise face fractions worse than the prism's at N = 32
+            //  while the volume was better: the key separates the two.
+            word sweptCellsFaceUpdate_;
+
             //- The kinematic consistency of the swept fluxes (key
             //  sweptScaleToPhi, default false, 2026-10-29): the liquid volume
             //  of the swept volume scaled by |phi_f| dt / V_swept, so that a

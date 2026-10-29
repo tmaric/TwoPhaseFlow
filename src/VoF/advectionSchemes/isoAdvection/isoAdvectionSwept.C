@@ -621,6 +621,29 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     {
         vLiq *= mag(phiF)*dt/vTotal;
     }
+    if (sweptCellsFaceUpdate_ == "donor")
+    {
+        // the face update of sweptFace: the pre-image fan clipped by the
+        // donor's plane alone (the flux above stays piecewise)
+        vector nRaw; point x0;
+        planeOf(S, donor, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
+        aPreWet = Zero;
+        forAll(Tpre, i)
+        {
+            const FixedList<point, 3>& t = Tpre[i];
+            const scalar s0 = (t[0] - x0) & nRaw, s1 = (t[1] - x0) & nRaw, s2 = (t[2] - x0) & nRaw;
+            if (s0 <= 0 && s1 <= 0 && s2 <= 0)
+            {
+                aPreWet += 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
+            }
+            else if (!(s0 > 0 && s1 > 0 && s2 > 0))
+            {
+                vector aw; point xw;
+                davof::triNegativePolygon(t[0], t[1], t[2], s0, s1, s2, aw, xw);
+                aPreWet += aw;
+            }
+        }
+    }
     aWet = aPreWet;
     const scalar A2 = magSqr(aPreFull);
     af = (A2 > VSMALL) ? (aWet & aPreFull)/A2 : 0;
