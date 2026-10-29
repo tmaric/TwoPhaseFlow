@@ -463,6 +463,7 @@ class isoAdvection
             label nSweptRankFallback_;
             label nSweptPartialCells_;
             scalar sweptPieceClosureMax_;
+            label nSweptDegenerate_;
 
             //- The kinematic consistency of the swept fluxes (key
             //  sweptScaleToPhi, default false, 2026-10-29): the liquid volume

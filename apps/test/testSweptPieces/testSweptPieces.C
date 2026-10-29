@@ -118,7 +118,9 @@ int main(int argc, char *argv[])
             davof::halfSpace plic;
             plic.n = n;
             plic.x0 = cSph + rSph*n;
-            const davof::pieceResult r = davof::sweptPieceVolume(T, cd.hs, true, plic);
+            // the moment origin: the face centre, as in the flux (any
+            // point gives the same volume for a closed piece)
+            const davof::pieceResult r = davof::sweptPieceVolume(T, cd.hs, true, plic, xf);
             const scalar rel = mag(r.volume - cd.ref[cfg])/Vtot;
             Info<< "    " << cd.name << ": wet volume " << r.volume << " reference " << cd.ref[cfg]
                 << " rel " << rel << " caps " << r.nCaps << " closure " << r.closureResidual

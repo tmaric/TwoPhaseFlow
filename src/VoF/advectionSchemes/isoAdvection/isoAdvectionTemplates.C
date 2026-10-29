@@ -563,9 +563,22 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     {
         const scalar massBound = gSum(alpha1In_*mesh_.V());
         const scalar ref = max(mag(massOld), VSMALL);
+        // the liquid that left through the non-coupled boundary patches in
+        // the step (the advection term's only source besides the explicit
+        // source Su, since the interior fluxes cancel in surfaceIntegrate)
+        scalar bnd = 0;
+        forAll(dVf_.boundaryField(), patchi)
+        {
+            if (!dVf_.boundaryField()[patchi].coupled())
+            {
+                bnd += sum(dVf_.boundaryField()[patchi]);
+            }
+        }
+        reduce(bnd, sumOp<scalar>());
         Info<< "isoAdvection: mass change relative to sum(alpha V) at t^n: advection "
             << (massAdv - massOld)/ref << ", bounding " << (massBound - massAdv)/ref
-            << ", clipping " << (gSum(alpha1In_*mesh_.V()) - massBound)/ref << endl;
+            << ", clipping " << (gSum(alpha1In_*mesh_.V()) - massBound)/ref
+            << ", boundary outflow " << bnd/ref << endl;
     }
 
     // DAVOF: the faces no plane has set carry the upwind cell's new alpha

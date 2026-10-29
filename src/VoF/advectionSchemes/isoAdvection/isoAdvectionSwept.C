@@ -130,6 +130,7 @@ SourceFiles
 #include "interpolationCellPoint.H"
 #include "pointFields.H"
 #include "FixedList.H"
+#include "boundBox.H"
 
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
@@ -498,16 +499,32 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         sumMagPre += mag(0.5*((Tpre[k][1] - Tpre[k][0]) ^ (Tpre[k][2] - Tpre[k][0])));
     }
 
-    // The ring: the donor and the cells sharing a vertex with it
+    // The ring: the donor and the cells sharing a vertex with it whose
+    // bounding box meets the swept volume's (a cell that does not touch
+    // the swept volume holds no piece; at Co 0.2 the swept volume of a face
+    // touches the donor and the cells about the face's edges and vertices)
+    boundBox sweptBox(T[0][0], T[0][0]);
+    forAll(T, k)
+    {
+        sweptBox.add(T[k][0]); sweptBox.add(T[k][1]); sweptBox.add(T[k][2]);
+    }
+    sweptBox.inflate(1e-9);
+    const pointField& P = mesh_.points();
+    auto touches = [&](const label c) -> bool
+    {
+        boundBox cellBox(P, cellPoints[c], false);
+        return cellBox.overlaps(sweptBox);
+    };
     DynamicList<label> ring(32);
     ring.append(donor);
     for (const label pi : cellPoints[donor])
     {
         for (const label c : pointCells[pi])
         {
-            if (c != donor && !ring.found(c)) ring.append(c);
+            if (c != donor && !ring.found(c) && touches(c)) ring.append(c);
         }
     }
+    const point xf = Cf[facei];
 
     // The pieces
     scalar threeV = 0;
@@ -555,13 +572,14 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
 
         if (sweeps)
         {
-            const davof::pieceResult r = davof::sweptPieceVolume(T, planes, wetPlane, plic);
+            const davof::pieceResult r = davof::sweptPieceVolume(T, planes, wetPlane, plic, xf);
             coverage += r.coverage;
             if (r.coverage > 1e-12*sumMagT)
             {
                 ++nSweptPieces_;
                 if (!r.ok) rankFallback = true;
-                if (wetPlane || wet)
+                if (r.degenerate) ++nSweptDegenerate_;
+                if ((wetPlane || wet) && !r.degenerate)
                 {
                     threeV += 3*r.volume;
                     sweptPieceClosureMax_ = max(sweptPieceClosureMax_, r.closureResidual);

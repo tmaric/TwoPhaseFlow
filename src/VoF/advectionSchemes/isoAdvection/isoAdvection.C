@@ -191,6 +191,7 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptRankFallback_(0),
     nSweptPartialCells_(0),
     sweptPieceClosureMax_(0),
+    nSweptDegenerate_(0),
     sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
     debugR0Max_(0),
     debugCellR0_(-1),

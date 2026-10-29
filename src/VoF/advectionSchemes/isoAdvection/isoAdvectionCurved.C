@@ -1083,6 +1083,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptFaces_ = nSweptFlips_ = nSweptOutOfDonor_ = nSweptClipTris_ = 0;
     sweptClosureMax_ = 0;
     nSweptPieces_ = nSweptBeyond_ = nSweptRankFallback_ = nSweptPartialCells_ = 0;
+    nSweptDegenerate_ = 0;
     sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
     if (sweptClassify_)
     {
@@ -1905,17 +1906,19 @@ void Foam::advection::isoAdvection::reportCurved() const
     if (fluxIntegration_ == "sweptFaceCells")
     {
         label nPc = nSweptPieces_, nBey = nSweptBeyond_, nRk = nSweptRankFallback_;
-        label nPart = nSweptPartialCells_;
+        label nPart = nSweptPartialCells_, nDeg = nSweptDegenerate_;
         scalar beyMax = sweptBeyondMax_, pcClos = sweptPieceClosureMax_;
         if (Pstream::parRun())
         {
             reduce(nPc, sumOp<label>()); reduce(nBey, sumOp<label>());
             reduce(nRk, sumOp<label>()); reduce(nPart, sumOp<label>());
+            reduce(nDeg, sumOp<label>());
             reduce(beyMax, maxOp<scalar>()); reduce(pcClos, maxOp<scalar>());
         }
         Info<< "; cells: pieces " << nPc << ", beyond layer " << nBey
             << " (max " << beyMax << "), rank fallbacks " << nRk
-            << ", partial cells " << nPart << ", piece closure max " << pcClos;
+            << ", partial cells " << nPart << ", degenerate " << nDeg
+            << ", piece closure max " << pcClos;
     }
     if (sweptClassify_)
     {

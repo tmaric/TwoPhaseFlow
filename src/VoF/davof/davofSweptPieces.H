@@ -162,19 +162,30 @@ struct pieceResult
 
     //- The clipped triangles (partially cut by any plane)
     label nCut = 0;
+
+    //- A degenerate piece: boundary triangles that lie IN a cell plane
+    //  (the face's own fan in the plane of the downwind neighbour's face,
+    //  a lateral triangle in a side plane under a translation normal to
+    //  the face) pass the inside test with a zero signed distance and form
+    //  a slab of zero thickness whose boundary does not close (no cap was
+    //  cut); its volume is zero and it is counted
+    bool degenerate = false;
 };
 
 
 //- The liquid volume of Omega_f (the triangle list T, outward) inside the
 //  cell given by cellPlanes, clipped by the PLIC half-space plic when
 //  wetPlane is true (an interface cell), wet in total otherwise (a full
-//  cell). See the file header.
+//  cell). xRef is the origin of the moments (any point; the face centre in
+//  the flux, so that a slab in the face plane carries no moment even
+//  before the degenerate rule). See the file header.
 inline pieceResult sweptPieceVolume
 (
     const UList<FixedList<point, 3>>& T,
     const UList<halfSpace>& cellPlanes,
     const bool wetPlane,
-    const halfSpace& plic
+    const halfSpace& plic,
+    const point& xRef
 )
 {
     pieceResult r;
@@ -211,7 +222,7 @@ inline pieceResult sweptPieceVolume
         const vector a = poly.areaVector();
         sumA += a;
         sumMag += mag(a);
-        moment += poly.p[0] & a;
+        moment += (poly.p[0] - xRef) & a;
     }
 
     // the cap system N A = -sum a, N the 3 x k matrix of the cap normals
@@ -220,12 +231,20 @@ inline pieceResult sweptPieceVolume
     label k = 0;
     for (label i = 0; i < nc; ++i)
     {
-        if (cut[i]) { N[k] = cellPlanes[i].n; d[k] = cellPlanes[i].x0 & cellPlanes[i].n; ++k; }
+        if (cut[i]) { N[k] = cellPlanes[i].n; d[k] = (cellPlanes[i].x0 - xRef) & cellPlanes[i].n; ++k; }
     }
-    if (plicCut) { N[k] = plic.n; d[k] = plic.x0 & plic.n; ++k; }
+    if (plicCut) { N[k] = plic.n; d[k] = (plic.x0 - xRef) & plic.n; ++k; }
     r.nCaps = k;
     if (sumMag <= VSMALL)
     {
+        r.volume = 0;
+        return r;
+    }
+    if (k == 0 && mag(sumA) > 1e-9*sumMag)
+    {
+        // no cap and no closure: a slab of zero thickness in a cell plane
+        r.degenerate = true;
+        r.closureResidual = mag(sumA)/sumMag;
         r.volume = 0;
         return r;
     }
@@ -297,6 +316,14 @@ inline pieceResult sweptPieceVolume
         capTerm += A[i]*d[i];
     }
     r.closureResidual = mag(res)/sumMag;
+    if (r.closureResidual > 1e-6)
+    {
+        // the cap system does not close the piece: a slab with a spurious
+        // cut, or an inconsistent list; nothing is taken from it
+        r.degenerate = true;
+        r.volume = 0;
+        return r;
+    }
     r.volume = (moment + capTerm)/3;
     return r;
 }
