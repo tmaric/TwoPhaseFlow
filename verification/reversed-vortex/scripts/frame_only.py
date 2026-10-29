@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 
+from courant_check import from_log
 from frame_identity import series
 
 
@@ -35,20 +37,22 @@ def main():
             raise SystemExit(f"{path}: no row at T={args.end_time}")
         e_shape, _, _ = s[t]
         e_mass = max(abs(v[1]) for v in s.values())
-        rows.append((N, e_shape, e_mass))
+        _, div, _ = from_log(os.path.join(os.path.dirname(path), "log.advectorVoF"))
+        rows.append((N, e_shape, e_mass, div))
 
-    lx = [math.log(N) for N, _, _ in rows]
-    ly = [math.log(e) for _, e, _ in rows]
+    lx = [math.log(r[0]) for r in rows]
+    ly = [math.log(r[1]) for r in rows]
     mx, my = sum(lx) / len(lx), sum(ly) / len(ly)
     slope = sum((x - mx) * (y - my) for x, y in zip(lx, ly)) / sum((x - mx) ** 2 for x in lx)
 
     with open(args.out, "w") as fh:
         fh.write("Frame only (alpha = 0): solid-body revolution of the disc\n")
         fh.write(f"scheme {args.scheme}, end time T = {args.end_time:g}\n\n")
-        fh.write(f"{'N':>6} {'E_shape(T)':>14} {'max E_mass':>12} {'order':>7}\n")
-        for i, (N, e, m) in enumerate(rows):
+        fh.write(f"{'N':>6} {'E_shape(T)':>14} {'max E_mass':>12} {'max div':>10} {'order':>7}\n")
+        for i, (N, e, m, div) in enumerate(rows):
             order = "" if i == 0 else f"{math.log(rows[i-1][1] / e) / math.log(N / rows[i-1][0]):7.2f}"
-            fh.write(f"{N:6d} {e:14.4e} {m:12.2e} {order:>7}\n")
+            ds = f"{div:10.2e}" if div is not None else f"{'-':>10}"
+            fh.write(f"{N:6d} {e:14.4e} {m:12.2e} {ds} {order:>7}\n")
         fh.write(f"\nfitted order {-slope:.2f}\n")
     print(open(args.out).read())
 
