@@ -22,7 +22,7 @@ COMMIT=$(git rev-parse HEAD)
 NAME="TwoPhaseFlow-nonretracing-advection-${COMMIT:0:10}"
 OUT="${1:-$PWD/$NAME.tar.gz}"
 
-dirty=$(git status --porcelain --untracked-files=no -- . ':!verification/*/results')
+dirty=$(git status --porcelain --untracked-files=no -- . ':(exclude,glob)verification/*/results/**')
 if [ -n "$dirty" ]; then
     echo "tracked files differ from HEAD; commit first:" >&2
     echo "$dirty" >&2
