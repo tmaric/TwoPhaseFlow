@@ -448,6 +448,34 @@ class isoAdvection
             FixedList<label, 5> nSweptClass_;
             bool sweptEventReported_;
             scalarField dVfBeforeBound_;
+
+            //- fluxIntegration sweptFaceCells (the piecewise clip,
+            //  2026-10-29): the counters of the step: the pieces with area,
+            //  the faces whose boundary is not covered by the donor's vertex
+            //  ring (a part beyond one layer, skipped) and the largest
+            //  uncovered share, the faces that fell back to the one-donor
+            //  clip on a rank-deficient cap system, the partial cells
+            //  without a surface met, the largest closure residual of the
+            //  pieces
+            label nSweptPieces_;
+            label nSweptBeyond_;
+            scalar sweptBeyondMax_;
+            label nSweptRankFallback_;
+            label nSweptPartialCells_;
+            scalar sweptPieceClosureMax_;
+
+            //- The kinematic consistency of the swept fluxes (key
+            //  sweptScaleToPhi, default false, 2026-10-29): the liquid volume
+            //  of the swept volume scaled by |phi_f| dt / V_swept, so that a
+            //  wholly wet swept volume gives the flux phi_f dt that the
+            //  upwind flux of a full cell uses. Under a rotation the traced
+            //  swept volume (straight edges between traced points) differs
+            //  from phi_f dt at the order of the angular displacement per
+            //  step squared, and a full cell next to an interface cell
+            //  received 3e-7 more than it sent in the first step of the
+            //  N = 64 rotation (the prism's volume d.S_f IS phi_f dt). The
+            //  identity to round-off under a uniform translation.
+            bool sweptScaleToPhi_;
             scalar debugR0Max_;
             label debugCellR0_;
             davof::cellSurface debugSurface_;
@@ -758,6 +786,51 @@ public:
                 scalar& vLiq,
                 pointField* qOut = nullptr,
                 point* xqOut = nullptr
+            );
+
+            //- fluxIntegration sweptFaceCells (isoAdvectionSwept.C,
+            //  davofSweptPieces.H): the same arguments and results as
+            //  sweptFaceFlux, the swept volume cut into the pieces inside
+            //  the donor and its vertex-ring cells, each wet in total (a
+            //  full cell), dry (an empty cell) or clipped by that cell's
+            //  own plane (an interface cell); the face fraction from the
+            //  same clip of the pre-image fan
+            void sweptFaceCellsFlux
+            (
+                const label facei,
+                const label donor,
+                const davof::cellSurface& S,
+                const scalar dt,
+                const scalar phiF,
+                const bool sweeps,
+                const interpolationCellPoint<vector>& UInterp,
+                const pointVectorField& Up,
+                scalar& af,
+                vector& aWet,
+                scalar& vLiq,
+                pointField* qOut = nullptr,
+                point* xqOut = nullptr
+            );
+
+            //- The traced pre-image (q, xq) and the outward triangle list T
+            //  of the swept volume of facei (shared by the two swept
+            //  fluxes); preSign is the orientation of the stored pre-image
+            //  triangles against the face's own order; counts the flips,
+            //  the closure residual and the out-of-donor faces
+            void sweptTriangles
+            (
+                const label facei,
+                const label donor,
+                const scalar dt,
+                const scalar phiF,
+                const bool sweeps,
+                const interpolationCellPoint<vector>& UInterp,
+                const pointVectorField& Up,
+                List<FixedList<point, 3>>& T,
+                pointField& q,
+                point& xq,
+                label& preSign,
+                scalar& vTotal
             );
 
             //- The class of the cells the pre-image points q (vertices)

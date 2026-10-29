@@ -185,6 +185,13 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptClass_(label(0)),
     sweptEventReported_(false),
     dVfBeforeBound_(),
+    nSweptPieces_(0),
+    nSweptBeyond_(0),
+    sweptBeyondMax_(0),
+    nSweptRankFallback_(0),
+    nSweptPartialCells_(0),
+    sweptPieceClosureMax_(0),
+    sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
     debugR0Max_(0),
     debugCellR0_(-1),
     debugSurface_(),
@@ -335,26 +342,29 @@ Foam::advection::isoAdvection::isoAdvection
                 fluxIntegration_ != "prism" && fluxIntegration_ != "trapezoidal"
              && fluxIntegration_ != "simpson" && fluxIntegration_ != "simpsonSplit"
              && fluxIntegration_ != "gaussSplit" && fluxIntegration_ != "simpsonSplitS"
-             && fluxIntegration_ != "sweptFace"
+             && fluxIntegration_ != "sweptFace" && fluxIntegration_ != "sweptFaceCells"
             )
             {
                 FatalIOErrorInFunction(modelDict())
                     << "fluxIntegration '" << fluxIntegration_
                     << "' unknown. Valid: prism, trapezoidal, simpson, simpsonSplit,"
-                    << " simpsonSplitS, gaussSplit, sweptFace."
+                    << " simpsonSplitS, gaussSplit, sweptFace, sweptFaceCells."
                     << exit(FatalIOError);
             }
-            if (fluxIntegration_ == "sweptFace" && clippingSurface_ == "exactSphere")
+            const bool swept =
+                (fluxIntegration_ == "sweptFace" || fluxIntegration_ == "sweptFaceCells");
+            if (swept && clippingSurface_ == "exactSphere")
             {
                 FatalIOErrorInFunction(modelDict())
-                    << "fluxIntegration sweptFace needs a plane surface"
+                    << "fluxIntegration " << fluxIntegration_ << " needs a plane surface"
                     << " (clippingSurface plane, or paraboloid with a zero"
                     << " tensor); exactSphere is a sphere" << exit(FatalIOError);
             }
             Info<< ", fluxIntegration " << fluxIntegration_;
-            if (fluxIntegration_ == "sweptFace")
+            if (swept)
             {
-                Info<< " (sweptPlaneTol " << sweptPlaneTol_ << ")";
+                Info<< " (sweptPlaneTol " << sweptPlaneTol_ << ", sweptScaleToPhi "
+                    << (sweptScaleToPhi_ ? "true" : "false") << ")";
             }
             Info<< ", defectLevels " << defectLevels_ << ")" << endl;
 

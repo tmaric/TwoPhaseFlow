@@ -1082,6 +1082,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nRuleFallback_ = 0;
     nSweptFaces_ = nSweptFlips_ = nSweptOutOfDonor_ = nSweptClipTris_ = 0;
     sweptClosureMax_ = 0;
+    nSweptPieces_ = nSweptBeyond_ = nSweptRankFallback_ = nSweptPartialCells_ = 0;
+    sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
     if (sweptClassify_)
     {
         nSweptClass_ = label(0);
@@ -1106,8 +1108,10 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     // fluxIntegration sweptFace: the velocity at the mesh points (the
     // volPointInterpolation of U) for the backward trace of the face
     // vertices (isoAdvectionSwept.C)
+    const bool sweptFlux =
+        (fluxIntegration_ == "sweptFace" || fluxIntegration_ == "sweptFaceCells");
     tmp<pointVectorField> tUp;
-    if (fluxIntegration_ == "sweptFace")
+    if (sweptFlux)
     {
         tUp = volPointInterpolation::New(mesh_).interpolate(U_);
         // the search structures of the trace's cell lookup (the octree and
@@ -1440,6 +1444,16 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 sweptClassify_ ? &xqSw : nullptr
             );
         }
+        else if (fluxIntegration_ == "sweptFaceCells")
+        {
+            sweptFaceCellsFlux
+            (
+                facei, local, S, dt, phiF, sweeps, UInterp, *UpPtr,
+                af, aWet, vSwept,
+                sweptClassify_ ? &qSw : nullptr,
+                sweptClassify_ ? &xqSw : nullptr
+            );
+        }
         else if (wetVecPtr_)
         {
             af = volumeRulePtr_->faceWettedArea(facei, -d, S, aWet, nfb);
@@ -1455,7 +1469,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         // other fluxes
         if (sweptClassify_)
         {
-            if (fluxIntegration_ != "sweptFace")
+            if (!sweptFlux)
             {
                 const face& fc = mesh_.faces()[facei];
                 const pointField& P = mesh_.points();
@@ -1495,11 +1509,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 }
                 dVfNew = (phiF >= 0 ? vLiq : -vLiq);
             }
-            else if (fluxIntegration_ == "sweptFace")
+            else if (sweptFlux)
             {
                 // the liquid volume of the swept volume under the donor's
-                // plane (zero where the face does not sweep), with the
-                // sign of phi_f as the prism's
+                // plane (sweptFace) or under the planes of the cells its
+                // pieces lie in (sweptFaceCells), zero where the face does
+                // not sweep, with the sign of phi_f as the prism's
                 dVfNew = (phiF >= 0 ? vSwept : -vSwept);
             }
             else if (sweeps)
@@ -1872,7 +1887,7 @@ void Foam::advection::isoAdvection::reportCurved() const
     }
     Info<< "; volume rule " << volumeRulePtr_->type()
         << " fallbacks " << nRuleFb;
-    if (fluxIntegration_ == "sweptFace")
+    if (fluxIntegration_ == "sweptFace" || fluxIntegration_ == "sweptFaceCells")
     {
         label nSw = nSweptFaces_, nSwFlip = nSweptFlips_;
         label nSwOut = nSweptOutOfDonor_, nSwClip = nSweptClipTris_;
@@ -1886,6 +1901,21 @@ void Foam::advection::isoAdvection::reportCurved() const
         Info<< "; swept faces " << nSw << ", flips " << nSwFlip
             << ", out of donor " << nSwOut << ", clipped triangles " << nSwClip
             << ", closure max " << swClos;
+    }
+    if (fluxIntegration_ == "sweptFaceCells")
+    {
+        label nPc = nSweptPieces_, nBey = nSweptBeyond_, nRk = nSweptRankFallback_;
+        label nPart = nSweptPartialCells_;
+        scalar beyMax = sweptBeyondMax_, pcClos = sweptPieceClosureMax_;
+        if (Pstream::parRun())
+        {
+            reduce(nPc, sumOp<label>()); reduce(nBey, sumOp<label>());
+            reduce(nRk, sumOp<label>()); reduce(nPart, sumOp<label>());
+            reduce(beyMax, maxOp<scalar>()); reduce(pcClos, maxOp<scalar>());
+        }
+        Info<< "; cells: pieces " << nPc << ", beyond layer " << nBey
+            << " (max " << beyMax << "), rank fallbacks " << nRk
+            << ", partial cells " << nPart << ", piece closure max " << pcClos;
     }
     if (sweptClassify_)
     {

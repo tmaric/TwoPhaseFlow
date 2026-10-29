@@ -730,6 +730,33 @@ triangles T, closure max C` (C = |sum_T a_T| / sum_T |a_T| over the lists, round
 construction); leia's `tpf_advection_metrics.py` parses it. Cost per face: 4F triangle clips
 (three signed distances, at most two crossings each), no quadrature, no volume rule.
 
+`sweptFaceCells` (2026-10-29; the piecewise clip, `davofSweptPieces.H`, the note's `multicell.py`):
+the one-donor clip above over-fluxes where the pre-image reaches another cell (under the
+rotation of the sphere every swept face's pre-image leaves the donor). The swept volume is cut
+into the pieces inside the donor and inside every cell sharing a vertex with it (one layer of
+neighbours, enough at Co 0.2) by clipping every boundary triangle against each cell's six face
+planes; a piece in a FULL cell (alpha^n >= 1 - 1e-8) is wet in total, in an EMPTY cell dry, in
+an INTERFACE cell clipped by THAT cell's PLIC plane of t^n, the donor's pieces by the donor's
+plane (a partial cell without a surface, a wisp, is wet where alpha^n >= 1/2, counted). The
+volume of a piece follows from its clipped triangles and the cap areas A_i solved from the
+closure sum_T a_T^- + sum_i A_i n_i = 0 (k <= 3 caps: the cut cell planes and the PLIC plane; a
+face neighbour has two, an edge neighbour three), V = (1/3)[sum_T p_T.a_T^- + sum_i A_i
+(x0_i.n_i)]; no cut polygon is built. The flux is the sum over the pieces, the face fraction the
+same clip of the pre-image fan alone (2D). A part of the boundary beyond the ring is skipped and
+counted ("beyond layer", with the largest uncovered share); a rank-deficient cap system (more
+than three caps, or a PLIC plane parallel to a cell face) sends the face back to the one-donor
+clip ("rank fallbacks"); the Info line gains `; cells: pieces P, beyond layer B (max X), rank
+fallbacks R, partial cells Q, piece closure max C`. Unit check: `apps/test/testSweptPieces`
+reproduces the two translation configurations of the note's `data/multicell.csv` (the face
+x = 1 of a unit cell, planar and warped, traced into the y-, z- and edge neighbours, each with
+its own tangent-plane PLIC of a sphere) to 1e-13 relative, the csv's printed precision. The ring
+search is local (serial studies). `sweptClassify true` (2026-10-29, any flux of the curved loop)
+classifies every face per step by the cells its pre-image reaches (donor only / interface /
+full / empty / outside the ring), prints the first cell that leaves [0, 1] by more than 1e-10
+after the conservative bounding with its faces' fluxes before and after the bounding, and the
+curved loop prints every step the mass change through the advection, the bounding and the
+clipping relative to sum(alpha V) at t^n.
+
 `clippingSurface plane` (2026-10-28, with the swept flux): the paraboloid path with a zero
 curvature tensor, i.e. the plane in the frame of the normal the scheme used, positioned by the
 volume anchor (`fitDof none` or `one`, `fitAnchor volume`; `fitDof six` is refused), for the

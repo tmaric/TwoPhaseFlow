@@ -25,9 +25,9 @@ License
 
 Description
     The semi-Lagrangian swept-face flux of the DAVOF dual advection
-    (fluxIntegration sweptFace, 2026-10-28; the working note
-    leia/docs/davof/davof-swept-volume, whose Python prototype swept_volume.py
-    this routine follows).
+    (fluxIntegration sweptFace and sweptFaceCells, 2026-10-28/29; the working
+    note leia/docs/davof/davof-swept-volume, whose Python prototypes
+    swept_volume.py and multicell.py these routines follow).
 
     The engineering problem: the prism flux (fluxIntegration prism) assumes
     that the face translates by the displacement of its centre over the step,
@@ -44,7 +44,9 @@ Description
     outward for phi_f = U_f.S_f > 0 with S_f owner -> neighbour; for
     phi_f < 0 every triangle is reversed. The signed volume
     (1/6) sum_T p.(q x r) checks the orientation and the list is flipped where
-    it is negative (counted). Every triangle is clipped against the donor
+    it is negative (counted).
+
+    sweptFace (ONE DONOR CELL): every triangle is clipped against the donor
     cell's plane (liquid where (x - x0).n <= 0; the wet polygon's area vector
     a_T^- by davof::triNegativePolygon), and
 
@@ -57,25 +59,44 @@ Description
     divergence theorem for x on the truncated volume, where the cap integral
     of x.n is (x0.n) times the cap area and the cap area follows from the
     closure of the wet boundary (the note's eqs. 3-5); with x0 on the plane
-    the cap term vanishes identically (the hydrostatic form). dVf carries the
-    sign of phi_f, as the prism flux does, and both cells of a face see the
-    same volume (conservation by antisymmetry). The existing bounding and
-    clipping of alpha are untouched.
+    the cap term vanishes identically (the hydrostatic form). The faces whose
+    pre-image vertices (or centre) leave the donor cell are counted per step
+    ("out of donor"; the sweeping faces only since 4c7f3b5).
+
+    sweptFaceCells (THE PIECEWISE CLIP, 2026-10-29): the swept volume is cut
+    into the pieces inside the donor and inside every cell sharing a vertex
+    with it (the vertex ring; one layer of neighbours, enough at Co 0.2), by
+    clipping every boundary triangle against each cell's six face planes
+    (davofSweptPieces.H). A piece in a FULL cell (alpha^n >= 1 - 1e-8) is
+    wet in total, in an EMPTY cell (alpha^n <= 1e-8) dry, in an INTERFACE
+    cell (a cell with a surface) clipped by THAT cell's PLIC plane of t^n,
+    the donor's pieces by the donor's plane; a partial cell without a
+    surface (a wisp) is taken wet where alpha^n >= 1/2 and dry otherwise
+    (counted). The volume of a piece follows from the clipped triangles and
+    the cap areas solved from closure (k <= 3 caps: the cut cell planes and
+    the PLIC plane), V = (1/3)[sum_T p_T.a_T^- + sum_i A_i (x0_i.n_i)]. The
+    flux volume is the sum over the pieces; the face fraction is the same
+    clip of the pre-image fan alone (2D, no caps). Logged per step: the
+    pieces, the faces whose boundary is not covered by the ring (a part
+    beyond one layer: that part is skipped, nothing is invented, counted
+    with the largest uncovered share), the rank-deficient pieces (more than
+    three caps, or a PLIC plane parallel to a cell face: the face falls back
+    to the one-donor clip, counted), the largest closure residual of the
+    pieces, the partial cells without a surface.
+
+    dVf carries the sign of phi_f, as the prism flux does, and both cells of
+    a face see the same volume (conservation by antisymmetry). The existing
+    bounding and clipping of alpha are untouched.
 
     SCOPE AND LIMITS (stated here and in etc/README-davof.md):
 
-    - PLANES ONLY. The formula needs x.n constant on the cap. The donor's
-      surface must be a plane: a cellSurface without the paraboloid flag, or
+    - PLANES ONLY. The formula needs x.n constant on the cap. Every surface
+      used must be a plane: a cellSurface without the paraboloid flag, or
       one whose curvature tensor is at round-off, max|b_ij| h <= sweptPlaneTol
       (default 1e-6; on the translated plane the ring tensor is 1e-10 /m at
       h = 2e-4 m, b h = 2e-14). A true paraboloid or a sphere surface is a
       FatalError, never a silent fallback: use clippingSurface plane, or
       fluxIntegration prism with the paraboloid.
-
-    - ONE DONOR CELL. The whole swept volume is clipped by the donor's plane.
-      The faces whose pre-image vertices (or centre) leave the donor cell,
-      by the face-plane test with the tolerance 1e-9 h, are counted per step
-      ("out of donor"); the multi-cell cut is not implemented.
 
     - TRAJECTORIES. Backward midpoint rule (explicit RK2, second order in
       dt): x' = x - dt U(x - dt/2 U(x)). The vertex velocity U(p_i) is the
@@ -88,10 +109,15 @@ Description
       a midpoint outside the mesh, or across a processor boundary, takes the
       Euler step x - dt U(x) (exact for a uniform U as well).
 
+    - CELLS. The ring search is local: a neighbour across a processor
+      boundary is not seen (its part counts as beyond one layer); serial
+      studies.
+
     - DIAGNOSTICS per step in the Info line: the faces computed, the sign
-      flips, the faces out of the donor, the largest closure residual
-      |sum_T a_T| / sum_T |a_T| (round-off for a closed list by construction)
-      and the number of clipped triangles.
+      flips, the faces out of the donor, the largest closure residual of the
+      lists |sum_T a_T| / sum_T |a_T| (round-off for a closed list by
+      construction), the number of clipped triangles; for sweptFaceCells the
+      piece counts above.
 
 SourceFiles
     isoAdvectionSwept.C
@@ -100,89 +126,104 @@ SourceFiles
 
 #include "isoAdvection.H"
 #include "davofSimplexGeometry.H"
+#include "davofSweptPieces.H"
 #include "interpolationCellPoint.H"
 #include "pointFields.H"
 #include "FixedList.H"
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
-void Foam::advection::isoAdvection::sweptFaceFlux
+namespace
+{
+
+//- The point-in-cell test by the face planes (convex cells), with a
+//  tolerance in units of the cell size h
+inline bool inCellTol
 (
-    const label facei,
-    const label donor,
-    const davof::cellSurface& S,
-    const scalar dt,
-    const scalar phiF,
-    const bool sweeps,
-    const interpolationCellPoint<vector>& UInterp,
-    const pointVectorField& Up,
-    scalar& af,
-    vector& aWet,
-    scalar& vLiq,
-    pointField* qOut,
-    point* xqOut
+    const Foam::fvMesh& mesh, const Foam::point& x, const Foam::label c,
+    const Foam::scalar tolRel, const Foam::scalar h
 )
 {
-    const face& f = mesh_.faces()[facei];
-    const pointField& P = mesh_.points();
-    const vectorField& Cf = mesh_.faceCentres();
-    const vectorField& Sf = mesh_.faceAreas();
-    const labelList& own = mesh_.faceOwner();
-    const cellList& cells = mesh_.cells();
-    const label F = f.size();
-    const scalar h = Foam::cbrt(mesh_.V()[donor]);
+    const Foam::vectorField& Cf = mesh.faceCentres();
+    const Foam::vectorField& Sf = mesh.faceAreas();
+    const Foam::labelList& own = mesh.faceOwner();
+    for (const Foam::label cf : mesh.cells()[c])
+    {
+        const Foam::vector nOut = (own[cf] == c) ? Sf[cf] : -Sf[cf];
+        if (((x - Cf[cf]) & nOut) > tolRel*h*Foam::mag(nOut))
+        {
+            return false;
+        }
+    }
+    return true;
+}
 
-    af = 0;
-    aWet = Zero;
-    vLiq = 0;
 
-    // The donor's plane: (x - x0).nRaw = 0, liquid where the value is
-    // negative (the surface's own sign convention: e3 points out of the
-    // liquid). A paraboloid with the slopes a1, a2 and a zero tensor is the
-    // plane with the normal e3 - a1 e1 - a2 e2 through o + c e3.
+//- The plane of a cell surface (a plane, or a paraboloid with a tensor at
+//  round-off): the raw normal (out of the liquid) and a point on it; a
+//  sphere or a true paraboloid is a FatalError
+inline void planeOf
+(
+    const Foam::davof::cellSurface& S, const Foam::label celli,
+    const Foam::scalar h, const Foam::scalar tol, const char* flux,
+    Foam::vector& nRaw, Foam::point& x0
+)
+{
+    using namespace Foam;
     if (S.sphere)
     {
         FatalErrorInFunction
-            << "fluxIntegration sweptFace: the surface of cell " << donor
+            << "fluxIntegration " << flux << ": the surface of cell " << celli
             << " is a sphere (clippingSurface exactSphere). The swept-face"
             << " flux is implemented for a plane only (x.n is constant on the"
             << " cap); use clippingSurface plane or fluxIntegration prism."
             << exit(FatalError);
     }
     const scalar bMax = max(mag(S.b11), max(mag(S.b12), mag(S.b22)));
-    if (S.paraboloid && bMax*h > sweptPlaneTol_)
+    if (S.paraboloid && bMax*h > tol)
     {
         FatalErrorInFunction
-            << "fluxIntegration sweptFace: the surface of cell " << donor
+            << "fluxIntegration " << flux << ": the surface of cell " << celli
             << " is a paraboloid (curvature tensor b11 " << S.b11 << " b12 "
             << S.b12 << " b22 " << S.b22 << " /m, max|b| h = " << bMax*h
-            << " above sweptPlaneTol " << sweptPlaneTol_ << "). The"
+            << " above sweptPlaneTol " << tol << "). The"
             << " swept-face flux is implemented for a plane only (x.n is"
             << " constant on the cap); use clippingSurface plane, or"
             << " fluxIntegration prism with the paraboloid."
             << exit(FatalError);
     }
-    const vector nRaw = S.paraboloid ? (S.e3 - S.a1*S.e1 - S.a2*S.e2) : S.e3;
-    const point x0 = S.o + S.c*S.e3;
-    auto sdist = [&](const point& x) -> scalar
-    {
-        return (x - x0) & nRaw;
-    };
+    nRaw = S.paraboloid ? (S.e3 - S.a1*S.e1 - S.a2*S.e2) : S.e3;
+    x0 = S.o + S.c*S.e3;
+}
 
-    // The point-in-cell test by the face planes (convex cells), with a
-    // tolerance in units of the cell size
-    auto inCell = [&](const point& x, const label c, const scalar tolRel) -> bool
-    {
-        for (const label cf : cells[c])
-        {
-            const vector nOut = (own[cf] == c) ? Sf[cf] : -Sf[cf];
-            if (((x - Cf[cf]) & nOut) > tolRel*h*mag(nOut))
-            {
-                return false;
-            }
-        }
-        return true;
-    };
+} // End anonymous namespace
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::advection::isoAdvection::sweptTriangles
+(
+    const label facei,
+    const label donor,
+    const scalar dt,
+    const scalar phiF,
+    const bool sweeps,
+    const interpolationCellPoint<vector>& UInterp,
+    const pointVectorField& Up,
+    List<FixedList<point, 3>>& T,
+    pointField& q,
+    point& xq,
+    label& preSign,
+    scalar& vTotal
+)
+{
+    const face& f = mesh_.faces()[facei];
+    const pointField& P = mesh_.points();
+    const vectorField& Cf = mesh_.faceCentres();
+    const labelListList& cellPoints = mesh_.cellPoints();
+    const labelListList& pointCells = mesh_.pointCells();
+    const label F = f.size();
+    const scalar h = Foam::cbrt(mesh_.V()[donor]);
 
     // The cell that holds a point of the trajectory: the donor, else the
     // cells sharing a vertex with the donor (a midpoint lies within Co h/2
@@ -191,16 +232,14 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     // once per step in curvedFlux, on every rank; the face-plane search of
     // polyMesh::findCell scans every cell and is not used); -1 outside the
     // mesh or across a processor boundary
-    const labelListList& cellPoints = mesh_.cellPoints();
-    const labelListList& pointCells = mesh_.pointCells();
     auto cellOf = [&](const point& x) -> label
     {
-        if (inCell(x, donor, 1e-12)) return donor;
+        if (inCellTol(mesh_, x, donor, 1e-12, h)) return donor;
         for (const label pi : cellPoints[donor])
         {
             for (const label c : pointCells[pi])
             {
-                if (c != donor && inCell(x, c, 1e-12)) return c;
+                if (c != donor && inCellTol(mesh_, x, c, 1e-12, h)) return c;
             }
         }
         return mesh_.findCell(x, polyMesh::CELL_TETS);
@@ -227,14 +266,12 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     // The pre-image: the vertices by the point velocities, the centre by
     // the cell-point interpolate in the donor (the prism's displacement)
     const point xf = Cf[facei];
-    pointField q(F);
+    q.setSize(F);
     forAll(f, i)
     {
         q[i] = traceBack(P[f[i]], Up[f[i]]);
     }
-    const point xq = traceBack(xf, UInterp.interpolate(xf, donor));
-    if (qOut) *qOut = q;
-    if (xqOut) *xqOut = xq;
+    xq = traceBack(xf, UInterp.interpolate(xf, donor));
 
     // The out-of-donor count: any traced point outside the donor, of the
     // faces that sweep a volume (a face parallel to the velocity carries no
@@ -242,17 +279,17 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     // construction; the studies of 2026-10-28 counted those faces too)
     if (sweeps)
     {
-        bool outOfDonor = !inCell(xq, donor, 1e-9);
+        bool outOfDonor = !inCellTol(mesh_, xq, donor, 1e-9, h);
         forAll(q, i)
         {
-            if (!inCell(q[i], donor, 1e-9)) outOfDonor = true;
+            if (!inCellTol(mesh_, q[i], donor, 1e-9, h)) outOfDonor = true;
         }
         if (outOfDonor) ++nSweptOutOfDonor_;
     }
 
     // The triangle list, outward for phi_f > 0 (the face fan along S_f, the
     // pre-image fan reversed, the lateral quads split along one diagonal)
-    List<FixedList<point, 3>> T(4*F);
+    T.setSize(4*F);
     forAll(f, i)
     {
         const point& a = P[f[i]];
@@ -266,7 +303,7 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     }
     // the orientation of the stored pre-image triangles against the face's
     // own order (x_f', p_i', p_{i+1}'): -1 as built
-    label preSign = -1;
+    preSign = -1;
     auto flipAll = [&]()
     {
         forAll(T, k) Swap(T[k][1], T[k][2]);
@@ -274,6 +311,7 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     };
     if (phiF < 0) flipAll();
 
+    vTotal = 0;
     if (sweeps)
     {
         // the signed volume about x_f (translation invariant; the local
@@ -287,7 +325,9 @@ void Foam::advection::isoAdvection::sweptFaceFlux
         {
             flipAll();
             ++nSweptFlips_;
+            sixV = -sixV;
         }
+        vTotal = sixV/6;
         // the closure residual of the list
         vector sumA(Zero);
         scalar sumMag = 0;
@@ -302,6 +342,52 @@ void Foam::advection::isoAdvection::sweptFaceFlux
             sweptClosureMax_ = max(sweptClosureMax_, mag(sumA)/sumMag);
         }
     }
+    ++nSweptFaces_;
+}
+
+
+void Foam::advection::isoAdvection::sweptFaceFlux
+(
+    const label facei,
+    const label donor,
+    const davof::cellSurface& S,
+    const scalar dt,
+    const scalar phiF,
+    const bool sweeps,
+    const interpolationCellPoint<vector>& UInterp,
+    const pointVectorField& Up,
+    scalar& af,
+    vector& aWet,
+    scalar& vLiq,
+    pointField* qOut,
+    point* xqOut
+)
+{
+    const scalar h = Foam::cbrt(mesh_.V()[donor]);
+    af = 0;
+    aWet = Zero;
+    vLiq = 0;
+
+    // The donor's plane: (x - x0).nRaw = 0, liquid where the value is
+    // negative (the surface's own sign convention: e3 points out of the
+    // liquid). A paraboloid with the slopes a1, a2 and a zero tensor is the
+    // plane with the normal e3 - a1 e1 - a2 e2 through o + c e3.
+    vector nRaw;
+    point x0;
+    planeOf(S, donor, h, sweptPlaneTol_, "sweptFace", nRaw, x0);
+    auto sdist = [&](const point& x) -> scalar
+    {
+        return (x - x0) & nRaw;
+    };
+
+    List<FixedList<point, 3>> T;
+    pointField q;
+    point xq;
+    label preSign;
+    scalar vTotal;
+    sweptTriangles(facei, donor, dt, phiF, sweeps, UInterp, Up, T, q, xq, preSign, vTotal);
+    if (qOut) *qOut = q;
+    if (xqOut) *xqOut = xq;
 
     // The clips: the wet area vector of every triangle, the volume by the
     // closed form with the apex on the plane, the pre-image's wet and full
@@ -336,14 +422,190 @@ void Foam::advection::isoAdvection::sweptFaceFlux
         }
     }
     vLiq = sweeps ? threeV/3 : 0;
+    // the kinematic consistency: the liquid share of the swept volume
+    // times the flux phi_f dt (sweptScaleToPhi)
+    if (sweptScaleToPhi_ && sweeps && vTotal > VSMALL)
+    {
+        vLiq *= mag(phiF)*dt/vTotal;
+    }
 
     // The face fraction of the pre-image in the face's orientation
     aWet = preSign*aPreWet;
     const vector Apre = preSign*aPreFull;
     const scalar A2 = magSqr(Apre);
     af = (A2 > VSMALL) ? (aWet & Apre)/A2 : 0;
+}
 
-    ++nSweptFaces_;
+
+void Foam::advection::isoAdvection::sweptFaceCellsFlux
+(
+    const label facei,
+    const label donor,
+    const davof::cellSurface& S,
+    const scalar dt,
+    const scalar phiF,
+    const bool sweeps,
+    const interpolationCellPoint<vector>& UInterp,
+    const pointVectorField& Up,
+    scalar& af,
+    vector& aWet,
+    scalar& vLiq,
+    pointField* qOut,
+    point* xqOut
+)
+{
+    const vectorField& Cf = mesh_.faceCentres();
+    const vectorField& Sf = mesh_.faceAreas();
+    const labelList& own = mesh_.faceOwner();
+    const cellList& cells = mesh_.cells();
+    const labelListList& cellPoints = mesh_.cellPoints();
+    const labelListList& pointCells = mesh_.pointCells();
+    const scalarField& a0 = alpha1_.oldTime().primitiveField();
+    const scalar h = Foam::cbrt(mesh_.V()[donor]);
+    af = 0;
+    aWet = Zero;
+    vLiq = 0;
+
+    List<FixedList<point, 3>> T;
+    pointField q;
+    point xq;
+    label preSign;
+    scalar vTotal;
+    sweptTriangles(facei, donor, dt, phiF, sweeps, UInterp, Up, T, q, xq, preSign, vTotal);
+    if (qOut) *qOut = q;
+    if (xqOut) *xqOut = xq;
+
+    // the pre-image fan in the face's orientation (x_f', p_i', p_{i+1}')
+    const label F = q.size();
+    List<FixedList<point, 3>> Tpre(F);
+    forAll(q, i)
+    {
+        Tpre[i][0] = xq; Tpre[i][1] = q[i]; Tpre[i][2] = q[(i + 1) % F];
+    }
+    vector aPreFull(Zero);
+    forAll(Tpre, i)
+    {
+        aPreFull += 0.5*((Tpre[i][1] - Tpre[i][0]) ^ (Tpre[i][2] - Tpre[i][0]));
+    }
+    scalar sumMagT = 0;
+    forAll(T, k)
+    {
+        sumMagT += mag(0.5*((T[k][1] - T[k][0]) ^ (T[k][2] - T[k][0])));
+    }
+    scalar sumMagPre = 0;
+    forAll(Tpre, k)
+    {
+        sumMagPre += mag(0.5*((Tpre[k][1] - Tpre[k][0]) ^ (Tpre[k][2] - Tpre[k][0])));
+    }
+
+    // The ring: the donor and the cells sharing a vertex with it
+    DynamicList<label> ring(32);
+    ring.append(donor);
+    for (const label pi : cellPoints[donor])
+    {
+        for (const label c : pointCells[pi])
+        {
+            if (c != donor && !ring.found(c)) ring.append(c);
+        }
+    }
+
+    // The pieces
+    scalar threeV = 0;
+    vector aPreWet(Zero);
+    scalar coverage = 0, coveragePre = 0;
+    bool rankFallback = false;
+    List<davof::halfSpace> planes;
+    for (const label c : ring)
+    {
+        // the cell's half-spaces
+        const labelList& cf = cells[c];
+        planes.setSize(cf.size());
+        forAll(cf, j)
+        {
+            const vector nOut = (own[cf[j]] == c) ? Sf[cf[j]] : -Sf[cf[j]];
+            planes[j].n = nOut/max(mag(nOut), VSMALL);
+            planes[j].x0 = Cf[cf[j]];
+        }
+        // the cell's state and plane
+        bool wetPlane = false, wet = true;
+        davof::halfSpace plic;
+        plic.n = Zero; plic.x0 = Zero;
+        if (hasSurface_.test(c))
+        {
+            vector nRaw; point x0;
+            planeOf(cellSurfaces_[c], c, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
+            plic.n = nRaw/max(mag(nRaw), VSMALL);
+            plic.x0 = x0;
+            wetPlane = true;
+        }
+        else if (a0[c] >= 1 - 1e-8)
+        {
+            wet = true;
+        }
+        else if (a0[c] <= 1e-8)
+        {
+            wet = false;
+        }
+        else
+        {
+            // a partial cell without a surface (a wisp): wet by its alpha
+            ++nSweptPartialCells_;
+            wet = (a0[c] >= 0.5);
+        }
+
+        if (sweeps)
+        {
+            const davof::pieceResult r = davof::sweptPieceVolume(T, planes, wetPlane, plic);
+            coverage += r.coverage;
+            if (r.coverage > 1e-12*sumMagT)
+            {
+                ++nSweptPieces_;
+                if (!r.ok) rankFallback = true;
+                if (wetPlane || wet)
+                {
+                    threeV += 3*r.volume;
+                    sweptPieceClosureMax_ = max(sweptPieceClosureMax_, r.closureResidual);
+                }
+                nSweptClipTris_ += r.nCut;
+            }
+        }
+        scalar cov = 0;
+        const vector aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov);
+        coveragePre += cov;
+        if (wetPlane || wet) aPreWet += aw;
+    }
+
+    // the parts of the boundary beyond the ring: skipped, counted
+    if (sumMagT > VSMALL)
+    {
+        const scalar beyond = max(scalar(0), (sumMagT - coverage)/sumMagT);
+        const scalar beyondPre = (sumMagPre > VSMALL) ? max(scalar(0), (sumMagPre - coveragePre)/sumMagPre) : 0;
+        const scalar b = sweeps ? max(beyond, beyondPre) : beyondPre;
+        if (b > 1e-9)
+        {
+            ++nSweptBeyond_;
+            sweptBeyondMax_ = max(sweptBeyondMax_, b);
+        }
+    }
+
+    if (rankFallback)
+    {
+        // the one-donor clip of this face (counted)
+        ++nSweptRankFallback_;
+        sweptFaceFlux(facei, donor, S, dt, phiF, sweeps, UInterp, Up, af, aWet, vLiq);
+        return;
+    }
+
+    vLiq = sweeps ? threeV/3 : 0;
+    // the kinematic consistency: the liquid share of the swept volume
+    // times the flux phi_f dt (sweptScaleToPhi)
+    if (sweptScaleToPhi_ && sweeps && vTotal > VSMALL)
+    {
+        vLiq *= mag(phiF)*dt/vTotal;
+    }
+    aWet = aPreWet;
+    const scalar A2 = magSqr(aPreFull);
+    af = (A2 > VSMALL) ? (aWet & aPreFull)/A2 : 0;
 }
 
 
@@ -354,34 +616,21 @@ Foam::label Foam::advection::isoAdvection::classifyPreImage
     const point& xq
 ) const
 {
-    const vectorField& Cf = mesh_.faceCentres();
-    const vectorField& Sf = mesh_.faceAreas();
-    const labelList& own = mesh_.faceOwner();
-    const cellList& cells = mesh_.cells();
     const labelListList& cellPoints = mesh_.cellPoints();
     const labelListList& pointCells = mesh_.pointCells();
     const scalar h = Foam::cbrt(mesh_.V()[donor]);
     // the start-of-step volume fractions
     const scalarField& a0 = alpha1_.oldTime().primitiveField();
 
-    auto inCell = [&](const point& x, const label c) -> bool
-    {
-        for (const label cf : cells[c])
-        {
-            const vector nOut = (own[cf] == c) ? Sf[cf] : -Sf[cf];
-            if (((x - Cf[cf]) & nOut) > 1e-9*h*mag(nOut)) return false;
-        }
-        return true;
-    };
     // the class of one point: 0 donor, 1 interface, 2 full, 3 empty, 4 outside
     auto classOf = [&](const point& x) -> label
     {
-        if (inCell(x, donor)) return 0;
+        if (inCellTol(mesh_, x, donor, 1e-9, h)) return 0;
         for (const label pi : cellPoints[donor])
         {
             for (const label c : pointCells[pi])
             {
-                if (c == donor || !inCell(x, c)) continue;
+                if (c == donor || !inCellTol(mesh_, x, c, 1e-9, h)) continue;
                 if (hasSurface_.test(c)) return 1;
                 if (a0[c] >= 1 - 1e-8) return 2;
                 if (a0[c] <= 1e-8) return 3;
