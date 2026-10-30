@@ -31,6 +31,7 @@ License
 #include "fvcSurfaceIntegrate.H"
 #include "upwind.H"
 #include "davof.H"
+#include <chrono>
 
 // ************************************************************************* //
 
@@ -425,6 +426,7 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     }
 
     scalar advectionStartTime = mesh_.time().elapsedCpuTime();
+    const auto advectWall0 = std::chrono::steady_clock::now();
 
     scalar rDeltaT = 1/mesh_.time().deltaTValue();
 
@@ -593,6 +595,33 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         // The faces with a non-zero fraction, ascending, for the davof
         // scheme's area sums
         publishWetFaces();
+    }
+
+    // The swept fluxes: the remote cells of the parallel path and the wall
+    // times of the step's advection (2026-10-30; the maxima over the ranks,
+    // the counts summed)
+    if
+    (
+        davofPtr_ && clippingSurface_ != "none"
+     && (fluxIntegration_ == "sweptFace" || fluxIntegration_ == "sweptFaceCells")
+    )
+    {
+        scalar tAdv =
+            std::chrono::duration<scalar>(std::chrono::steady_clock::now() - advectWall0).count();
+        scalar tCurved = sweptCurvedTime_, tExch = sweptExchangeTime_;
+        label nRc = nSweptRemoteCells_, nRf = nSweptRemoteFaces_, nEu = nSweptEulerTrace_;
+        reduce(tAdv, maxOp<scalar>());
+        reduce(tCurved, maxOp<scalar>());
+        reduce(tExch, maxOp<scalar>());
+        reduce(nRc, sumOp<label>());
+        reduce(nRf, sumOp<label>());
+        reduce(nEu, sumOp<label>());
+        Info<< "isoAdvection: swept parallel: remote cells " << nRc
+            << ", faces with remote cells " << nRf
+            << ", Euler traces " << nEu
+            << "; wall time max over " << Pstream::nProcs() << " ranks: advect "
+            << tAdv << " s, curvedFlux " << tCurved << " s, exchange " << tExch
+            << " s" << endl;
     }
 
     advectionTime_ += (mesh_.time().elapsedCpuTime() - advectionStartTime);

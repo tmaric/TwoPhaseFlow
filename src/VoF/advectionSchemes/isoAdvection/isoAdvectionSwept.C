@@ -105,13 +105,28 @@ Description
       displacement d = U(x_f) dt, so for a uniform U the pre-image is the
       prism's f - d and the swept volume IS the prism). The midpoint velocity
       is the cell-point interpolate in the cell that holds the midpoint (the
-      donor, a cell sharing a vertex with it, else the mesh's octree search);
-      a midpoint outside the mesh, or across a processor boundary, takes the
-      Euler step x - dt U(x) (exact for a uniform U as well).
+      donor, a cell sharing a vertex with it, local or on another rank, else
+      the local mesh's octree search); a midpoint outside the mesh, or in a
+      cell of another rank beyond the donor's vertex ring, takes the Euler
+      step x - dt U(x) (exact for a uniform U as well; counted, "Euler
+      traces").
 
-    - CELLS. The ring search is local: a neighbour across a processor
-      boundary is not seen (its part counts as beyond one layer); serial
-      studies.
+    - CELLS AND PARALLEL RUNS (2026-10-30). The ring is the donor's
+      cell-point-cell stencil. In parallel its cells on other ranks are
+      fetched once per step (sweptExchange: OpenFOAM's zoneDistribute
+      stencil with global cell indices, H. Scheufler, J. Roenby, J. Comput.
+      Phys. 383 (2019) 1-23, doi:10.1016/j.jcp.2019.01.009, and one
+      mapDistributeBase transfer of the packed cells, davofSweptRemote.H):
+      alpha^n, the surface, the face planes, the bounding box and the
+      tetrahedra of the cell-point interpolation with the point velocities,
+      so that a piece or a midpoint in a remote cell is computed from the
+      same numbers as in serial. The remote cells follow the local ones in
+      the ring (the sums differ from serial in their order only, round-off).
+      A processor face is computed on its upwind side (the donor's rank).
+      In serial nothing is exchanged and the path is the local one
+      unchanged. Not covered: cells beyond one layer (as in serial),
+      cyclic patches across ranks, the sweptClassify and sweptFaceDump
+      diagnostics (local cells only).
 
     - DIAGNOSTICS per step in the Info line: the faces computed, the sign
       flips, the faces out of the donor, the largest closure residual of the
@@ -133,6 +148,11 @@ SourceFiles
 #include "boundBox.H"
 #include "OFstream.H"
 #include "OSspecific.H"
+#include "zoneDistribute.H"
+#include "mapDistributeBase.H"
+#include "polyMeshTetDecomposition.H"
+#include "tetIndices.H"
+#include <chrono>
 
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
@@ -233,8 +253,13 @@ void Foam::advection::isoAdvection::sweptTriangles
     // of the donor's boundary, inside that ring for Co < 1), else the mesh's
     // octree search (CELL_TETS; the tree and the tet base points are built
     // once per step in curvedFlux, on every rank; the face-plane search of
-    // polyMesh::findCell scans every cell and is not used); -1 outside the
-    // mesh or across a processor boundary
+    // polyMesh::findCell scans every cell and is not used); in parallel the
+    // cells of other ranks in the donor's vertex ring (sweptExchange) are
+    // searched after the local ring and before the octree, and returned as
+    // -2 - k (k their index in sweptRemote_); -1 outside the mesh, or
+    // beyond the ring on another rank
+    const auto remoteIter = sweptRemoteRing_.cfind(donor);
+    const labelList* remoteRing = remoteIter.good() ? &remoteIter.val() : nullptr;
     auto cellOf = [&](const point& x) -> label
     {
         if (inCellTol(mesh_, x, donor, 1e-12, h)) return donor;
@@ -245,16 +270,30 @@ void Foam::advection::isoAdvection::sweptTriangles
                 if (c != donor && inCellTol(mesh_, x, c, 1e-12, h)) return c;
             }
         }
+        if (remoteRing)
+        {
+            for (const label k : *remoteRing)
+            {
+                if (davof::inRemoteCellTol(sweptRemote_[k], x, 1e-12, h)) return -2 - k;
+            }
+        }
         return mesh_.findCell(x, polyMesh::CELL_TETS);
     };
 
     // The velocity at a point of the trajectory: the cell-point interpolate
-    // in the cell that holds the point; nothing where no local cell holds it
+    // in the cell that holds the point (a remote cell's from its packed
+    // tetrahedra, davof::interpolateRemote); nothing where no cell holds it
     auto velocityNear = [&](const point& x, bool& found) -> vector
     {
         const label c = cellOf(x);
-        found = (c >= 0);
-        return found ? UInterp.interpolate(x, c) : vector(Zero);
+        found = (c >= 0 || c <= -2);
+        if (c >= 0) return UInterp.interpolate(x, c);
+        if (c <= -2)
+        {
+            sweptFaceRemote_ = true;
+            return davof::interpolateRemote(sweptRemote_[-2 - c], x);
+        }
+        return vector(Zero);
     };
 
     // The backward midpoint trace from x with the velocity u1 at x
@@ -263,6 +302,7 @@ void Foam::advection::isoAdvection::sweptTriangles
         const point xm = x - 0.5*dt*u1;
         bool found = false;
         const vector um = velocityNear(xm, found);
+        if (!found) ++nSweptEulerTrace_;
         return found ? (x - dt*um) : (x - dt*u1);
     };
 
@@ -526,6 +566,19 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             if (c != donor && !ring.found(c) && touches(c)) ring.append(c);
         }
     }
+    // in parallel the ring cells of other ranks (sweptExchange), after the
+    // local ones, as -2 - k (k their index in sweptRemote_)
+    {
+        const auto remoteIter = sweptRemoteRing_.cfind(donor);
+        if (remoteIter.good())
+        {
+            for (const label k : remoteIter.val())
+            {
+                const davof::remoteCell& rc = sweptRemote_[k];
+                if (boundBox(rc.bbMin, rc.bbMax).overlaps(sweptBox)) ring.append(-2 - k);
+            }
+        }
+    }
     const point xf = Cf[facei];
 
     // The coplanar rule of the face update (sweptCoplanar, davofSweptPieces.H):
@@ -547,34 +600,47 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     scalar coverage = 0, coveragePre = 0;
     bool rankFallback = false;
     List<davof::halfSpace> planes;
-    for (const label c : ring)
+    for (const label e : ring)
     {
+        // a ring entry: a local cell c = e, or a cell of another rank
+        // (e <= -2) whose packed planes and state are read instead
+        const davof::remoteCell* rc = (e <= -2) ? &sweptRemote_[-2 - e] : nullptr;
+        const label c = rc ? rc->gid : e;
         // the cell's half-spaces
-        const labelList& cf = cells[c];
-        planes.setSize(cf.size());
-        forAll(cf, j)
+        if (rc)
         {
-            const vector nOut = (own[cf[j]] == c) ? Sf[cf[j]] : -Sf[cf[j]];
-            planes[j].n = nOut/max(mag(nOut), VSMALL);
-            planes[j].x0 = Cf[cf[j]];
+            davof::remoteCellPlanes(*rc, planes);
+        }
+        else
+        {
+            const labelList& cf = cells[c];
+            planes.setSize(cf.size());
+            forAll(cf, j)
+            {
+                const vector nOut = (own[cf[j]] == c) ? Sf[cf[j]] : -Sf[cf[j]];
+                planes[j].n = nOut/max(mag(nOut), VSMALL);
+                planes[j].x0 = Cf[cf[j]];
+            }
         }
         // the cell's state and plane
+        const scalar a0c = rc ? rc->alpha0 : a0[c];
+        const bool hasS = rc ? rc->hasSurface : hasSurface_.test(c);
         bool wetPlane = false, wet = true;
         davof::halfSpace plic;
         plic.n = Zero; plic.x0 = Zero;
-        if (hasSurface_.test(c))
+        if (hasS)
         {
             vector nRaw; point x0;
-            planeOf(cellSurfaces_[c], c, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
+            planeOf(rc ? rc->S : cellSurfaces_[c], c, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
             plic.n = nRaw/max(mag(nRaw), VSMALL);
             plic.x0 = x0;
             wetPlane = true;
         }
-        else if (a0[c] >= 1 - 1e-8)
+        else if (a0c >= 1 - 1e-8)
         {
             wet = true;
         }
-        else if (a0[c] <= 1e-8)
+        else if (a0c <= 1e-8)
         {
             wet = false;
         }
@@ -582,7 +648,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         {
             // a partial cell without a surface (a wisp): wet by its alpha
             ++nSweptPartialCells_;
-            wet = (a0[c] >= 0.5);
+            wet = (a0c >= 0.5);
         }
 
         if (sweeps)
@@ -591,6 +657,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             coverage += r.coverage;
             if (r.coverage > 1e-12*sumMagT)
             {
+                if (rc) sweptFaceRemote_ = true;
                 ++nSweptPieces_;
                 if (!r.ok) rankFallback = true;
                 if (r.degenerate) ++nSweptDegenerate_;
@@ -607,11 +674,12 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         bool cop = false;
         const vector aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov, nRef, &ac, &cop);
         coveragePre += cov;
+        if (rc && cov > 0) sweptFaceRemote_ = true;
         if (cop) ++nSweptCoplanar_;
         if (wetPlane || wet) aPreWet += aw;
         if (dump && cov > 0)
         {
-            word cls = (c == donor) ? "donor" : (wetPlane ? "interface" : (a0[c] >= 1 - 1e-8 ? "full" : (a0[c] <= 1e-8 ? "empty" : "wisp")));
+            word cls = (!rc && c == donor) ? "donor" : (wetPlane ? "interface" : (a0c >= 1 - 1e-8 ? "full" : (a0c <= 1e-8 ? "empty" : "wisp")));
             pieceRows.append({c, cls, (wetPlane || wet) ? aw : vector(Zero), ac, cop});
         }
     }
@@ -739,6 +807,146 @@ void Foam::advection::isoAdvection::writeFaceDump
         << Apre.x() << ',' << Apre.y() << ',' << Apre.z() << ','
         << S.x() << ',' << S.y() << ',' << S.z() << ','
         << C.x() << ',' << C.y() << ',' << C.z() << nl;
+}
+
+
+void Foam::advection::isoAdvection::packSweptCell
+(
+    const label celli,
+    const pointVectorField& Up,
+    DynamicList<scalar>& v
+) const
+{
+    const pointField& P = mesh_.points();
+    const vectorField& Cf = mesh_.faceCentres();
+    const vectorField& Sf = mesh_.faceAreas();
+    const labelList& own = mesh_.faceOwner();
+    v.clear();
+    v.append(1);
+    davof::appendVector(mesh_.cellCentres()[celli], v);
+    v.append(mesh_.V()[celli]);
+    v.append(alpha1_.oldTime().primitiveField()[celli]);
+    const bool has = hasSurface_.test(celli);
+    v.append(has ? 1 : 0);
+    davof::packCellSurface(has ? cellSurfaces_[celli] : davof::cellSurface(), v);
+    const boundBox bb(P, mesh_.cellPoints()[celli], false);
+    davof::appendVector(bb.min(), v);
+    davof::appendVector(bb.max(), v);
+    davof::appendVector(U_.primitiveField()[celli], v);
+    const labelList& cFaces = mesh_.cells()[celli];
+    v.append(cFaces.size());
+    for (const label f : cFaces)
+    {
+        davof::appendVector((own[f] == celli) ? Sf[f] : -Sf[f], v);
+        davof::appendVector(Cf[f], v);
+    }
+    // the tetrahedra of the cell-point interpolation (cellPointWeight's
+    // order: polyMeshTetDecomposition::cellTetIndices)
+    const List<tetIndices> tets(polyMeshTetDecomposition::cellTetIndices(mesh_, celli));
+    v.append(tets.size());
+    for (const tetIndices& tetIs : tets)
+    {
+        const triFace tri(tetIs.faceTriIs(mesh_));
+        for (direction k = 0; k < 3; ++k) davof::appendVector(P[tri[k]], v);
+        for (direction k = 0; k < 3; ++k) davof::appendVector(Up[tri[k]], v);
+    }
+}
+
+
+void Foam::advection::isoAdvection::sweptExchange
+(
+    const boolList& donors,
+    const pointVectorField& Up
+)
+{
+    sweptRemote_.clear();
+    sweptRemoteRing_.clear();
+    nSweptRemoteCells_ = 0;
+    sweptExchangeTime_ = 0;
+    if (!Pstream::parRun()) return;
+    const auto t0 = std::chrono::steady_clock::now();
+
+    // The cell-point-cell stencil of the donors with global indices
+    // (OpenFOAM's zoneDistribute / zoneCPCStencil, H. Scheufler, J. Roenby,
+    // J. Comput. Phys. 383 (2019) 1-23, doi:10.1016/j.jcp.2019.01.009); the
+    // stencil of a cell is computed once and cached by zoneCPCStencil
+    zoneDistribute& zd = zoneDistribute::New(mesh_);
+    zd.updateStencil(donors);
+    const labelListList& stencil = zd.getStencil();
+    const globalIndex& gNum = zd.globalNumbering();
+
+    // the remote entries (cells, or boundary faces of another rank, which
+    // the owner answers with an empty entry)
+    labelHashSet need;
+    forAll(donors, celli)
+    {
+        if (!donors[celli]) continue;
+        for (const label g : stencil[celli])
+        {
+            if (!gNum.isLocal(g)) need.insert(g);
+        }
+    }
+    const labelList needSorted(need.sortedToc());
+
+    // one transfer: the map from the global indices (the request round of
+    // the mapDistributeBase constructor), the packed cells sent per rank
+    labelList compact(needSorted);
+    List<Map<label>> compactMap;
+    const mapDistributeBase map(gNum, compact, compactMap);
+    List<scalarList> data(gNum.localSize());
+    DynamicList<scalar> buf(512);
+    for (const labelList& sub : map.subMap())
+    {
+        for (const label idx : sub)
+        {
+            if (!data[idx].empty()) continue;
+            if (idx < mesh_.nCells())
+            {
+                packSweptCell(idx, Up, buf);
+                data[idx] = buf;
+            }
+            else
+            {
+                data[idx] = scalarList(1, Zero);
+            }
+        }
+    }
+    map.distribute(data);
+
+    // unpack: the remote cells by ascending global index, and per donor the
+    // indices of its remote ring cells
+    Map<label> slotOf(2*needSorted.size());
+    sweptRemote_.setSize(needSorted.size());
+    label n = 0;
+    forAll(needSorted, i)
+    {
+        davof::remoteCell rc;
+        if (davof::unpackRemoteCell(data[compact[i]], rc))
+        {
+            rc.gid = needSorted[i];
+            slotOf.insert(needSorted[i], n);
+            sweptRemote_[n++] = std::move(rc);
+        }
+    }
+    sweptRemote_.setSize(n);
+    nSweptRemoteCells_ = n;
+    forAll(donors, celli)
+    {
+        if (!donors[celli]) continue;
+        DynamicList<label> ks;
+        for (const label g : stencil[celli])
+        {
+            const auto iter = slotOf.cfind(g);
+            if (iter.good()) ks.append(iter.val());
+        }
+        if (ks.size())
+        {
+            Foam::sort(ks);
+            sweptRemoteRing_.insert(celli, labelList(std::move(ks)));
+        }
+    }
+    sweptExchangeTime_ =
+        std::chrono::duration<scalar>(std::chrono::steady_clock::now() - t0).count();
 }
 
 

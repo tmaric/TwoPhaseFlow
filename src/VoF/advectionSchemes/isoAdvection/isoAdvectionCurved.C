@@ -77,7 +77,9 @@ SourceFiles
 #include "volFields.H"
 #include "processorPolyPatch.H"
 #include "PstreamBuffers.H"
+#include "OSspecific.H"
 #include <cmath>
+#include <chrono>
 
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
@@ -1086,6 +1088,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptDegenerate_ = 0;
     nSweptCoplanar_ = 0;
     sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
+    nSweptRemoteFaces_ = nSweptEulerTrace_ = 0;
+    const auto tCurved0 = std::chrono::steady_clock::now();
     if (sweptClassify_)
     {
         nSweptClass_ = label(0);
@@ -1287,6 +1291,60 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         }
     }
 
+    // The swept fluxes in parallel (2026-10-30): the donors of the faces
+    // this rank computes (the upwind cell of an internal face with a
+    // candidate cell, the local cell of a boundary face, the local cell of
+    // a processor face whose upwind side is local), whose vertex rings'
+    // cells of other ranks are fetched once here (sweptExchange,
+    // davofSweptRemote.H); a superset of the donors is harmless (the zero
+    // flux's tie-break is not applied here)
+    if (sweptFlux && Pstream::parRun())
+    {
+        boolList donors(mesh_.nCells(), false);
+        for (label facei = 0; facei < nInt; ++facei)
+        {
+            const label o = own[facei];
+            const label n = nei[facei];
+            if (!cand.test(o) && !cand.test(n)) continue;
+            if (phiIn[facei] >= 0) donors[o] = true;
+            if (phiIn[facei] <= 0) donors[n] = true;
+        }
+        forAll(pbm, patchi)
+        {
+            const polyPatch& pp = pbm[patchi];
+            if (alphafPtr_->boundaryField()[patchi].size() != pp.size()) continue;
+            if (pp.coupled() && !isA<processorPolyPatch>(pp)) continue;
+            const bool procFace = isA<processorPolyPatch>(pp);
+            forAll(pp, i)
+            {
+                const label o = own[pp.start() + i];
+                const bool remoteCand =
+                    procFace && !nbrCand[patchi].empty() && nbrCand[patchi][i];
+                if (!cand.test(o) && !remoteCand) continue;
+                if (procFace && faceValue(phi_, pp.start() + i) < 0) continue;
+                donors[o] = true;
+            }
+        }
+        sweptExchange(donors, *UpPtr);
+    }
+
+    // The per-face log of the swept fluxes (sweptFaceLog): one file per step
+    // and rank
+    if (sweptFlux && sweptFaceLog_)
+    {
+        const fileName dir(mesh_.time().globalPath()/"postProcessing"/"sweptFaceLog");
+        mkDir(dir);
+        sweptFaceLogFile_.reset
+        (
+            new OFstream
+            (
+                dir/(Foam::name(mesh_.time().timeIndex()) + "_" + Foam::name(Pstream::myProcNo()) + ".csv")
+            )
+        );
+        sweptFaceLogFile_().precision(17);
+        sweptFaceLogFile_() << "x,y,z,alphaf,dVf,remote,procFace" << nl;
+    }
+
     // A zero flux (a face parallel to the velocity) leaves "upwind"
     // undefined; the cell with the lexicographically smaller centre takes
     // the face, a convention both sides of a processor patch can evaluate
@@ -1436,6 +1494,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         scalar vSwept = 0;
         pointField qSw;
         point xqSw(Zero);
+        sweptFaceRemote_ = false;
         if (fluxIntegration_ == "sweptFace")
         {
             sweptFaceFlux
@@ -1678,6 +1737,27 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         }
         alphafSetFace_.set(facei);
         if (procFace) checkIfOnProcPatch(facei);
+        if (sweptFlux)
+        {
+            if (sweptFaceRemote_) ++nSweptRemoteFaces_;
+            if (sweptFaceLogFile_)
+            {
+                // the flux in the face's canonical orientation (the largest
+                // component of S_f positive), which the two sides of a
+                // processor patch and the serial mesh share
+                const vector& S = Sf[facei];
+                direction kMax = 0;
+                for (direction k = 1; k < 3; ++k)
+                {
+                    if (mag(S[k]) > mag(S[kMax])) kMax = k;
+                }
+                const scalar sgn = (S[kMax] >= 0) ? 1 : -1;
+                const point& x = Cf[facei];
+                sweptFaceLogFile_() << x.x() << ',' << x.y() << ',' << x.z() << ','
+                    << af << ',' << sgn*faceValue(dVf_, facei) << ','
+                    << (sweptFaceRemote_ ? 1 : 0) << ',' << (procFace ? 1 : 0) << nl;
+            }
+        }
         ++nCurvedFaces_;
         if (secondRing) ++nCurvedSecondRing_;
         if (boundary) ++nCurvedBoundary_;
@@ -1736,7 +1816,16 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             const bool localCand = cand.test(o);
             const bool remoteCand = !nbrCand[patchi].empty() && nbrCand[patchi][i];
             bool computeHere;
-            if (localUpwind) computeHere = localHas || (!remoteHas && (localCand || remoteCand));
+            if (sweptFlux)
+            {
+                // the swept fluxes trace the face back into its upwind cell,
+                // the donor, whose vertex ring holds the pieces: the face is
+                // computed on the upwind side, as the serial loop does with
+                // an internal face, the surface of the downwind cell (or of
+                // the second ring) arriving through the exchanges above
+                computeHere = localUpwind && (localCand || remoteCand);
+            }
+            else if (localUpwind) computeHere = localHas || (!remoteHas && (localCand || remoteCand));
             else computeHere = localHas && !remoteHas;
             if (!computeHere) continue;
             const davof::cellSurface* remote = remoteHas ? &nbrSurface[patchi][i] : nullptr;
@@ -1756,6 +1845,9 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         // opposite sign, the face fraction as it is)
         syncProcPatches(dVf_, phi_, false, alphafPtr_, wetVecPtr_);
     }
+    sweptFaceLogFile_.reset(nullptr);
+    sweptCurvedTime_ =
+        std::chrono::duration<scalar>(std::chrono::steady_clock::now() - tCurved0).count();
     nCurvedLeaves_ = volumeRulePtr_->nLeaves();
     nRuleFallback_ += volumeRulePtr_->nFallback();
     volumeRulePtr_->resetCounters();
