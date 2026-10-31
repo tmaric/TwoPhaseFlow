@@ -70,6 +70,7 @@ SourceFiles
 #include "davofVolumeRule.H"
 #include "davofSweptRemote.H"
 #include "Map.H"
+#include "mapDistributeBase.H"
 #include "interpolationCellPoint.H"
 #include "pointFields.H"
 #include "OFstream.H"
@@ -527,6 +528,17 @@ class isoAdvection
             bool sweptFaceRemote_;
             scalar sweptExchangeTime_;
             scalar sweptCurvedTime_;
+            //- The parts of the exchange: the wait at a barrier for the
+            //  slowest rank, the stencil update, the map, the packing, the
+            //  transfer, the unpacking (seconds, this rank)
+            FixedList<scalar, 6> sweptExchangeParts_;
+            //- The cells whose stencil zoneCPCStencil holds (the update is
+            //  called only for new donors), and the map of the transfer,
+            //  kept while no rank's set of remote cells changes
+            bitSet sweptStencilDone_;
+            autoPtr<mapDistributeBase> sweptMap_;
+            labelList sweptPrevNeed_;
+            labelList sweptPrevCompact_;
             //- The per-face log of the swept fluxes (key sweptFaceLog,
             //  default false): per step and rank the faces computed with the
             //  face centre, the face fraction, the flux in the face's

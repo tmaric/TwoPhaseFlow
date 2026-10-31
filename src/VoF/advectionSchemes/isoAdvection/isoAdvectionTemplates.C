@@ -616,12 +616,17 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         reduce(nRc, sumOp<label>());
         reduce(nRf, sumOp<label>());
         reduce(nEu, sumOp<label>());
+        FixedList<scalar, 6> parts(sweptExchangeParts_);
+        forAll(parts, k) reduce(parts[k], maxOp<scalar>());
         Info<< "isoAdvection: swept parallel: remote cells " << nRc
             << ", faces with remote cells " << nRf
             << ", Euler traces " << nEu
             << "; wall time max over " << Pstream::nProcs() << " ranks: advect "
             << tAdv << " s, curvedFlux " << tCurved << " s, exchange " << tExch
-            << " s" << endl;
+            << " s (wait " << parts[0] << ", stencil " << parts[1]
+            << ", map " << parts[2] << ", pack " << parts[3]
+            << ", transfer " << parts[4] << ", unpack " << parts[5] << ")"
+            << endl;
     }
 
     advectionTime_ += (mesh_.time().elapsedCpuTime() - advectionStartTime);

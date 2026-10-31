@@ -863,17 +863,68 @@ void Foam::advection::isoAdvection::sweptExchange
     sweptRemoteRing_.clear();
     nSweptRemoteCells_ = 0;
     sweptExchangeTime_ = 0;
+    sweptExchangeParts_ = Zero;
     if (!Pstream::parRun()) return;
-    const auto t0 = std::chrono::steady_clock::now();
+    auto now = []() { return std::chrono::steady_clock::now(); };
+    auto secs = [](const auto& a, const auto& b)
+    {
+        return std::chrono::duration<scalar>(b - a).count();
+    };
+    const auto t0 = now();
+
+    // the wait for the slowest rank (the work before the exchange is not
+    // balanced: the interface ranks fit and anchor their surfaces), timed
+    // apart from the exchange itself
+    UPstream::barrier(UPstream::worldComm);
+    const auto t1 = now();
 
     // The cell-point-cell stencil of the donors with global indices
     // (OpenFOAM's zoneDistribute / zoneCPCStencil, H. Scheufler, J. Roenby,
-    // J. Comput. Phys. 383 (2019) 1-23, doi:10.1016/j.jcp.2019.01.009); the
-    // stencil of a cell is computed once and cached by zoneCPCStencil
+    // J. Comput. Phys. 383 (2019) 1-23, doi:10.1016/j.jcp.2019.01.009). The
+    // stencil of a cell is computed once and cached by zoneCPCStencil, but
+    // every update synchronises the coupled boundary points of the whole
+    // mesh; it is therefore called only when a donor of some rank has no
+    // stencil yet, and then for the donors and two layers of their face
+    // neighbours, so that the interface moving by a fraction of a cell per
+    // step finds its next donors' stencils in place
     zoneDistribute& zd = zoneDistribute::New(mesh_);
-    zd.updateStencil(donors);
+    if (sweptStencilDone_.size() != mesh_.nCells())
+    {
+        sweptStencilDone_.reset();
+        sweptStencilDone_.resize(mesh_.nCells());
+    }
+    bool anyNew = false;
+    forAll(donors, celli)
+    {
+        if (donors[celli] && !sweptStencilDone_.test(celli))
+        {
+            anyNew = true;
+            break;
+        }
+    }
+    reduce(anyNew, orOp<bool>());
+    if (anyNew)
+    {
+        const labelListList& cc = mesh_.cellCells();
+        boolList zone(donors);
+        for (label layer = 0; layer < 2; ++layer)
+        {
+            const boolList prev(zone);
+            forAll(prev, celli)
+            {
+                if (!prev[celli]) continue;
+                for (const label nb : cc[celli]) zone[nb] = true;
+            }
+        }
+        zd.updateStencil(zone);
+        forAll(zone, celli)
+        {
+            if (zone[celli]) sweptStencilDone_.set(celli);
+        }
+    }
     const labelListList& stencil = zd.getStencil();
     const globalIndex& gNum = zd.globalNumbering();
+    const auto t2 = now();
 
     // the remote entries (cells, or boundary faces of another rank, which
     // the owner answers with an empty entry)
@@ -889,10 +940,21 @@ void Foam::advection::isoAdvection::sweptExchange
     const labelList needSorted(need.sortedToc());
 
     // one transfer: the map from the global indices (the request round of
-    // the mapDistributeBase constructor), the packed cells sent per rank
-    labelList compact(needSorted);
-    List<Map<label>> compactMap;
-    const mapDistributeBase map(gNum, compact, compactMap);
+    // the mapDistributeBase constructor; kept while no rank's set of remote
+    // cells changes), the packed cells sent per rank
+    bool changed = (!sweptMap_ || needSorted != sweptPrevNeed_);
+    reduce(changed, orOp<bool>());
+    if (changed)
+    {
+        labelList compact(needSorted);
+        List<Map<label>> compactMap;
+        sweptMap_.reset(new mapDistributeBase(gNum, compact, compactMap));
+        sweptPrevNeed_ = needSorted;
+        sweptPrevCompact_ = std::move(compact);
+    }
+    const mapDistributeBase& map = sweptMap_();
+    const labelList& compact = sweptPrevCompact_;
+    const auto t3 = now();
     List<scalarList> data(gNum.localSize());
     DynamicList<scalar> buf(512);
     for (const labelList& sub : map.subMap())
@@ -911,7 +973,9 @@ void Foam::advection::isoAdvection::sweptExchange
             }
         }
     }
+    const auto t4 = now();
     map.distribute(data);
+    const auto t5 = now();
 
     // unpack: the remote cells by ascending global index, and per donor the
     // indices of its remote ring cells
@@ -945,8 +1009,14 @@ void Foam::advection::isoAdvection::sweptExchange
             sweptRemoteRing_.insert(celli, labelList(std::move(ks)));
         }
     }
-    sweptExchangeTime_ =
-        std::chrono::duration<scalar>(std::chrono::steady_clock::now() - t0).count();
+    const auto t6 = now();
+    sweptExchangeTime_ = secs(t0, t6);
+    sweptExchangeParts_[0] = secs(t0, t1);   // wait at the barrier
+    sweptExchangeParts_[1] = secs(t1, t2);   // stencil
+    sweptExchangeParts_[2] = secs(t2, t3);   // map
+    sweptExchangeParts_[3] = secs(t3, t4);   // pack
+    sweptExchangeParts_[4] = secs(t4, t5);   // transfer
+    sweptExchangeParts_[5] = secs(t5, t6);   // unpack
 }
 
 
