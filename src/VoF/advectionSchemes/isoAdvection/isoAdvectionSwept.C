@@ -594,6 +594,23 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     struct pieceRow { label cell; word cls; vector aw; vector ac; bool cop; };
     DynamicList<pieceRow> pieceRows(dump ? 16 : 0);
 
+    // the debug face (key sweptDebugPoint, 2026-10-31): every step, on the
+    // rank that computes it, the face whose centre lies within 1e-9 of the
+    // point writes its pre-image and every ring cell's state, piece and
+    // pre-image part to postProcessing/sweptDebugFace/<step>_<rank>.txt
+    const bool debugFace = sweptDebug_ && mag(Cf[facei] - sweptDebugPoint_) < 1e-9;
+    autoPtr<OFstream> dbg;
+    if (debugFace)
+    {
+        const fileName dir(mesh_.time().globalPath()/"postProcessing"/"sweptDebugFace");
+        mkDir(dir);
+        dbg.reset(new OFstream(dir/(Foam::name(mesh_.time().timeIndex()) + "_" + Foam::name(Pstream::myProcNo()) + ".txt")));
+        dbg().precision(17);
+        dbg() << "face " << facei << " Cf " << Cf[facei] << " Sf " << Sf[facei] << " donor " << donor
+            << " phi " << phiF << " sweeps " << sweeps << " vTotal " << vTotal << nl
+            << "xq " << xq << nl << "q " << q << nl;
+    }
+
     // The pieces
     scalar threeV = 0;
     vector aPreWet(Zero);
@@ -651,9 +668,12 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             wet = (a0c >= 0.5);
         }
 
+        scalar dbgVol = 0, dbgCovV = 0;
         if (sweeps)
         {
             const davof::pieceResult r = davof::sweptPieceVolume(T, planes, wetPlane, plic, xf);
+            dbgVol = r.volume;
+            dbgCovV = r.coverage;
             coverage += r.coverage;
             if (r.coverage > 1e-12*sumMagT)
             {
@@ -677,6 +697,17 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         if (rc && cov > 0) sweptFaceRemote_ = true;
         if (cop) ++nSweptCoplanar_;
         if (wetPlane || wet) aPreWet += aw;
+        if (debugFace && (cov > 0 || dbgCovV > 0))
+        {
+            dbg() << "cell " << c << " remote " << (rc ? 1 : 0) << " alpha0 " << a0c
+                << " surface " << hasS << " wet " << wet << " plic.n " << plic.n
+                << " plic.x0 " << plic.x0 << " pieceVolume " << dbgVol
+                << " pieceCoverage " << dbgCovV << " preCoverage " << cov
+                << " aWet " << aw << " aCell " << ac << " coplanar " << cop
+                << " planes";
+            for (const davof::halfSpace& hs : planes) dbg() << ' ' << hs.n << ' ' << hs.x0;
+            dbg() << nl;
+        }
         if (dump && cov > 0)
         {
             word cls = (!rc && c == donor) ? "donor" : (wetPlane ? "interface" : (a0c >= 1 - 1e-8 ? "full" : (a0c <= 1e-8 ? "empty" : "wisp")));
@@ -733,6 +764,10 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         // the one-donor clip of this face (counted)
         ++nSweptRankFallback_;
         sweptFaceFlux(facei, donor, S, dt, phiF, sweeps, UInterp, Up, af, aWet, vLiq);
+        if (debugFace)
+        {
+            dbg() << "result (rank fallback, the one-donor clip) af " << af << " vLiq " << vLiq << nl;
+        }
         if (dump)
         {
             writeFaceDump(facei, donor, phiF, sweeps, fractionOf(aPreWet), af, af, true,
@@ -756,6 +791,12 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     }
     aWet = aPreWet;
     af = fractionOf(aWet);
+    if (debugFace)
+    {
+        dbg() << "result af " << af << " vLiq " << vLiq << " threeV " << threeV
+            << " coverage " << coverage << " coveragePre " << coveragePre
+            << " rankFallback " << rankFallback << nl;
+    }
 
     if (dump)
     {

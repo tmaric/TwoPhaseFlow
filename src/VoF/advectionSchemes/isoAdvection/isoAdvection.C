@@ -213,6 +213,8 @@ Foam::advection::isoAdvection::isoAdvection
     sweptPrevNeed_(),
     sweptPrevCompact_(),
     sweptFaceLog_(modelDict().getOrDefault<bool>("sweptFaceLog", false)),
+    sweptDebug_(modelDict().found("sweptDebugPoint")),
+    sweptDebugPoint_(modelDict().getOrDefault<point>("sweptDebugPoint", point(GREAT, GREAT, GREAT))),
     sweptFaceLogFile_(),
     debugR0Max_(0),
     debugCellR0_(-1),

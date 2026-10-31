@@ -546,6 +546,11 @@ class isoAdvection
             //  postProcessing/sweptFaceLog/<step>_<rank>.csv (the
             //  decomposition comparison)
             bool sweptFaceLog_;
+            //- The debug face of sweptFaceCells (key sweptDebugPoint, a
+            //  point; absent: off): the face whose centre lies within 1e-9
+            //  of it writes its pieces every step
+            bool sweptDebug_;
+            point sweptDebugPoint_;
             autoPtr<OFstream> sweptFaceLogFile_;
             scalar debugR0Max_;
             label debugCellR0_;
