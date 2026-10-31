@@ -1240,32 +1240,56 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 const label c = fc[i];
                 isCand[i] = cand.test(c);
                 const point& xf = Cf[pp.start() + i];
-                label best = -1;
+                const davof::cellSurface* best = nullptr;
                 scalar dMin = GREAT;
-                for (const label nb : cellCells[c])
+                auto considerRing = [&](const davof::cellSurface& T, const point& o)
                 {
-                    if (!hasSurface_.test(nb)) continue;
-                    const point& o = cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o;
                     const scalar dd = magSqr(xf - o);
                     // the same tie-break as the face's search below
-                    bool take = (best < 0 || dd < dMin*(1 - 1e-9));
+                    bool take = (!best || dd < dMin*(1 - 1e-9));
                     if (!take && dd <= dMin*(1 + 1e-9))
                     {
-                        const point& ob = cellSurfaces_[best].o;
-                        const point& on = cellSurfaces_[nb].o;
+                        const point& ob = best->o;
+                        const point& on = T.o;
                         for (direction k = 0; k < 3; ++k)
                         {
                             if (on[k] < ob[k]) { take = true; break; }
                             if (on[k] > ob[k]) break;
                         }
                     }
-                    if (take) { dMin = min(dMin, dd); best = nb; }
+                    if (take) { dMin = min(dMin, dd); best = &T; }
+                };
+                for (const label nb : cellCells[c])
+                {
+                    if (!hasSurface_.test(nb)) continue;
+                    considerRing(cellSurfaces_[nb], cellSurfaces_[nb].sphere ? mesh_.cellCentres()[nb] : cellSurfaces_[nb].o);
                 }
-                if (best >= 0)
+                // the swept fluxes (2026-10-30): the face neighbours of c
+                // across ITS processor patches as well (from the first
+                // exchange), so that the second ring of a processor face is
+                // the serial one, the face neighbours of both cells, also
+                // where a face neighbour of the remote cell lies on a third
+                // rank or on the rank of the face's other cell (the N = 32
+                // four-rank check skipped 1 to 2 faces per step from step 14
+                // without it); the other fluxes keep the earlier rule
+                if (sweptFlux)
+                {
+                    for (const label cf2 : mesh_.cells()[c])
+                    {
+                        if (cf2 < nInt) continue;
+                        const label patchj = pbm.whichPatch(cf2);
+                        if (patchj < 0 || nbrHas[patchj].empty()) continue;
+                        const label pf = cf2 - pbm[patchj].start();
+                        if (!nbrHas[patchj][pf]) continue;
+                        const davof::cellSurface& T = nbrSurface[patchj][pf];
+                        considerRing(T, T.o);
+                    }
+                }
+                if (best)
                 {
                     ringHas[i] = true;
                     ringDist[i] = dMin;
-                    packSurface(cellSurfaces_[best], packed, nPack*i);
+                    packSurface(*best, packed, nPack*i);
                 }
             }
             UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
