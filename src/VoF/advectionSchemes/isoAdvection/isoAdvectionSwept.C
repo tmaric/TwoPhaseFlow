@@ -998,9 +998,14 @@ void Foam::advection::isoAdvection::sweptExchange
     const auto t3 = now();
     List<scalarList> data(gNum.localSize());
     DynamicList<scalar> buf(512);
-    for (const labelList& sub : map.subMap())
+    // the cells sent to the OTHER ranks only: the map's own-rank entry is
+    // the identity over every local cell and boundary face (packing it
+    // packed the whole mesh every step, 0.7 s of a 2.2 s advect call at
+    // N = 128 on 8 ranks, fork 50b8bef)
+    forAll(map.subMap(), proci)
     {
-        for (const label idx : sub)
+        if (proci == Pstream::myProcNo()) continue;
+        for (const label idx : map.subMap()[proci])
         {
             if (!data[idx].empty()) continue;
             if (idx < mesh_.nCells())
