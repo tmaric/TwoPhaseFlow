@@ -27,6 +27,7 @@ License
 #include "cutCellImpFunc.H"
 #include "cutCellIso.H"
 #include "profiling.H"
+#include "davofOrbit.H"
 
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -199,7 +200,11 @@ bool Foam::functionObjects::volumeFractionError::write()
 
     }
 
-    vector centrePos = initCentre_ + U0*mesh_.time().value();
+    // the rotation about an axis (keys omega, axisPoint; davofOrbit.H,
+    // 2026-11-01), zero by default: the exact body at its position at t
+    vector omega; point axisPoint;
+    davof::readOrbit(dict_, initCentre_, omega, axisPoint);
+    vector centrePos = davof::orbitOrigin(initCentre_, U0, omega, axisPoint, mesh_.time().value());
 
 
 

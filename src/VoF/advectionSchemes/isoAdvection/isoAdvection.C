@@ -195,6 +195,7 @@ Foam::advection::isoAdvection::isoAdvection
     sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
     sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
     nSweptCoplanar_(0),
+    planeSource_(modelDict().getOrDefault<word>("planeSource", "anchor")),
     sweptFaceDump_(modelDict().getOrDefault<bool>("sweptFaceDump", false)),
     dumpFaces_(),
     dumpPieces_(),
@@ -298,6 +299,17 @@ Foam::advection::isoAdvection::isoAdvection
                 << " (the volume flux and the face update from one surface"
                 << " per cell; curvedTolRel " << curvedTolRel_
                 << ", curvedMaxDepth " << curvedMaxDepth_;
+            if (planeSource_ != "anchor" && planeSource_ != "exact")
+            {
+                FatalIOErrorInFunction(modelDict())
+                    << "planeSource '" << planeSource_
+                    << "' unknown. Valid: anchor, exact." << exit(FatalIOError);
+            }
+            if (planeSource_ == "exact")
+            {
+                Info<< ", planeSource exact (the tangent plane of the exact"
+                    << " sphere per interface cell, no anchor)";
+            }
             if (clippingSurface_ == "plane" && fitDof_ == "six")
             {
                 FatalIOErrorInFunction(modelDict())

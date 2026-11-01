@@ -486,6 +486,15 @@ class isoAdvection
             word sweptCoplanar_;
             label nSweptCoplanar_;
 
+            //- clippingSurface plane: where the plane comes from (key
+            //  planeSource, 2026-11-01): anchor (the default: the frame of
+            //  the used normal positioned by the volume anchor) or exact
+            //  (the tangent plane of the exact sphere of the exactNormal
+            //  dictionary at the point nearest to the cell centre: a
+            //  diagnostic control without the anchor and without feedback
+            //  from the transported state)
+            word planeSource_;
+
             //- The one-step face dump of sweptFaceCells (key sweptFaceDump,
             //  default false): postProcessing/sweptFaceDump/faces.csv and
             //  pieces.csv at the first step (serial runs)

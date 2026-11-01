@@ -266,9 +266,54 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
         fitResidualPtr_->primitiveFieldRef() = 0;
     }
 
+    // planeSource exact (a diagnostic control, 2026-11-01): the plane of
+    // every interface cell is the tangent plane of the exact sphere of the
+    // exactNormal dictionary (at its position at tState, davofOrbit.H) at
+    // the sphere point nearest to the cell centre: the exact normal and the
+    // exact position, no volume anchor and no dependence on the transported
+    // state; the surfaces then carry no feedback from alpha
+    const bool planeExact = planeSurface && planeSource_ == "exact";
+    point sphO(Zero);
+    scalar sphR = 0;
+    if (planeExact)
+    {
+        const dictionary& ed = modelDict().subDict("exactNormal");
+        const point origin0 = ed.get<point>("origin");
+        vector omega; point axisPoint;
+        davof::readOrbit(ed, origin0, omega, axisPoint);
+        sphO = davof::orbitOrigin
+        (
+            origin0, ed.getOrDefault<vector>("U0", vector::zero), omega, axisPoint, tState
+        );
+        sphR = ed.get<scalar>("radius");
+    }
+
     forAll(interfaceLabels, i)
     {
         const label celli = interfaceLabels[i];
+
+        if (planeExact)
+        {
+            const vector r = C[celli] - sphO;
+            const scalar rMag = mag(r);
+            if (!(rMag > 0))
+            {
+                ++nFitNoFrame_;
+                continue;
+            }
+            davof::cellSurface S;
+            S.e3 = r/rMag;                  // out of the liquid (a liquid ball)
+            davof::frameOf(S.e3, S.e1, S.e2);
+            S.o = sphO + sphR*S.e3;
+            S.c = 0;
+            S.b11 = S.b12 = S.b22 = 0;
+            S.paraboloid = false;
+            ++nFitCells_;
+            ++nFitConverged_;
+            cellSurfaces_[celli] = S;
+            hasSurface_.set(celli);
+            continue;
+        }
 
         // The frame: e3 points out of the liquid (the used normal points in)
         vector nIn = usedN[i];
