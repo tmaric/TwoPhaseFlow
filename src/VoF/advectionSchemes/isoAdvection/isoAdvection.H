@@ -489,6 +489,16 @@ class isoAdvection
             word sweptCoplanar_;
             label nSweptCoplanar_;
 
+            //- sweptFaceCells, the cap set of a piece (key sweptCapSet,
+            //  2026-11-02): final (the default: the planes that produced an
+            //  edge of the final clipped polygons, a triangle lying in a
+            //  cell plane with the donor outside that cell a contact; the
+            //  rank fallback does not depend on the order of a cell's faces)
+            //  or crossing (the rule before 2026-11-02: a plane counted when
+            //  it crossed the polygon at its turn in the clipping order;
+            //  kept for the comparison); davofSweptPieces.H
+            word sweptCapSet_;
+
             //- clippingSurface plane: where the plane comes from (key
             //  planeSource, 2026-11-01): anchor (the default: the frame of
             //  the used normal positioned by the volume anchor) or exact
@@ -535,6 +545,9 @@ class isoAdvection
             label nSweptRemoteFaces_;
             label nSweptEulerTrace_;
             bool sweptFaceRemote_;
+            //- The face took the rank fallback (the one-donor clip; the
+            //  column fallback of sweptFaceLog, 2026-11-02)
+            bool sweptFaceFallback_;
             scalar sweptExchangeTime_;
             scalar sweptCurvedTime_;
             //- The parts of the exchange: the wait at a barrier for the

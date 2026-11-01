@@ -747,7 +747,13 @@ same clip of the pre-image fan alone (2D). A part of the boundary beyond the rin
 counted ("beyond layer", with the largest uncovered share); a rank-deficient cap system (more
 than three caps, or a PLIC plane parallel to a cell face) sends the face back to the one-donor
 clip ("rank fallbacks"); the Info line gains `; cells: pieces P, beyond layer B (max X), rank
-fallbacks R, partial cells Q, piece closure max C`. Unit check: `apps/test/testSweptPieces`
+fallbacks R, partial cells Q, piece closure max C`. The cap set (2026-11-02, key `sweptCapSet`,
+default `final`) is read from the final clipped polygons (a plane carries a cap when it produced
+an edge of positive length of a polygon of positive area), and a boundary triangle lying in a
+cell plane with the donor on the other side is a contact, not part of that cell's piece, so the
+fallback does not depend on the order of a cell's faces (it did: one face of the N = 32
+sixteen-rank run at step 20); `crossing` restores the earlier order-dependent rule for the
+comparison. Unit check: `apps/test/testSweptPieces`
 reproduces the two translation configurations of the note's `data/multicell.csv` (the face
 x = 1 of a unit cell, planar and warped, traced into the y-, z- and edge neighbours, each with
 its own tangent-plane PLIC of a sphere) to 1e-13 relative, the csv's printed precision.
@@ -772,7 +778,8 @@ is unchanged. A further Info line per step: `isoAdvection: swept parallel: remot
 with remote cells F, Euler traces E; wall time max over P ranks: advect A s, curvedFlux C s,
 exchange X s`. `sweptFaceLog true` writes per step and rank `postProcessing/sweptFaceLog/<step>_<rank>.csv`
 (face centre, face fraction, flux in the face's canonical orientation, the remote and the
-processor-face flags) for the comparison of decompositions. Not covered: pieces beyond one layer
+processor-face flags, and since 2026-11-02 the rank-fallback flag) for the comparison of
+decompositions. Not covered: pieces beyond one layer
 (skipped as in serial), cyclic patches across ranks, `sweptClassify` and `sweptFaceDump` (local
 cells only). `sweptClassify true` (2026-10-29, any flux of the curved loop)
 classifies every face per step by the cells its pre-image reaches (donor only / interface /

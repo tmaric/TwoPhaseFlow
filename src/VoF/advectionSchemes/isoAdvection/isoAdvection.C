@@ -195,6 +195,7 @@ Foam::advection::isoAdvection::isoAdvection
     sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
     sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
     nSweptCoplanar_(0),
+    sweptCapSet_(modelDict().getOrDefault<word>("sweptCapSet", "final")),
     planeSource_(modelDict().getOrDefault<word>("planeSource", "anchor")),
     sweptFaceDump_(modelDict().getOrDefault<bool>("sweptFaceDump", false)),
     dumpFaces_(),
@@ -206,6 +207,7 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptRemoteFaces_(0),
     nSweptEulerTrace_(0),
     sweptFaceRemote_(false),
+    sweptFaceFallback_(false),
     sweptExchangeTime_(0),
     sweptCurvedTime_(0),
     sweptExchangeParts_(Zero),
@@ -415,8 +417,15 @@ Foam::advection::isoAdvection::isoAdvection
                             << "sweptCoplanar '" << sweptCoplanar_
                             << "' unknown. Valid: donorSide, both." << exit(FatalIOError);
                     }
+                    if (sweptCapSet_ != "final" && sweptCapSet_ != "crossing")
+                    {
+                        FatalIOErrorInFunction(modelDict())
+                            << "sweptCapSet '" << sweptCapSet_
+                            << "' unknown. Valid: final, crossing." << exit(FatalIOError);
+                    }
                     Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
-                        << ", sweptCoplanar " << sweptCoplanar_;
+                        << ", sweptCoplanar " << sweptCoplanar_
+                        << ", sweptCapSet " << sweptCapSet_;
                 }
                 Info<< ")";
             }

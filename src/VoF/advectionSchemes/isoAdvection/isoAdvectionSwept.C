@@ -81,7 +81,11 @@ Description
     beyond one layer: that part is skipped, nothing is invented, counted
     with the largest uncovered share), the rank-deficient pieces (more than
     three caps, or a PLIC plane parallel to a cell face: the face falls back
-    to the one-donor clip, counted), the largest closure residual of the
+    to the one-donor clip, counted; the cap set is read from the final
+    clipped polygons and a boundary triangle lying in a cell plane with the
+    swept volume outside that cell is a contact, so the fallback does not
+    depend on the order of a cell's faces, davofSweptPieces.H, 2026-11-02),
+    the largest closure residual of the
     pieces, the partial cells without a surface.
 
     dVf carries the sign of phi_f, as the prism flux does, and both cells of
@@ -580,6 +584,10 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         }
     }
     const point xf = Cf[facei];
+    // the donor's centre: the side of a cell plane on which a boundary
+    // triangle lying in that plane bounds the swept volume (the contact
+    // rule of sweptPieceVolume, davofSweptPieces.H, 2026-11-02)
+    const point xDonor = mesh_.cellCentres()[donor];
 
     // The coplanar rule of the face update (sweptCoplanar, davofSweptPieces.H):
     // donorSide gives a part of the pre-image lying in a cell plane to the
@@ -669,11 +677,19 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         }
 
         scalar dbgVol = 0, dbgCovV = 0;
+        label dbgCaps = -1, dbgContact = 0;
+        bool dbgOk = true, dbgDeg = false;
         if (sweeps)
         {
-            const davof::pieceResult r = davof::sweptPieceVolume(T, planes, wetPlane, plic, xf);
+            const davof::pieceResult r =
+                davof::sweptPieceVolume
+                (
+                    T, planes, wetPlane, plic, xf, &xDonor,
+                    sweptCapSet_ == "crossing"
+                );
             dbgVol = r.volume;
             dbgCovV = r.coverage;
+            dbgCaps = r.nCaps; dbgContact = r.nContact; dbgOk = r.ok; dbgDeg = r.degenerate;
             coverage += r.coverage;
             if (r.coverage > 1e-12*sumMagT)
             {
@@ -697,12 +713,14 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         if (rc && cov > 0) sweptFaceRemote_ = true;
         if (cop) ++nSweptCoplanar_;
         if (wetPlane || wet) aPreWet += aw;
-        if (debugFace && (cov > 0 || dbgCovV > 0))
+        if (debugFace && (cov > 0 || dbgCovV > 0 || dbgContact > 0))
         {
             dbg() << "cell " << c << " remote " << (rc ? 1 : 0) << " alpha0 " << a0c
                 << " surface " << hasS << " wet " << wet << " plic.n " << plic.n
                 << " plic.x0 " << plic.x0 << " pieceVolume " << dbgVol
-                << " pieceCoverage " << dbgCovV << " preCoverage " << cov
+                << " pieceCoverage " << dbgCovV << " nCaps " << dbgCaps
+                << " ok " << dbgOk << " degenerate " << dbgDeg
+                << " contacts " << dbgContact << " preCoverage " << cov
                 << " aWet " << aw << " aCell " << ac << " coplanar " << cop
                 << " planes";
             for (const davof::halfSpace& hs : planes) dbg() << ' ' << hs.n << ' ' << hs.x0;
@@ -763,6 +781,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     {
         // the one-donor clip of this face (counted)
         ++nSweptRankFallback_;
+        sweptFaceFallback_ = true;
         sweptFaceFlux(facei, donor, S, dt, phiF, sweeps, UInterp, Up, af, aWet, vLiq);
         if (debugFace)
         {

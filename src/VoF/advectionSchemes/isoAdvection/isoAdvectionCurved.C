@@ -1411,7 +1411,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             )
         );
         sweptFaceLogFile_().precision(17);
-        sweptFaceLogFile_() << "x,y,z,alphaf,dVf,remote,procFace" << nl;
+        sweptFaceLogFile_() << "x,y,z,alphaf,dVf,remote,procFace,fallback" << nl;
     }
 
     // A zero flux (a face parallel to the velocity) leaves "upwind"
@@ -1564,6 +1564,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         pointField qSw;
         point xqSw(Zero);
         sweptFaceRemote_ = false;
+        sweptFaceFallback_ = false;
         if (fluxIntegration_ == "sweptFace")
         {
             sweptFaceFlux
@@ -1824,7 +1825,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 const point& x = Cf[facei];
                 sweptFaceLogFile_() << x.x() << ',' << x.y() << ',' << x.z() << ','
                     << af << ',' << sgn*faceValue(dVf_, facei) << ','
-                    << (sweptFaceRemote_ ? 1 : 0) << ',' << (procFace ? 1 : 0) << nl;
+                    << (sweptFaceRemote_ ? 1 : 0) << ',' << (procFace ? 1 : 0) << ','
+                    << (sweptFaceFallback_ ? 1 : 0) << nl;
             }
         }
         ++nCurvedFaces_;

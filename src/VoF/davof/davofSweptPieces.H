@@ -57,6 +57,53 @@ Description
     apps/test/testSweptPieces reproduces the two translation configurations
     of that table.
 
+    THE CAP SET, ORDER-INDEPENDENT (2026-11-02). Which planes carry a cap
+    decides k and so whether the caller falls back to the one-donor clip of
+    the whole face. Until 2026-11-01 a plane counted as cut when it crossed
+    the polygon at the moment it was clipped, i.e. after the planes before
+    it in the cell's face list; a plane whose new edge a later plane removed
+    again still counted, and the clipped remnant of zero area (a triangle
+    touching a cell plane in one edge) set a flag as well. The cap set then
+    depended on the order of the cell's faces, which differs between the
+    serial and a decomposed mesh: the N = 32 sixteen-rank run (fork
+    davof-swept-par, job 55812211) took the pieces for one face at step 20
+    where serial fell back, through the zero-volume piece of an edge
+    neighbour whose boundary triangles lay in that neighbour's face plane.
+    Two rules make the cap set a property of the piece itself, i.e. of the
+    set Omega_f intersected with the half-spaces, not of the clipping order:
+    (a) a boundary triangle lying IN a cell plane (every vertex within 1e-10
+        of its longest edge) is a contact, not a boundary of the piece, when
+        Omega_f lies outside the cell there: it is dropped; with Omega_f
+        inside it bounds the piece and is not clipped by that plane. The
+        side is the DONOR's ((x_donor - x0_i).n_i > 0: outside), as in the
+        coplanar rule of the face update (sweptPieceArea, donorSide): such
+        triangles arise where the motion is parallel to a cell plane that
+        holds the face or an edge of it (the face's own fan, the lateral
+        quads of the edges in a side plane), and the swept volume then lies
+        on the face's, i.e. the donor's, side of that plane. The triangle's
+        own orientation (a_T.n_i < 0: outside) is not used for this: on a
+        twisted swept volume a lateral quad in a side plane is a bow tie
+        whose two triangles point to opposite sides of the same plane. This
+        replaces the zero signed distance, which accepted such a triangle in
+        the cells on both sides of the plane;
+    (b) a plane carries a cap when the FINAL wet polygon of some triangle
+        (after every cell plane and the PLIC plane) has an edge that this
+        plane produced, longer than 1e-12 of the triangle's longest edge, on
+        a polygon whose area exceeds 1e-14 of that edge squared (round-off;
+        a remnant below it is dropped with its area). The edge labels are
+        carried through the clipping (clipByHalfSpace): an exit point starts
+        the edge along the plane, an entry point continues the input edge.
+    In exact arithmetic the final polygons and their plane-produced edges
+    are those of the intersection, whatever the order; the remaining
+    switches are the round-off ties of a genuinely degenerate geometry. A
+    piece whose triangles are all contacts has no coverage and no rank
+    status, so a zero-volume piece no longer decides the fallback.
+
+    Polygon clipping by a plane: I. E. Sutherland, G. W. Hodgman, Reentrant
+    polygon clipping, Communications of the ACM 17 (1974) 32-42,
+    doi:10.1145/360767.360802 (one plane at a time, with the edge labels
+    added here).
+
 SourceFiles
     (header only)
 
@@ -87,11 +134,17 @@ struct halfSpace
 struct clipPolygon
 {
     FixedList<point, 16> p;
+
+    //- The label of the edge p[i] -> p[i+1]: -1 for a part of an input
+    //  triangle's edge, otherwise the id of the plane that produced it
+    //  (clipByHalfSpace; 2026-11-02, the order-independent cap set)
+    FixedList<label, 16> e;
     label n = 0;
 
     inline void setTriangle(const point& a, const point& b, const point& c)
     {
         p[0] = a; p[1] = b; p[2] = c; n = 3;
+        e[0] = e[1] = e[2] = -1;
     }
 
     //- The area vector (Newell), zero below three vertices
@@ -109,9 +162,19 @@ struct clipPolygon
 
 //- Clip the polygon by the half-space in place (Sutherland-Hodgman against
 //  one plane; a vertex with (x - x0).n <= 0 is kept). Returns true where the
-//  plane crossed the polygon (a cap edge exists), false where the polygon
-//  was entirely on one side (kept, or removed with n = 0).
-inline bool clipByHalfSpace(clipPolygon& poly, const halfSpace& hs)
+//  plane crossed the polygon, false where the polygon was entirely on one
+//  side (kept, or removed with n = 0). The edge labels follow the clip: a
+//  kept vertex keeps its edge's label, an exit point (p[i] in, p[i+1] out)
+//  starts the new edge along the plane (label id), an entry point (p[i]
+//  out, p[i+1] in) continues the rest of edge i (its label). Whether the
+//  plane bounds the final polygon is read from those labels after all
+//  clips (sweptPieceVolume), not from the return value.
+inline bool clipByHalfSpace
+(
+    clipPolygon& poly,
+    const halfSpace& hs,
+    const label id = -1
+)
 {
     if (poly.n < 3) return false;
     FixedList<scalar, 16> s;
@@ -124,17 +187,28 @@ inline bool clipByHalfSpace(clipPolygon& poly, const halfSpace& hs)
     if (!anyOut) return false;
     if (!anyIn) { poly.n = 0; return false; }
     FixedList<point, 16> out;
+    FixedList<label, 16> lab;
     label m = 0;
     for (label i = 0; i < poly.n; ++i)
     {
         const label j = (i + 1) % poly.n;
-        if (s[i] <= 0) out[m++] = poly.p[i];
-        if ((s[i] <= 0) != (s[j] <= 0))
+        const bool inI = (s[i] <= 0);
+        const bool inJ = (s[j] <= 0);
+        if (inI)
         {
-            out[m++] = poly.p[i] + (s[i]/(s[i] - s[j]))*(poly.p[j] - poly.p[i]);
+            out[m] = poly.p[i];
+            lab[m] = poly.e[i];
+            ++m;
+        }
+        if (inI != inJ)
+        {
+            out[m] = poly.p[i] + (s[i]/(s[i] - s[j]))*(poly.p[j] - poly.p[i]);
+            lab[m] = inI ? id : poly.e[i];
+            ++m;
         }
     }
     poly.p = out;
+    poly.e = lab;
     poly.n = (m >= 3) ? m : 0;
     return true;
 }
@@ -163,12 +237,19 @@ struct pieceResult
     //- The clipped triangles (partially cut by any plane)
     label nCut = 0;
 
+    //- The boundary triangles dropped as contacts: lying in a cell plane
+    //  with Omega_f (the donor) outside the cell (the file header, rule a)
+    label nContact = 0;
+
     //- A degenerate piece: boundary triangles that lie IN a cell plane
     //  (the face's own fan in the plane of the downwind neighbour's face,
     //  a lateral triangle in a side plane under a translation normal to
     //  the face) pass the inside test with a zero signed distance and form
     //  a slab of zero thickness whose boundary does not close (no cap was
-    //  cut); its volume is zero and it is counted
+    //  cut); its volume is zero and it is counted. Since 2026-11-02 such
+    //  triangles are contacts (rule a) where Omega_f lies outside the cell
+    //  and never enter the piece; the flag remains for a closure that fails
+    //  otherwise
     bool degenerate = false;
 };
 
@@ -178,14 +259,22 @@ struct pieceResult
 //  wetPlane is true (an interface cell), wet in total otherwise (a full
 //  cell). xRef is the origin of the moments (any point; the face centre in
 //  the flux, so that a slab in the face plane carries no moment even
-//  before the degenerate rule). See the file header.
+//  before the degenerate rule). xSide (the donor's centre in the flux) is
+//  the side of a cell plane on which a triangle lying in that plane bounds
+//  Omega_f (rule a); without it the triangle's own orientation decides.
+//  crossing true restores the cap set before 2026-11-02 (a plane counts
+//  when it crosses the polygon at its turn in the clipping order, no
+//  contact rule, no remnant filter; fork key sweptCapSet crossing, kept for
+//  the comparison). See the file header.
 inline pieceResult sweptPieceVolume
 (
     const UList<FixedList<point, 3>>& T,
     const UList<halfSpace>& cellPlanes,
     const bool wetPlane,
     const halfSpace& plic,
-    const point& xRef
+    const point& xRef,
+    const point* xSide = nullptr,
+    const bool crossing = false
 )
 {
     pieceResult r;
@@ -197,29 +286,107 @@ inline pieceResult sweptPieceVolume
         r.ok = false;
         return r;
     }
+    // the cap planes: cut[i] for the cell plane i, plicCut for the PLIC
+    // plane (id nc), from the edges of the final wet polygons (the file
+    // header, rule b)
     FixedList<bool, 8> cut(false);
     bool plicCut = false;
     vector sumA(Zero);
     scalar moment = 0, sumMag = 0;
     forAll(T, k)
     {
+        const FixedList<point, 3>& t = T[k];
+        const scalar L =
+            max(mag(t[1] - t[0]), max(mag(t[2] - t[1]), mag(t[0] - t[2])));
+        if (!(L > 0)) continue;
         clipPolygon poly;
-        poly.setTriangle(T[k][0], T[k][1], T[k][2]);
+        poly.setTriangle(t[0], t[1], t[2]);
+
+        if (crossing)
+        {
+            // the cap set before 2026-11-02 (order-dependent)
+            bool wasCut = false;
+            for (label i = 0; i < nc; ++i)
+            {
+                if (clipByHalfSpace(poly, cellPlanes[i])) { cut[i] = true; wasCut = true; }
+                if (poly.n < 3) break;
+            }
+            if (poly.n < 3) continue;
+            r.coverage += mag(poly.areaVector());
+            if (wetPlane)
+            {
+                if (clipByHalfSpace(poly, plic)) { plicCut = true; wasCut = true; }
+                if (poly.n < 3) continue;
+            }
+            if (wasCut) ++r.nCut;
+            const vector a = poly.areaVector();
+            sumA += a;
+            sumMag += mag(a);
+            moment += (poly.p[0] - xRef) & a;
+            continue;
+        }
+
+        // rule a: a triangle lying in a cell plane is a contact (dropped)
+        // where Omega_f lies outside the cell, and is not clipped by that
+        // plane where Omega_f lies inside; the side is the donor's (xSide),
+        // else the triangle's orientation
+        const vector aT = poly.areaVector();
+        FixedList<bool, 8> inPlane(false);
+        bool contact = false;
+        for (label i = 0; i < nc; ++i)
+        {
+            scalar sMax = 0;
+            for (label j = 0; j < 3; ++j)
+            {
+                sMax = max(sMax, mag((t[j] - cellPlanes[i].x0) & cellPlanes[i].n));
+            }
+            if (sMax <= 1e-10*L)
+            {
+                const scalar sSide =
+                    xSide ? ((*xSide - cellPlanes[i].x0) & cellPlanes[i].n) : 0;
+                const bool outside =
+                    (mag(sSide) > 1e-10*L) ? (sSide > 0) : ((aT & cellPlanes[i].n) < 0);
+                if (outside) { contact = true; break; }
+                inPlane[i] = true;
+            }
+        }
+        if (contact)
+        {
+            ++r.nContact;
+            continue;
+        }
+
         bool wasCut = false;
         for (label i = 0; i < nc; ++i)
         {
-            if (clipByHalfSpace(poly, cellPlanes[i])) { cut[i] = true; wasCut = true; }
+            if (inPlane[i]) continue;
+            if (clipByHalfSpace(poly, cellPlanes[i], i)) wasCut = true;
             if (poly.n < 3) break;
         }
         if (poly.n < 3) continue;
-        r.coverage += mag(poly.areaVector());
+        // a remnant of zero area (a triangle touching the cell in an edge
+        // or a point) is dropped, edges and all
+        const scalar areaTol = 1e-14*L*L;
+        const vector ac = poly.areaVector();
+        if (mag(ac) <= areaTol) continue;
+        r.coverage += mag(ac);
         if (wetPlane)
         {
-            if (clipByHalfSpace(poly, plic)) { plicCut = true; wasCut = true; }
+            if (clipByHalfSpace(poly, plic, nc)) wasCut = true;
             if (poly.n < 3) continue;
         }
-        if (wasCut) ++r.nCut;
         const vector a = poly.areaVector();
+        if (mag(a) <= areaTol) continue;
+
+        // rule b: the planes that produced an edge of the final polygon
+        for (label j = 0; j < poly.n; ++j)
+        {
+            const label id = poly.e[j];
+            if (id < 0) continue;
+            if (mag(poly.p[(j + 1) % poly.n] - poly.p[j]) <= 1e-12*L) continue;
+            if (id == nc) plicCut = true; else cut[id] = true;
+        }
+        if (wasCut) ++r.nCut;
         sumA += a;
         sumMag += mag(a);
         moment += (poly.p[0] - xRef) & a;
