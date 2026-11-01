@@ -23,6 +23,15 @@ Class
 
 
 Description
+    Eshape = sum_c |alpha_c - alpha_exact,c| V_c, the mass and the bound
+    error of a volume fraction against an implicit function (functionType,
+    origin at t = 0 and the function's keys) moved to its position at t by
+    davof::orbitOrigin (davofOrbit.H): origin(t) = axisPoint
+    + R(omega t)(origin - axisPoint) + U0 t. Keys omega (default zero) and
+    axisPoint (default origin); U0 (2026-11-01): when given it is used; when
+    absent it is zero with a rotation (omega nonzero) and, without a
+    rotation, U of the first cell when |U| is uniform (a constant uniform
+    translation), else zero.
 
 Author
     Henning Scheufler, DLR, all rights reserved.

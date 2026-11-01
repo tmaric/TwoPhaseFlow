@@ -180,30 +180,47 @@ bool Foam::functionObjects::volumeFractionError::write()
 
     const volScalarField& alpha = lookupObject<volScalarField>(Field_);
 
-    vector centre = dict_.get<vector>("origin");
-
-    const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
-
-    volScalarField magU ("magU",mag(U));
-
-    scalar maxMagU = max(magU).value();
-    scalar minMagU = min(magU).value();
-
-    reduce(maxMagU,maxOp<scalar>());
-    reduce(minMagU,minOp<scalar>());
-
-    vector U0 = Foam::vector(0,0,0);
-
-    if((maxMagU - minMagU) <= SMALL )
-    {
-        U0 = U[0];
-
-    }
-
     // the rotation about an axis (keys omega, axisPoint; davofOrbit.H,
     // 2026-11-01), zero by default: the exact body at its position at t
     vector omega; point axisPoint;
     davof::readOrbit(dict_, initCentre_, omega, axisPoint);
+
+    // The translation velocity U0 of the exact body (2026-11-01):
+    // - the key U0 when the dictionary gives it (as in areaFractionError);
+    // - without U0 and with a rotation (omega nonzero): zero. The orbit
+    //   already moves the body; a uniform U under a rotation is the circular
+    //   translation without spin (setFlow mode function), whose exact body is
+    //   the orbit itself, and U t added to it displaced the sphere (Eshape of
+    //   the orbit runs read the whole sphere volume, 1.414e-2);
+    // - without U0 and without a rotation: as before, U of the first cell
+    //   when |U| is uniform over the cells and the patches (within SMALL),
+    //   else zero. This fallback is valid for a constant uniform U only
+    //   (origin + U0 t); the translation templates that give no U0 rely on it
+    //   and are unchanged.
+    vector U0(Zero);
+    if (dict_.found("U0"))
+    {
+        U0 = dict_.get<vector>("U0");
+    }
+    else if (mag(omega) <= VSMALL)
+    {
+        const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
+
+        volScalarField magU ("magU",mag(U));
+
+        scalar maxMagU = max(magU).value();
+        scalar minMagU = min(magU).value();
+
+        reduce(maxMagU,maxOp<scalar>());
+        reduce(minMagU,minOp<scalar>());
+
+        if (U.size() && (maxMagU - minMagU) <= SMALL)
+        {
+            U0 = U[0];
+        }
+        reduce(U0, maxMagSqrOp<vector>());
+    }
+
     vector centrePos = davof::orbitOrigin(initCentre_, U0, omega, axisPoint, mesh_.time().value());
 
 

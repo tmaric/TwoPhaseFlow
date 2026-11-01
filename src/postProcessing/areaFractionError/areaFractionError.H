@@ -75,7 +75,7 @@ Description
         functionType sphere;            // the implicitFunction type
         origin      (0.5 0.5 0.5);      // at t = 0
         radius      0.15;               // and the function's other keys
-        U0          (1 0 0);            // default: U when uniform
+        U0          (1 0 0);            // default: U when uniform (zero with omega)
         davofMethod exactSphere;        // exactSphere | quadraticFaces | detrixheAslam
         wispTol     1e-3;
         consistency true;               // the extra reconstruction per write; false writes -1
@@ -131,7 +131,8 @@ class areaFractionError
 
         vector U0_;
 
-        //- U0 not given: taken from the velocity field when uniform
+        //- U0 not given and omega zero: taken from the velocity field when
+        //  uniform (with omega and no U0: zero, 2026-11-01)
         bool U0FromField_;
 
         //- The rotation about an axis (keys omega, rad/s, default zero;

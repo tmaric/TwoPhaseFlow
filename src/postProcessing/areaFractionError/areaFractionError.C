@@ -109,9 +109,13 @@ bool Foam::functionObjects::areaFractionError::read(const dictionary& dict)
     fieldName_ = dict.get<word>("field");
     functionType_ = dict.get<word>("functionType");
     origin0_ = dict.get<vector>("origin");
-    U0FromField_ = !dict.found("U0");
     U0_ = dict.getOrDefault<vector>("U0", vector::zero);
     davof::readOrbit(dict, origin0_, omega_, axisPoint_);
+    // U0 from a uniform velocity field only without U0 and without a
+    // rotation (2026-11-01, as in volumeFractionError): with omega the orbit
+    // moves the body, and a uniform U is the circular translation without
+    // spin, whose exact body is the orbit itself (U0 zero)
+    U0FromField_ = !dict.found("U0") && mag(omega_) <= VSMALL;
     davofMethod_ = dict.getOrDefault<word>("davofMethod", "quadraticFaces");
     wispTol_ = dict.getOrDefault<scalar>("wispTol", 1e-3);
     consistency_ = dict.getOrDefault<Switch>("consistency", Switch(true));
