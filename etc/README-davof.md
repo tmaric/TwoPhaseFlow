@@ -724,7 +724,8 @@ RK2, second order in dt), the vertex velocities by `volPointInterpolation`, the 
 the cell-point interpolate in the donor (the prism's d = U(x_f) dt, so for a uniform U the
 pre-image is f - d and the swept volume IS the prism), the midpoint velocity the cell-point
 interpolate in the cell that holds the midpoint (the donor, a face neighbour, else the mesh
-search; a midpoint outside the mesh or across a processor boundary takes the Euler step, exact
+search; a midpoint outside the mesh, or in parallel beyond the donor's ring on another rank,
+takes the Euler step, exact
 for a uniform U as well). The Info line gains `; swept faces N, flips F, out of donor D, clipped
 triangles T, closure max C` (C = |sum_T a_T| / sum_T |a_T| over the lists, round-off by
 construction); leia's `tpf_advection_metrics.py` parses it. Cost per face: 4F triangle clips
@@ -749,8 +750,31 @@ clip ("rank fallbacks"); the Info line gains `; cells: pieces P, beyond layer B 
 fallbacks R, partial cells Q, piece closure max C`. Unit check: `apps/test/testSweptPieces`
 reproduces the two translation configurations of the note's `data/multicell.csv` (the face
 x = 1 of a unit cell, planar and warped, traced into the y-, z- and edge neighbours, each with
-its own tangent-plane PLIC of a sphere) to 1e-13 relative, the csv's printed precision. The ring
-search is local (serial studies). `sweptClassify true` (2026-10-29, any flux of the curved loop)
+its own tangent-plane PLIC of a sphere) to 1e-13 relative, the csv's printed precision.
+
+PARALLEL RUNS of `sweptFace` and `sweptFaceCells` (branch davof-swept-par, 2026-10-30,
+`davofSweptRemote.H`): the ring of a donor is its cell-point-cell stencil, which OpenFOAM's
+`zoneDistribute` / `zoneCPCStencil` gives across processor boundaries with global cell indices
+(introduced for plicRDF by H. Scheufler, J. Roenby, J. Comput. Phys. 383 (2019) 1-23,
+doi:10.1016/j.jcp.2019.01.009). Once per step `sweptExchange` marks the donors of the faces the
+rank computes, updates the stencil (cached per cell), and fetches the stencil's cells on other
+ranks in ONE `mapDistributeBase` transfer built from their global indices: each remote cell
+travels as a packed scalar list with alpha^n, the surface flag and surface (21 scalars), the
+bounding box of its points, the outward area vector and centre of each face, and the tetrahedra
+of its cell-point decomposition (the face's tet base point, as `cellPointWeight` uses it) with
+the `volPointInterpolation` velocities at their points and the cell velocity. The pieces in a
+remote cell and the velocity at a midpoint in a remote cell are then computed from the same
+numbers as in serial (the tetrahedron search of `cellPointWeight::findTetrahedron` is
+replicated with its tolerance). The remote cells follow the local ones in the ring, so the sums
+differ from serial in their order only. A processor face is computed on its upwind side (the
+donor's rank) and copied by `syncProcPatches`. In serial nothing is exchanged and the code path
+is unchanged. A further Info line per step: `isoAdvection: swept parallel: remote cells R, faces
+with remote cells F, Euler traces E; wall time max over P ranks: advect A s, curvedFlux C s,
+exchange X s`. `sweptFaceLog true` writes per step and rank `postProcessing/sweptFaceLog/<step>_<rank>.csv`
+(face centre, face fraction, flux in the face's canonical orientation, the remote and the
+processor-face flags) for the comparison of decompositions. Not covered: pieces beyond one layer
+(skipped as in serial), cyclic patches across ranks, `sweptClassify` and `sweptFaceDump` (local
+cells only). `sweptClassify true` (2026-10-29, any flux of the curved loop)
 classifies every face per step by the cells its pre-image reaches (donor only / interface /
 full / empty / outside the ring), prints the first cell that leaves [0, 1] by more than 1e-10
 after the conservative bounding with its faces' fluxes before and after the bounding, and the

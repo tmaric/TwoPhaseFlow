@@ -68,6 +68,9 @@ SourceFiles
 #include "davofFaceClipping.H"
 #include "davofCurvedGeometry.H"
 #include "davofVolumeRule.H"
+#include "davofSweptRemote.H"
+#include "Map.H"
+#include "mapDistributeBase.H"
 #include "interpolationCellPoint.H"
 #include "pointFields.H"
 #include "OFstream.H"
@@ -514,6 +517,50 @@ class isoAdvection
             //  N = 64 rotation (the prism's volume d.S_f IS phi_f dt). The
             //  identity to round-off under a uniform translation.
             bool sweptScaleToPhi_;
+
+            //- The swept fluxes in parallel (davofSweptRemote.H,
+            //  2026-10-30): the cells of other ranks in the vertex rings of
+            //  this step's donors (zoneDistribute's cell-point-cell stencil,
+            //  fetched once per step in sweptExchange), per donor the indices
+            //  of its remote ring cells (ascending global index); empty in
+            //  serial, where the path is the local one unchanged
+            List<davof::remoteCell> sweptRemote_;
+            Map<labelList> sweptRemoteRing_;
+            //- Per step: the remote cells fetched, the faces whose pieces
+            //  or trace used a remote cell, the traces that fell back to
+            //  the Euler step (no cell, local or remote, holds the
+            //  midpoint), the wall times of the exchange, of curvedFlux and
+            //  of the advect call (seconds, this rank)
+            label nSweptRemoteCells_;
+            label nSweptRemoteFaces_;
+            label nSweptEulerTrace_;
+            bool sweptFaceRemote_;
+            scalar sweptExchangeTime_;
+            scalar sweptCurvedTime_;
+            //- The parts of the exchange: the wait at a barrier for the
+            //  slowest rank, the stencil update, the map, the packing, the
+            //  transfer, the unpacking (seconds, this rank)
+            FixedList<scalar, 6> sweptExchangeParts_;
+            //- The cells whose stencil zoneCPCStencil holds (the update is
+            //  called only for new donors), and the map of the transfer,
+            //  kept while no rank's set of remote cells changes
+            bitSet sweptStencilDone_;
+            autoPtr<mapDistributeBase> sweptMap_;
+            labelList sweptPrevNeed_;
+            labelList sweptPrevCompact_;
+            //- The per-face log of the swept fluxes (key sweptFaceLog,
+            //  default false): per step and rank the faces computed with the
+            //  face centre, the face fraction, the flux in the face's
+            //  canonical orientation and the remote flag, in
+            //  postProcessing/sweptFaceLog/<step>_<rank>.csv (the
+            //  decomposition comparison)
+            bool sweptFaceLog_;
+            //- The debug face of sweptFaceCells (key sweptDebugPoint, a
+            //  point; absent: off): the face whose centre lies within 1e-9
+            //  of it writes its pieces every step
+            bool sweptDebug_;
+            point sweptDebugPoint_;
+            autoPtr<OFstream> sweptFaceLogFile_;
             scalar debugR0Max_;
             label debugCellR0_;
             davof::cellSurface debugSurface_;
@@ -870,6 +917,25 @@ public:
                 label& preSign,
                 scalar& vTotal
             );
+
+            //- The swept fluxes in parallel: the remote cells of the vertex
+            //  rings of the cells marked in donors (zoneDistribute's stencil,
+            //  one mapDistributeBase transfer of the packed cells,
+            //  davofSweptRemote.H) into sweptRemote_ and sweptRemoteRing_;
+            //  collective, a no-op in serial
+            void sweptExchange
+            (
+                const boolList& donors,
+                const pointVectorField& Up
+            );
+
+            //- The packed cell of davofSweptRemote.H (the owner's side)
+            void packSweptCell
+            (
+                const label celli,
+                const pointVectorField& Up,
+                DynamicList<scalar>& v
+            ) const;
 
             //- One row of the face dump (sweptFaceDump)
             void writeFaceDump
