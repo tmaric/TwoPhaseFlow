@@ -184,13 +184,24 @@ void staticFractions
 
     scalarField& u = afU.primitiveFieldRef();
     scalarField& m = afM.primitiveFieldRef();
+    label nBoth = 0, nDiffer = 0;
+    scalar maxDiff = 0;
     for (label facei = 0; facei < nInt; ++facei)
     {
         const scalar vo = cellValue(own[facei], facei);
         const scalar vn = cellValue(nei[facei], facei);
         u[facei] = (phiF[facei] >= 0) ? vo : vn;
         m[facei] = 0.5*(vo + vn);
+        if (hasPlane.test(own[facei]) && hasPlane.test(nei[facei]))
+        {
+            ++nBoth;
+            if (vo != vn) ++nDiffer;
+            maxDiff = max(maxDiff, mag(vo - vn));
+        }
     }
+    Info<< "    staticFractions: " << nBoth << " faces between two planes, "
+        << nDiffer << " with different clips, max |difference| " << maxDiff
+        << endl;
     const polyBoundaryMesh& pbm = mesh.boundaryMesh();
     forAll(pbm, patchi)
     {
