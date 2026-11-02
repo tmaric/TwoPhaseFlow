@@ -78,6 +78,7 @@ SourceFiles
 #include "processorPolyPatch.H"
 #include "PstreamBuffers.H"
 #include "OSspecific.H"
+#include "syncTools.H"
 #include <cmath>
 #include <chrono>
 
@@ -1134,6 +1135,17 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptCoplanar_ = 0;
     sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
     nSweptRemoteFaces_ = nSweptEulerTrace_ = 0;
+    // the consistency counters (sweptConsistent, sweptConsistencyLog)
+    nConsCandAdded_ = nConsNoSurface_ = nConsFallback_ = 0;
+    nConsWispPieces_ = 0;
+    consWispMisSum_ = consWispMisAbs_ = consWispMisMax_ = 0;
+    sweptFaceConsDelta_ = 0;
+    sweptNoDonorSurface_ = false;
+    if (sweptConsistencyLog_)
+    {
+        consResidueStep_.setSize(mesh_.nCells());
+        consResidueStep_ = 0;
+    }
     const auto tCurved0 = std::chrono::steady_clock::now();
     if (sweptClassify_)
     {
@@ -1257,6 +1269,50 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         forAll(fc, i)
         {
             if (nbrHas[patchi][i]) cand.set(fc[i]);
+        }
+    }
+
+    // sweptConsistent (2026-11-02): the candidates extended to the vertex
+    // ring of every active cell (a cell with a surface, an interface cell,
+    // a wisp: sweptConsistentTol < alpha^n < 1 - sweptConsistentTol), so
+    // that every face whose swept volume touches an active cell is computed.
+    // The swept volume of a face f reaches only cells sharing a vertex of f
+    // while the displacement per step stays below h along each mesh axis
+    // (0.126 h on the lines and the rotation at Co 0.2; a part beyond the
+    // donor's vertex ring is counted as "beyond layer"), and every such cell
+    // shares that vertex with the donor, so the donor is a candidate. The
+    // vertices of the active cells are marked and synchronised across the
+    // processor patches (syncTools, max), so a remote active cell marks the
+    // local cells sharing its vertices.
+    if (sweptConsistent_ && fluxIntegration_ == "sweptFaceCells")
+    {
+        const scalarField& a0c = alpha1_.oldTime().primitiveField();
+        const scalar tol = sweptConsistentTol_;
+        const labelListList& cellPoints = mesh_.cellPoints();
+        labelList activePoint(mesh_.nPoints(), Zero);
+        bitSet isInterface(mesh_.nCells());
+        forAll(interfaceLabels, i) isInterface.set(interfaceLabels[i]);
+        forAll(a0c, celli)
+        {
+            const bool active =
+                hasSurface_.test(celli) || isInterface.test(celli)
+             || (a0c[celli] > tol && a0c[celli] < 1 - tol);
+            if (!active) continue;
+            for (const label pi : cellPoints[celli]) activePoint[pi] = 1;
+        }
+        syncTools::syncPointList(mesh_, activePoint, maxEqOp<label>(), label(0));
+        forAll(cellPoints, celli)
+        {
+            if (cand.test(celli)) continue;
+            for (const label pi : cellPoints[celli])
+            {
+                if (activePoint[pi])
+                {
+                    cand.set(celli);
+                    ++nConsCandAdded_;
+                    break;
+                }
+            }
         }
     }
 
@@ -1530,10 +1586,25 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             up, other, remote, remoteHas, remoteRing, remoteRingHas, remoteRingDist,
             Cf[facei], secondRing
         );
+        // sweptConsistent: a face without a surface on either side or in
+        // the second ring is computed as well (its pieces need no surface;
+        // the donor's plane is only the rank fallback's, which then takes
+        // the algebraic value, sweptFaceCellsFlux)
+        static const davof::cellSurface noSurface{};
+        sweptNoDonorSurface_ = false;
         if (!Sp)
         {
-            ++nCurvedSkipped_;
-            return;
+            if (sweptConsistent_ && fluxIntegration_ == "sweptFaceCells")
+            {
+                sweptNoDonorSurface_ = true;
+                ++nConsNoSurface_;
+                Sp = &noSurface;
+            }
+            else
+            {
+                ++nCurvedSkipped_;
+                return;
+            }
         }
         const davof::cellSurface& S = *Sp;
 
@@ -1788,6 +1859,14 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             {
                 dVfIn[facei] = dVfNew;
             }
+            // sweptConsistencyLog: the residue of the face's wisp pieces
+            // (its liquid minus the consistent rule's, out of the donor):
+            // -delta in the donor, +delta in the cell downwind
+            if (sweptConsistencyLog_ && sweptFlux && sweeps)
+            {
+                consResidueStep_[local] -= sweptFaceConsDelta_;
+                if (other >= 0) consResidueStep_[other] += sweptFaceConsDelta_;
+            }
         }
 
         if (af < -1e-12 || af > 1 + 1e-12)
@@ -1909,6 +1988,12 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 phiF, true, true
             );
         }
+    }
+    // sweptConsistencyLog: the algebraic faces probed, the residues of the
+    // step written (serial; isoAdvectionSwept.C)
+    if (sweptConsistencyLog_ && fluxIntegration_ == "sweptFaceCells")
+    {
+        sweptConsistencyProbe(dt, UInterp, *UpPtr);
     }
     if (Pstream::parRun())
     {
@@ -2087,6 +2172,19 @@ void Foam::advection::isoAdvection::reportCurved() const
         // the coplanar parts of the face update, a separate clause so that
         // the converter's pattern of the clause above stays valid
         Info<< "; coplanar pre-image parts " << nCop;
+        // sweptConsistent (2026-11-02), a clause of its own, only when on
+        if (sweptConsistent_)
+        {
+            label nAdd = nConsCandAdded_, nNoS = nConsNoSurface_, nCFb = nConsFallback_;
+            if (Pstream::parRun())
+            {
+                reduce(nAdd, sumOp<label>()); reduce(nNoS, sumOp<label>());
+                reduce(nCFb, sumOp<label>());
+            }
+            Info<< "; consistent: candidates added " << nAdd
+                << ", faces without a surface " << nNoS
+                << ", their rank fallbacks " << nCFb;
+        }
     }
     if (sweptClassify_)
     {

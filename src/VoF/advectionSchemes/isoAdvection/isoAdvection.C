@@ -196,6 +196,30 @@ Foam::advection::isoAdvection::isoAdvection
     sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
     nSweptCoplanar_(0),
     sweptCapSet_(modelDict().getOrDefault<word>("sweptCapSet", "final")),
+    sweptConsistencyLog_(modelDict().getOrDefault<bool>("sweptConsistencyLog", false)),
+    sweptConsistent_(modelDict().getOrDefault<bool>("sweptConsistent", false)),
+    sweptConsistentTol_(modelDict().getOrDefault<scalar>("sweptConsistentTol", 1e-8)),
+    nConsProbed_(0),
+    nConsReach_(0),
+    nConsReachInterface_(0),
+    nConsReachWisp_(0),
+    nConsReachOpposite_(0),
+    nConsProbeFallback_(0),
+    consAlgMisSum_(0),
+    consAlgMisAbs_(0),
+    consAlgMisMax_(0),
+    nConsWispPieces_(0),
+    consWispMisSum_(0),
+    consWispMisAbs_(0),
+    consWispMisMax_(0),
+    sweptFaceConsDelta_(0),
+    nConsCandAdded_(0),
+    nConsNoSurface_(0),
+    nConsFallback_(0),
+    sweptNoDonorSurface_(false),
+    consResidueStep_(),
+    consSummary_(),
+    consResiduePtr_(),
     planeSource_(modelDict().getOrDefault<word>("planeSource", "anchor")),
     sweptFaceDump_(modelDict().getOrDefault<bool>("sweptFaceDump", false)),
     dumpFaces_(),
@@ -426,6 +450,30 @@ Foam::advection::isoAdvection::isoAdvection
                     Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
                         << ", sweptCoplanar " << sweptCoplanar_
                         << ", sweptCapSet " << sweptCapSet_;
+                    // the consistency keys (2026-11-02), printed only when on
+                    if (sweptConsistent_)
+                    {
+                        Info<< ", sweptConsistent true (sweptConsistentTol "
+                            << sweptConsistentTol_ << ")";
+                    }
+                    if (sweptConsistencyLog_)
+                    {
+                        if (Pstream::parRun())
+                        {
+                            FatalIOErrorInFunction(modelDict())
+                                << "sweptConsistencyLog true is a serial"
+                                << " diagnostic (it probes the algebraic faces"
+                                << " in the local vertex rings)"
+                                << exit(FatalIOError);
+                        }
+                        Info<< ", sweptConsistencyLog true";
+                    }
+                }
+                else if (sweptConsistent_ || sweptConsistencyLog_)
+                {
+                    FatalIOErrorInFunction(modelDict())
+                        << "sweptConsistent and sweptConsistencyLog need"
+                        << " fluxIntegration sweptFaceCells" << exit(FatalIOError);
                 }
                 Info<< ")";
             }

@@ -138,6 +138,28 @@ Description
       construction), the number of clipped triangles; for sweptFaceCells the
       piece counts above.
 
+    - CONSISTENCY UNDER OBLIQUE TRAVEL (2026-11-02, both keys default false,
+      the default path unchanged). A region of a cell lies in the swept
+      volumes of two faces when the travel is oblique to the mesh (a corner
+      of C in those of C|N and N|NE under north-east travel); the receiving
+      cell balances only if both faces give that region the same liquid.
+      Two rules can differ: the faces outside the candidate set keep the
+      algebraic upwind flux alpha_donor phi_f dt, and a wisp's pieces are
+      wet or dry by alpha >= 1/2. sweptConsistencyLog (serial) probes every
+      algebraic face whose vertices touch a cell with a surface or another
+      alpha, cuts its swept volume into the ring pieces and compares the
+      consistent rule (a surface clips, any other cell gives alpha_c
+      V_piece) with the algebraic flux; it sums the wisp pieces' mismatch of
+      the computed faces and writes the per-cell residue of the step
+      (sweptConsistencyProbe). sweptConsistent computes every face whose
+      donor shares a vertex with an active cell (a surface, an interface
+      cell, a wisp; the vertex marks synchronised over the processor
+      patches), with or without a surface, and gives a piece in a cell
+      without a surface alpha_c V_piece and alpha_c times its pre-image
+      area: the piecewise algebraic value, the same in every face that
+      sweeps the piece; a face without a surface whose pieces need the rank
+      fallback takes the algebraic value (counted).
+
 SourceFiles
     isoAdvectionSwept.C
 
@@ -152,6 +174,7 @@ SourceFiles
 #include "boundBox.H"
 #include "OFstream.H"
 #include "OSspecific.H"
+#include "volFields.H"
 #include "zoneDistribute.H"
 #include "mapDistributeBase.H"
 #include "polyMeshTetDecomposition.H"
@@ -512,6 +535,18 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     af = 0;
     aWet = Zero;
     vLiq = 0;
+    sweptFaceConsDelta_ = 0;
+
+    // The consistency of the swept flux (2026-11-02): sweptConsistent gives
+    // a piece in a cell without a surface alpha_c V_piece (consRule);
+    // sweptConsistencyLog sums the consistent rule's liquid next to the used
+    // one (threeVCons) and the wisp pieces' mismatch of the 0/1 rule against
+    // alpha_c V_piece (the face's sums, scaled with the flux below)
+    const bool consRule = sweptConsistent_;
+    const bool consLog = sweptConsistencyLog_;
+    scalar threeVCons = 0;
+    label nWispF = 0;
+    scalar wispSumF = 0, wispAbsF = 0, wispMaxF = 0;
 
     List<FixedList<point, 3>> T;
     pointField q;
@@ -650,7 +685,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         // the cell's state and plane
         const scalar a0c = rc ? rc->alpha0 : a0[c];
         const bool hasS = rc ? rc->hasSurface : hasSurface_.test(c);
-        bool wetPlane = false, wet = true;
+        bool wetPlane = false, wet = true, wisp = false;
         davof::halfSpace plic;
         plic.n = Zero; plic.x0 = Zero;
         if (hasS)
@@ -672,8 +707,10 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         else
         {
             // a partial cell without a surface (a wisp): wet by its alpha
+            // (sweptConsistent: alpha_c V_piece, below)
             ++nSweptPartialCells_;
             wet = (a0c >= 0.5);
+            wisp = true;
         }
 
         scalar dbgVol = 0, dbgCovV = 0;
@@ -697,10 +734,35 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 ++nSweptPieces_;
                 if (!r.ok) rankFallback = true;
                 if (r.degenerate) ++nSweptDegenerate_;
-                if ((wetPlane || wet) && !r.degenerate)
+                if (consRule && !wetPlane)
+                {
+                    // a cell without a surface: alpha_c times the piece (the
+                    // whole piece: no PLIC clip without a plane)
+                    if (!r.degenerate)
+                    {
+                        threeV += 3*a0c*r.volume;
+                        sweptPieceClosureMax_ = max(sweptPieceClosureMax_, r.closureResidual);
+                    }
+                }
+                else if ((wetPlane || wet) && !r.degenerate)
                 {
                     threeV += 3*r.volume;
                     sweptPieceClosureMax_ = max(sweptPieceClosureMax_, r.closureResidual);
+                }
+                if (consLog && !r.degenerate)
+                {
+                    threeVCons += 3*(wetPlane ? scalar(1) : a0c)*r.volume;
+                    if (wisp)
+                    {
+                        // the used weight (0/1, or alpha_c under the
+                        // consistent rule) minus alpha_c, times the piece
+                        const scalar wUsed = consRule ? a0c : (wet ? scalar(1) : scalar(0));
+                        const scalar mis = (wUsed - a0c)*r.volume;
+                        ++nWispF;
+                        wispSumF += mis;
+                        wispAbsF += mag(mis);
+                        wispMaxF = max(wispMaxF, mag(mis));
+                    }
                 }
                 nSweptClipTris_ += r.nCut;
             }
@@ -712,7 +774,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         coveragePre += cov;
         if (rc && cov > 0) sweptFaceRemote_ = true;
         if (cop) ++nSweptCoplanar_;
-        if (wetPlane || wet) aPreWet += aw;
+        if (consRule && !wetPlane) aPreWet += a0c*aw;
+        else if (wetPlane || wet) aPreWet += aw;
         if (debugFace && (cov > 0 || dbgCovV > 0 || dbgContact > 0))
         {
             dbg() << "cell " << c << " remote " << (rc ? 1 : 0) << " alpha0 " << a0c
@@ -751,6 +814,12 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // as well)
     auto donorWet = [&]() -> vector
     {
+        if (sweptNoDonorSurface_)
+        {
+            // no surface (sweptConsistent): the donor's alpha over the
+            // pre-image
+            return a0[donor]*aPreFull;
+        }
         vector nRaw; point x0;
         planeOf(S, donor, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
         vector w(Zero);
@@ -782,6 +851,16 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         // the one-donor clip of this face (counted)
         ++nSweptRankFallback_;
         sweptFaceFallback_ = true;
+        if (sweptNoDonorSurface_)
+        {
+            // a face without a surface (sweptConsistent): no plane to clip
+            // by; the algebraic value, the donor's alpha (counted)
+            ++nConsFallback_;
+            af = a0[donor];
+            aWet = a0[donor]*aPreFull;
+            vLiq = sweeps ? a0[donor]*mag(phiF)*dt : 0;
+            return;
+        }
         sweptFaceFlux(facei, donor, S, dt, phiF, sweeps, UInterp, Up, af, aWet, vLiq);
         if (debugFace)
         {
@@ -801,6 +880,18 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     if (sweptScaleToPhi_ && sweeps && vTotal > VSMALL)
     {
         vLiq *= mag(phiF)*dt/vTotal;
+    }
+    if (consLog && sweeps)
+    {
+        // the consistent rule's liquid, scaled as the flux, and the face's
+        // wisp pieces (sweptConsistencyLog)
+        const scalar scale =
+            (sweptScaleToPhi_ && vTotal > VSMALL) ? mag(phiF)*dt/vTotal : scalar(1);
+        sweptFaceConsDelta_ = vLiq - scale*threeVCons/3;
+        nConsWispPieces_ += nWispF;
+        consWispMisSum_ += scale*wispSumF;
+        consWispMisAbs_ += scale*wispAbsF;
+        consWispMisMax_ = max(consWispMisMax_, scale*wispMaxF);
     }
     const scalar afPieces = fractionOf(aPreWet);
     const vector wDonor = (dump || sweptCellsFaceUpdate_ == "donor") ? donorWet() : vector(Zero);
@@ -867,6 +958,273 @@ void Foam::advection::isoAdvection::writeFaceDump
         << Apre.x() << ',' << Apre.y() << ',' << Apre.z() << ','
         << S.x() << ',' << S.y() << ',' << S.z() << ','
         << C.x() << ',' << C.y() << ',' << C.z() << nl;
+}
+
+
+void Foam::advection::isoAdvection::sweptConsistencyProbe
+(
+    const scalar dt,
+    const interpolationCellPoint<vector>& UInterp,
+    const pointVectorField& Up
+)
+{
+    // The diagnostic of sweptConsistencyLog (2026-11-02, serial). Every
+    // internal face whose flux curvedFlux did not set keeps the algebraic
+    // upwind flux alpha_donor phi_f dt. Its swept volume (the prism f - d
+    // under a uniform velocity) is cut into the pieces of the donor's vertex
+    // ring as in sweptFaceCellsFlux, and its liquid by the consistent rule
+    // (a cell with a surface clipped by its plane, any other cell alpha_c
+    // V_piece; scaled by |phi_f| dt / V_swept with sweptScaleToPhi) is
+    // compared with the algebraic flux. Only faces with a cell of another
+    // alpha or with a surface among the cells sharing a vertex of the face
+    // are probed (the swept volume of a face reaches only those cells while
+    // the displacement per step is below h along each axis; for the others
+    // every piece carries alpha_donor and the two values agree). The
+    // counters that sweptTriangles touches are restored.
+    const labelList& own = mesh_.faceOwner();
+    const labelList& nei = mesh_.faceNeighbour();
+    const label nInt = mesh_.nInternalFaces();
+    const faceList& faces = mesh_.faces();
+    const cellList& cells = mesh_.cells();
+    const vectorField& Cf = mesh_.faceCentres();
+    const vectorField& Sf = mesh_.faceAreas();
+    const vectorField& C = mesh_.cellCentres();
+    const scalarField& V = mesh_.V();
+    const pointField& P = mesh_.points();
+    const labelListList& cellPoints = mesh_.cellPoints();
+    const labelListList& pointCells = mesh_.pointCells();
+    const scalarField& a0 = alpha1_.oldTime().primitiveField();
+    const scalarField& phiIn = phi_.primitiveField();
+    const scalarField& dVfIn = dVf_.primitiveField();
+    const scalar tol = sweptConsistentTol_;
+
+    const label s1 = nSweptFaces_, s2 = nSweptFlips_, s3 = nSweptOutOfDonor_;
+    const label s4 = nSweptEulerTrace_;
+    const scalar s5 = sweptClosureMax_;
+    const bool s6 = sweptFaceRemote_;
+
+    nConsProbed_ = nConsReach_ = nConsReachInterface_ = nConsReachWisp_ = 0;
+    nConsReachOpposite_ = nConsProbeFallback_ = 0;
+    consAlgMisSum_ = consAlgMisAbs_ = consAlgMisMax_ = 0;
+
+    // the state of a cell: 0 a surface, 1 a wisp, 2 full, 3 empty
+    auto stateOf = [&](const label c) -> label
+    {
+        if (hasSurface_.test(c)) return 0;
+        if (a0[c] >= 1 - tol) return 2;
+        if (a0[c] <= tol) return 3;
+        return 1;
+    };
+
+    List<FixedList<point, 3>> T;
+    pointField q;
+    point xq;
+    label preSign;
+    scalar vTotal;
+    List<davof::halfSpace> planes;
+    DynamicList<label> ring(32);
+    for (label facei = 0; facei < nInt; ++facei)
+    {
+        if (alphafSetFace_.test(facei)) continue;
+        const scalar phiF = phiIn[facei];
+        if (phiF == 0) continue;
+        const label donor = (phiF > 0) ? own[facei] : nei[facei];
+        const label other = (phiF > 0) ? nei[facei] : own[facei];
+
+        // the prefilter: a cell sharing a vertex of the face with a surface
+        // or another alpha
+        bool differs = false;
+        for (const label pi : faces[facei])
+        {
+            for (const label c : pointCells[pi])
+            {
+                if (c == donor) continue;
+                if (hasSurface_.test(c) || a0[c] != a0[donor]) { differs = true; break; }
+            }
+            if (differs) break;
+        }
+        if (!differs) continue;
+
+        const vector d = UInterp.interpolate(Cf[facei], donor)*dt;
+        const bool sweeps = mag(d & Sf[facei]) > 1e-10*mag(d)*mag(Sf[facei]);
+        if (!sweeps) continue;
+
+        sweptTriangles(facei, donor, dt, phiF, sweeps, UInterp, Up, T, q, xq, preSign, vTotal);
+        scalar sumMagT = 0;
+        forAll(T, k)
+        {
+            sumMagT += mag(0.5*((T[k][1] - T[k][0]) ^ (T[k][2] - T[k][0])));
+        }
+        boundBox sweptBox(T[0][0], T[0][0]);
+        forAll(T, k)
+        {
+            sweptBox.add(T[k][0]); sweptBox.add(T[k][1]); sweptBox.add(T[k][2]);
+        }
+        sweptBox.inflate(1e-9);
+        ring.clear();
+        ring.append(donor);
+        for (const label pi : cellPoints[donor])
+        {
+            for (const label c : pointCells[pi])
+            {
+                if (c != donor && !ring.found(c) && boundBox(P, cellPoints[c], false).overlaps(sweptBox))
+                {
+                    ring.append(c);
+                }
+            }
+        }
+
+        const label sDonor = stateOf(donor);
+        scalar threeV = 0;
+        bool fallback = false;
+        label reach = -1;   // 0 surface, 1 wisp, 2 a pure cell of another state
+        for (const label c : ring)
+        {
+            const labelList& cf = cells[c];
+            planes.setSize(cf.size());
+            forAll(cf, j)
+            {
+                const vector nOut = (own[cf[j]] == c) ? Sf[cf[j]] : -Sf[cf[j]];
+                planes[j].n = nOut/max(mag(nOut), VSMALL);
+                planes[j].x0 = Cf[cf[j]];
+            }
+            const bool hasS = hasSurface_.test(c);
+            davof::halfSpace plic;
+            plic.n = Zero; plic.x0 = Zero;
+            if (hasS)
+            {
+                vector nRaw; point x0;
+                planeOf(cellSurfaces_[c], c, Foam::cbrt(V[donor]), sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
+                plic.n = nRaw/max(mag(nRaw), VSMALL);
+                plic.x0 = x0;
+            }
+            const davof::pieceResult r =
+                davof::sweptPieceVolume
+                (
+                    T, planes, hasS, plic, Cf[facei], &C[donor],
+                    sweptCapSet_ == "crossing"
+                );
+            if (r.coverage <= 1e-12*sumMagT) continue;
+            if (!r.ok) fallback = true;
+            if (r.degenerate) continue;
+            threeV += 3*(hasS ? scalar(1) : a0[c])*r.volume;
+            if (c == donor) continue;
+            // does the swept volume reach c (its whole piece, not its
+            // liquid), and is c in another state than the donor?
+            scalar vPiece = r.volume;
+            if (hasS)
+            {
+                vPiece = davof::sweptPieceVolume
+                (
+                    T, planes, false, plic, Cf[facei], &C[donor], sweptCapSet_ == "crossing"
+                ).volume;
+            }
+            if (vPiece <= 1e-9*max(vTotal, VSMALL)) continue;
+            const label sc = stateOf(c);
+            label k = -1;
+            if (sc == 0) k = 0;
+            else if (sc == 1) k = 1;
+            else if (sc != sDonor) k = 2;
+            if (k >= 0 && (reach < 0 || k < reach)) reach = k;
+        }
+        if (fallback)
+        {
+            ++nConsProbeFallback_;
+            continue;
+        }
+        scalar vGeo = threeV/3;
+        if (sweptScaleToPhi_ && vTotal > VSMALL)
+        {
+            vGeo *= mag(phiF)*dt/vTotal;
+        }
+        // the consistent rule's liquid minus the algebraic flux, out of the
+        // donor; the residue (the used change of a cell's liquid minus the
+        // consistent rule's) is +mis in the donor and -mis in the other cell
+        const scalar mis = vGeo - mag(dVfIn[facei]);
+        ++nConsProbed_;
+        if (reach >= 0)
+        {
+            ++nConsReach_;
+            if (reach == 0) ++nConsReachInterface_;
+            else if (reach == 1) ++nConsReachWisp_;
+            else ++nConsReachOpposite_;
+        }
+        consAlgMisSum_ += mis;
+        consAlgMisAbs_ += mag(mis);
+        consAlgMisMax_ = max(consAlgMisMax_, mag(mis));
+        consResidueStep_[donor] += mis;
+        consResidueStep_[other] -= mis;
+    }
+
+    nSweptFaces_ = s1; nSweptFlips_ = s2; nSweptOutOfDonor_ = s3;
+    nSweptEulerTrace_ = s4; sweptClosureMax_ = s5; sweptFaceRemote_ = s6;
+
+    // The residues of the step: the cells, the sum of |R|, the largest
+    // |R|/V; the cumulative field sweptResidue (R/V summed over the steps)
+    if (!consResiduePtr_)
+    {
+        consResiduePtr_.reset
+        (
+            new volScalarField
+            (
+                IOobject
+                (
+                    IOobject::groupName("sweptResidue", alpha1_.group()),
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                mesh_,
+                dimensionedScalar(dimless, Zero)
+            )
+        );
+    }
+    scalarField& Rcum = consResiduePtr_->primitiveFieldRef();
+    const fileName dir(mesh_.time().globalPath()/"postProcessing"/"sweptConsistency");
+    if (!consSummary_)
+    {
+        mkDir(dir);
+        consSummary_.reset(new OFstream(dir/"summary.dat"));
+        consSummary_().precision(10);
+        consSummary_() << "# time step nProbed nReach nReachInterface nReachWisp"
+            << " nReachPure nProbeFallback algMisSum algMisAbs algMisMax"
+            << " nWispPieces wispMisSum wispMisAbs wispMisMax nResidueCells"
+            << " residueAbs residueMaxRel nCandAdded nNoSurface nConsFallback"
+            << " (volumes in m^3; residueMaxRel = max |R|/V)" << nl;
+    }
+    OFstream res(dir/("residue_" + Foam::name(mesh_.time().timeIndex()) + ".csv"));
+    res.precision(10);
+    res << "cell,x,y,z,alpha0,R" << nl;
+    label nRes = 0;
+    scalar resAbs = 0, resMax = 0;
+    forAll(consResidueStep_, c)
+    {
+        const scalar R = consResidueStep_[c];
+        if (mag(R) <= 1e-15*V[c]) continue;
+        ++nRes;
+        resAbs += mag(R);
+        resMax = max(resMax, mag(R)/V[c]);
+        Rcum[c] += R/V[c];
+        res << c << ',' << C[c].x() << ',' << C[c].y() << ',' << C[c].z() << ','
+            << a0[c] << ',' << R/V[c] << nl;
+    }
+    consSummary_() << mesh_.time().value() << ' ' << mesh_.time().timeIndex() << ' '
+        << nConsProbed_ << ' ' << nConsReach_ << ' ' << nConsReachInterface_ << ' '
+        << nConsReachWisp_ << ' ' << nConsReachOpposite_ << ' ' << nConsProbeFallback_ << ' '
+        << consAlgMisSum_ << ' ' << consAlgMisAbs_ << ' ' << consAlgMisMax_ << ' '
+        << nConsWispPieces_ << ' ' << consWispMisSum_ << ' ' << consWispMisAbs_ << ' '
+        << consWispMisMax_ << ' ' << nRes << ' ' << resAbs << ' ' << resMax << ' '
+        << nConsCandAdded_ << ' ' << nConsNoSurface_ << ' ' << nConsFallback_ << endl;
+    Info<< "isoAdvection: swept consistency: algebraic faces probed " << nConsProbed_
+        << " (reaching another state " << nConsReach_ << ": a surface "
+        << nConsReachInterface_ << ", a wisp " << nConsReachWisp_ << ", a pure cell "
+        << nConsReachOpposite_ << "; fallbacks " << nConsProbeFallback_
+        << "), mismatch sum " << consAlgMisSum_ << " abs " << consAlgMisAbs_
+        << " max " << consAlgMisMax_ << "; wisp pieces " << nConsWispPieces_
+        << ", mismatch sum " << consWispMisSum_ << " abs " << consWispMisAbs_
+        << " max " << consWispMisMax_ << "; residue cells " << nRes
+        << ", abs " << resAbs << ", max |R|/V " << resMax << endl;
 }
 
 

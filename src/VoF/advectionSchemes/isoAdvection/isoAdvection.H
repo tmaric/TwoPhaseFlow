@@ -499,6 +499,67 @@ class isoAdvection
             //  kept for the comparison); davofSweptPieces.H
             word sweptCapSet_;
 
+            //- The consistency of the swept flux under oblique travel
+            //  (2026-11-02, isoAdvectionSwept.C sweptConsistencyProbe).
+            //  A region of a cell can lie in the swept volumes of two faces
+            //  (under north-east travel a corner of C in those of C|N and
+            //  N|NE); the cell that receives it balances only if both faces
+            //  give that region the same liquid. Two ways break it: a face
+            //  outside the candidate set keeps the algebraic upwind flux
+            //  alpha_donor phi_f dt while its swept volume reaches a cell of
+            //  another state, and a partial cell without a surface (a wisp)
+            //  is wet or dry by alpha >= 1/2 in the pieces while the
+            //  algebraic faces release alpha phi_f dt.
+            //
+            //  sweptConsistencyLog (default false; serial runs only): per
+            //  step (i) the algebraic faces whose swept volume reaches a cell
+            //  other than the donor in another state (interface, wisp, the
+            //  opposite pure state) with the liquid mismatch of the consistent
+            //  rule minus the algebraic flux, (ii) the wisp pieces of the
+            //  computed faces with the mismatch of the 0/1 rule against
+            //  alpha V_piece, (iii) per cell the net residue the mismatches
+            //  leave; postProcessing/sweptConsistency/summary.dat, the
+            //  per-step residues residue_<step>.csv and the field
+            //  sweptResidue (cumulative, in units of the cell volume).
+            //
+            //  sweptConsistent (default false; sweptFaceCells): every face
+            //  whose donor shares a vertex with an active cell (a cell with a
+            //  surface, an interface cell, or a cell with sweptConsistentTol <
+            //  alpha < 1 - sweptConsistentTol) is computed by the swept flux,
+            //  also without a surface on either side, and a piece in a cell
+            //  without a surface carries alpha_c V_piece (its area alpha_c
+            //  a_piece in the face update), the value every face that sweeps
+            //  it, computed or algebraic, gives it.
+            bool sweptConsistencyLog_;
+            bool sweptConsistent_;
+            scalar sweptConsistentTol_;
+            label nConsProbed_;
+            label nConsReach_;
+            label nConsReachInterface_;
+            label nConsReachWisp_;
+            label nConsReachOpposite_;
+            label nConsProbeFallback_;
+            scalar consAlgMisSum_;
+            scalar consAlgMisAbs_;
+            scalar consAlgMisMax_;
+            label nConsWispPieces_;
+            scalar consWispMisSum_;
+            scalar consWispMisAbs_;
+            scalar consWispMisMax_;
+            //- Per computed face: its liquid volume minus the consistent
+            //  rule's (zero unless the face met a cell without a surface)
+            scalar sweptFaceConsDelta_;
+            //- sweptConsistent: the candidates added, the faces computed
+            //  without a surface, their rank fallbacks (the algebraic value)
+            label nConsCandAdded_;
+            label nConsNoSurface_;
+            label nConsFallback_;
+            //- The face computed without a surface (sweptConsistent)
+            bool sweptNoDonorSurface_;
+            scalarField consResidueStep_;
+            autoPtr<OFstream> consSummary_;
+            autoPtr<volScalarField> consResiduePtr_;
+
             //- clippingSurface plane: where the plane comes from (key
             //  planeSource, 2026-11-01): anchor (the default: the frame of
             //  the used normal positioned by the volume anchor) or exact
@@ -939,6 +1000,17 @@ public:
             void sweptExchange
             (
                 const boolList& donors,
+                const pointVectorField& Up
+            );
+
+            //- sweptConsistencyLog: the algebraic faces of the step (the
+            //  internal faces whose flux curvedFlux did not set) probed for
+            //  the consistent rule's liquid, the residues of the step and
+            //  the summary row (serial)
+            void sweptConsistencyProbe
+            (
+                const scalar dt,
+                const interpolationCellPoint<vector>& UInterp,
                 const pointVectorField& Up
             );
 
