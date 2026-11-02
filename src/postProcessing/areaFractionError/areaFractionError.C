@@ -38,6 +38,8 @@ License
 #include "profiling.H"
 #include "syncTools.H"
 #include "processorPolyPatch.H"
+#include "OFstream.H"
+#include "OSspecific.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -91,6 +93,8 @@ Foam::functionObjects::areaFractionError::areaFractionError
     consistency_(true),
     reconstructionError_(true),
     reconstructionErrorEveryStep_(false),
+    writeFaceError_(false),
+    faceErrorCsv_(false),
     recErrPtr_(nullptr)
 {
     read(dict);
@@ -121,6 +125,7 @@ bool Foam::functionObjects::areaFractionError::read(const dictionary& dict)
     consistency_ = dict.getOrDefault<Switch>("consistency", Switch(true));
     reconstructionError_ = dict.getOrDefault<bool>("reconstructionError", true);
     writeFaceError_ = dict.getOrDefault<bool>("writeFaceError", false);
+    faceErrorCsv_ = dict.getOrDefault<bool>("faceErrorCsv", false);
     reconstructionErrorEveryStep_ =
         dict.getOrDefault<bool>("reconstructionErrorEveryStep", false);
 
@@ -358,6 +363,33 @@ bool Foam::functionObjects::areaFractionError::write()
         }
         const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
 
+        // the counted faces as CSV (faceErrorCsv, 2026-11-02): one file per
+        // write and rank
+        autoPtr<OFstream> csvPtr;
+        if (faceErrorCsv_)
+        {
+            const fileName dir
+            (
+                runTime.globalPath()/"postProcessing"/name()/"faceError"
+            );
+            mkDir(dir);
+            csvPtr.reset
+            (
+                new OFstream
+                (
+                    dir/(Foam::name(runTime.timeIndex()) + "_"
+                  + Foam::name(Pstream::myProcNo()) + ".csv")
+                )
+            );
+            csvPtr().precision(15);
+            const point o = davof::orbitOrigin(origin0_, U0, omega_, axisPoint_, t);
+            csvPtr() << "# t " << t << " origin " << o.x() << ' ' << o.y()
+                << ' ' << o.z() << nl
+                << "x,y,z,Sx,Sy,Sz,alphaf,alphafExact" << nl;
+        }
+        const vectorField& CfAll = mesh_.faceCentres();
+        const vectorField& SfAll = mesh_.faceAreas();
+
         scalar sum = 0, sum2 = 0, worst = 0;
         scalar vSum = 0, vWorst = 0;
         label nLocal = 0;
@@ -390,6 +422,14 @@ bool Foam::functionObjects::areaFractionError::write()
                 vWorst = max(vWorst, vecErr[facei]);
             }
             ++nLocal;
+            if (csvPtr)
+            {
+                const point& x = CfAll[facei];
+                const vector& S = SfAll[facei];
+                csvPtr() << x.x() << ',' << x.y() << ',' << x.z() << ','
+                    << S.x() << ',' << S.y() << ',' << S.z() << ','
+                    << afCur[facei] << ',' << afEx[facei] << nl;
+            }
             if (errPtr && facei < nInt)
             {
                 errPtr->primitiveFieldRef()[facei] = afCur[facei] - afEx[facei];

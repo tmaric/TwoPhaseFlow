@@ -81,6 +81,7 @@ Description
         consistency true;               // the extra reconstruction per write; false writes -1
         reconstructionError true;
         reconstructionErrorEveryStep false;
+        faceErrorCsv false;             // true: the counted faces per write as CSV
         writeControl timeStep;          // onEnd: the end step only
         writeInterval 1;
 
@@ -157,6 +158,15 @@ class areaFractionError
         //  alphafError.<group> at every write of this object (diagnostic,
         //  2026-10-16; default false)
         bool writeFaceError_;
+
+        //- Write every counted face of every write as a row of
+        //  postProcessing/<name>/faceError/<timeIndex>_<rank>.csv: the face
+        //  centre, its area vector S_f, alphaf and alphaf_exact (the face
+        //  set and the values of the L1 above, so that the sums over any
+        //  partition of the rows divided by nFaces add up to L1), with the
+        //  time and the exact body's origin in a comment line (diagnostic,
+        //  key faceErrorCsv, 2026-11-02; default false)
+        bool faceErrorCsv_;
 
         autoPtr<Foam::reconstructionError> recErrPtr_;
 
