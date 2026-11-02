@@ -49,7 +49,7 @@ namespace functionObjects
 void Foam::functionObjects::volumeFractionError::writeFileHeader(Ostream& os) const
 {
     // Add headers to output data (the exact state named when it is the
-    // exact sphere's, 2026-11-03; the former header otherwise)
+    // exact sphere's, 2026-11-02; the former header otherwise)
     writeHeader
     (
         os,
@@ -112,7 +112,7 @@ bool Foam::functionObjects::volumeFractionError::read(const dictionary& dict)
 
     Field_ = dict.get<word>("field");
 
-    // The exact state (key exactState, 2026-11-03; the header file): auto
+    // The exact state (key exactState, 2026-11-02; the header file): auto
     // takes the exact sphere where davofInit::exactSphere applies (a sphere
     // on axis-aligned boxes), the former cutCellIso construction otherwise
     {
@@ -325,7 +325,7 @@ bool Foam::functionObjects::volumeFractionError::write()
 
     if (exactState_ == "exactSphere")
     {
-        // the exact sphere at origin(t) (2026-11-03): the cell fractions of
+        // the exact sphere at origin(t) (2026-11-02): the cell fractions of
         // davofInit::exactSphere, the state of initDavofFields and the
         // reference of areaFractionError
         surfaceScalarField alphafExact

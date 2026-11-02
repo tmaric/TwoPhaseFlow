@@ -90,7 +90,7 @@ Description
         staticFaceFractions -time '0:1'      (the written times, 0 included)
         staticFaceFractions -time '0.1:0.45'
 
-    The re-scoring of a shape error (2026-11-03): -entry volumeFractionError
+    The re-scoring of a shape error (2026-11-02): -entry volumeFractionError
     -davofMethod exactSphere -evolOnly -out <file> computes, at the selected
     times, Evol = sum |alpha - alpha_exact| V against the exact sphere (the
     Eshape of volumeFractionError with exactState exactSphere) and Ec, Eout,

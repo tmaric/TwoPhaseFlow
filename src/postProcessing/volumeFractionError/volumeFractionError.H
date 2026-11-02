@@ -33,7 +33,7 @@ Description
     rotation, U of the first cell when |U| is uniform (a constant uniform
     translation), else zero.
 
-    The exact state alpha_exact (key exactState, 2026-11-03):
+    The exact state alpha_exact (key exactState, 2026-11-02):
       exactSphere  the exact cell fractions of the sphere (origin at t,
                    radius) on axis-aligned hexahedra, davofInit::exactSphere
                    (the state initDavofFields writes and areaFractionError and
