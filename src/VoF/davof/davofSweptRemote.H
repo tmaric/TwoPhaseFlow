@@ -96,6 +96,9 @@ struct remoteCell
     scalar V = 0;
     scalar alpha0 = 0;
     bool hasSurface = false;
+    //- S is a wisp's neighbour surface (sweptWispSurface neighbour,
+    //  2026-11-02; packed flag 2), not the cell's own
+    bool wispSurface = false;
     cellSurface S;
     point bbMin = Zero, bbMax = Zero;
     vector Ucell = Zero;
@@ -149,7 +152,12 @@ inline bool unpackRemoteCell(const UList<scalar>& v, remoteCell& r)
     r.C = readVector(v, i);
     r.V = v[i++];
     r.alpha0 = v[i++];
-    r.hasSurface = (v[i++] > 0.5);
+    {
+        // 1: the cell's own surface; 2: a wisp's neighbour surface
+        const scalar hs = v[i++];
+        r.hasSurface = (hs > 0.5 && hs < 1.5);
+        r.wispSurface = (hs > 1.5);
+    }
     cellSurface& S = r.S;
     S.paraboloid = (v[i++] > 0.5);
     S.sphere = (v[i++] > 0.5);

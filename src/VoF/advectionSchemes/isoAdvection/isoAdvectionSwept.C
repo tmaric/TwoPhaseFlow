@@ -711,6 +711,25 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             ++nSweptPartialCells_;
             wet = (a0c >= 0.5);
             wisp = true;
+            // sweptWispSurface neighbour (2026-11-02): the plane of the
+            // wisp's closest face neighbour with a surface clips its piece
+            // and its part of the face update, as the second ring gives a
+            // face without a surface its plane (a plane cutting a small
+            // corner of the cell, |m_c| below the interface threshold)
+            const bool wispHas =
+                rc
+              ? rc->wispSurface
+              : (hasWispSurface_.size() == mesh_.nCells() && hasWispSurface_.test(c));
+            if (sweptWispSurface_ == "neighbour" && wispHas)
+            {
+                vector nRaw; point x0;
+                planeOf(rc ? rc->S : wispSurfaces_[c], c, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
+                plic.n = nRaw/max(mag(nRaw), VSMALL);
+                plic.x0 = x0;
+                wetPlane = true;
+                wisp = false;
+                ++nSweptWispClipped_;
+            }
         }
 
         scalar dbgVol = 0, dbgCovV = 0;
@@ -1244,9 +1263,17 @@ void Foam::advection::isoAdvection::packSweptCell
     davof::appendVector(mesh_.cellCentres()[celli], v);
     v.append(mesh_.V()[celli]);
     v.append(alpha1_.oldTime().primitiveField()[celli]);
+    // the surface flag: 1 its own surface, 2 a wisp's neighbour surface
+    // (sweptWispSurface neighbour, 2026-11-02), 0 none
     const bool has = hasSurface_.test(celli);
-    v.append(has ? 1 : 0);
-    davof::packCellSurface(has ? cellSurfaces_[celli] : davof::cellSurface(), v);
+    const bool wispHas =
+        !has && hasWispSurface_.size() == mesh_.nCells() && hasWispSurface_.test(celli);
+    v.append(has ? 1 : (wispHas ? 2 : 0));
+    davof::packCellSurface
+    (
+        has ? cellSurfaces_[celli] : (wispHas ? wispSurfaces_[celli] : davof::cellSurface()),
+        v
+    );
     const boundBox bb(P, mesh_.cellPoints()[celli], false);
     davof::appendVector(bb.min(), v);
     davof::appendVector(bb.max(), v);

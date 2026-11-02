@@ -556,6 +556,22 @@ class isoAdvection
             label nConsFallback_;
             //- The face computed without a surface (sweptConsistent)
             bool sweptNoDonorSurface_;
+
+            //- The surface of a wisp's pieces in sweptFaceCells (key
+            //  sweptWispSurface, 2026-11-02): none (a cell without a surface
+            //  and with 1e-8 < alpha^n < 1 - 1e-8 takes its pieces wet for
+            //  alpha^n >= 1/2 and dry otherwise) | neighbour (the plane of
+            //  its closest face neighbour with a surface clips its pieces and
+            //  its part of the face update: the second-ring rule of a face
+            //  without a surface, applied to a ring cell). A plane cutting a
+            //  cell in a small corner leaves |m_c| below the interface-cell
+            //  threshold, so the cell has no plane, while its corner holds
+            //  liquid: the 0/1 rule dropped it (the plane gate, 2026-11-02)
+            word sweptWispSurface_;
+            List<davof::cellSurface> wispSurfaces_;
+            bitSet hasWispSurface_;
+            label nSweptWispClipped_;
+            label nSweptWispNoNeighbour_;
             scalarField consResidueStep_;
             autoPtr<OFstream> consSummary_;
             autoPtr<volScalarField> consResiduePtr_;

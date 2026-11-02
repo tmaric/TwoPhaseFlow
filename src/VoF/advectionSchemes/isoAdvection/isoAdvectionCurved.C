@@ -1137,6 +1137,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptRemoteFaces_ = nSweptEulerTrace_ = 0;
     // the consistency counters (sweptConsistent, sweptConsistencyLog)
     nConsCandAdded_ = nConsNoSurface_ = nConsFallback_ = 0;
+    nSweptWispClipped_ = nSweptWispNoNeighbour_ = 0;
     nConsWispPieces_ = 0;
     consWispMisSum_ = consWispMisAbs_ = consWispMisMax_ = 0;
     sweptFaceConsDelta_ = 0;
@@ -1242,6 +1243,68 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 {
                     nbrSurface[patchi][i] = unpackSurface(packed, nPack*i);
                 }
+            }
+        }
+    }
+
+    // sweptWispSurface neighbour (2026-11-02): the surface of every wisp (no
+    // surface, 1e-8 < alpha^n < 1 - 1e-8, the thresholds of the wisp class
+    // of sweptFaceCellsFlux): the closest surface among its face neighbours,
+    // the remote ones across the processor patches included (the first
+    // exchange above), by the distance of the cell centre to the surface
+    // origin, ties broken by the origin lexicographically as in the second
+    // ring of a face (surfaceOf below), so that the choice does not depend on
+    // the decomposition. A wisp without such a neighbour keeps the 0/1 rule.
+    if (fluxIntegration_ == "sweptFaceCells" && sweptWispSurface_ == "neighbour")
+    {
+        const scalarField& a0w = alpha1_.oldTime().primitiveField();
+        const vectorField& Cc = mesh_.cellCentres();
+        if (wispSurfaces_.size() != mesh_.nCells()) wispSurfaces_.setSize(mesh_.nCells());
+        hasWispSurface_.reset();
+        hasWispSurface_.resize(mesh_.nCells());
+        forAll(a0w, c)
+        {
+            if (hasSurface_.test(c)) continue;
+            if (!(a0w[c] > 1e-8 && a0w[c] < 1 - 1e-8)) continue;
+            const davof::cellSurface* best = nullptr;
+            scalar dMin = GREAT;
+            auto consider = [&](const davof::cellSurface& T)
+            {
+                const scalar dd = magSqr(Cc[c] - T.o);
+                bool take = (!best || dd < dMin*(1 - 1e-9));
+                if (!take && dd <= dMin*(1 + 1e-9))
+                {
+                    for (direction k = 0; k < 3; ++k)
+                    {
+                        if (T.o[k] < best->o[k]) { take = true; break; }
+                        if (T.o[k] > best->o[k]) break;
+                    }
+                }
+                if (take) { dMin = min(dMin, dd); best = &T; }
+            };
+            for (const label nb : cellCells[c])
+            {
+                if (hasSurface_.test(nb)) consider(cellSurfaces_[nb]);
+            }
+            if (Pstream::parRun())
+            {
+                for (const label cf : mesh_.cells()[c])
+                {
+                    if (cf < nInt) continue;
+                    const label patchi = pbm.whichPatch(cf);
+                    if (patchi < 0 || nbrHas[patchi].empty()) continue;
+                    const label pf = cf - pbm[patchi].start();
+                    if (nbrHas[patchi][pf]) consider(nbrSurface[patchi][pf]);
+                }
+            }
+            if (best)
+            {
+                wispSurfaces_[c] = *best;
+                hasWispSurface_.set(c);
+            }
+            else
+            {
+                ++nSweptWispNoNeighbour_;
             }
         }
     }
@@ -2184,6 +2247,19 @@ void Foam::advection::isoAdvection::reportCurved() const
             Info<< "; consistent: candidates added " << nAdd
                 << ", faces without a surface " << nNoS
                 << ", their rank fallbacks " << nCFb;
+        }
+        // sweptWispSurface neighbour (2026-11-02), a clause of its own, only
+        // when on: the wisp pieces clipped by a neighbour's plane, the wisps
+        // without a neighbour with a surface (they keep the 0/1 rule)
+        if (sweptWispSurface_ != "none")
+        {
+            label nWc = nSweptWispClipped_, nWn = nSweptWispNoNeighbour_;
+            if (Pstream::parRun())
+            {
+                reduce(nWc, sumOp<label>()); reduce(nWn, sumOp<label>());
+            }
+            Info<< "; wisp surface: pieces clipped by a neighbour's plane " << nWc
+                << ", wisps without a neighbour surface " << nWn;
         }
     }
     if (sweptClassify_)

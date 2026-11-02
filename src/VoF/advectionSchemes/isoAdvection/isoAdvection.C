@@ -217,6 +217,11 @@ Foam::advection::isoAdvection::isoAdvection
     nConsNoSurface_(0),
     nConsFallback_(0),
     sweptNoDonorSurface_(false),
+    sweptWispSurface_(modelDict().getOrDefault<word>("sweptWispSurface", "none")),
+    wispSurfaces_(),
+    hasWispSurface_(),
+    nSweptWispClipped_(0),
+    nSweptWispNoNeighbour_(0),
     consResidueStep_(),
     consSummary_(),
     consResiduePtr_(),
@@ -447,9 +452,20 @@ Foam::advection::isoAdvection::isoAdvection
                             << "sweptCapSet '" << sweptCapSet_
                             << "' unknown. Valid: final, crossing." << exit(FatalIOError);
                     }
+                    if (sweptWispSurface_ != "none" && sweptWispSurface_ != "neighbour")
+                    {
+                        FatalIOErrorInFunction(modelDict())
+                            << "sweptWispSurface '" << sweptWispSurface_
+                            << "' unknown. Valid: none, neighbour." << exit(FatalIOError);
+                    }
                     Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
                         << ", sweptCoplanar " << sweptCoplanar_
                         << ", sweptCapSet " << sweptCapSet_;
+                    // the wisp rule (2026-11-02), printed only when not none
+                    if (sweptWispSurface_ != "none")
+                    {
+                        Info<< ", sweptWispSurface " << sweptWispSurface_;
+                    }
                     // the consistency keys (2026-11-02), printed only when on
                     if (sweptConsistent_)
                     {
@@ -469,11 +485,12 @@ Foam::advection::isoAdvection::isoAdvection
                         Info<< ", sweptConsistencyLog true";
                     }
                 }
-                else if (sweptConsistent_ || sweptConsistencyLog_)
+                else if (sweptConsistent_ || sweptConsistencyLog_ || sweptWispSurface_ != "none")
                 {
                     FatalIOErrorInFunction(modelDict())
-                        << "sweptConsistent and sweptConsistencyLog need"
-                        << " fluxIntegration sweptFaceCells" << exit(FatalIOError);
+                        << "sweptConsistent, sweptConsistencyLog and"
+                        << " sweptWispSurface need fluxIntegration sweptFaceCells"
+                        << exit(FatalIOError);
                 }
                 Info<< ")";
             }
