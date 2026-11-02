@@ -87,7 +87,7 @@ Description
     (L1loop -1 without alphaf in the time directory; L1staticExact the
     upwind static state of alpha_exact, the reconstruction floor).
 
-        staticFaceFractions -withZero
+        staticFaceFractions -time '0:1'      (the written times, 0 included)
         staticFaceFractions -time '0.1:0.45'
 
 \*---------------------------------------------------------------------------*/
