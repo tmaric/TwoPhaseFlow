@@ -90,6 +90,12 @@ Description
         staticFaceFractions -time '0:1'      (the written times, 0 included)
         staticFaceFractions -time '0.1:0.45'
 
+    The re-scoring of a shape error (2026-11-03): -entry volumeFractionError
+    -davofMethod exactSphere -evolOnly -out <file> computes, at the selected
+    times, Evol = sum |alpha - alpha_exact| V against the exact sphere (the
+    Eshape of volumeFractionError with exactState exactSphere) and Ec, Eout,
+    without the face fractions and without writing into the case.
+
 \*---------------------------------------------------------------------------*/
 
 #include "fvCFD.H"
@@ -297,6 +303,25 @@ int main(int argc, char *argv[])
     );
     argList::addOption("surfCellTol", "scalar", "interface cells (default 1e-8)");
     argList::addOption("positionTol", "scalar", "plane positioning (default 1e-11)");
+    argList::addOption
+    (
+        "davofMethod", "word",
+        "the exact state's construction, overriding the entry's davofMethod"
+        " (an entry without the key, volumeFractionError's, defaults to"
+        " quadraticFaces)"
+    );
+    argList::addBoolOption
+    (
+        "evolOnly",
+        "the cell-level errors Ec, Eout, Evol only (no face fractions, no phi;"
+        " the L1 columns and the plane counts are written as -1)"
+    );
+    argList::addOption
+    (
+        "out", "file",
+        "the output file (default postProcessing/staticFaceFractions/"
+        "staticFaceFractions.dat of the case)"
+    );
     argList::noParallel();
 
     #include "setRootCase.H"
@@ -326,13 +351,24 @@ int main(int argc, char *argv[])
     const bool U0FromField = !foDict.found("U0") && mag(omega) <= VSMALL;
     const word davofMethod
     (
-        foDict.getOrDefault<word>("davofMethod", "quadraticFaces")
+        args.found("davofMethod")
+      ? args.get<word>("davofMethod")
+      : foDict.getOrDefault<word>("davofMethod", "quadraticFaces")
     );
+    const bool evolOnly = args.found("evolOnly");
     const scalar wispTol = foDict.getOrDefault<scalar>("wispTol", 1e-3);
 
-    const fileName outDir(runTime.globalPath()/"postProcessing"/"staticFaceFractions");
-    mkDir(outDir);
-    OFstream os(outDir/"staticFaceFractions.dat");
+    fileName outFile
+    (
+        runTime.globalPath()/"postProcessing"/"staticFaceFractions"
+       /"staticFaceFractions.dat"
+    );
+    if (args.found("out"))
+    {
+        outFile = args.get<fileName>("out");
+    }
+    mkDir(outFile.path());
+    OFstream os(outFile);
     os.precision(12);
     os  << "# staticFaceFractions (entry " << entry << ", surfCellTol "
         << surfCellTol << ", positionTol " << positionTol << ", wispTol "
@@ -383,7 +419,8 @@ int main(int argc, char *argv[])
         const point o = davof::orbitOrigin(origin0, U0, omega, axisPoint, t);
 
         // phi of the time directory, else U0.S_f
-        scalarField phiF(nInt);
+        scalarField phiF(evolOnly ? 0 : nInt);
+        if (!evolOnly)
         {
             IOobject phiIO
             (
@@ -436,13 +473,16 @@ int main(int argc, char *argv[])
         {
             init.detrixheAslam(alphaEx, alphafEx);
         }
+        scalar L1loop = -1, L1static = -1, L1mean = -1, L1exact = -1;
+        label nLoop = 0, nStatic = 0;
+        label nPlanes = -1, nFail = -1, nPlanesEx = -1, nFailEx = -1;
+        if (!evolOnly)
+        {
         vectorField mEx;
         scalarField afEx;
         davofInit::areaNormal(mesh, alphafEx, mEx, afEx);
 
         // the transported face fractions, when written
-        scalar L1loop = -1;
-        label nLoop = 0;
         {
             IOobject afIO
             (
@@ -471,7 +511,6 @@ int main(int argc, char *argv[])
         surfaceScalarField afM(makeSurf("staticFaceFractions:mean"));
         surfaceScalarField afUEx(makeSurf("staticFaceFractions:upwindExact"));
         surfaceScalarField afMEx(makeSurf("staticFaceFractions:meanExact"));
-        label nPlanes = 0, nFail = 0, nPlanesEx = 0, nFailEx = 0;
         staticFractions
         (
             mesh, alpha.primitiveField(), o, phiF, surfCellTol, positionTol,
@@ -482,10 +521,11 @@ int main(int argc, char *argv[])
             mesh, alphaEx.primitiveField(), o, phiF, surfCellTol, positionTol,
             afUEx, afMEx, nPlanesEx, nFailEx
         );
-        label nStatic = 0, nDummy = 0;
-        const scalar L1static = scoreL1(mesh, afU, afEx, mEx, wispTol, nStatic);
-        const scalar L1mean = scoreL1(mesh, afM, afEx, mEx, wispTol, nDummy);
-        const scalar L1exact = scoreL1(mesh, afUEx, afEx, mEx, wispTol, nDummy);
+        label nDummy = 0;
+        L1static = scoreL1(mesh, afU, afEx, mEx, wispTol, nStatic);
+        L1mean = scoreL1(mesh, afM, afEx, mEx, wispTol, nDummy);
+        L1exact = scoreL1(mesh, afUEx, afEx, mEx, wispTol, nDummy);
+        }
 
         // the cell-level error
         const scalarField& a = alpha.primitiveField();

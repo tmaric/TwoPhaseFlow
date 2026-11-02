@@ -28,6 +28,8 @@ License
 #include "cutCellIso.H"
 #include "profiling.H"
 #include "davofOrbit.H"
+#include "davofInit.H"
+#include "surfaceFields.H"
 
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -46,8 +48,15 @@ namespace functionObjects
 
 void Foam::functionObjects::volumeFractionError::writeFileHeader(Ostream& os) const
 {
-    // Add headers to output data
-    writeHeader(os, "volumeFractionError ");
+    // Add headers to output data (the exact state named when it is the
+    // exact sphere's, 2026-11-03; the former header otherwise)
+    writeHeader
+    (
+        os,
+        (exactState_ == "exactSphere")
+      ? "volumeFractionError (exactState exactSphere)"
+      : "volumeFractionError "
+    );
     writeCommented(os, "Time");
     writeTabbed(os, "Eshape");
     writeTabbed(os, "Emass");
@@ -76,7 +85,8 @@ Foam::functionObjects::volumeFractionError::volumeFractionError
     Field_(),
     dict_(dict),
     initMass_(0),
-    initCentre_(dict.get<vector>("origin"))
+    initCentre_(dict.get<vector>("origin")),
+    exactState_("cutCellIso")
 {
 
 
@@ -101,6 +111,66 @@ bool Foam::functionObjects::volumeFractionError::read(const dictionary& dict)
     writeFile::read(dict);
 
     Field_ = dict.get<word>("field");
+
+    // The exact state (key exactState, 2026-11-03; the header file): auto
+    // takes the exact sphere where davofInit::exactSphere applies (a sphere
+    // on axis-aligned boxes), the former cutCellIso construction otherwise
+    {
+        const word fType(dict.get<word>("functionType"));
+        const word key(dict.getOrDefault<word>("exactState", "auto"));
+        if (key != "auto" && key != "exactSphere" && key != "cutCellIso")
+        {
+            FatalIOErrorInFunction(dict)
+                << "exactState '" << key << "' unknown. Valid: auto,"
+                << " exactSphere, cutCellIso." << exit(FatalIOError);
+        }
+        bool boxes = true;
+        {
+            const vectorField& Sf = mesh_.faceAreas();
+            forAll(Sf, facei)
+            {
+                const scalar A = mag(Sf[facei]);
+                if (A > VSMALL && cmptMax(cmptMag(Sf[facei]/A)) < 1 - 1e-10)
+                {
+                    boxes = false;
+                    break;
+                }
+            }
+            if (boxes)
+            {
+                const pointField& P = mesh_.points();
+                const labelListList& cellPoints = mesh_.cellPoints();
+                const scalarField& V = mesh_.V();
+                forAll(V, celli)
+                {
+                    const boundBox bb(pointField(P, cellPoints[celli]), false);
+                    const vector s = bb.span();
+                    if (mag(s.x()*s.y()*s.z() - V[celli]) > 1e-8*V[celli])
+                    {
+                        boxes = false;
+                        break;
+                    }
+                }
+            }
+            reduce(boxes, andOp<bool>());
+        }
+        if (key == "auto")
+        {
+            exactState_ = (fType == "sphere" && boxes) ? "exactSphere" : "cutCellIso";
+        }
+        else
+        {
+            exactState_ = key;
+        }
+        if (exactState_ == "exactSphere" && (fType != "sphere" || !boxes))
+        {
+            FatalIOErrorInFunction(dict)
+                << "exactState exactSphere needs functionType sphere on"
+                << " axis-aligned hexahedra" << exit(FatalIOError);
+        }
+        Info<< type() << " " << name() << ": exactState " << exactState_
+            << " (key " << key << ")" << endl;
+    }
 
 
     // set initial mass
@@ -238,16 +308,6 @@ bool Foam::functionObjects::volumeFractionError::write()
 
 
 
-    scalarField f(mesh_.nPoints(),0.0);
-
-    forAll(f,pI)
-    {
-        f[pI] =  func->value(mesh_.points()[pI]);
-    }
-
-
-     cutCellIso cutCell(mesh_,f); // changes f
-
     volScalarField alphaExact
     (
           IOobject
@@ -263,26 +323,59 @@ bool Foam::functionObjects::volumeFractionError::write()
           "calculated"
     );
 
-//    cutCellImpFunc cutCell(mesh_,f,func); // changes f
-
-
-    forAll(alphaExact,cellI)
+    if (exactState_ == "exactSphere")
     {
-        label cellStatus = cutCell.calcSubCell(cellI,0.0);
+        // the exact sphere at origin(t) (2026-11-03): the cell fractions of
+        // davofInit::exactSphere, the state of initDavofFields and the
+        // reference of areaFractionError
+        surfaceScalarField alphafExact
+        (
+            IOobject
+            (
+                "volumeFractionError:alphafExact",
+                mesh_.time().timeName(),
+                mesh_,
+                IOobject::NO_READ,
+                IOobject::NO_WRITE,
+                false
+            ),
+            mesh_,
+            dimensionedScalar(dimless, Zero),
+            calculatedFvsPatchScalarField::typeName
+        );
+        davofInit init(mesh_, func(), dict_);
+        init.exactSphere(alphaExact, alphafExact);
+    }
+    else
+    {
+        // the former construction: the cell cut by the isosurface of the
+        // vertex values
+        scalarField f(mesh_.nPoints(),0.0);
 
-        if(cellStatus == -1)
+        forAll(f,pI)
         {
-            alphaExact[cellI] = 1;
-        }
-        else if(cellStatus == 1)
-        {
-            alphaExact[cellI] = 0;
-        }
-        else if(cellStatus == 0)
-        {
-            alphaExact[cellI]= cutCell.VolumeOfFluid();
+            f[pI] =  func->value(mesh_.points()[pI]);
         }
 
+        cutCellIso cutCell(mesh_,f); // changes f
+
+        forAll(alphaExact,cellI)
+        {
+            label cellStatus = cutCell.calcSubCell(cellI,0.0);
+
+            if(cellStatus == -1)
+            {
+                alphaExact[cellI] = 1;
+            }
+            else if(cellStatus == 1)
+            {
+                alphaExact[cellI] = 0;
+            }
+            else if(cellStatus == 0)
+            {
+                alphaExact[cellI]= cutCell.VolumeOfFluid();
+            }
+        }
     }
 
 

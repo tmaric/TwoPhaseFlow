@@ -33,6 +33,25 @@ Description
     rotation, U of the first cell when |U| is uniform (a constant uniform
     translation), else zero.
 
+    The exact state alpha_exact (key exactState, 2026-11-03):
+      exactSphere  the exact cell fractions of the sphere (origin at t,
+                   radius) on axis-aligned hexahedra, davofInit::exactSphere
+                   (the state initDavofFields writes and areaFractionError and
+                   the app staticFaceFractions score against): Eshape of the
+                   exact state is round-off;
+      cutCellIso   the former construction: the cut of each cell by the
+                   isosurface 0 of the function's values at the vertices
+                   (cutCellIso, linear along the edges), whose difference from
+                   the exact sphere is a construction floor of Eshape
+                   (O(h^2) per interface cell, nonzero at t = 0);
+      auto         (the default) exactSphere when functionType is sphere and
+                   every cell is an axis-aligned box (the condition of
+                   davofInit::exactSphere), cutCellIso otherwise, so that
+                   the other bodies and meshes are unchanged.
+    Eshape is not normalised (sum over the cells of |alpha - alpha_exact|
+    V_c, in m^3); Emass and Ebound do not depend on the key. With
+    exactSphere the .dat header names it.
+
 Author
     Henning Scheufler, DLR, all rights reserved.
     Johan Roenby, DHI, all rights reserved.
@@ -78,6 +97,10 @@ protected:
         scalar initMass_;
 
         vector initCentre_;
+
+        //- The exact state actually used: exactSphere or cutCellIso
+        //  (key exactState, auto by default)
+        word exactState_;
 
 
     // Protected Member Functions
