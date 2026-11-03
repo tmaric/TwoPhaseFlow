@@ -218,6 +218,7 @@ Foam::advection::isoAdvection::isoAdvection
     nConsFallback_(0),
     sweptNoDonorSurface_(false),
     sweptWispSurface_(modelDict().getOrDefault<word>("sweptWispSurface", "none")),
+    sweptWispTol_(modelDict().getOrDefault<scalar>("sweptWispTol", 1e-8)),
     wispSurfaces_(),
     hasWispSurface_(),
     nSweptWispClipped_(0),
@@ -465,6 +466,10 @@ Foam::advection::isoAdvection::isoAdvection
                     if (sweptWispSurface_ != "none")
                     {
                         Info<< ", sweptWispSurface " << sweptWispSurface_;
+                    }
+                    if (modelDict().found("sweptWispTol"))
+                    {
+                        Info<< ", sweptWispTol " << sweptWispTol_;
                     }
                     // the consistency keys (2026-11-02), printed only when on
                     if (sweptConsistent_)

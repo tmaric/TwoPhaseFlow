@@ -696,11 +696,11 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             plic.x0 = x0;
             wetPlane = true;
         }
-        else if (a0c >= 1 - 1e-8)
+        else if (a0c >= 1 - sweptWispTol_)
         {
             wet = true;
         }
-        else if (a0c <= 1e-8)
+        else if (a0c <= sweptWispTol_)
         {
             wet = false;
         }

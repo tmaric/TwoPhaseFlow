@@ -1265,7 +1265,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         forAll(a0w, c)
         {
             if (hasSurface_.test(c)) continue;
-            if (!(a0w[c] > 1e-8 && a0w[c] < 1 - 1e-8)) continue;
+            if (!(a0w[c] > sweptWispTol_ && a0w[c] < 1 - sweptWispTol_)) continue;
             const davof::cellSurface* best = nullptr;
             scalar dMin = GREAT;
             auto consider = [&](const davof::cellSurface& T)

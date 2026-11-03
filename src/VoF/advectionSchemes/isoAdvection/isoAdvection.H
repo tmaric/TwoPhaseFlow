@@ -568,6 +568,15 @@ class isoAdvection
             //  threshold, so the cell has no plane, while its corner holds
             //  liquid: the 0/1 rule dropped it (the plane gate, 2026-11-02)
             word sweptWispSurface_;
+            //- The band of the wisp class (key sweptWispTol, default 1e-8,
+            //  the classification before the key): a ring cell without a
+            //  surface is full for alpha^n >= 1 - tol, empty for alpha^n <=
+            //  tol, a wisp between; with sweptWispSurface neighbour the wisps
+            //  take the neighbour's plane. A plane cutting a corner of volume
+            //  below 1e-8 V of a cell left that cell empty and the face
+            //  fraction of a face of it short by 1e-5 (the oblique arm of the
+            //  plane gate, 2026-11-02)
+            scalar sweptWispTol_;
             List<davof::cellSurface> wispSurfaces_;
             bitSet hasWispSurface_;
             label nSweptWispClipped_;
