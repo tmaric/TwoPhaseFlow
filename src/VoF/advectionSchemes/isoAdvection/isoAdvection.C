@@ -225,6 +225,7 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptWispNoNeighbour_(0),
     nSweptWispAnchorFail_(0),
     nSweptWispMatched_(0),
+    sweptWispMatchTol_(modelDict().getOrDefault<scalar>("sweptWispMatchTol", 1e-11)),
     consResidueStep_(),
     consSummary_(),
     consResiduePtr_(),
@@ -477,6 +478,10 @@ Foam::advection::isoAdvection::isoAdvection
                     if (modelDict().found("sweptWispTol"))
                     {
                         Info<< ", sweptWispTol " << sweptWispTol_;
+                    }
+                    if (modelDict().found("sweptWispMatchTol"))
+                    {
+                        Info<< ", sweptWispMatchTol " << sweptWispMatchTol_;
                     }
                     // the consistency keys (2026-11-02), printed only when on
                     if (sweptConsistent_)

@@ -1343,7 +1343,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 {
                     const point x0 = B.o + B.c*B.e3;
                     const scalar cNb = (x0 - Cc[c]) & T.e3;
-                    if (mag(g(cNb) - a0w[c]*Vw[c]) <= anchorTolRel_*Vw[c])
+                    if (mag(g(cNb) - a0w[c]*Vw[c]) <= sweptWispMatchTol_*Vw[c])
                     {
                         T.c = cNb;
                         wispSurfaces_[c] = T;

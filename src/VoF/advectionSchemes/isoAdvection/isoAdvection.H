@@ -588,8 +588,10 @@ class isoAdvection
             label nSweptWispNoNeighbour_;
             label nSweptWispAnchorFail_;
             //- matched (2026-11-03): the neighbour's plane where its volume in
-            //  the wisp is alpha^n V within anchorTolRel V, else anchored
+            //  the wisp is alpha^n V within sweptWispMatchTol V (key, default
+            //  1e-11, the anchor's tolerance anchorTolRel), else anchored
             label nSweptWispMatched_;
+            scalar sweptWispMatchTol_;
             scalarField consResidueStep_;
             autoPtr<OFstream> consSummary_;
             autoPtr<volScalarField> consResiduePtr_;
