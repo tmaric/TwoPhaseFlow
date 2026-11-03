@@ -587,6 +587,9 @@ class isoAdvection
             label nSweptWispClipped_;
             label nSweptWispNoNeighbour_;
             label nSweptWispAnchorFail_;
+            //- matched (2026-11-03): the neighbour's plane where its volume in
+            //  the wisp is alpha^n V within anchorTolRel V, else anchored
+            label nSweptWispMatched_;
             scalarField consResidueStep_;
             autoPtr<OFstream> consSummary_;
             autoPtr<volScalarField> consResiduePtr_;

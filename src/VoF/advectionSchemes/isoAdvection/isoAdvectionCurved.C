@@ -1138,6 +1138,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     // the consistency counters (sweptConsistent, sweptConsistencyLog)
     nConsCandAdded_ = nConsNoSurface_ = nConsFallback_ = 0;
     nSweptWispClipped_ = nSweptWispNoNeighbour_ = nSweptWispAnchorFail_ = 0;
+    nSweptWispMatched_ = 0;
     nConsWispPieces_ = 0;
     consWispMisSum_ = consWispMisAbs_ = consWispMisMax_ = 0;
     sweptFaceConsDelta_ = 0;
@@ -1305,7 +1306,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     if (nbrHas[patchi][pf]) consider(nbrSurface[patchi][pf]);
                 }
             }
-            if (best && sweptWispSurface_ == "anchored")
+            if (best && (sweptWispSurface_ == "anchored" || sweptWispSurface_ == "matched"))
             {
                 const davof::cellSurface& B = *best;
                 const vector nRaw =
@@ -1331,6 +1332,26 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     Tc.c = cc;
                     return volumeRulePtr_->cellLiquidVolume(c, Tc, anchorTolRel_);
                 };
+                // matched (2026-11-03): the neighbour's plane itself where the
+                // volume it puts in the wisp is alpha^n V within anchorTolRel
+                // of V (a plane surface: always, and exact, also for a wisp of
+                // round-off alpha that the plane does not cut), else the plane
+                // positioned by alpha as anchored. anchored alone positions a
+                // plane in every round-off wisp, and the face fraction of a
+                // corner goes as alpha^(2/3): 7.7e-11 on the oblique plane
+                if (sweptWispSurface_ == "matched")
+                {
+                    const point x0 = B.o + B.c*B.e3;
+                    const scalar cNb = (x0 - Cc[c]) & T.e3;
+                    if (mag(g(cNb) - a0w[c]*Vw[c]) <= anchorTolRel_*Vw[c])
+                    {
+                        T.c = cNb;
+                        wispSurfaces_[c] = T;
+                        hasWispSurface_.set(c);
+                        ++nSweptWispMatched_;
+                        continue;
+                    }
+                }
                 scalar cc = 0;
                 bool bracketed = false;
                 davof::solveOffset(g, a0w[c]*Vw[c], -hw, hw, 1e-14*hw, cc, bracketed);
@@ -2302,19 +2323,23 @@ void Foam::advection::isoAdvection::reportCurved() const
         if (sweptWispSurface_ != "none")
         {
             label nWc = nSweptWispClipped_, nWn = nSweptWispNoNeighbour_;
-            label nWa = nSweptWispAnchorFail_;
+            label nWa = nSweptWispAnchorFail_, nWm = nSweptWispMatched_;
             if (Pstream::parRun())
             {
                 reduce(nWc, sumOp<label>()); reduce(nWn, sumOp<label>());
-                reduce(nWa, sumOp<label>());
+                reduce(nWa, sumOp<label>()); reduce(nWm, sumOp<label>());
             }
             Info<< "; wisp surface: pieces clipped by a neighbour's plane " << nWc
                 << ", wisps without a neighbour surface " << nWn;
             // anchored (2026-11-03), a clause of its own so that the
             // converter's pattern of the clause above stays valid
-            if (sweptWispSurface_ == "anchored")
+            if (sweptWispSurface_ == "anchored" || sweptWispSurface_ == "matched")
             {
                 Info<< "; wisp anchor not bracketed " << nWa;
+            }
+            if (sweptWispSurface_ == "matched")
+            {
+                Info<< "; wisp neighbour plane matched " << nWm;
             }
         }
     }
