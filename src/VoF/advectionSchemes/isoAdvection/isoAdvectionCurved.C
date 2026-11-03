@@ -1139,6 +1139,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nConsCandAdded_ = nConsNoSurface_ = nConsFallback_ = 0;
     nSweptWispClipped_ = nSweptWispNoNeighbour_ = nSweptWispAnchorFail_ = 0;
     nSweptWispMatched_ = 0;
+    nConsBoundaryKept_ = 0;
     nConsWispPieces_ = 0;
     consWispMisSum_ = consWispMisAbs_ = consWispMisMax_ = 0;
     sweptFaceConsDelta_ = 0;
@@ -1722,8 +1723,28 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         // the second ring is computed as well (its pieces need no surface;
         // the donor's plane is only the rank fallback's, which then takes
         // the algebraic value, sweptFaceCellsFlux)
+        // A BOUNDARY face without a surface on a patch whose alpha condition
+        // fixes the value (fixedValue walls) keeps the boundary condition's
+        // flux alpha_b phi_f dt, as on the default path, which skips every
+        // face without a surface (2026-11-03): computed, a piece of a cell
+        // without a surface carried alpha_c V_piece out through a wall whose
+        // alpha is fixedValue 0, the whole mass loss of the consistent
+        // diagonal (5.6e-9 / 8.4e-10 of the mass). On a patch that does not
+        // fix alpha (zeroGradient outflow) the swept flux stays: there the
+        // algebraic value alpha_owner phi_f dt is the approximation the
+        // swept flux replaces, not a condition. Counted.
         static const davof::cellSurface noSurface{};
         sweptNoDonorSurface_ = false;
+        if
+        (
+            !Sp && boundary && sweptConsistent_ && fluxIntegration_ == "sweptFaceCells"
+         && alpha1_.boundaryField()[pbm.whichPatch(facei)].fixesValue()
+        )
+        {
+            ++nConsBoundaryKept_;
+            ++nCurvedSkipped_;
+            return;
+        }
         if (!Sp)
         {
             if (sweptConsistent_ && fluxIntegration_ == "sweptFaceCells")
@@ -2316,6 +2337,11 @@ void Foam::advection::isoAdvection::reportCurved() const
             Info<< "; consistent: candidates added " << nAdd
                 << ", faces without a surface " << nNoS
                 << ", their rank fallbacks " << nCFb;
+            // the boundary faces without a surface left to the boundary
+            // condition (2026-11-03), a clause of its own
+            label nBk = nConsBoundaryKept_;
+            if (Pstream::parRun()) reduce(nBk, sumOp<label>());
+            Info<< "; consistent boundary faces kept at the boundary condition " << nBk;
         }
         // sweptWispSurface neighbour (2026-11-02), a clause of its own, only
         // when on: the wisp pieces clipped by a neighbour's plane, the wisps

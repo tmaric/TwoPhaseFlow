@@ -216,6 +216,7 @@ Foam::advection::isoAdvection::isoAdvection
     nConsCandAdded_(0),
     nConsNoSurface_(0),
     nConsFallback_(0),
+    nConsBoundaryKept_(0),
     sweptNoDonorSurface_(false),
     sweptWispSurface_(modelDict().getOrDefault<word>("sweptWispSurface", "none")),
     sweptWispTol_(modelDict().getOrDefault<scalar>("sweptWispTol", 1e-8)),

@@ -554,6 +554,10 @@ class isoAdvection
             label nConsCandAdded_;
             label nConsNoSurface_;
             label nConsFallback_;
+            //- sweptConsistent: the boundary faces without a surface left to
+            //  the boundary condition's flux, as on the default path
+            //  (2026-11-03)
+            label nConsBoundaryKept_;
             //- The face computed without a surface (sweptConsistent)
             bool sweptNoDonorSurface_;
 
