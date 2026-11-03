@@ -223,6 +223,7 @@ Foam::advection::isoAdvection::isoAdvection
     hasWispSurface_(),
     nSweptWispClipped_(0),
     nSweptWispNoNeighbour_(0),
+    nSweptWispAnchorFail_(0),
     consResidueStep_(),
     consSummary_(),
     consResiduePtr_(),
@@ -453,11 +454,16 @@ Foam::advection::isoAdvection::isoAdvection
                             << "sweptCapSet '" << sweptCapSet_
                             << "' unknown. Valid: final, crossing." << exit(FatalIOError);
                     }
-                    if (sweptWispSurface_ != "none" && sweptWispSurface_ != "neighbour")
+                    if
+                    (
+                        sweptWispSurface_ != "none" && sweptWispSurface_ != "neighbour"
+                     && sweptWispSurface_ != "anchored"
+                    )
                     {
                         FatalIOErrorInFunction(modelDict())
                             << "sweptWispSurface '" << sweptWispSurface_
-                            << "' unknown. Valid: none, neighbour." << exit(FatalIOError);
+                            << "' unknown. Valid: none, neighbour, anchored."
+                            << exit(FatalIOError);
                     }
                     Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
                         << ", sweptCoplanar " << sweptCoplanar_

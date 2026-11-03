@@ -567,6 +567,11 @@ class isoAdvection
             //  cell in a small corner leaves |m_c| below the interface-cell
             //  threshold, so the cell has no plane, while its corner holds
             //  liquid: the 0/1 rule dropped it (the plane gate, 2026-11-02)
+            //  | anchored (2026-11-03: the neighbour's normal, the plane
+            //  positioned in the wisp so that the volume under it is
+            //  alpha^n V, the PLIC of the wisp; neighbour, the neighbour's
+            //  plane itself, gave a wisp of a curved interface more liquid
+            //  than it holds, min alpha -1.7e-5 on the N = 64 rotation)
             word sweptWispSurface_;
             //- The band of the wisp class (key sweptWispTol, default 1e-8,
             //  the classification before the key): a ring cell without a
@@ -581,6 +586,7 @@ class isoAdvection
             bitSet hasWispSurface_;
             label nSweptWispClipped_;
             label nSweptWispNoNeighbour_;
+            label nSweptWispAnchorFail_;
             scalarField consResidueStep_;
             autoPtr<OFstream> consSummary_;
             autoPtr<volScalarField> consResiduePtr_;

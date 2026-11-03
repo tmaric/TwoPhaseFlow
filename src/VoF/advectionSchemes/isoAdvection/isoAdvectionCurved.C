@@ -1137,7 +1137,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptRemoteFaces_ = nSweptEulerTrace_ = 0;
     // the consistency counters (sweptConsistent, sweptConsistencyLog)
     nConsCandAdded_ = nConsNoSurface_ = nConsFallback_ = 0;
-    nSweptWispClipped_ = nSweptWispNoNeighbour_ = 0;
+    nSweptWispClipped_ = nSweptWispNoNeighbour_ = nSweptWispAnchorFail_ = 0;
     nConsWispPieces_ = 0;
     consWispMisSum_ = consWispMisAbs_ = consWispMisMax_ = 0;
     sweptFaceConsDelta_ = 0;
@@ -1255,8 +1255,16 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     // origin, ties broken by the origin lexicographically as in the second
     // ring of a face (surfaceOf below), so that the choice does not depend on
     // the decomposition. A wisp without such a neighbour keeps the 0/1 rule.
-    if (fluxIntegration_ == "sweptFaceCells" && sweptWispSurface_ == "neighbour")
+    // sweptWispSurface anchored (2026-11-03): the neighbour's normal only,
+    // the plane positioned in the wisp so that the volume under it is
+    // alpha^n V (the volume rule's cell volume, bisection to 1e-14 h,
+    // davof::solveOffset): the PLIC plane of the wisp. A plane surface gives
+    // the wisp the same plane when alpha^n is exact; a curved one cannot give
+    // a piece of the wisp more liquid than the wisp holds. A wisp whose
+    // offset is not bracketed keeps the 0/1 rule (counted).
+    if (fluxIntegration_ == "sweptFaceCells" && sweptWispSurface_ != "none")
     {
+        const scalarField& Vw = mesh_.V();
         const scalarField& a0w = alpha1_.oldTime().primitiveField();
         const vectorField& Cc = mesh_.cellCentres();
         if (wispSurfaces_.size() != mesh_.nCells()) wispSurfaces_.setSize(mesh_.nCells());
@@ -1297,7 +1305,47 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                     if (nbrHas[patchi][pf]) consider(nbrSurface[patchi][pf]);
                 }
             }
-            if (best)
+            if (best && sweptWispSurface_ == "anchored")
+            {
+                const davof::cellSurface& B = *best;
+                const vector nRaw =
+                    B.paraboloid ? (B.e3 - B.a1*B.e1 - B.a2*B.e2) : B.e3;
+                if (B.sphere || !(mag(nRaw) > 0))
+                {
+                    ++nSweptWispAnchorFail_;
+                    continue;
+                }
+                davof::cellSurface T;
+                T.sphere = false;
+                T.paraboloid = false;
+                T.e3 = nRaw/mag(nRaw);
+                davof::frameOf(T.e3, T.e1, T.e2);
+                T.o = Cc[c];
+                T.b11 = T.b12 = T.b22 = 0;
+                T.a1 = T.a2 = 0;
+                T.c = 0;
+                const scalar hw = Foam::cbrt(Vw[c]);
+                auto g = [&](const scalar cc) -> scalar
+                {
+                    davof::cellSurface Tc = T;
+                    Tc.c = cc;
+                    return volumeRulePtr_->cellLiquidVolume(c, Tc, anchorTolRel_);
+                };
+                scalar cc = 0;
+                bool bracketed = false;
+                davof::solveOffset(g, a0w[c]*Vw[c], -hw, hw, 1e-14*hw, cc, bracketed);
+                if (bracketed)
+                {
+                    T.c = cc;
+                    wispSurfaces_[c] = T;
+                    hasWispSurface_.set(c);
+                }
+                else
+                {
+                    ++nSweptWispAnchorFail_;
+                }
+            }
+            else if (best)
             {
                 wispSurfaces_[c] = *best;
                 hasWispSurface_.set(c);
@@ -2254,12 +2302,20 @@ void Foam::advection::isoAdvection::reportCurved() const
         if (sweptWispSurface_ != "none")
         {
             label nWc = nSweptWispClipped_, nWn = nSweptWispNoNeighbour_;
+            label nWa = nSweptWispAnchorFail_;
             if (Pstream::parRun())
             {
                 reduce(nWc, sumOp<label>()); reduce(nWn, sumOp<label>());
+                reduce(nWa, sumOp<label>());
             }
             Info<< "; wisp surface: pieces clipped by a neighbour's plane " << nWc
                 << ", wisps without a neighbour surface " << nWn;
+            // anchored (2026-11-03), a clause of its own so that the
+            // converter's pattern of the clause above stays valid
+            if (sweptWispSurface_ == "anchored")
+            {
+                Info<< "; wisp anchor not bracketed " << nWa;
+            }
         }
     }
     if (sweptClassify_)

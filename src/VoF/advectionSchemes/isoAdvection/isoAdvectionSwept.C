@@ -715,12 +715,14 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             // wisp's closest face neighbour with a surface clips its piece
             // and its part of the face update, as the second ring gives a
             // face without a surface its plane (a plane cutting a small
-            // corner of the cell, |m_c| below the interface threshold)
+            // corner of the cell, |m_c| below the interface threshold);
+            // anchored (2026-11-03): the plane with the neighbour's normal
+            // positioned by the wisp's alpha (curvedFlux)
             const bool wispHas =
                 rc
               ? rc->wispSurface
               : (hasWispSurface_.size() == mesh_.nCells() && hasWispSurface_.test(c));
-            if (sweptWispSurface_ == "neighbour" && wispHas)
+            if (sweptWispSurface_ != "none" && wispHas)
             {
                 vector nRaw; point x0;
                 planeOf(rc ? rc->S : wispSurfaces_[c], c, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
