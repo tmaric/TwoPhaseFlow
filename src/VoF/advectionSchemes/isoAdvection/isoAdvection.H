@@ -627,7 +627,38 @@ class isoAdvection
             //  received 3e-7 more than it sent in the first step of the
             //  N = 64 rotation (the prism's volume d.S_f IS phi_f dt). The
             //  identity to round-off under a uniform translation.
+            //  Since 2026-11-02 it is the mode scale of
+            //  sweptVolumeCorrection below (true when that mode is in use).
             bool sweptScaleToPhi_;
+
+            //- The volume correction of the swept volume (key
+            //  sweptVolumeCorrection, 2026-11-02): none | scale (the liquid
+            //  volume times V_f / V_g, sweptScaleToPhi; kept for comparison)
+            //  | pyramid (the apex of the pre-image fan moved along the
+            //  pre-image's area vector so that the closed triangle list holds
+            //  V_f, the volume correction of the unsplit face-vertex flux
+            //  calculation, UFVFC: T. Maric, H. Marschall, D. Bothe, An
+            //  enhanced un-split face-vertex flux-based VoF method,
+            //  J. Comput. Phys. 371 (2018) 967-993,
+            //  doi:10.1016/j.jcp.2018.03.048, no arXiv version found; the
+            //  acronym as in T. Maric, D. B. Kothe, D. Bothe, Unstructured
+            //  un-split geometrical Volume-of-Fluid methods - A review,
+            //  J. Comput. Phys. 420 (2020) 109695,
+            //  doi:10.1016/j.jcp.2020.109695, arXiv:2007.02860). Without the
+            //  key: scale where sweptScaleToPhi is true, none otherwise (the
+            //  builds before it).
+            word sweptVolumeCorrection_;
+            bool sweptVolumeKeyGiven_;
+            //- Per step: the largest |delta|/h of the pyramid, the largest
+            //  |V_f - V_g|/|V_f| before the correction, the largest per-axis
+            //  displacement of a traced vertex over h, the twisted faces
+            //  (V_g below 0.1 of the unsigned swept volume), the faces whose
+            //  pre-image has no area (no pyramid, counted)
+            scalar sweptPyrDeltaMax_;
+            scalar sweptVolDefectMax_;
+            scalar sweptDispAxisMax_;
+            label nSweptTwisted_;
+            label nSweptPyrSkipped_;
 
             //- The swept fluxes in parallel (davofSweptRemote.H,
             //  2026-10-30): the cells of other ranks in the vertex rings of

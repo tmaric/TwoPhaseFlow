@@ -235,6 +235,29 @@ Foam::advection::isoAdvection::isoAdvection
     dumpFaces_(),
     dumpPieces_(),
     sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
+    sweptVolumeCorrection_
+    (
+        // auto (or no key): the mode of sweptScaleToPhi, the builds before
+        // the key (the value a case template renders by default)
+        [this]() -> word
+        {
+            const word w =
+                modelDict().getOrDefault<word>("sweptVolumeCorrection", "auto");
+            if (w != "auto") return w;
+            return
+                modelDict().getOrDefault<bool>("sweptScaleToPhi", false)
+              ? word("scale") : word("none");
+        }()
+    ),
+    sweptVolumeKeyGiven_
+    (
+        modelDict().getOrDefault<word>("sweptVolumeCorrection", "auto") != "auto"
+    ),
+    sweptPyrDeltaMax_(0),
+    sweptVolDefectMax_(0),
+    sweptDispAxisMax_(0),
+    nSweptTwisted_(0),
+    nSweptPyrSkipped_(0),
     sweptRemote_(),
     sweptRemoteRing_(),
     nSweptRemoteCells_(0),
@@ -435,8 +458,28 @@ Foam::advection::isoAdvection::isoAdvection
             Info<< ", fluxIntegration " << fluxIntegration_;
             if (swept)
             {
+                // the volume correction (2026-11-02): the mode replaces the
+                // flag; sweptScaleToPhi stays the flag of the mode scale
+                if
+                (
+                    sweptVolumeCorrection_ != "none" && sweptVolumeCorrection_ != "scale"
+                 && sweptVolumeCorrection_ != "pyramid"
+                )
+                {
+                    FatalIOErrorInFunction(modelDict())
+                        << "sweptVolumeCorrection '" << sweptVolumeCorrection_
+                        << "' unknown. Valid: auto (sweptScaleToPhi decides), none,"
+                        << " scale, pyramid." << exit(FatalIOError);
+                }
+                sweptScaleToPhi_ = (sweptVolumeCorrection_ == "scale");
                 Info<< " (sweptPlaneTol " << sweptPlaneTol_ << ", sweptScaleToPhi "
                     << (sweptScaleToPhi_ ? "true" : "false");
+                if (sweptVolumeKeyGiven_)
+                {
+                    Info<< ", sweptVolumeCorrection " << sweptVolumeCorrection_
+                        << " (V_f = phi_f dt: phi of the half step, setFlow at"
+                        << " t + dt/2, paired with the midpoint trace)";
+                }
                 if (fluxIntegration_ == "sweptFaceCells")
                 {
                     if (sweptCellsFaceUpdate_ != "pieces" && sweptCellsFaceUpdate_ != "donor")

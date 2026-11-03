@@ -1130,6 +1130,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nRuleFallback_ = 0;
     nSweptFaces_ = nSweptFlips_ = nSweptOutOfDonor_ = nSweptClipTris_ = 0;
     sweptClosureMax_ = 0;
+    sweptPyrDeltaMax_ = sweptVolDefectMax_ = sweptDispAxisMax_ = 0;
+    nSweptTwisted_ = nSweptPyrSkipped_ = 0;
     nSweptPieces_ = nSweptBeyond_ = nSweptRankFallback_ = nSweptPartialCells_ = 0;
     nSweptDegenerate_ = 0;
     nSweptCoplanar_ = 0;
@@ -2304,6 +2306,23 @@ void Foam::advection::isoAdvection::reportCurved() const
         Info<< "; swept faces " << nSw << ", flips " << nSwFlip
             << ", out of donor " << nSwOut << ", clipped triangles " << nSwClip
             << ", closure max " << swClos;
+        // the volume correction (2026-11-02), a clause of its own, only when
+        // the key sweptVolumeCorrection is given
+        if (sweptVolumeKeyGiven_)
+        {
+            scalar pyr = sweptPyrDeltaMax_, vdef = sweptVolDefectMax_, disp = sweptDispAxisMax_;
+            label nTw = nSweptTwisted_, nPs = nSweptPyrSkipped_;
+            if (Pstream::parRun())
+            {
+                reduce(pyr, maxOp<scalar>()); reduce(vdef, maxOp<scalar>());
+                reduce(disp, maxOp<scalar>());
+                reduce(nTw, sumOp<label>()); reduce(nPs, sumOp<label>());
+            }
+            Info<< "; volume correction " << sweptVolumeCorrection_
+                << ": max |V_f - V_g|/V_f " << vdef << ", max |delta|/h " << pyr
+                << ", twisted faces " << nTw << ", pyramid skipped " << nPs
+                << ", max axis displacement/h " << disp;
+        }
     }
     if (fluxIntegration_ == "sweptFaceCells")
     {

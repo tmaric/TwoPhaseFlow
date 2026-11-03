@@ -160,6 +160,25 @@ Description
       sweeps the piece; a face without a surface whose pieces need the rank
       fallback takes the algebraic value (counted).
 
+    - THE VOLUME CORRECTION (key sweptVolumeCorrection, 2026-11-02/03;
+      without the key: scale where sweptScaleToPhi is true, none otherwise).
+      The traced swept volume V_g = (1/3) sum_T x_T.a_T of the closed list
+      differs from the flux volume V_f = |phi_f| dt (phi of the half step,
+      setFlow at t + dt/2, the temporal pair of the midpoint trace) under a
+      non-uniform velocity. scale multiplies the liquid volume by V_f / V_g
+      (it divides by V_g, which goes to zero for a face twisted near a
+      rotation axis); pyramid traces only the face points, starts the apex
+      of the pre-image fan at the mean of the traced vertices and moves it
+      along the pre-image's outward area vector A_pre by
+      delta = 3 (V_f - V_g)/|A_pre|, the volume correction of the unsplit
+      face-vertex flux calculation (UFVFC; see sweptTriangles); the corrected
+      list is clipped and capped as before, and the face update uses the
+      corrected fan (its total area vector is unchanged). Logged per step:
+      max |V_f - V_g|/V_f before the correction, max |delta|/h, the twisted
+      faces (V_g below 0.1 of the sum of the unsigned tetrahedra about x_f),
+      the faces without a pre-image area, the largest per-axis displacement
+      of a traced vertex over h.
+
 SourceFiles
     isoAdvectionSwept.C
 
@@ -341,7 +360,21 @@ void Foam::advection::isoAdvection::sweptTriangles
     {
         q[i] = traceBack(P[f[i]], Up[f[i]]);
     }
-    xq = traceBack(xf, UInterp.interpolate(xf, donor));
+    if (sweptVolumeCorrection_ == "pyramid")
+    {
+        // sweptVolumeCorrection pyramid (2026-11-03): only the face points
+        // are traced; the apex of the pre-image fan starts at the mean of
+        // the traced vertices (the translated face centre of a parallelogram
+        // face under a uniform translation) and is placed by the pyramid
+        // below
+        xq = Zero;
+        forAll(q, i) xq += q[i];
+        xq /= scalar(F);
+    }
+    else
+    {
+        xq = traceBack(xf, UInterp.interpolate(xf, donor));
+    }
 
     // The out-of-donor count: any traced point outside the donor, of the
     // faces that sweep a volume (a face parallel to the velocity carries no
@@ -381,17 +414,95 @@ void Foam::advection::isoAdvection::sweptTriangles
     };
     if (phiF < 0) flipAll();
 
+    // the largest per-axis displacement of a traced vertex over h (the one
+    // layer the pieces cover needs it below 1)
+    if (sweeps)
+    {
+        forAll(f, i)
+        {
+            const vector dsp = P[f[i]] - q[i];
+            sweptDispAxisMax_ = max(sweptDispAxisMax_, cmptMax(cmptMag(dsp))/h);
+        }
+    }
+
     vTotal = 0;
     if (sweeps)
     {
         // the signed volume about x_f (translation invariant; the local
-        // origin avoids the cancellation of the global coordinates)
-        scalar sixV = 0;
+        // origin avoids the cancellation of the global coordinates), and the
+        // unsigned one (the sum of the tetrahedra's magnitudes)
+        scalar sixV = 0, sixU = 0;
         forAll(T, k)
         {
-            sixV += (T[k][0] - xf) & ((T[k][1] - xf) ^ (T[k][2] - xf));
+            const scalar t6 = (T[k][0] - xf) & ((T[k][1] - xf) ^ (T[k][2] - xf));
+            sixV += t6;
+            sixU += mag(t6);
         }
-        if (sixV < 0)
+        // the flux volume of the step: V_f = |phi_f| dt with phi of the half
+        // step (advectorVoF evaluates setFlow at t + dt/2), the temporal
+        // pair of the explicit midpoint rule of the trace above; no other
+        // temporal scheme is mixed in (2026-11-02)
+        const scalar Vf = mag(phiF)*dt;
+        if (mag(Vf) > VSMALL)
+        {
+            sweptVolDefectMax_ = max(sweptVolDefectMax_, mag(Vf - sixV/6)/Vf);
+        }
+        if (sixV < 0.1*sixU) ++nSweptTwisted_;
+
+        if (sweptVolumeCorrection_ == "pyramid")
+        {
+            // THE PYRAMID (sweptVolumeCorrection pyramid, 2026-11-02): the
+            // apex x_f' of the pre-image fan (the triangles k % 4 == 1) is
+            // moved along the pre-image polygon's area vector A_pre,
+            // oriented outward of the swept volume, so that the closed list
+            // holds V_f. The volume of the closed list is
+            // V_g = (1/3) sum_T x_T . a_T (the divergence theorem,
+            // int_V (1/3) div x dV = int_S (1/3) x.n dS, the sum used in
+            // T. Tolle, D. Gruending, D. Bothe, T. Maric, triSurfaceImmersion:
+            // Computing volume fractions and signed distances from
+            // triangulated surfaces immersed in unstructured meshes, Comput.
+            // Phys. Commun. 273 (2022) 108249, doi:10.1016/j.cpc.2021.108249,
+            // arXiv:2101.08511), exact for a
+            // thin or twisted swept volume as well; it is linear in the apex,
+            // V(x_f' + delta m) = V(x_f') + (1/3) delta m . A_pre, because
+            // the fan's area vector sum_i (1/2) (p_i' - c) x (p_{i+1}' - c)
+            // does not depend on the apex c. With m = A_pre/|A_pre|,
+            // delta = 3 (V_f - V_g)/|A_pre| closes the difference in closed
+            // form: the correction of the fluxed volume of the unsplit
+            // face-vertex flux calculation (UFVFC; T. Maric, H. Marschall,
+            // D. Bothe, An enhanced un-split face-vertex flux-based VoF
+            // method, J. Comput. Phys. 371 (2018) 967-993,
+            // doi:10.1016/j.jcp.2018.03.048; no arXiv version found),
+            // without a volumetric triangulation. Moving the apex along the swept face's normal,
+            // and not in any other direction, keeps the pre-image fan from
+            // folding over itself (a further self-intersection). The list is
+            // kept in the orientation of phi_f (no flip: a twisted list near
+            // a rotation axis has V_g < 0, and the pyramid takes it to V_f).
+            vector Apre(Zero);
+            forAll(f, i)
+            {
+                const FixedList<point, 3>& t = T[4*i + 1];
+                Apre += 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
+            }
+            const scalar Amag = mag(Apre);
+            if (Amag > SMALL*h*h)
+            {
+                const scalar delta = 3*(Vf - sixV/6)/Amag;
+                xq += (delta/Amag)*Apre;
+                forAll(f, i) T[4*i + 1][0] = xq;
+                sweptPyrDeltaMax_ = max(sweptPyrDeltaMax_, mag(delta)/h);
+                sixV = 0;
+                forAll(T, k)
+                {
+                    sixV += (T[k][0] - xf) & ((T[k][1] - xf) ^ (T[k][2] - xf));
+                }
+            }
+            else
+            {
+                ++nSweptPyrSkipped_;
+            }
+        }
+        else if (sixV < 0)
         {
             flipAll();
             ++nSweptFlips_;
