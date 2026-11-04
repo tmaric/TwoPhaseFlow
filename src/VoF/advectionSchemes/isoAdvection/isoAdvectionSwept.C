@@ -847,6 +847,17 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     };
     DynamicList<ringState> states(ring.size());
     DynamicList<davof::halfSpace> ringPlanes(6*ring.size());
+    bool insideDonor = false;
+    if (preTest || sweptStateShortcut_ || sweptPreTestCheck_)
+    {
+        if (Vsw.empty())
+        {
+            Vsw.append(xf);
+            for (const label pi : mesh_.faces()[facei]) Vsw.append(P[pi]);
+            Vsw.append(xq);
+            forAll(q, i) Vsw.append(q[i]);
+        }
+    }
     for (const label e : ring)
     {
         // a ring entry: a local cell c = e, or a cell of another rank
@@ -927,6 +938,24 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         }
         st.a0c = a0c; st.hasS = hasS; st.wetPlane = wetPlane; st.wet = wet; st.wisp = wisp; st.plic = plic;
         // the pre-test
+        // the swept volume inside the donor (every vertex within every
+        // plane of the donor, the condition of the state shortcut: the
+        // donor's piece is then the whole swept volume and the ring covers
+        // it; a face whose swept volume leaves the donor, the boundary
+        // faces whose pre-image leaves the mesh among them, keeps the
+        // pieces and their coverage accounting; 2026-11-04)
+        if (e == donor && (sweptStateShortcut_ || sweptPreTestCheck_))
+        {
+            insideDonor = true;
+            forAll(planes, i)
+            {
+                for (const point& v : Vsw)
+                {
+                    if (((v - planes[i].x0) & planes[i].n) > 0) { insideDonor = false; break; }
+                }
+                if (!insideDonor) break;
+            }
+        }
         st.touched = true;
         if (preTest)
         {
@@ -978,7 +1007,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // V_g, the scaled V_liq against |phi_f| dt, the sum of the wetted parts
     // against A_pre).
     bool shortFull = false, shortEmpty = false;
-    if (sweptStateShortcut_)
+    if (sweptStateShortcut_ && !insideDonor) ++nSweptShortNotInside_;
+    if (sweptStateShortcut_ && insideDonor)
     {
         bool allFull = true, allEmpty = true, allFullTol = true, allEmptyTol = true, anyRemote = false;
         for (const ringState& st : states)
@@ -1008,9 +1038,50 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         }
     }
 
+    // sweptPreTestCheck (2026-11-04, a debug key): the skipped cells are
+    // clipped as well and a cell with a piece (coverage above 1e-12 of the
+    // boundary, as the pieces count) is a violation of the pre-test; a
+    // shortcut face runs the pieces too and their sums are compared with
+    // the shortcut's (the pieces' values are kept, the counters report)
+    const bool check = sweptPreTestCheck_;
+    const bool shortcut = shortFull || shortEmpty;
+    const scalar threeVsc = threeV; const vector aPreWetSc = aPreWet;
+    if (check && shortcut) { threeV = 0; aPreWet = Zero; coverage = 0; coveragePre = 0; }
     for (const ringState& st : states)
     {
-        if (!st.touched || shortFull || shortEmpty) continue;
+        if (!st.touched)
+        {
+            if (check)
+            {
+                const SubList<davof::halfSpace> planes(ringPlanes, st.np, st.p0);
+                bool viol = false; scalar covV = 0, covA = 0;
+                if (sweeps)
+                {
+                    const davof::pieceResult r =
+                        davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing");
+                    covV = r.coverage;
+                    if (r.coverage > 1e-12*sumMagT) viol = true;
+                }
+                scalar cov = 0;
+                davof::sweptPieceArea(Tpre, planes, st.wetPlane, st.plic, cov, nRef);
+                covA = cov;
+                if (cov > 1e-12*sumMagPre) viol = true;
+                if (viol)
+                {
+                    ++nSweptPreViol_;
+                    if (nSweptPreViol_ <= 20)
+                    {
+                        Pout<< "sweptPreTestCheck: step " << mesh_.time().timeIndex()
+                            << " face " << facei << " cell " << st.c << (st.rc ? " (remote)" : "")
+                            << " volume coverage " << covV/max(sumMagT, VSMALL)
+                            << " area coverage " << covA/max(sumMagPre, VSMALL)
+                            << " alpha " << st.a0c << " surface " << st.hasS << endl;
+                    }
+                }
+            }
+            continue;
+        }
+        if (shortcut && !check) continue;
         const davof::remoteCell* rc = st.rc;
         const label c = st.c;
         const scalar a0c = st.a0c;
@@ -1099,6 +1170,29 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         {
             word cls = (!rc && c == donor) ? "donor" : (wetPlane ? "interface" : (a0c >= 1 - 1e-8 ? "full" : (a0c <= 1e-8 ? "empty" : "wisp")));
             pieceRows.append({c, cls, (wetPlane || wet) ? aw : vector(Zero), ac, cop});
+        }
+    }
+
+    // the shortcut against the pieces (sweptPreTestCheck)
+    if (check && shortcut)
+    {
+        bool viol = false;
+        if (sweeps && vTotal > VSMALL)
+        {
+            if (shortFull && mag(threeV/3 - vTotal) > 1e-10*vTotal) viol = true;
+            if (shortEmpty && mag(threeV) > 1e-12*vTotal) viol = true;
+        }
+        if (mag(aPreWet - aPreWetSc) > 1e-10*mag(aPreFull)) viol = true;
+        if (viol)
+        {
+            ++nSweptShortViol_;
+            if (nSweptShortViol_ <= 20)
+            {
+                Pout<< "sweptPreTestCheck: step " << mesh_.time().timeIndex() << " face " << facei
+                    << (shortFull ? " full" : " empty") << " shortcut: pieces V_liq/V_g "
+                    << (vTotal > VSMALL ? threeV/3/vTotal : 0) << " against " << (vTotal > VSMALL ? threeVsc/3/vTotal : 0)
+                    << ", wetted area " << aPreWet << " against " << aPreWetSc << endl;
+            }
         }
     }
 

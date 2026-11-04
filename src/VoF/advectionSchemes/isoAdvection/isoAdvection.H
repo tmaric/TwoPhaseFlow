@@ -517,6 +517,18 @@ class isoAdvection
             //  the wisp tolerance (1e-8) would take in addition.
             bool sweptStateShortcut_;
 
+            //- sweptFaceCells, the check of the pre-test and the shortcut
+            //  (key sweptPreTestCheck, default false, a debug key,
+            //  2026-11-04): every skipped ring cell is clipped and a cell
+            //  with a piece counted as a violation; a shortcut face runs
+            //  the pieces and a sum differing by more than 1e-10 from the
+            //  shortcut's is counted. The faces whose swept volume leaves
+            //  the donor (no shortcut) are counted as well.
+            bool sweptPreTestCheck_;
+            label nSweptPreViol_;
+            label nSweptShortViol_;
+            label nSweptShortNotInside_;
+
             //- sweptFaceCells: the bounding boxes of the cells for the ring
             //  search of a face (2026-11-04), built once per step in
             //  curvedFlux (per face before: 26 boxes per face, hotspot 9 of
