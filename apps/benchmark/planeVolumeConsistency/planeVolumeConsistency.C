@@ -99,6 +99,35 @@ Description
     cubic model (exact between adjacent vertex levels, up to the LU
     round-off) leaves the first Newton exit at round-off in every cell.
 
+    Option -positioning ccs (2026-11-04): the plane is positioned by the
+    Consecutive Cubic Spline positioning of davofCcsPositioning.H instead,
+    exactly as davof::positionPlane with the key positioning ccs: from the
+    explicit position pPlane_c = (sum_f alpha_f (x_f - x_c).S_f^out -
+    3 alpha_c V_c)/|m_c| along the selected normal, on the same cutCellPLIC
+    cut, to -ccsTol of V_c (default 1e-14 = the key's default) or the
+    round-off floor, at most -ccsMaxIter cuts (default 20); the cells with
+    alpha within tol of 0 or 1 are positioned too. Reported in addition:
+    the histogram of cuts per cell, the exit codes, the CCS / Newton /
+    bisection steps, the end-of-interval cells with and without a plane,
+    and the wall time per positioning (the positioning call alone, the
+    same for both methods, on the same node).
+
+    PRE-REGISTERED for positioning ccs (2026-11-04, before the runs;
+    Tomislav's expectations, the agent's reading in brackets):
+      C1 per cell |V_cut - alpha_c V_c| < 1e-14 V_c everywhere [HELD at
+         N <= 64; at N = 128 the floor measured with vofCutCell at 1e-14
+         reached 3e-14 in some cells, so C1 may fail there by a factor 3];
+      C2 |sum| of the order N x eps x V_c [HELD within a factor 20, as the
+         1e-14 sweep showed];
+      C3 cuts per cell 1 to 2 from the closed-form start [2 to 3: the first
+         step is Newton's from the single evaluated point, the second the
+         exact Hermite cubic through the two; 1 only where the state is a
+         plane within round-off];
+      C4 the end-of-interval cells get a plane where |m_c| passes the wisp
+         threshold [HELD except where alpha V_c is itself below the floor];
+      C5 the cost per positioning is not above vofCutCell's [HELD:
+         vofCutCell makes 5 to 6 cuts per cell].
+
     Runs serial or parallel (-parallel on a decomposed case: the sums and
     maxima are reduced, the per-cell lists are per rank in Pout). Writes
     one row per time and normal to -out (default postProcessing/
@@ -122,9 +151,11 @@ Description
 #include "davofOrbit.H"
 #include "surfaceIteratorPLIC.H"
 #include "cutCellPLIC.H"
+#include "davofCcsPositioning.H"
 #include "scalarMatrices.H"
 #include "OFstream.H"
 #include "OSspecific.H"
+#include <chrono>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -451,6 +482,9 @@ int main(int argc, char *argv[])
         " (default (areaNormal exact))"
     );
     argList::addOption("positionTol", "scalar", "the positioning tolerance in alpha (default 1e-8 = isoFaceTol)");
+    argList::addOption("positioning", "word", "vofCutCell (default) | ccs");
+    argList::addOption("ccsTol", "scalar", "ccs: the tolerance of V_c (default 1e-14)");
+    argList::addOption("ccsMaxIter", "label", "ccs: the most cuts (default 20)");
     argList::addOption("wispTol", "scalar", "the interface-cell threshold (default 1e-3)");
     argList::addOption("nPrint", "label", "the worst cells printed per rank (default 10)");
     argList::addOption
@@ -467,6 +501,16 @@ int main(int argc, char *argv[])
 
     const word entry(args.getOrDefault<word>("entry", "areaFractionError"));
     const scalar positionTol = args.getOrDefault<scalar>("positionTol", 1e-8);
+    const word positioning = args.getOrDefault<word>("positioning", "vofCutCell");
+    const scalar ccsTol = args.getOrDefault<scalar>("ccsTol", 1e-14);
+    const label ccsMaxIter = args.getOrDefault<label>("ccsMaxIter", 20);
+    const bool ccs = (positioning == "ccs");
+    if (!ccs && positioning != "vofCutCell")
+    {
+        FatalErrorInFunction
+            << "positioning " << positioning << " unknown: vofCutCell, ccs"
+            << exit(FatalError);
+    }
     const scalar wispTol = args.getOrDefault<scalar>("wispTol", 1e-3);
     const label nPrint = args.getOrDefault<label>("nPrint", 10);
     wordList normals({"areaNormal", "exact"});
@@ -501,13 +545,15 @@ int main(int argc, char *argv[])
         osPtr().precision(12);
         osPtr()
             << "# planeVolumeConsistency (entry " << entry << ", positionTol "
-            << positionTol << ", wispTol " << wispTol << ", ranks "
+            << positionTol << ", wispTol " << wispTol << ", positioning "
+            << positioning << ", ccsTol " << ccsTol << ", ranks "
             << Pstream::nProcs() << ")" << nl
             << "# Time\tnormal\tnInterface\tnInside\tnConverged\tnInsideNotConv"
             << "\tnOutside\tmaxAbsD\tmeanAbsD\tnAbove1e-14\tnAboveTol"
             << "\tsumSigned\tsumAbs\tVliquid\tNepsV\tmaxPlicVsInd\tmaxCapArea"
             << "\tmaxResIter\tnNewton\tnSecant\tnSecantBad\tnFlat\tnCoinc"
             << "\tnBisectHit\tnCopyMismatch\tnFlip\tnSphereOrient\tE1\tE2\tE3"
+            << "\tpositioning\tnsPerPos\tcutsPerCell\tmaxCuts\tnFloor\tnEnd\tnEndNoPlane"
             << nl;
     }
 
@@ -610,6 +656,35 @@ int main(int argc, char *argv[])
             label nSecantStalledEntry = 0, nOutsideBracket = 0;
             label maxNewtonIter = 0, maxSecantIter = 0;
             labelList hist(10, Zero);
+            // ccs: the cuts per cell (1..7, 8+), the exit codes (1..4), the
+            // step kinds, the end-of-interval cells, the timing
+            cutCellPLIC ccPos(mesh);
+            labelList evalHist(9, Zero);
+            labelList exitHist(5, Zero);
+            label nCcsHermite = 0, nCcsNewton = 0, nCcsBisect = 0, maxEvals = 0, sumEvals = 0;
+            label nEndCcs = 0, nEndNoPlane = 0;
+            scalar maxStartRes = 0, sumStartRes = 0;
+            std::chrono::steady_clock::duration tPos(0);
+            label nTimed = 0;
+            DynamicList<label> sortedFaces(16);
+            auto explicitStart = [&](const label celli) -> scalar
+            {
+                // pPlane_c as davof::reconstruct forms it (the faces in
+                // ascending order)
+                sortedFaces.clear();
+                sortedFaces.append(cells[celli]);
+                Foam::sort(sortedFaces);
+                scalar faceMoment = 0;
+                for (const label facei : sortedFaces)
+                {
+                    if (!hasValue[facei]) continue;
+                    const scalar af = afAll[facei];
+                    if (af == 0) continue;
+                    const scalar term = af*((mesh.faceCentres()[facei] - C[celli]) & mesh.faceAreas()[facei]);
+                    faceMoment += (mesh.faceOwner()[facei] == celli) ? term : -term;
+                }
+                return (faceMoment - 3.0*a[celli]*V[celli])/mag(m[celli]);
+            };
             scalar maxAbsD = 0, sumAbsD = 0, sumSigned = 0, sumAbs = 0;
             scalar maxPlicVsInd = 0, maxCapArea = 0, maxResIter = 0, maxResIterVsClip = 0;
             scalar sumVint = 0;
@@ -660,75 +735,137 @@ int main(int argc, char *argv[])
                     continue;
                 }
 
-                // (1) the production positioning
-                const label status = sIter.vofCutCell(celli, ac, positionTol, 100, nRaw);
-                const bool inside = !(ac < positionTol) && !(1 - ac < positionTol);
-
-                if (!inside)
-                {
-                    ++nOutside;
-                    const label expected = (ac < positionTol) ? -1 : 1;
-                    if (status != expected) ++nOutsideWrongStatus;
-                    maxOutsideRes = max(maxOutsideRes, (ac < positionTol) ? ac : 1 - ac);
-                    continue;
-                }
-                ++nInside;
-
-                // the traced copy, for the branch and the iterates
-                traceRec T;
-                const label st2 = vofCutCellTraced(mesh, ccTrace, celli, ac, positionTol, 100, nRaw, T);
-                if (st2 != status || (status == 0 && T.fRet != sIter.cutValue()))
-                {
-                    ++nCopyMismatch;
-                }
-                if (T.branch == "newton") ++nNewton;
-                else if (T.branch == "secant") ++nSecant;
-                else if (T.branch == "flatBracket") ++nFlat;
-                else if (T.branch == "coincidentLevels") ++nCoinc;
-                else if (T.branch == "bisectionHit") ++nBisect;
-                else if (T.branch == "secantStalledAtEntry") { ++nSecantBad; ++nSecantStalledEntry; }
-                else ++nSecantBad;
-                maxNewtonIter = max(maxNewtonIter, T.nNewton);
-                maxSecantIter = max(maxSecantIter, T.nSecant);
-
-                if (status != 0)
-                {
-                    ++nInsideNotConv;
-                    Pout<< "NOT CONVERGED (status " << status << "): cell " << celli
-                        << " alpha " << ac << " n " << nRaw << " branch " << T.branch
-                        << " nNewton " << T.nNewton << " nSecant " << T.nSecant
-                        << " bracket f [" << T.f1 << ", " << T.f2 << "] a [" << T.a2 << ", " << T.a1
-                        << "] vertex f [" << T.fMin << ", " << T.fMax << "]" << nl;
-                    forAll(T.it, k)
-                    {
-                        Pout<< "    cut " << k << " f/h " << T.it[k].first()/h
-                            << " alpha(f) " << T.it[k].second()
-                            << " r " << T.it[k].second() - ac << nl;
-                    }
-                    continue;
-                }
-                ++nConverged;
-
-                const scalar p = sIter.cutValue();
+                // (1) the production positioning, timed (the call alone)
                 vector nUnit = nRaw;
                 nUnit.normalise();
-                const scalar resIter = mag(sIter.VolumeOfFluid() - ac);
-                maxResIter = max(maxResIter, resIter);
-                if (p < T.fMin || p > T.fMax) ++nOutsideBracket;
-                if (T.branch != "newton" && T.branch != "secant" && T.resRet > positionTol)
+                const bool atEnd = (ac < positionTol) || (1 - ac < positionTol);
+                label status = 0;
+                scalar p = 0, vofRet = 0, Vl = 0;
+                point xl(Zero);
+                Foam::davof::ccsRecord rec;
+                if (ccs)
                 {
-                    // a non-converged plane returned with status 0
-                    Pout<< "RESIDUAL ABOVE TOL WITH STATUS 0: cell " << celli
-                        << " alpha " << ac << " n " << nRaw << " branch " << T.branch
-                        << " res " << T.resRet << " nNewton " << T.nNewton
-                        << " nSecant " << T.nSecant << nl;
+                    const scalar p0 = explicitStart(celli);
+                    const auto t0 = std::chrono::steady_clock::now();
+                    status = Foam::davof::ccsPositionPlane
+                    (
+                        mesh, ccPos, celli, ac, nUnit, p0, ccsTol, ccsMaxIter, rec
+                    );
+                    tPos += std::chrono::steady_clock::now() - t0;
+                    ++nTimed;
+                    p = ccPos.cutValue();
+                    vofRet = (status == 0) ? ccPos.VolumeOfFluid() : ((status < 0) ? 1 : 0);
+                    Vl = (status == 0) ? ccPos.subCellVolume() : ((status < 0) ? Vc : 0);
+                    xl = ccPos.subCellCentre();
+                    ++evalHist[min(rec.nEvals, evalHist.size() - 1)];
+                    ++exitHist[min(max(rec.exitCode, label(0)), exitHist.size() - 1)];
+                    nCcsHermite += rec.nHermite; nCcsNewton += rec.nNewton; nCcsBisect += rec.nBisect;
+                    maxEvals = max(maxEvals, rec.nEvals);
+                    sumEvals += rec.nEvals;
+                    maxStartRes = max(maxStartRes, mag(rec.rStart));
+                    sumStartRes += mag(rec.rStart);
+                    if (atEnd)
+                    {
+                        ++nEndCcs;
+                        if (status != 0 || mag(ccPos.faceArea()) == 0)
+                        {
+                            ++nEndNoPlane;
+                            Pout<< "END CELL WITHOUT PLANE: cell " << celli << " alpha " << ac
+                                << " |m|/h^2 " << mag(m[celli])/(h*h) << " status " << status
+                                << " cuts " << rec.nEvals << " exit " << rec.exitCode
+                                << " rStart " << rec.rStart << " rFinal " << rec.rFinal << nl;
+                            continue;
+                        }
+                    }
+                    ++nInside;
+                    if (status != 0)
+                    {
+                        ++nInsideNotConv;
+                        Pout<< "NOT CONVERGED (ccs, status " << status << "): cell " << celli
+                            << " alpha " << ac << " n " << nRaw << " cuts " << rec.nEvals
+                            << " exit " << rec.exitCode << " pStart/h " << rec.pStart/h
+                            << " rStart " << rec.rStart << " pFinal/h " << rec.pFinal/h
+                            << " rFinal " << rec.rFinal << nl;
+                        continue;
+                    }
+                    ++nConverged;
+                    maxResIter = max(maxResIter, mag(rec.rFinal));
+                }
+                else
+                {
+                    const auto t0 = std::chrono::steady_clock::now();
+                    status = sIter.vofCutCell(celli, ac, positionTol, 100, nRaw);
+                    tPos += std::chrono::steady_clock::now() - t0;
+                    ++nTimed;
+                    const bool inside = !atEnd;
+
+                    if (!inside)
+                    {
+                        ++nOutside;
+                        const label expected = (ac < positionTol) ? -1 : 1;
+                        if (status != expected) ++nOutsideWrongStatus;
+                        maxOutsideRes = max(maxOutsideRes, (ac < positionTol) ? ac : 1 - ac);
+                        continue;
+                    }
+                    ++nInside;
+
+                    // the traced copy, for the branch and the iterates
+                    traceRec T;
+                    const label st2 = vofCutCellTraced(mesh, ccTrace, celli, ac, positionTol, 100, nRaw, T);
+                    if (st2 != status || (status == 0 && T.fRet != sIter.cutValue()))
+                    {
+                        ++nCopyMismatch;
+                    }
+                    if (T.branch == "newton") ++nNewton;
+                    else if (T.branch == "secant") ++nSecant;
+                    else if (T.branch == "flatBracket") ++nFlat;
+                    else if (T.branch == "coincidentLevels") ++nCoinc;
+                    else if (T.branch == "bisectionHit") ++nBisect;
+                    else if (T.branch == "secantStalledAtEntry") { ++nSecantBad; ++nSecantStalledEntry; }
+                    else ++nSecantBad;
+                    maxNewtonIter = max(maxNewtonIter, T.nNewton);
+                    maxSecantIter = max(maxSecantIter, T.nSecant);
+
+                    if (status != 0)
+                    {
+                        ++nInsideNotConv;
+                        Pout<< "NOT CONVERGED (status " << status << "): cell " << celli
+                            << " alpha " << ac << " n " << nRaw << " branch " << T.branch
+                            << " nNewton " << T.nNewton << " nSecant " << T.nSecant
+                            << " bracket f [" << T.f1 << ", " << T.f2 << "] a [" << T.a2 << ", " << T.a1
+                            << "] vertex f [" << T.fMin << ", " << T.fMax << "]" << nl;
+                        forAll(T.it, k)
+                        {
+                            Pout<< "    cut " << k << " f/h " << T.it[k].first()/h
+                                << " alpha(f) " << T.it[k].second()
+                                << " r " << T.it[k].second() - ac << nl;
+                        }
+                        continue;
+                    }
+                    ++nConverged;
+
+                    p = sIter.cutValue();
+                    vofRet = sIter.VolumeOfFluid();
+                    Vl = sIter.subCellVolume();
+                    xl = sIter.subCellCentre();
+                    const scalar resIter = mag(vofRet - ac);
+                    maxResIter = max(maxResIter, resIter);
+                    if (p < T.fMin || p > T.fMax) ++nOutsideBracket;
+                    if (T.branch != "newton" && T.branch != "secant" && T.resRet > positionTol)
+                    {
+                        // a non-converged plane returned with status 0
+                        Pout<< "RESIDUAL ABOVE TOL WITH STATUS 0: cell " << celli
+                            << " alpha " << ac << " n " << nRaw << " branch " << T.branch
+                            << " res " << T.resRet << " nNewton " << T.nNewton
+                            << " nSecant " << T.nSecant << nl;
+                    }
                 }
 
                 // (2) the production clip on a fresh object
                 const label st3 = ccClip.calcSubCell(celli, p, nUnit);
                 const scalar Vplic = (st3 == 0) ? ccClip.subCellVolume() : ((st3 < 0) ? Vc : 0);
                 const vector Aplic = (st3 == 0) ? ccClip.faceArea() : vector(Zero);
-                maxResIterVsClip = max(maxResIterVsClip, mag(Vplic/Vc - sIter.VolumeOfFluid()));
+                maxResIterVsClip = max(maxResIterVsClip, mag(Vplic/Vc - vofRet));
 
                 // (3) the independent clip
                 vector Scap;
@@ -754,10 +891,8 @@ int main(int argc, char *argv[])
 
                 // the orientation
                 if (mag(Vind/Vc - (1 - ac)) < ad) ++nFlip;
-                const scalar Vl = sIter.subCellVolume();
                 if (Vl > 0.01*Vc && Vc - Vl > 0.01*Vc)
                 {
-                    const point xl = sIter.subCellCentre();
                     const point xg = (C[celli]*Vc - xl*Vl)/(Vc - Vl);
                     ++nSphereTested;
                     if (mag(xl - o) > mag(xg - o)) ++nSphereOrient;
@@ -776,6 +911,23 @@ int main(int argc, char *argv[])
                     const label celli = label(worst[order[k]].second());
                     const scalar ac = a[celli];
                     const vector nRaw = worstN[order[k]];
+                    if (ccs)
+                    {
+                        vector nUnit = nRaw;
+                        nUnit.normalise();
+                        Foam::davof::ccsRecord rec;
+                        const scalar p0 = explicitStart(celli);
+                        const scalar hh = Foam::cbrt(V[celli]);
+                        Foam::davof::ccsPositionPlane(mesh, ccPos, celli, ac, nUnit, p0, ccsTol, ccsMaxIter, rec);
+                        Pout<< "worst " << k << " (" << normalName << ", ccs): cell " << celli
+                            << " alpha " << ac << " |d| " << worst[order[k]].first()
+                            << " cuts " << rec.nEvals << " exit " << rec.exitCode
+                            << " hermite " << rec.nHermite << " newton " << rec.nNewton
+                            << " bisect " << rec.nBisect << " pStart/h " << rec.pStart/hh
+                            << " rStart " << rec.rStart << " pFinal/h " << rec.pFinal/hh
+                            << " rFinal " << rec.rFinal << nl;
+                        continue;
+                    }
                     traceRec T;
                     vofCutCellTraced(mesh, ccTrace, celli, ac, positionTol, 100, nRaw, T);
                     Pout<< "worst " << k << " (" << normalName << "): cell " << celli
@@ -822,6 +974,24 @@ int main(int argc, char *argv[])
             reduce(maxResIter, maxOp<scalar>());
             reduce(maxResIterVsClip, maxOp<scalar>());
             reduce(maxOutsideRes, maxOp<scalar>());
+            // the ccs counters and the timing (per rank mean, the slowest rank)
+            forAll(evalHist, b) reduce(evalHist[b], sumOp<label>());
+            forAll(exitHist, b) reduce(exitHist[b], sumOp<label>());
+            reduce(nCcsHermite, sumOp<label>()); reduce(nCcsNewton, sumOp<label>());
+            reduce(nCcsBisect, sumOp<label>()); reduce(maxEvals, maxOp<label>());
+            reduce(sumEvals, sumOp<label>()); reduce(nEndCcs, sumOp<label>());
+            reduce(nEndNoPlane, sumOp<label>());
+            reduce(maxStartRes, maxOp<scalar>()); reduce(sumStartRes, sumOp<scalar>());
+            scalar nsPerPos =
+                nTimed > 0
+              ? scalar(std::chrono::duration_cast<std::chrono::nanoseconds>(tPos).count())/nTimed
+              : 0;
+            scalar nsPerPosMax = nsPerPos;
+            reduce(nsPerPosMax, maxOp<scalar>());
+            label nTimedAll = returnReduce(nTimed, sumOp<label>());
+            scalar nsSum = nsPerPos*nTimed;
+            reduce(nsSum, sumOp<scalar>());
+            const scalar nsPerPosMean = nsSum/max(nTimedAll, label(1));
             if (worstCell >= 0 && maxAbsD == maxAbsDAll)
             {
                 Pout<< "global worst cell " << worstCell << " alpha " << a[worstCell]
@@ -876,7 +1046,38 @@ int main(int argc, char *argv[])
                 << " (|sum| " << mag(sumSigned) << " against " << nConverged*1e-15*meanV << ")" << nl
                 << "    E3 (every inside status 0): " << (E3 ? "HELD" : "FALSIFIED")
                 << " (" << nInsideNotConv << " not converged, " << nSecantBad
-                << " secant bad)" << endl;
+                << " secant bad)" << nl
+                << "    timing (" << positioning << "): " << nsPerPosMean
+                << " ns per positioning (mean over " << nTimedAll
+                << " calls; slowest rank " << nsPerPosMax << ")" << endl;
+            if (ccs)
+            {
+                const scalar meanEvals = scalar(sumEvals)/max(nInside + nEndNoPlane, label(1));
+                const bool C1 = E1;
+                const bool C2 = (nConverged > 0) && (mag(sumSigned) <= 20*NepsV);
+                const bool C3 = (evalHist[3] + evalHist[4] + evalHist[5] + evalHist[6]
+                               + evalHist[7] + evalHist[8] == 0);
+                const bool C3b = (evalHist[4] + evalHist[5] + evalHist[6] + evalHist[7] + evalHist[8] == 0);
+                const bool C4 = (nEndNoPlane == 0);
+                Info<< "    ccs: cuts per cell mean " << meanEvals << " max " << maxEvals
+                    << ", histogram [1..7, 8+] " << evalHist
+                    << ", exits [0, tol, floor, closed, maxIter] " << exitHist
+                    << ", steps hermite " << nCcsHermite << " newton " << nCcsNewton
+                    << " bisect " << nCcsBisect << nl
+                    << "    ccs: start residual |V(p0) - alpha V|/V max " << maxStartRes
+                    << " mean " << sumStartRes/max(nInside + nEndNoPlane, label(1))
+                    << "; end-of-interval cells " << nEndCcs << " (" << nEndNoPlane
+                    << " without a plane)" << nl
+                    << "    C1 (per cell |d| < 1e-14): " << (C1 ? "HELD" : "FALSIFIED")
+                    << " (max |d| " << maxAbsDAll << ")" << nl
+                    << "    C2 (|sum| <= 20 N eps V): " << (C2 ? "HELD" : "FALSIFIED")
+                    << " (|sum|/(N eps V) " << mag(sumSigned)/max(NepsV, VSMALL) << ")" << nl
+                    << "    C3 (cuts per cell 1 to 2): " << (C3 ? "HELD" : "FALSIFIED")
+                    << "; agent's reading (1 to 3): " << (C3b ? "HELD" : "FALSIFIED") << nl
+                    << "    C4 (every end-of-interval cell has a plane): "
+                    << (C4 ? "HELD" : "FALSIFIED") << " (" << nEndNoPlane << " of "
+                    << nEndCcs << " without)" << endl;
+            }
 
             if (osPtr)
             {
@@ -892,7 +1093,11 @@ int main(int argc, char *argv[])
                     << '\t' << nFlip << '\t' << nSphereOrient
                     << '\t' << (E1 ? "HELD" : "FALSIFIED")
                     << '\t' << (E2 ? "HELD" : "FALSIFIED")
-                    << '\t' << (E3 ? "HELD" : "FALSIFIED") << nl;
+                    << '\t' << (E3 ? "HELD" : "FALSIFIED")
+                    << '\t' << positioning << '\t' << nsPerPosMean
+                    << '\t' << scalar(sumEvals)/max(nInside + nEndNoPlane, label(1))
+                    << '\t' << maxEvals << '\t' << exitHist[2] << '\t' << nEndCcs
+                    << '\t' << nEndNoPlane << nl;
             }
         }
     }

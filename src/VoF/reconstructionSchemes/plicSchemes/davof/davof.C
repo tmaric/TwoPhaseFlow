@@ -27,6 +27,7 @@ License
 
 #include "davof.H"
 #include "davofInit.H"
+#include "davofCcsPositioning.H"
 #include "zoneDistribute.H"
 #include "addToRunTimeSelectionTable.H"
 #include "profiling.H"
@@ -145,6 +146,52 @@ bool Foam::reconstruction::davof::positionPlane
     // gave such a cell the plane of the previously positioned cell (a
     // phantom surface cell whose plane sits elsewhere, which isoAdvection
     // then fluxed; found on the sphere 2026-10-13).
+    if (positioning_ == "ccs")
+    {
+        // Consecutive Cubic Spline positioning on the same cut, from the
+        // explicit position pPlane_[celli] along n (2026-11-04)
+        const scalar nMag = mag(n);
+        if (nMag == 0)
+        {
+            normal_[celli] = Zero;
+            centre_[celli] = Zero;
+            return false;
+        }
+        const scalar ac = alpha1_[celli];
+        Foam::davof::ccsRecord rec;
+        const label status = Foam::davof::ccsPositionPlane
+        (
+            mesh_, cutCellPos_, celli, ac, n/nMag, pPlane_[celli],
+            positioningTol_, positioningMaxIter_, rec
+        );
+        const bool atEnd = (ac < isoFaceTol_) || (1 - ac < isoFaceTol_);
+        ++nPosCells_;
+        nPosEvals_ += rec.nEvals;
+        maxPosEvals_ = max(maxPosEvals_, rec.nEvals);
+        ++posEvalHist_[min(rec.nEvals, posEvalHist_.size() - 1)];
+        if (rec.exitCode == 2) ++nPosFloor_;
+        if (rec.exitCode == 4) ++nPosMaxIter_;
+        if (atEnd) ++nPosEnd_;
+        const scalar res = mag(rec.rFinal);
+        positioningResidual_[celli] = rec.rFinal;   // signed, of V
+        maxPosRes_ = max(maxPosRes_, res);
+        sumPosRes_ += res;
+
+        if (status == 0)
+        {
+            normal_[celli] = cutCellPos_.faceArea();
+            centre_[celli] = cutCellPos_.faceCentre();
+            if (mag(normal_[celli]) != 0)
+            {
+                return true;
+            }
+        }
+        if (atEnd) ++nPosEndNoPlane_;
+        normal_[celli] = Zero;
+        centre_[celli] = Zero;
+        return false;
+    }
+
     const label status = sIterPLIC_.vofCutCell
     (
         celli,
@@ -344,6 +391,33 @@ Foam::reconstruction::davof::davof
     wispTol_(modelDict().getOrDefault<scalar>("wispTol", 1e-3)),
     surfCellTol_(modelDict().getOrDefault<scalar>("surfCellTol", 1e-8)),
     isoFaceTol_(modelDict().getOrDefault<scalar>("isoFaceTol", 1e-8)),
+    positioning_(modelDict().getOrDefault<word>("positioning", "vofCutCell")),
+    positioningTol_(modelDict().getOrDefault<scalar>("positioningTol", 1e-14)),
+    positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 20)),
+    cutCellPos_(alpha1.mesh()),
+    positioningResidual_
+    (
+        IOobject
+        (
+            IOobject::groupName("positioningResidual", alpha1.group()),
+            alpha1.mesh().time().timeName(),
+            alpha1.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        alpha1.mesh(),
+        dimensionedScalar(dimless, Zero)
+    ),
+    nPosCells_(0),
+    nPosEvals_(0),
+    maxPosEvals_(0),
+    nPosFloor_(0),
+    nPosMaxIter_(0),
+    nPosEnd_(0),
+    nPosEndNoPlane_(0),
+    maxPosRes_(0),
+    sumPosRes_(0),
+    posEvalHist_(8, Zero),
     lastTimeIndex_(-1),
     nReconstructInIndex_(0),
     sIterPLIC_(mesh_, surfCellTol_),
@@ -466,6 +540,20 @@ Foam::reconstruction::davof::davof
             << "' unknown. Valid: scalar, vector." << exit(FatalIOError);
     }
 
+    if (positioning_ != "vofCutCell" && positioning_ != "ccs")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "positioning '" << positioning_
+            << "' unknown. Valid: vofCutCell, ccs." << exit(FatalIOError);
+    }
+    if (positioning_ == "ccs")
+    {
+        Info<< "davof: positioning ccs (Consecutive Cubic Spline on the"
+            << " cutCellPLIC cut from the explicit position, positioningTol "
+            << positioningTol_ << " of V, positioningMaxIter "
+            << positioningMaxIter_ << ")" << endl;
+    }
+
     normalModel_ = davofNormalModel::New(modelDict(), *this);
 
     Info<< "davof: normalModel " << normalModel_->type() << ", applyTo "
@@ -529,9 +617,14 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
         pPlane_[celli] = 0;
         planeVolDefect_[celli] = 0;
         planeAreaDefect_[celli] = 0;
+        positioningResidual_[celli] = 0;
     }
     maxPlaneVolDefect_ = 0;
     maxPlaneAreaDefect_ = 0;
+    nPosCells_ = nPosEvals_ = maxPosEvals_ = nPosFloor_ = nPosMaxIter_ = 0;
+    nPosEnd_ = nPosEndNoPlane_ = 0;
+    maxPosRes_ = sumPosRes_ = 0;
+    posEvalHist_ = Zero;
 
     // A cell whose face fractions are all equal holds no interface (all
     // wet, all dry): its sum_f S_f vanishes only to round-off. Zero it.
@@ -604,19 +697,13 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
             sliverFlag_[celli] = 1;
         }
 
-        if (twoPass)
-        {
-            const bool ok = positionPlane(celli, m[celli]);
-            if (tensorRequested_)
-            {
-                polyMoment_[i] = ok ? cutPolygonMoments() : symmTensor(Zero);
-            }
-        }
-
         // The face moment sum_f alpha_f (x_f - x_c).S_f^out of the explicit
         // position, over this cell's faces only (it is read for interface
         // cells only), in face order with the per-face terms of the former
-        // pass over all faces
+        // pass over all faces. Computed before the first-pass positioning
+        // (2026-11-04: positioning ccs starts from pPlane_); the two do not
+        // depend on each other, so the order leaves vofCutCell's result as
+        // it was.
         sortedFaces.clear();
         sortedFaces.append(cells[celli]);
         Foam::sort(sortedFaces);
@@ -644,6 +731,15 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
 
         const scalar p = (faceMoment - 3.0*alpha1_[celli]*V[celli])/mMag;
         pPlane_[celli] = p;
+
+        if (twoPass)
+        {
+            const bool ok = positionPlane(celli, m[celli]);
+            if (tensorRequested_)
+            {
+                polyMoment_[i] = ok ? cutPolygonMoments() : symmTensor(Zero);
+            }
+        }
 
         const label status = cutCell_.calcSubCell(celli, p, n);
         const scalar alphaPlane =
@@ -707,7 +803,31 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     }
     Info<< ", explicit plane defects max |alpha_plane - alpha| = "
         << maxPlaneVolDefect_ << ", max |A n - m|/V^(2/3) = "
-        << maxPlaneAreaDefect_ << endl;
+        << maxPlaneAreaDefect_;
+    if (positioning_ == "ccs")
+    {
+        label nC = nPosCells_, nE = nPosEvals_, mE = maxPosEvals_;
+        label nF = nPosFloor_, nM = nPosMaxIter_, nEnd = nPosEnd_, nEndNo = nPosEndNoPlane_;
+        scalar rMax = maxPosRes_, rSum = sumPosRes_;
+        labelList hist(posEvalHist_);
+        if (Pstream::parRun())
+        {
+            reduce(nC, sumOp<label>()); reduce(nE, sumOp<label>());
+            reduce(mE, maxOp<label>()); reduce(nF, sumOp<label>());
+            reduce(nM, sumOp<label>()); reduce(nEnd, sumOp<label>());
+            reduce(nEndNo, sumOp<label>());
+            reduce(rMax, maxOp<scalar>()); reduce(rSum, sumOp<scalar>());
+            forAll(hist, k) reduce(hist[k], sumOp<label>());
+        }
+        Info<< "; positioning ccs: " << nC << " positionings, cuts per cell "
+            << scalar(nE)/max(nC, label(1)) << " (max " << mE
+            << ", histogram 1.." << hist.size() - 1 << "+ " << hist
+            << "), residual max " << rMax << " mean " << rSum/max(nC, label(1))
+            << ", floor exits " << nF << ", maxIter exits " << nM
+            << ", end-of-interval cells " << nEnd << " (" << nEndNo
+            << " without a plane)";
+    }
+    Info<< endl;
 }
 
 
@@ -717,8 +837,9 @@ Foam::symmTensor Foam::reconstruction::davof::cutPolygonMoments()
     // about its centroid c, by the fan of triangles (c, p_i, p_{i+1}): for
     // a triangle with the vertices 0, v1, v2 the integral of x x^T is
     // (A_t/12)(2 v1 v1^T + 2 v2 v2^T + v1 v2^T + v2 v1^T)
-    const DynamicList<point>& pts = sIterPLIC_.facePoints();
-    const point& c = sIterPLIC_.surfaceCentre();
+    const bool ccs = (positioning_ == "ccs");
+    const DynamicList<point>& pts = ccs ? cutCellPos_.facePoints() : sIterPLIC_.facePoints();
+    const point& c = ccs ? cutCellPos_.faceCentre() : sIterPLIC_.surfaceCentre();
     const label n = pts.size();
 
     symmTensor M(Zero);

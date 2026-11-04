@@ -204,6 +204,39 @@ class davof
         //- Tolerance of the plane positioning by alpha
         scalar isoFaceTol_;
 
+        //- The plane positioning (key positioning, 2026-11-04): vofCutCell
+        //  (surfaceIteratorPLIC::vofCutCell to isoFaceTol in alpha, the
+        //  default = before) or ccs (Consecutive Cubic Spline positioning
+        //  on the same cut, davofCcsPositioning.H, started from the
+        //  explicit position pPlane_c, to positioningTol of V_c or the
+        //  round-off floor, at most positioningMaxIter cuts; T. Maric,
+        //  J. Comput. Phys.: X 11 (2021) 100093,
+        //  doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227). With ccs the
+        //  cells with alpha within isoFaceTol of 0 or 1 get a plane too
+        //  (vofCutCell returns them as full or empty before any cut).
+        word positioning_;
+        scalar positioningTol_;
+        label positioningMaxIter_;
+
+        //- ccs: the cut object of the positioned plane (normal_, centre_
+        //  and the polygon moments are read from it)
+        cutCellPLIC cutCellPos_;
+
+        //- ccs: the per-cell signed residual (V_cut - alpha V)/V of the
+        //  positioned plane (zero where none; registered, not written) and the
+        //  counters of the last reconstruction (reduced in the Info line)
+        volScalarField positioningResidual_;
+        label nPosCells_;
+        label nPosEvals_;
+        label maxPosEvals_;
+        label nPosFloor_;
+        label nPosMaxIter_;
+        label nPosEnd_;
+        label nPosEndNoPlane_;
+        scalar maxPosRes_;
+        scalar sumPosRes_;
+        labelList posEvalHist_;
+
         //- Time index of the last reconstruction and the number of
         //  reconstructions in it (the state time of the exact model)
         label lastTimeIndex_;
@@ -347,7 +380,8 @@ class davof
         inline vector faceWettedArea(const label facei) const;
 
         //- Position the plane of celli by alpha along n; sets normal_ and
-        //  centre_ (zero when the cut fails). Returns the success.
+        //  centre_ (zero when the cut fails). Returns the success. With
+        //  positioning ccs the start is pPlane_[celli] (set before the call).
         bool positionPlane(const label celli, const vector& n);
 
         //- Build hasValue_ when the mesh (its face count) changed
@@ -500,6 +534,18 @@ public:
         scalar wispTol() const
         {
             return wispTol_;
+        }
+
+        //- The plane positioning (vofCutCell | ccs) and, with ccs, the
+        //  per-cell residual |V_cut - alpha V|/V of the positioned plane
+        const word& positioning() const noexcept
+        {
+            return positioning_;
+        }
+
+        const volScalarField& positioningResidual() const
+        {
+            return positioningResidual_;
         }
 
         //- The normal model
