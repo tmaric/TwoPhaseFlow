@@ -179,6 +179,26 @@ Description
       the faces without a pre-image area, the largest per-axis displacement
       of a traced vertex over h.
 
+    - THE JOINT-FUNCTION DUMP (key sweptJointDumpSteps, a list of time
+      indices, default empty; 2026-11-04, branch davof-swept-joint). At the
+      listed steps sweptFaceCellsFlux writes every computed face to
+      postProcessing/sweptJointDump/step_<index>_<rank>.txt: the traced
+      geometry (x_f, x_f', the face points and their pre-images, the
+      orientation sign of the stored list), the flux and face fraction of
+      the pieces, every ring cell with its state, its PLIC plane, its cell
+      planes and its piece result, and the liquid volume of the traced
+      swept volume under the exact sphere of the exactNormal dictionary at
+      t^n, as the signed sum over the boundary triangles of the exact
+      sphere-tetrahedron overlap of (x_f, T) (S. Strobl, A. Formella,
+      T. Poeschel, Exact calculation of the overlap volume of spheres and
+      mesh elements, J. Comput. Phys. 311 (2016) 158-172,
+      doi:10.1016/j.jcp.2016.02.003; the vendored library of
+      exactSphereVolumeRule.C). The dump is the data of the Python prototype
+      of Tomislav's joint clipping function, the minimum (or maximum) over
+      the ring's PLIC planes clipping the whole swept volume without the
+      split by cell faces (leia/docs/davof/davof-swept-joint). Nothing else
+      changes; without the key the path is the one before.
+
 SourceFiles
     isoAdvectionSwept.C
 
@@ -198,12 +218,64 @@ SourceFiles
 #include "mapDistributeBase.H"
 #include "polyMeshTetDecomposition.H"
 #include "tetIndices.H"
+#include "davofOrbit.H"
 #include <chrono>
+
+// The exact sphere-tetrahedron overlap of the joint-function dump: the
+// reference implementation of Strobl, Formella and Poeschel (2016),
+// doi:10.1016/j.jcp.2016.02.003, with its debug assertions disabled and the
+// result clamped, as in exactSphereVolumeRule.C
+#define overlap_assert(cond, msg) static_cast<void>(0)
+#include "overlap/overlap.hpp"
 
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
 namespace
 {
+
+//- The liquid volume of a closed, outward-oriented triangle list under the
+//  exact sphere (o, R; the liquid inside): the signed sum over the
+//  triangles of the exact overlap of the tetrahedron (xRef, T) with the
+//  ball, the sign that of the tetrahedron's orientation (the signed
+//  decomposition about any apex, as the list's own volume). Used by the
+//  joint-function dump only.
+inline Foam::scalar sphereListVolume
+(
+    const Foam::UList<Foam::FixedList<Foam::point, 3>>& T,
+    const Foam::point& xRef,
+    const Foam::point& o,
+    const Foam::scalar R
+)
+{
+    using namespace Foam;
+    auto V = [](const point& p) { return overlap::Vector(p.x(), p.y(), p.z()); };
+    const overlap::Sphere sph(V(o), R);
+    scalar sum = 0;
+    forAll(T, k)
+    {
+        const point& a = T[k][0];
+        const point& b = T[k][1];
+        const point& c = T[k][2];
+        const scalar tp = ((a - xRef) ^ (b - xRef)) & (c - xRef);
+        if (mag(tp) <= VSMALL) continue;
+        const scalar vTet = mag(tp)/6;
+        scalar v;
+        if (tp > 0)
+        {
+            const overlap::Tetrahedron tet(V(xRef), V(a), V(b), V(c));
+            v = overlap::overlap_volume(sph, tet);
+        }
+        else
+        {
+            const overlap::Tetrahedron tet(V(xRef), V(b), V(a), V(c));
+            v = overlap::overlap_volume(sph, tet);
+        }
+        v = min(max(v, scalar(0)), vTet);
+        sum += (tp > 0) ? v : -v;
+    }
+    return sum;
+}
+
 
 //- The point-in-cell test by the face planes (convex cells), with a
 //  tolerance in units of the cell size h
@@ -791,6 +863,18 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     struct pieceRow { label cell; word cls; vector aw; vector ac; bool cop; };
     DynamicList<pieceRow> pieceRows(dump ? 16 : 0);
 
+    // the joint-function dump (sweptJointDumpSteps, 2026-11-04): every ring
+    // cell with its state, planes, piece and pre-image part (the file
+    // header)
+    const bool jdump = sweptJointDumpSteps_.found(mesh_.time().timeIndex());
+    struct jointRow
+    {
+        label cell; word cls; bool isDonor; scalar alpha; bool wetPlane; bool wet;
+        davof::halfSpace plic; scalar vol; label nCaps; bool ok; scalar cov;
+        scalar covPre; vector aw; List<davof::halfSpace> planes;
+    };
+    DynamicList<jointRow> jointRows(jdump ? 32 : 0);
+
     // the debug face (key sweptDebugPoint, 2026-10-31): every step, on the
     // rank that computes it, the face whose centre lies within 1e-9 of the
     // point writes its pre-image and every ring cell's state, piece and
@@ -842,6 +926,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // round-off (verified 2026-11-04 on the 20-step copies). none: no test.
     const bool preTest = (sweptPreTest_ != "none");
     const bool preStrict = (sweptPreTest_ == "strict");
+    const bool hexClip = sweptHexClip_ && (sweptMeshHex_ == 1);
     DynamicList<point> Vsw(2*F + 2);
     if (preTest)
     {
@@ -889,10 +974,11 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         st.c = st.rc ? st.rc->gid : e;
         const davof::remoteCell* rc = st.rc;
         const label c = st.c;
-        // the cell's half-spaces
+        // the cell's half-spaces (with the axis of the clip where
+        // sweptHexClip is on and the mesh axis-aligned)
         if (rc)
         {
-            davof::remoteCellPlanes(*rc, planes);
+            davof::remoteCellPlanes(*rc, planes, hexClip);
         }
         else
         {
@@ -903,6 +989,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 const vector nOut = (own[cf[j]] == c) ? Sf[cf[j]] : -Sf[cf[j]];
                 planes[j].n = nOut/max(mag(nOut), VSMALL);
                 planes[j].x0 = Cf[cf[j]];
+                planes[j].axis = hexClip ? davof::axisOf(planes[j].n) : -1;
             }
         }
         st.p0 = ringPlanes.size(); st.np = planes.size();
@@ -1066,8 +1153,224 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     const bool shortcut = shortFull || shortEmpty;
     const scalar threeVsc = threeV; const vector aPreWetSc = aPreWet;
     if (check && shortcut) { threeV = 0; aPreWet = Zero; coverage = 0; coveragePre = 0; }
+
+    // THE JOINT CLIP (key sweptClip joint | hybrid, 2026-11-05, branch
+    // davof-swept-joint; the note leia/docs/davof/davof-swept-joint, whose
+    // Python prototype measured the rule on the solver's dumped swept
+    // volumes). Let P be the PLIC planes of the touched interface cells
+    // (the matched plane of a wisp counts), n out of the liquid, the liquid
+    // of a plane where (x - x0).n <= 0.
+    // joint: the closed list clipped by every plane of P in turn, the
+    // intersection of the liquid half-spaces (the minimum of the signed
+    // distances) where the plane pairs open toward the liquid,
+    // (n_j - n_i).(x0_j - x0_i) >= 0 for every pair (a locally convex
+    // liquid body: a secant extended beyond its own cell lies outside the
+    // body, so inside every cell the own plane is the minimum), the union
+    // (the maximum: the complement of the intersection of the complements)
+    // where every pair closes (a concave body); a mixed set (a saddle), a
+    // set without a plane, more than three caps or a rank deficiency fall
+    // back to the pieces, counted. The caps follow the pieces' closure
+    // (sweptPieceVolume with P as its plane list). The cell states of the
+    // touched full and empty cells are NOT enforced: the single clip wets
+    // an empty cell's part inside every extended half-space and dries a
+    // full cell's wedge (the prototype's overdraw of 1 to 10 donors per
+    // step); the solver's bounding then acts.
+    // hybrid: a swept volume touching the donor alone is clipped by the
+    // donor's plane alone (one plane clip, no cell plane); otherwise the
+    // donor's piece by its own plane as the pieces (exact in the donor),
+    // and every other touched cell's piece by its state (full wet, a wisp
+    // by the pieces' rule, empty dry without a clip) or, an interface cell
+    // with two or more planes in P, by the joint minimum (maximum) of P
+    // inside the piece: no overdraw beyond the pieces' by construction. A
+    // saddle keeps the own plane in that piece. The face update takes the
+    // same clips of the pre-image fan.
+    const bool jointClip = (sweptClip_ == "joint"), hybridClip = (sweptClip_ == "hybrid");
+    bool jointDone = false;
+    if ((jointClip || hybridClip) && !shortcut && !check)
+    {
+        DynamicList<davof::halfSpace> Pj(8), Pc(8);
+        bool donorOnly = true, anyRemote = false;
+        const ringState* stDonor = nullptr;
+        for (const ringState& st : states)
+        {
+            if (!st.touched) continue;
+            if (st.rc) anyRemote = true;
+            if (!st.rc && st.c == donor) stDonor = &st; else donorOnly = false;
+            if (st.wetPlane)
+            {
+                Pj.append(st.plic);
+                davof::halfSpace cpl = st.plic; cpl.n = -st.plic.n; Pc.append(cpl);
+            }
+        }
+        const label k = Pj.size();
+        // the opening of the plane pairs: 1 convex (the minimum), -1
+        // concave (the maximum), 0 mixed (a saddle); one plane: convex
+        label sgn = 1;
+        {
+            label pos = 0, neg = 0;
+            const scalar tol = 1e-12*h*h;
+            for (label i = 0; i < k; ++i)
+            {
+                for (label j = i + 1; j < k; ++j)
+                {
+                    const scalar s = (Pj[j].n - Pj[i].n) & (Pj[j].x0 - Pj[i].x0);
+                    if (s > tol) ++pos; else if (s < -tol) ++neg;
+                }
+            }
+            sgn = (pos && neg) ? 0 : ((neg && !pos) ? -1 : 1);
+        }
+        davof::halfSpace none; none.n = Zero; none.x0 = Zero;
+        const List<davof::halfSpace> noPlanes;
+        // the list and the pre-image fan clipped by the planes pl (as the
+        // cell planes of a piece) and, wp, by the plane pc
+        auto clipBy = [&]
+        (
+            const UList<davof::halfSpace>& pl, const bool wp, const davof::halfSpace& pc,
+            scalar& V, vector& aw, bool& ok, bool& deg
+        )
+        {
+            V = 0; aw = Zero; ok = true; deg = false;
+            if (sweeps)
+            {
+                const davof::pieceResult r =
+                    davof::sweptPieceVolume(T, pl, wp, pc, xf, &xDonor, sweptCapSet_ == "crossing");
+                V = r.volume; ok = r.ok; deg = r.degenerate;
+                if (ok && !deg) sweptPieceClosureMax_ = max(sweptPieceClosureMax_, r.closureResidual);
+            }
+            scalar cov = 0;
+            aw = davof::sweptPieceArea(Tpre, pl, wp, pc, cov, nRef);
+        };
+        if (jointClip)
+        {
+            if (k == 0) ++nSweptJointNoPlane_;
+            else if (sgn == 0) ++nSweptJointSaddle_;
+            else
+            {
+                scalar V; vector aw; bool ok, deg;
+                if (sgn > 0)
+                {
+                    clipBy(Pj, false, none, V, aw, ok, deg);
+                }
+                else
+                {
+                    scalar Vd; vector ad;
+                    clipBy(Pc, false, none, Vd, ad, ok, deg);
+                    V = vTotal - Vd; aw = aPreFull - ad;
+                }
+                if (ok && !deg)
+                {
+                    jointDone = true;
+                    ++nSweptJointFaces_;
+                    if (sgn < 0) ++nSweptJointMax_;
+                    if (anyRemote) sweptFaceRemote_ = true;
+                    threeV = 3*V; aPreWet = aw;
+                    coverage = sumMagT; coveragePre = sumMagPre;
+                }
+                else
+                {
+                    ++nSweptJointCaps_;
+                }
+            }
+        }
+        else if (donorOnly && stDonor)
+        {
+            // hybrid, the swept volume inside the donor: the donor's plane
+            // alone, or the donor's state (sweptConsistent: alpha V_f)
+            scalar V = 0; vector aw(Zero); bool ok = true, deg = false;
+            if (stDonor->wetPlane)
+            {
+                clipBy(noPlanes, true, stDonor->plic, V, aw, ok, deg);
+            }
+            else
+            {
+                const scalar w = consRule ? stDonor->a0c : (stDonor->wet ? scalar(1) : scalar(0));
+                V = w*vTotal; aw = w*aPreFull;
+            }
+            if (ok && !deg)
+            {
+                jointDone = true;
+                ++nSweptHybridInside_;
+                threeV = 3*V; aPreWet = aw;
+                coverage = sumMagT; coveragePre = sumMagPre;
+            }
+            else
+            {
+                ++nSweptHybridFallback_;
+            }
+        }
+        else
+        {
+            // hybrid, the swept volume leaving the donor: the pieces of the
+            // touched cells, the interface pieces outside the donor by the
+            // joint planes
+            scalar threeVh = 0; vector awh(Zero);
+            bool okAll = true, usedMax = false, usedSaddle = false;
+            List<davof::halfSpace> pl;
+            for (const ringState& st : states)
+            {
+                if (!st.touched) continue;
+                const SubList<davof::halfSpace> cp(ringPlanes, st.np, st.p0);
+                const bool isDonor = (!st.rc && st.c == donor);
+                scalar V = 0; vector aw(Zero); bool ok = true, deg = false;
+                if (st.wetPlane && !isDonor && k >= 2 && sgn != 0)
+                {
+                    pl.setSize(st.np + k);
+                    forAll(cp, i) pl[i] = cp[i];
+                    if (sgn > 0)
+                    {
+                        for (label i = 0; i < k; ++i) pl[st.np + i] = Pj[i];
+                        clipBy(pl, false, none, V, aw, ok, deg);
+                    }
+                    else
+                    {
+                        for (label i = 0; i < k; ++i) pl[st.np + i] = Pc[i];
+                        scalar Vd, V6; vector ad, a6; bool ok2, deg2, ok3, deg3;
+                        clipBy(pl, false, none, Vd, ad, ok2, deg2);
+                        clipBy(cp, false, none, V6, a6, ok3, deg3);
+                        V = V6 - Vd; aw = a6 - ad; ok = ok2 && ok3; deg = deg2 || deg3;
+                        usedMax = true;
+                    }
+                }
+                else if (st.wetPlane)
+                {
+                    // the donor, a saddle, or fewer than two planes: the own plane
+                    clipBy(cp, true, st.plic, V, aw, ok, deg);
+                    if (!isDonor && k >= 2 && sgn == 0) usedSaddle = true;
+                }
+                else
+                {
+                    // a cell without a plane by its state (the pieces' rule);
+                    // a dry one needs no clip
+                    const scalar w = consRule ? st.a0c : (st.wet ? scalar(1) : scalar(0));
+                    if (w == 0) continue;
+                    clipBy(cp, false, none, V, aw, ok, deg);
+                    V *= w; aw *= w;
+                }
+                if (!ok) { okAll = false; break; }
+                // a degenerate piece (a zero-thickness slab): no volume, as
+                // the pieces; its area part stays
+                threeVh += 3*V; awh += aw;
+            }
+            if (okAll)
+            {
+                jointDone = true;
+                ++nSweptHybridFaces_;
+                if (usedMax) ++nSweptHybridMax_;
+                if (usedSaddle) ++nSweptHybridSaddle_;
+                if (anyRemote) sweptFaceRemote_ = true;
+                threeV = threeVh; aPreWet = awh;
+                coverage = sumMagT; coveragePre = sumMagPre;
+            }
+            else
+            {
+                ++nSweptHybridFallback_;
+            }
+        }
+    }
+
     for (const ringState& st : states)
     {
+        if (jointDone) break;
         if (!st.touched)
         {
             if (check)
@@ -1203,6 +1506,19 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             word cls = (!rc && c == donor) ? "donor" : (wetPlane ? "interface" : (a0c >= 1 - 1e-8 ? "full" : (a0c <= 1e-8 ? "empty" : "wisp")));
             pieceRows.append({c, cls, (wetPlane || wet) ? aw : vector(Zero), ac, cop});
         }
+        if (jdump)
+        {
+            const word cls =
+                hasS ? word("interface")
+              : (wetPlane ? word("wispPlane")
+              : (a0c >= 1 - sweptWispTol_ ? word("full")
+              : (a0c <= sweptWispTol_ ? word("empty") : word("wisp"))));
+            jointRows.append
+            ({
+                c, cls, (!rc && c == donor), a0c, wetPlane, wet, plic,
+                dbgVol, dbgCaps, dbgOk, dbgCovV, cov, aw, List<davof::halfSpace>(planes)
+            });
+        }
     }
 
     // the shortcut against the pieces (sweptPreTestCheck)
@@ -1240,6 +1556,97 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             }
         }
     }
+
+    // the joint-function dump of this face (the file header): the step
+    // file, the face's traced geometry and the exact-sphere liquid volume
+    // of the swept volume, then the ring cells
+    auto writeJoint = [&](const scalar afP, const scalar afD, const scalar vUsed, const bool fallback)
+    {
+        const label idx = mesh_.time().timeIndex();
+        const scalar tn = mesh_.time().value() - dt;
+        bool haveSphere = false;
+        point o(Zero);
+        scalar R = 0;
+        if (modelDict().found("exactNormal"))
+        {
+            const dictionary& ed = modelDict().subDict("exactNormal");
+            if (ed.found("radius"))
+            {
+                const point origin0 = ed.get<point>("origin");
+                vector omega; point axisPoint;
+                davof::readOrbit(ed, origin0, omega, axisPoint);
+                o = davof::orbitOrigin
+                (
+                    origin0, ed.getOrDefault<vector>("U0", vector::zero), omega, axisPoint, tn
+                );
+                R = ed.get<scalar>("radius");
+                haveSphere = true;
+            }
+        }
+        if (!sweptJointDump_ || sweptJointDumpIndex_ != idx)
+        {
+            const fileName dir(mesh_.time().globalPath()/"postProcessing"/"sweptJointDump");
+            mkDir(dir);
+            sweptJointDumpIndex_ = idx;
+            sweptJointDump_.reset
+            (
+                new OFstream
+                (
+                    dir/("step_" + Foam::name(idx) + "_" + Foam::name(Pstream::myProcNo()) + ".txt")
+                )
+            );
+            sweptJointDump_().precision(17);
+            sweptJointDump_()
+                << "# sweptJointDump step " << idx << " tn " << tn << " dt " << dt
+                << " sphere " << (haveSphere ? 1 : 0) << " o " << o.x() << ' ' << o.y() << ' ' << o.z()
+                << " R " << R << " rank " << Pstream::myProcNo() << nl
+                << "# face facei donor phi sweeps vTotal vLiqPieces vLiqUsed afPieces afDonor"
+                << " fallback vExact h F preSign Apre_x Apre_y Apre_z" << nl
+                << "# xf x y z | xq x y z | p x y z (F lines, the face's order) | q x y z (F lines)" << nl
+                << "# cells n | cell c cls isDonor alpha wetPlane wet plic.n(3) plic.x0(3) vol caps ok"
+                << " cov covPre aw(3) nPlanes [n(3) x0(3)]*" << nl
+                << "# the liquid of a plane is (x - x0).n <= 0; the list T is (xf,a,b),(xq,bq,aq),"
+                << "(a,aq,bq),(a,bq,b) per edge, every triangle's [1] and [2] swapped where preSign = 1" << nl;
+        }
+        OFstream& os = sweptJointDump_();
+        const scalar vExact =
+            (haveSphere && sweeps) ? sphereListVolume(T, xf, o, R) : scalar(-1);
+        os << "face " << facei << ' ' << donor << ' ' << phiF << ' ' << (sweeps ? 1 : 0)
+            << ' ' << vTotal << ' ' << (sweeps ? threeV/3 : scalar(0)) << ' ' << vUsed
+            << ' ' << afP << ' ' << afD << ' ' << (fallback ? 1 : 0) << ' ' << vExact
+            << ' ' << h << ' ' << F << ' ' << preSign
+            << ' ' << aPreFull.x() << ' ' << aPreFull.y() << ' ' << aPreFull.z() << nl;
+        os << "xf " << xf.x() << ' ' << xf.y() << ' ' << xf.z() << nl;
+        os << "xq " << xq.x() << ' ' << xq.y() << ' ' << xq.z() << nl;
+        const face& fc = mesh_.faces()[facei];
+        const pointField& Pm = mesh_.points();
+        forAll(fc, i)
+        {
+            const point& p = Pm[fc[i]];
+            os << "p " << p.x() << ' ' << p.y() << ' ' << p.z() << nl;
+        }
+        forAll(q, i)
+        {
+            os << "q " << q[i].x() << ' ' << q[i].y() << ' ' << q[i].z() << nl;
+        }
+        os << "cells " << jointRows.size() << nl;
+        for (const jointRow& r : jointRows)
+        {
+            os << "cell " << r.cell << ' ' << r.cls << ' ' << (r.isDonor ? 1 : 0) << ' ' << r.alpha
+                << ' ' << (r.wetPlane ? 1 : 0) << ' ' << (r.wet ? 1 : 0)
+                << ' ' << r.plic.n.x() << ' ' << r.plic.n.y() << ' ' << r.plic.n.z()
+                << ' ' << r.plic.x0.x() << ' ' << r.plic.x0.y() << ' ' << r.plic.x0.z()
+                << ' ' << r.vol << ' ' << r.nCaps << ' ' << (r.ok ? 1 : 0) << ' ' << r.cov << ' ' << r.covPre
+                << ' ' << r.aw.x() << ' ' << r.aw.y() << ' ' << r.aw.z()
+                << ' ' << r.planes.size();
+            for (const davof::halfSpace& hs : r.planes)
+            {
+                os << ' ' << hs.n.x() << ' ' << hs.n.y() << ' ' << hs.n.z()
+                    << ' ' << hs.x0.x() << ' ' << hs.x0.y() << ' ' << hs.x0.z();
+            }
+            os << nl;
+        }
+    };
 
     // the parts of the boundary beyond the ring: skipped, counted
     if (sumMagT > VSMALL)
@@ -1304,6 +1711,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             af = a0[donor];
             aWet = a0[donor]*aPreFull;
             vLiq = sweeps ? a0[donor]*mag(phiF)*dt : 0;
+            if (jdump) writeJoint(fractionOf(aPreWet), af, vLiq, true);
             return;
         }
         sweptFaceFlux(facei, donor, S, dt, phiF, sweeps, UInterp, Up, af, aWet, vLiq);
@@ -1316,6 +1724,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             writeFaceDump(facei, donor, phiF, sweeps, fractionOf(aPreWet), af, af, true,
                 aPreFull, pieceRows.size());
         }
+        if (jdump) writeJoint(fractionOf(aPreWet), af, vLiq, true);
         return;
     }
 
@@ -1341,7 +1750,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         consWispMisMax_ = max(consWispMisMax_, scale*wispMaxF);
     }
     const scalar afPieces = fractionOf(aPreWet);
-    const vector wDonor = (dump || sweptCellsFaceUpdate_ == "donor") ? donorWet() : vector(Zero);
+    const vector wDonor = (dump || jdump || sweptCellsFaceUpdate_ == "donor") ? donorWet() : vector(Zero);
     if (sweptCellsFaceUpdate_ == "donor")
     {
         aPreWet = wDonor;
@@ -1367,6 +1776,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 << (r.cop ? 1 : 0) << nl;
         }
     }
+    if (jdump) writeJoint(afPieces, fractionOf(wDonor), vLiq, false);
 }
 
 

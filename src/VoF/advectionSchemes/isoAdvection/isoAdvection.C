@@ -193,6 +193,20 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptPartialCells_(0),
     sweptPieceClosureMax_(0),
     nSweptDegenerate_(0),
+    sweptClip_(modelDict().getOrDefault<word>("sweptClip", "pieces")),
+    nSweptJointFaces_(0),
+    nSweptJointMax_(0),
+    nSweptJointSaddle_(0),
+    nSweptJointCaps_(0),
+    nSweptJointNoPlane_(0),
+    nSweptHybridInside_(0),
+    nSweptHybridFaces_(0),
+    nSweptHybridFallback_(0),
+    nSweptHybridMax_(0),
+    nSweptHybridSaddle_(0),
+    nSweptClips_(0),
+    sweptHexClip_(modelDict().getOrDefault<bool>("sweptHexClip", false)),
+    sweptMeshHex_(-1),
     sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
     sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
     nSweptCoplanar_(0),
@@ -256,6 +270,9 @@ Foam::advection::isoAdvection::isoAdvection
     sweptFaceDump_(modelDict().getOrDefault<bool>("sweptFaceDump", false)),
     dumpFaces_(),
     dumpPieces_(),
+    sweptJointDumpSteps_(modelDict().getOrDefault<labelList>("sweptJointDumpSteps", labelList())),
+    sweptJointDump_(),
+    sweptJointDumpIndex_(-1),
     sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
     sweptVolumeCorrection_
     (
@@ -548,12 +565,21 @@ Foam::advection::isoAdvection::isoAdvection
                             << "' unknown. Valid: none, strict, touching."
                             << exit(FatalIOError);
                     }
+                    if (sweptClip_ != "pieces" && sweptClip_ != "joint" && sweptClip_ != "hybrid")
+                    {
+                        FatalIOErrorInFunction(modelDict())
+                            << "sweptClip '" << sweptClip_
+                            << "' unknown. Valid: pieces, joint, hybrid."
+                            << exit(FatalIOError);
+                    }
                     Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
                         << ", sweptCoplanar " << sweptCoplanar_
                         << ", sweptCapSet " << sweptCapSet_
                         << ", sweptPreTest " << sweptPreTest_
                         << ", sweptStateShortcut " << sweptStateShortcut_
-                        << ", sweptTraceCache " << sweptTraceCache_;
+                        << ", sweptTraceCache " << sweptTraceCache_
+                        << ", sweptClip " << sweptClip_
+                        << ", sweptHexClip " << sweptHexClip_;
                     if (sweptPreTestCheck_) Info<< ", sweptPreTestCheck true";
                     // the wisp rule (2026-11-02), printed only when not none
                     if (sweptWispSurface_ != "none")

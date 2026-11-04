@@ -122,12 +122,47 @@ namespace Foam
 namespace davof
 {
 
-//- A half-space (x - x0).n <= 0, n a unit vector
+//- A half-space (x - x0).n <= 0, n a unit vector. axis >= 0 marks a plane
+//  whose normal has exactly two zero components (an axis-aligned cell face
+//  on a hexahedral mesh; key sweptHexClip, 2026-11-05): its signed distance
+//  is the one coordinate difference times that component, which is bit for
+//  bit the dot product (the two other products are exact zeros and
+//  0 + 0 + x = x in IEEE arithmetic), without the two multiplications and
+//  two additions. -1 (the default): the dot product.
 struct halfSpace
 {
     vector n;
     point x0;
+    label axis = -1;
 };
+
+//- The axis of an axis-aligned normal (exactly two zero components), else -1
+inline label axisOf(const vector& n)
+{
+    if (n.y() == 0 && n.z() == 0 && n.x() != 0) return 0;
+    if (n.x() == 0 && n.z() == 0 && n.y() != 0) return 1;
+    if (n.x() == 0 && n.y() == 0 && n.z() != 0) return 2;
+    return -1;
+}
+
+//- The signed distance (x - x0).n of the half-space (the axis path where set)
+inline scalar sdist(const halfSpace& hs, const point& p)
+{
+    if (hs.axis >= 0)
+    {
+        return (p[hs.axis] - hs.x0[hs.axis])*hs.n[hs.axis];
+    }
+    return (p - hs.x0) & hs.n;
+}
+
+//- The half-space clips performed (every clipWith call: one polygon against
+//  one plane), a counter the caller resets per step and reports (the cost
+//  measure of the clipping rules, key sweptClip, 2026-11-05)
+inline label& clipCount()
+{
+    static label n = 0;
+    return n;
+}
 
 //- A polygon of at most 16 vertices (a triangle clipped by up to 13
 //  planes keeps at most 16)
@@ -188,7 +223,7 @@ inline void planeDistances
     anyIn = false; anyOut = false; sMaxAbs = 0;
     for (label i = 0; i < poly.n; ++i)
     {
-        s[i] = (poly.p[i] - hs.x0) & hs.n;
+        s[i] = sdist(hs, poly.p[i]);
         if (s[i] <= 0) anyIn = true; else anyOut = true;
         sMaxAbs = max(sMaxAbs, mag(s[i]));
     }
@@ -209,6 +244,7 @@ inline bool clipWith
     const label id = -1
 )
 {
+    ++clipCount();
     if (poly.n < 3) return false;
     if (!anyOut) return false;
     if (!anyIn) { poly.n = 0; return false; }
@@ -320,17 +356,21 @@ inline pieceResult sweptPieceVolume
 {
     pieceResult r;
     const label nc = cellPlanes.size();
-    if (nc > 7)
+    if (nc > 13)
     {
-        // more cell planes than the cap bookkeeping holds (a polyhedron):
-        // reported as not solvable, the caller falls back
+        // more planes than the cap bookkeeping holds (a polyhedron; the
+        // polygon buffer holds a triangle clipped by 13 planes): reported
+        // as not solvable, the caller falls back. Until 2026-11-05 the bound
+        // was 7 (a hexahedron's six planes); the joint clip (sweptClip
+        // hybrid) adds the touched interface cells' PLIC planes to a piece's
+        // cell planes.
         r.ok = false;
         return r;
     }
     // the cap planes: cut[i] for the cell plane i, plicCut for the PLIC
     // plane (id nc), from the edges of the final wet polygons (the file
     // header, rule b)
-    FixedList<bool, 8> cut(false);
+    FixedList<bool, 16> cut(false);
     bool plicCut = false;
     vector sumA(Zero);
     scalar moment = 0, sumMag = 0;
@@ -389,9 +429,9 @@ inline pieceResult sweptPieceVolume
         // triangle lies beyond (removed) or within (kept) with a margin of
         // 1e-12 L that no crossing point's round-off reaches (2026-11-04).
         const vector aT = cur->areaVector();
-        FixedList<bool, 8> inPlane(false);
-        FixedList<FixedList<scalar, 3>, 8> s3;
-        FixedList<scalar, 8> s3min, s3max;
+        FixedList<bool, 16> inPlane(false);
+        FixedList<FixedList<scalar, 3>, 16> s3;
+        FixedList<scalar, 16> s3min, s3max;
         bool contact = false;
         bool beyond = false;
         for (label i = 0; i < nc; ++i)
@@ -400,14 +440,14 @@ inline pieceResult sweptPieceVolume
             s3min[i] = GREAT; s3max[i] = -GREAT;
             for (label j = 0; j < 3; ++j)
             {
-                s3[i][j] = (t[j] - cellPlanes[i].x0) & cellPlanes[i].n;
+                s3[i][j] = sdist(cellPlanes[i], t[j]);
                 sMax = max(sMax, mag(s3[i][j]));
                 s3min[i] = min(s3min[i], s3[i][j]); s3max[i] = max(s3max[i], s3[i][j]);
             }
             if (sMax <= 1e-10*L)
             {
                 const scalar sSide =
-                    xSide ? ((*xSide - cellPlanes[i].x0) & cellPlanes[i].n) : 0;
+                    xSide ? sdist(cellPlanes[i], *xSide) : 0;
                 const bool outside =
                     (mag(sSide) > 1e-10*L) ? (sSide > 0) : ((aT & cellPlanes[i].n) < 0);
                 if (outside) { contact = true; break; }
@@ -484,8 +524,8 @@ inline pieceResult sweptPieceVolume
     }
 
     // the cap system N A = -sum a, N the 3 x k matrix of the cap normals
-    FixedList<vector, 8> N;
-    FixedList<scalar, 8> d;   // x0_i . n_i
+    FixedList<vector, 16> N;
+    FixedList<scalar, 16> d;   // x0_i . n_i
     label k = 0;
     for (label i = 0; i < nc; ++i)
     {

@@ -1141,6 +1141,10 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptShortFullTol_ = nSweptShortEmptyTol_ = 0;
     nSweptPreViol_ = nSweptPreSlab_ = nSweptShortViol_ = nSweptShortNotInside_ = 0;
     nSweptTraceHits_ = nSweptTraceMisses_ = 0;
+    nSweptJointFaces_ = nSweptJointMax_ = nSweptJointSaddle_ = nSweptJointCaps_ = nSweptJointNoPlane_ = 0;
+    nSweptHybridInside_ = nSweptHybridFaces_ = nSweptHybridFallback_ = nSweptHybridMax_ = nSweptHybridSaddle_ = 0;
+    davof::clipCount() = 0;
+    nSweptClips_ = 0;
     if (sweptTraceCache_ && fluxIntegration_ == "sweptFaceCells")
     {
         // the trace cache of the step (sweptTriangles)
@@ -1179,6 +1183,23 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         {
             cellBoxes_[c] = boundBox(Pm, cellPts[c], false);
         }
+    }
+    // the axis-aligned clip (sweptHexClip, 2026-11-05): once, every face
+    // area vector of the mesh with exactly two zero components on every
+    // rank, else the key is reported and left off
+    if (fluxIntegration_ == "sweptFaceCells" && sweptHexClip_ && sweptMeshHex_ < 0)
+    {
+        bool hex = true;
+        const vectorField& SfAll = mesh_.faceAreas();
+        forAll(SfAll, f)
+        {
+            if (davof::axisOf(SfAll[f]) < 0) { hex = false; break; }
+        }
+        if (Pstream::parRun()) reduce(hex, andOp<bool>());
+        sweptMeshHex_ = hex ? 1 : 0;
+        Info<< "isoAdvection: sweptHexClip "
+            << (hex ? "on (every face area vector is axis-aligned)" : "requested, the mesh is not axis-aligned: off")
+            << endl;
     }
     const auto tCurved0 = std::chrono::steady_clock::now();
     if (sweptClassify_)
@@ -2425,6 +2446,38 @@ void Foam::advection::isoAdvection::reportCurved() const
             label nH = nSweptTraceHits_, nM = nSweptTraceMisses_;
             if (Pstream::parRun()) { reduce(nH, sumOp<label>()); reduce(nM, sumOp<label>()); }
             Info<< "; trace cache: points reused " << nH << ", traced " << nM;
+        }
+        // the clipping rule (sweptClip, 2026-11-05) and the half-space
+        // clips of the step, clauses of their own
+        if (sweptClip_ == "joint")
+        {
+            label nJ = nSweptJointFaces_, nX = nSweptJointMax_, nS = nSweptJointSaddle_;
+            label nC = nSweptJointCaps_, nN = nSweptJointNoPlane_;
+            if (Pstream::parRun())
+            {
+                reduce(nJ, sumOp<label>()); reduce(nX, sumOp<label>()); reduce(nS, sumOp<label>());
+                reduce(nC, sumOp<label>()); reduce(nN, sumOp<label>());
+            }
+            Info<< "; joint clip: faces " << nJ << " (by the maximum " << nX
+                << "), pieces on a saddle " << nS << ", on the caps " << nC << ", on no plane " << nN;
+        }
+        else if (sweptClip_ == "hybrid")
+        {
+            label nI = nSweptHybridInside_, nH = nSweptHybridFaces_, nF = nSweptHybridFallback_;
+            label nX = nSweptHybridMax_, nS = nSweptHybridSaddle_;
+            if (Pstream::parRun())
+            {
+                reduce(nI, sumOp<label>()); reduce(nH, sumOp<label>()); reduce(nF, sumOp<label>());
+                reduce(nX, sumOp<label>()); reduce(nS, sumOp<label>());
+            }
+            Info<< "; hybrid clip: faces inside the donor " << nI << ", hybrid " << nH
+                << " (with the maximum " << nX << ", a saddle piece by its own plane " << nS
+                << "), fallbacks to the pieces " << nF;
+        }
+        {
+            label nCl = davof::clipCount();
+            if (Pstream::parRun()) reduce(nCl, sumOp<label>());
+            Info<< "; half-space clips " << nCl;
         }
         // sweptConsistent (2026-11-02), a clause of its own, only when on
         if (sweptConsistent_)

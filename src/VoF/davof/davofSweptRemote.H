@@ -210,7 +210,7 @@ inline bool inRemoteCellTol
 
 
 //- The half-spaces of the cell (the local path's normalisation)
-inline void remoteCellPlanes(const remoteCell& r, List<halfSpace>& planes)
+inline void remoteCellPlanes(const remoteCell& r, List<halfSpace>& planes, const bool hexClip = false)
 {
     planes.setSize(r.Sout.size());
     forAll(r.Sout, j)
@@ -218,6 +218,8 @@ inline void remoteCellPlanes(const remoteCell& r, List<halfSpace>& planes)
         const vector& nOut = r.Sout[j];
         planes[j].n = nOut/max(mag(nOut), VSMALL);
         planes[j].x0 = r.Cf[j];
+        // the axis path of the clips (sweptHexClip, davofSweptPieces.H)
+        planes[j].axis = hexClip ? axisOf(planes[j].n) : -1;
     }
 }
 

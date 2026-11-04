@@ -477,6 +477,48 @@ class isoAdvection
             scalar sweptPieceClosureMax_;
             label nSweptDegenerate_;
 
+            //- sweptFaceCells, the clipping rule (key sweptClip, 2026-11-05,
+            //  branch davof-swept-joint; the note
+            //  leia/docs/davof/davof-swept-joint): pieces (the default: every
+            //  touched ring cell's piece clipped by its own plane, the code
+            //  before) | joint (the closed list clipped by the joint minimum
+            //  of the touched interface cells' PLIC planes, the maximum
+            //  where every plane pair closes toward the liquid, no cell
+            //  states: a saddle, a set without a plane, more than three caps
+            //  or a rank deficiency fall back to the pieces) | hybrid (a
+            //  swept volume touching the donor alone: the donor's plane
+            //  alone; otherwise the donor's piece by its own plane and every
+            //  other touched cell's piece by its state or, an interface cell,
+            //  by the joint minimum inside the piece). The counters of the
+            //  step: joint faces (of which by the maximum), the faces that
+            //  took the pieces on a saddle, on the caps, on no plane; hybrid
+            //  faces inside the donor, hybrid faces (of which with the
+            //  maximum, with a saddle piece by its own plane), fallbacks to
+            //  the pieces; the half-space clips of the step
+            //  (davof::clipCount)
+            word sweptClip_;
+            label nSweptJointFaces_;
+            label nSweptJointMax_;
+            label nSweptJointSaddle_;
+            label nSweptJointCaps_;
+            label nSweptJointNoPlane_;
+            label nSweptHybridInside_;
+            label nSweptHybridFaces_;
+            label nSweptHybridFallback_;
+            label nSweptHybridMax_;
+            label nSweptHybridSaddle_;
+            label nSweptClips_;
+
+            //- sweptFaceCells, the axis-aligned clip (key sweptHexClip,
+            //  default false, 2026-11-05): on a mesh whose every face area
+            //  vector has exactly two zero components (checked once, all
+            //  ranks) a cell-plane clip takes the signed distance as one
+            //  coordinate difference times the normal's component, bit for
+            //  bit the dot product (davofSweptPieces.H, halfSpace::axis);
+            //  -1 not yet checked, 0 not axis-aligned (off), 1 on
+            bool sweptHexClip_;
+            label sweptMeshHex_;
+
             //- sweptFaceCells: the face update (key sweptCellsFaceUpdate):
             //  pieces (the default; the pre-image fan cut into the cells'
             //  pieces, each wet, dry or clipped by its cell's plane, the
@@ -680,6 +722,22 @@ class isoAdvection
             bool sweptFaceDump_;
             autoPtr<OFstream> dumpFaces_;
             autoPtr<OFstream> dumpPieces_;
+
+            //- The joint-function dump of sweptFaceCells (key
+            //  sweptJointDumpSteps, a list of time indices; default empty:
+            //  off; 2026-11-04, branch davof-swept-joint): at the listed
+            //  steps every computed face writes its traced geometry, every
+            //  ring cell with its state, PLIC plane, cell planes and piece
+            //  result, and the liquid volume of the traced swept volume
+            //  under the exact sphere of the exactNormal dictionary at t^n
+            //  (the signed sum of the exact sphere-tetrahedron overlaps
+            //  about the face centre) to
+            //  postProcessing/sweptJointDump/step_<index>_<rank>.txt, the
+            //  data of the Python prototype of the joint clipping function
+            //  (leia/docs/davof/davof-swept-joint)
+            labelList sweptJointDumpSteps_;
+            autoPtr<OFstream> sweptJointDump_;
+            label sweptJointDumpIndex_;
 
             //- The kinematic consistency of the swept fluxes (key
             //  sweptScaleToPhi, default false, 2026-10-29): the liquid volume
