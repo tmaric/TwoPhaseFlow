@@ -844,6 +844,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     {
         label c; const davof::remoteCell* rc; scalar a0c; bool hasS, wetPlane, wet, wisp, touched;
         davof::halfSpace plic; label p0, np;
+        label sepPlane = -1; scalar sepMin = 0;   // the separating plane of a skipped cell (the check)
     };
     DynamicList<ringState> states(ring.size());
     DynamicList<davof::halfSpace> ringPlanes(6*ring.size());
@@ -986,7 +987,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                         }
                     }
                 }
-                if (separated) { st.touched = false; break; }
+                if (separated) { st.touched = false; st.sepPlane = i; st.sepMin = smin; break; }
             }
         }
         if (st.touched) ++nSweptPreClipped_; else ++nSweptPreSkipped_;
@@ -1055,27 +1056,33 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             {
                 const SubList<davof::halfSpace> planes(ringPlanes, st.np, st.p0);
                 bool viol = false; scalar covV = 0, covA = 0;
+                davof::pieceResult r;
                 if (sweeps)
                 {
-                    const davof::pieceResult r =
-                        davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing");
+                    r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing");
                     covV = r.coverage;
                     if (r.coverage > 1e-12*sumMagT) viol = true;
                 }
                 scalar cov = 0;
-                davof::sweptPieceArea(Tpre, planes, st.wetPlane, st.plic, cov, nRef);
+                const vector aw = davof::sweptPieceArea(Tpre, planes, st.wetPlane, st.plic, cov, nRef);
                 covA = cov;
                 if (cov > 1e-12*sumMagPre) viol = true;
                 if (viol)
                 {
                     ++nSweptPreViol_;
-                    if (nSweptPreViol_ <= 20)
+                    if (nSweptPreViol_ <= 40)
                     {
+                        const davof::halfSpace& sp = planes[max(st.sepPlane, label(0))];
                         Pout<< "sweptPreTestCheck: step " << mesh_.time().timeIndex()
-                            << " face " << facei << " cell " << st.c << (st.rc ? " (remote)" : "")
+                            << " face " << facei << (facei >= mesh_.nInternalFaces() ? " (boundary)" : "")
+                            << " donor " << donor << " cell " << st.c << (st.rc ? " (remote)" : "")
                             << " volume coverage " << covV/max(sumMagT, VSMALL)
-                            << " area coverage " << covA/max(sumMagPre, VSMALL)
-                            << " alpha " << st.a0c << " surface " << st.hasS << endl;
+                            << " piece volume/V_g " << (vTotal > VSMALL ? r.volume/vTotal : 0)
+                            << " degenerate " << r.degenerate << " caps " << r.nCaps << " contacts " << r.nContact
+                            << " area coverage " << covA/max(sumMagPre, VSMALL) << " |aw|/|A_pre| " << mag(aw)/max(mag(aPreFull), VSMALL)
+                            << " alpha " << st.a0c << " surface " << st.hasS
+                            << " separating plane " << st.sepPlane << " n " << sp.n << " smin/h " << st.sepMin/h
+                            << " donor side " << ((xDonor - sp.x0) & sp.n)/h << endl;
                     }
                 }
             }
