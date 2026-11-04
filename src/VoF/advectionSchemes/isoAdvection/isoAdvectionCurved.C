@@ -1144,9 +1144,9 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     if (sweptTraceCache_ && fluxIntegration_ == "sweptFaceCells")
     {
         // the trace cache of the step (sweptTriangles)
-        traceQ_.setSize(mesh_.nPoints());
+        traceCell_.setSize(mesh_.nPoints());
+        traceU_.setSize(mesh_.nPoints());
         traceDone_.reset(); traceDone_.resize(mesh_.nPoints());
-        traceRemote_.reset(); traceRemote_.resize(mesh_.nPoints());
     }
     sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
     nSweptRemoteFaces_ = nSweptEulerTrace_ = 0;

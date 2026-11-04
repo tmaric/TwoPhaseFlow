@@ -537,13 +537,15 @@ class isoAdvection
             List<boundBox> cellBoxes_;
 
             //- sweptFaceCells, the trace cache (key sweptTraceCache, default
-            //  false, 2026-11-04): a mesh point traced once per step
-            //  (sweptTriangles), the traced point, whether the trace used
-            //  a remote cell, the hits and misses of the step
+            //  false, 2026-11-04): per mesh point the cell that held its
+            //  midpoint and the velocity there (sweptTriangles); another
+            //  face repeats only the cell search from its donor and takes
+            //  the kept velocity when the same cell results (bit for bit
+            //  the per-face trace); the hits and misses of the step
             bool sweptTraceCache_;
-            pointField traceQ_;
+            labelList traceCell_;
+            vectorField traceU_;
             bitSet traceDone_;
-            bitSet traceRemote_;
             label nSweptTraceHits_;
             label nSweptTraceMisses_;
             label nSweptShortFull_;

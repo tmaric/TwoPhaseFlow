@@ -351,6 +351,37 @@ void Foam::advection::isoAdvection::sweptTriangles
         if (!found) ++nSweptEulerTrace_;
         return found ? (x - dt*um) : (x - dt*u1);
     };
+    // The same trace through the cache of a mesh point (sweptTraceCache,
+    // 2026-11-04): the midpoint x_m and the cell c that held it with the
+    // velocity there are kept per point; another face holding the point
+    // repeats only the cell search from its own donor (the ring order of
+    // that donor, as the per-face trace) and takes the kept velocity when
+    // the same cell results, so that the traced point is bit for bit the
+    // per-face one; a different cell (a midpoint within the tolerance of a
+    // cell face, claimed by two cells) interpolates anew.
+    auto traceBackCached = [&](const label pi) -> point
+    {
+        const point& x = P[pi];
+        const vector& u1 = Up[pi];
+        const point xm = x - 0.5*dt*u1;
+        const label c = cellOf(xm);
+        if (traceDone_.test(pi) && traceCell_[pi] == c)
+        {
+            ++nSweptTraceHits_;
+            if (c <= -2) sweptFaceRemote_ = true;
+            if (c >= 0 || c <= -2) return x - dt*traceU_[pi];
+            ++nSweptEulerTrace_;
+            return x - dt*u1;
+        }
+        ++nSweptTraceMisses_;
+        bool found = (c >= 0 || c <= -2);
+        vector um(Zero);
+        if (c >= 0) um = UInterp.interpolate(xm, c);
+        else if (c <= -2) { sweptFaceRemote_ = true; um = davof::interpolateRemote(sweptRemote_[-2 - c], xm); }
+        traceCell_[pi] = c; traceU_[pi] = um; traceDone_.set(pi);
+        if (!found) ++nSweptEulerTrace_;
+        return found ? (x - dt*um) : (x - dt*u1);
+    };
 
     // The pre-image: the vertices by the point velocities, the centre by
     // the cell-point interpolate in the donor (the prism's displacement)
@@ -365,27 +396,7 @@ void Foam::advection::isoAdvection::sweptTriangles
         // the tolerance of a cell face can be interpolated in the other
         // cell: the same velocity in exact arithmetic, round-off apart
         const label pi = f[i];
-        if (sweptTraceCache_ && traceDone_.test(pi))
-        {
-            q[i] = traceQ_[pi];
-            if (traceRemote_.test(pi)) sweptFaceRemote_ = true;
-            ++nSweptTraceHits_;
-        }
-        else
-        {
-            const bool remoteBefore = sweptFaceRemote_;
-            sweptFaceRemote_ = false;
-            q[i] = traceBack(P[pi], Up[pi]);
-            const bool remoteHere = sweptFaceRemote_;
-            sweptFaceRemote_ = remoteBefore || remoteHere;
-            if (sweptTraceCache_)
-            {
-                traceQ_[pi] = q[i];
-                traceDone_.set(pi);
-                if (remoteHere) traceRemote_.set(pi);
-            }
-            ++nSweptTraceMisses_;
-        }
+        q[i] = sweptTraceCache_ ? traceBackCached(pi) : traceBack(P[pi], Up[pi]);
     }
     if (sweptVolumeCorrection_ == "pyramid")
     {
