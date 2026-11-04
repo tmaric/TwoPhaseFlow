@@ -526,6 +526,7 @@ class isoAdvection
             //  the donor (no shortcut) are counted as well.
             bool sweptPreTestCheck_;
             label nSweptPreViol_;
+            label nSweptPreSlab_;
             label nSweptShortViol_;
             label nSweptShortNotInside_;
 

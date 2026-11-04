@@ -202,6 +202,7 @@ Foam::advection::isoAdvection::isoAdvection
     sweptStateShortcut_(modelDict().getOrDefault<bool>("sweptStateShortcut", false)),
     sweptPreTestCheck_(modelDict().getOrDefault<bool>("sweptPreTestCheck", false)),
     nSweptPreViol_(0),
+    nSweptPreSlab_(0),
     nSweptShortViol_(0),
     nSweptShortNotInside_(0),
     cellBoxes_(),

@@ -1139,7 +1139,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptPreSkipped_ = nSweptPreClipped_ = 0;
     nSweptShortFull_ = nSweptShortEmpty_ = nSweptShortPieces_ = 0;
     nSweptShortFullTol_ = nSweptShortEmptyTol_ = 0;
-    nSweptPreViol_ = nSweptShortViol_ = nSweptShortNotInside_ = 0;
+    nSweptPreViol_ = nSweptPreSlab_ = nSweptShortViol_ = nSweptShortNotInside_ = 0;
     nSweptTraceHits_ = nSweptTraceMisses_ = 0;
     if (sweptTraceCache_ && fluxIntegration_ == "sweptFaceCells")
     {
@@ -2410,13 +2410,14 @@ void Foam::advection::isoAdvection::reportCurved() const
                 << " (within the wisp tolerance but not exact: full " << nFt << ", empty " << nEt << ")";
             label nNi = nSweptShortNotInside_;
             if (Pstream::parRun()) reduce(nNi, sumOp<label>());
-            Info<< "; shortcut faces whose swept volume leaves the donor " << nNi;
+            Info<< "; shortcut faces whose swept volume is not covered by the touched cells " << nNi;
         }
         if (sweptPreTestCheck_)
         {
-            label nPv = nSweptPreViol_, nSv = nSweptShortViol_;
-            if (Pstream::parRun()) { reduce(nPv, sumOp<label>()); reduce(nSv, sumOp<label>()); }
+            label nPv = nSweptPreViol_, nPs = nSweptPreSlab_, nSv = nSweptShortViol_;
+            if (Pstream::parRun()) { reduce(nPv, sumOp<label>()); reduce(nPs, sumOp<label>()); reduce(nSv, sumOp<label>()); }
             Info<< "; pre-test check: skipped cells with a piece " << nPv
+                << ", with a degenerate slab only " << nPs
                 << ", shortcut faces off by more than 1e-10 " << nSv;
         }
         if (sweptTraceCache_)
