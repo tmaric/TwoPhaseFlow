@@ -1139,6 +1139,14 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptPreSkipped_ = nSweptPreClipped_ = 0;
     nSweptShortFull_ = nSweptShortEmpty_ = nSweptShortPieces_ = 0;
     nSweptShortFullTol_ = nSweptShortEmptyTol_ = 0;
+    nSweptTraceHits_ = nSweptTraceMisses_ = 0;
+    if (sweptTraceCache_ && fluxIntegration_ == "sweptFaceCells")
+    {
+        // the trace cache of the step (sweptTriangles)
+        traceQ_.setSize(mesh_.nPoints());
+        traceDone_.reset(); traceDone_.resize(mesh_.nPoints());
+        traceRemote_.reset(); traceRemote_.resize(mesh_.nPoints());
+    }
     sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
     nSweptRemoteFaces_ = nSweptEulerTrace_ = 0;
     // the consistency counters (sweptConsistent, sweptConsistencyLog)
@@ -2399,6 +2407,12 @@ void Foam::advection::isoAdvection::reportCurved() const
             }
             Info<< "; faces by path: full " << nF << ", empty " << nE << ", pieces " << nP
                 << " (within the wisp tolerance but not exact: full " << nFt << ", empty " << nEt << ")";
+        }
+        if (sweptTraceCache_)
+        {
+            label nH = nSweptTraceHits_, nM = nSweptTraceMisses_;
+            if (Pstream::parRun()) { reduce(nH, sumOp<label>()); reduce(nM, sumOp<label>()); }
+            Info<< "; trace cache: points reused " << nH << ", traced " << nM;
         }
         // sweptConsistent (2026-11-02), a clause of its own, only when on
         if (sweptConsistent_)

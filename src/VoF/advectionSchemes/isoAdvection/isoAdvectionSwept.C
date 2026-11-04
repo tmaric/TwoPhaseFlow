@@ -358,7 +358,34 @@ void Foam::advection::isoAdvection::sweptTriangles
     q.setSize(F);
     forAll(f, i)
     {
-        q[i] = traceBack(P[f[i]], Up[f[i]]);
+        // sweptTraceCache (2026-11-04): a mesh point is traced once per
+        // step (its trace depends on the point and the velocity only) and
+        // reused by every other face that holds it; the cell search of the
+        // midpoint starts from the first face's donor, so a midpoint within
+        // the tolerance of a cell face can be interpolated in the other
+        // cell: the same velocity in exact arithmetic, round-off apart
+        const label pi = f[i];
+        if (sweptTraceCache_ && traceDone_.test(pi))
+        {
+            q[i] = traceQ_[pi];
+            if (traceRemote_.test(pi)) sweptFaceRemote_ = true;
+            ++nSweptTraceHits_;
+        }
+        else
+        {
+            const bool remoteBefore = sweptFaceRemote_;
+            sweptFaceRemote_ = false;
+            q[i] = traceBack(P[pi], Up[pi]);
+            const bool remoteHere = sweptFaceRemote_;
+            sweptFaceRemote_ = remoteBefore || remoteHere;
+            if (sweptTraceCache_)
+            {
+                traceQ_[pi] = q[i];
+                traceDone_.set(pi);
+                if (remoteHere) traceRemote_.set(pi);
+            }
+            ++nSweptTraceMisses_;
+        }
     }
     if (sweptVolumeCorrection_ == "pyramid")
     {

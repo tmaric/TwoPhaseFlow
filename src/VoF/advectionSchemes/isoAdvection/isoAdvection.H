@@ -521,6 +521,17 @@ class isoAdvection
             //  curvedFlux (per face before: 26 boxes per face, hotspot 9 of
             //  the profile of 2026-11-04)
             List<boundBox> cellBoxes_;
+
+            //- sweptFaceCells, the trace cache (key sweptTraceCache, default
+            //  true, 2026-11-04): a mesh point traced once per step
+            //  (sweptTriangles), the traced point, whether the trace used
+            //  a remote cell, the hits and misses of the step
+            bool sweptTraceCache_;
+            pointField traceQ_;
+            bitSet traceDone_;
+            bitSet traceRemote_;
+            label nSweptTraceHits_;
+            label nSweptTraceMisses_;
             label nSweptShortFull_;
             label nSweptShortEmpty_;
             label nSweptShortPieces_;

@@ -200,6 +200,13 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptPreSkipped_(0),
     nSweptPreClipped_(0),
     sweptStateShortcut_(modelDict().getOrDefault<bool>("sweptStateShortcut", true)),
+    cellBoxes_(),
+    sweptTraceCache_(modelDict().getOrDefault<bool>("sweptTraceCache", true)),
+    traceQ_(),
+    traceDone_(),
+    traceRemote_(),
+    nSweptTraceHits_(0),
+    nSweptTraceMisses_(0),
     nSweptShortFull_(0),
     nSweptShortEmpty_(0),
     nSweptShortPieces_(0),
@@ -540,7 +547,8 @@ Foam::advection::isoAdvection::isoAdvection
                         << ", sweptCoplanar " << sweptCoplanar_
                         << ", sweptCapSet " << sweptCapSet_
                         << ", sweptPreTest " << sweptPreTest_
-                        << ", sweptStateShortcut " << sweptStateShortcut_;
+                        << ", sweptStateShortcut " << sweptStateShortcut_
+                        << ", sweptTraceCache " << sweptTraceCache_;
                     // the wisp rule (2026-11-02), printed only when not none
                     if (sweptWispSurface_ != "none")
                     {
