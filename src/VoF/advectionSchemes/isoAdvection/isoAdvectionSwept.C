@@ -1083,7 +1083,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 {
                     r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing");
                     covV = r.coverage;
-                    if (r.volume != 0) viol = true;
+                    // the pieces' own gate: a piece counts above 1e-12 of
+                    // the boundary; below it nothing is added
                     if (r.coverage > 1e-12*sumMagT) { if (r.degenerate) slab = true; else viol = true; }
                 }
                 scalar cov = 0;
@@ -1220,9 +1221,22 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             if (nSweptShortViol_ <= 20)
             {
                 Pout<< "sweptPreTestCheck: step " << mesh_.time().timeIndex() << " face " << facei
+                    << (facei >= mesh_.nInternalFaces() ? " (boundary)" : "") << " donor " << donor << " sweeps " << sweeps
                     << (shortFull ? " full" : " empty") << " shortcut: pieces V_liq/V_g "
                     << (vTotal > VSMALL ? threeV/3/vTotal : 0) << " against " << (vTotal > VSMALL ? threeVsc/3/vTotal : 0)
-                    << ", wetted area " << aPreWet << " against " << aPreWetSc << endl;
+                    << ", coverage " << coverage/max(sumMagT, VSMALL) << ", wetted area " << aPreWet << " against " << aPreWetSc
+                    << ", ring " << ring.size() << " touched:";
+                for (const ringState& st : states)
+                {
+                    if (!st.touched) continue;
+                    const SubList<davof::halfSpace> planes(ringPlanes, st.np, st.p0);
+                    davof::pieceResult r;
+                    if (sweeps) r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing");
+                    Pout<< " [cell " << st.c << (st.rc ? "r" : "") << " alpha " << st.a0c
+                        << " cov " << r.coverage/max(sumMagT, VSMALL) << " V/V_g " << (vTotal > VSMALL ? r.volume/vTotal : 0)
+                        << " deg " << r.degenerate << " ok " << r.ok << " caps " << r.nCaps << " contacts " << r.nContact << "]";
+                }
+                Pout<< endl;
             }
         }
     }
