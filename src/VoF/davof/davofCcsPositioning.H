@@ -329,11 +329,14 @@ inline label ccsPositionPlane
         {
             pBest = p; rBest = r; statusBest = status;
         }
-        else if (cubic && (mag(rBest) <= 100*tol || (loEval && hiEval)))
+        else if (cubic && mag(rBest) <= 100*tol)
         {
-            // the residual did not decrease at a cubic step near the
-            // tolerance (or with both bracket ends evaluated): the
-            // round-off floor; the best cut is returned
+            // the residual did not decrease at a cubic step within a
+            // hundred tolerances of the root: the round-off floor; the
+            // best cut is returned. Farther out a non-decrease is a cubic
+            // across a vertex level (the exact-normal row on the sphere
+            // left planes 1e-3 V off this way, 2026-11-04): the bracket
+            // and the bisection safeguard carry on
             rec.exitCode = 2;
             break;
         }

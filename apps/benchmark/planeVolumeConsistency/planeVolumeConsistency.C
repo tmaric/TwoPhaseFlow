@@ -503,7 +503,7 @@ int main(int argc, char *argv[])
     const scalar positionTol = args.getOrDefault<scalar>("positionTol", 1e-8);
     const word positioning = args.getOrDefault<word>("positioning", "vofCutCell");
     const scalar ccsTol = args.getOrDefault<scalar>("ccsTol", 1e-14);
-    const label ccsMaxIter = args.getOrDefault<label>("ccsMaxIter", 20);
+    const label ccsMaxIter = args.getOrDefault<label>("ccsMaxIter", 30);
     const bool ccs = (positioning == "ccs");
     if (!ccs && positioning != "vofCutCell")
     {

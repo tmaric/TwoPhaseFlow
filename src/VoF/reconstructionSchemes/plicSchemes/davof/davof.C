@@ -393,7 +393,7 @@ Foam::reconstruction::davof::davof
     isoFaceTol_(modelDict().getOrDefault<scalar>("isoFaceTol", 1e-8)),
     positioning_(modelDict().getOrDefault<word>("positioning", "vofCutCell")),
     positioningTol_(modelDict().getOrDefault<scalar>("positioningTol", 1e-14)),
-    positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 20)),
+    positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 30)),
     cutCellPos_(alpha1.mesh()),
     positioningResidual_
     (
