@@ -391,7 +391,7 @@ Foam::reconstruction::davof::davof
     wispTol_(modelDict().getOrDefault<scalar>("wispTol", 1e-3)),
     surfCellTol_(modelDict().getOrDefault<scalar>("surfCellTol", 1e-8)),
     isoFaceTol_(modelDict().getOrDefault<scalar>("isoFaceTol", 1e-8)),
-    positioning_(modelDict().getOrDefault<word>("positioning", "vofCutCell")),
+    positioning_(modelDict().getOrDefault<word>("positioning", "ccs")),
     positioningTol_(modelDict().getOrDefault<scalar>("positioningTol", 1e-14)),
     positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 30)),
     cutCellPos_(alpha1.mesh()),

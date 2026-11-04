@@ -173,7 +173,7 @@ Foam::advection::isoAdvection::isoAdvection
     curvedDebug_(modelDict().getOrDefault<bool>("curvedDebug", false)),
     anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
     anchorMethod_(modelDict().getOrDefault<word>("anchorMethod", "ccs")),
-    anchorSkipConverged_(modelDict().getOrDefault<bool>("anchorSkipConverged", false)),
+    anchorSkipConverged_(modelDict().getOrDefault<bool>("anchorSkipConverged", true)),
     fluxIntegration_(modelDict().getOrDefault<word>("fluxIntegration", "prism")),
     sweptPlaneTol_(modelDict().getOrDefault<scalar>("sweptPlaneTol", 1e-6)),
     nSweptFaces_(0),
@@ -196,7 +196,7 @@ Foam::advection::isoAdvection::isoAdvection
     sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
     sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
     nSweptCoplanar_(0),
-    sweptPreTest_(modelDict().getOrDefault<word>("sweptPreTest", "none")),
+    sweptPreTest_(modelDict().getOrDefault<word>("sweptPreTest", "touching")),
     nSweptPreSkipped_(0),
     nSweptPreClipped_(0),
     sweptStateShortcut_(modelDict().getOrDefault<bool>("sweptStateShortcut", false)),
@@ -206,7 +206,7 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptShortViol_(0),
     nSweptShortNotInside_(0),
     cellBoxes_(),
-    sweptTraceCache_(modelDict().getOrDefault<bool>("sweptTraceCache", false)),
+    sweptTraceCache_(modelDict().getOrDefault<bool>("sweptTraceCache", true)),
     traceCell_(),
     traceU_(),
     traceDone_(),
@@ -219,7 +219,7 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptShortEmptyTol_(0),
     sweptCapSet_(modelDict().getOrDefault<word>("sweptCapSet", "final")),
     sweptConsistencyLog_(modelDict().getOrDefault<bool>("sweptConsistencyLog", false)),
-    sweptConsistent_(modelDict().getOrDefault<bool>("sweptConsistent", false)),
+    sweptConsistent_(modelDict().getOrDefault<bool>("sweptConsistent", true)),
     sweptConsistentTol_(modelDict().getOrDefault<scalar>("sweptConsistentTol", 1e-8)),
     nConsProbed_(0),
     nConsReach_(0),
@@ -240,15 +240,15 @@ Foam::advection::isoAdvection::isoAdvection
     nConsFallback_(0),
     nConsBoundaryKept_(0),
     sweptNoDonorSurface_(false),
-    sweptWispSurface_(modelDict().getOrDefault<word>("sweptWispSurface", "none")),
-    sweptWispTol_(modelDict().getOrDefault<scalar>("sweptWispTol", 1e-8)),
+    sweptWispSurface_(modelDict().getOrDefault<word>("sweptWispSurface", "matched")),
+    sweptWispTol_(modelDict().getOrDefault<scalar>("sweptWispTol", 0)),
     wispSurfaces_(),
     hasWispSurface_(),
     nSweptWispClipped_(0),
     nSweptWispNoNeighbour_(0),
     nSweptWispAnchorFail_(0),
     nSweptWispMatched_(0),
-    sweptWispMatchTol_(modelDict().getOrDefault<scalar>("sweptWispMatchTol", 1e-11)),
+    sweptWispMatchTol_(modelDict().getOrDefault<scalar>("sweptWispMatchTol", 1e-9)),
     consResidueStep_(),
     consSummary_(),
     consResiduePtr_(),
@@ -259,12 +259,12 @@ Foam::advection::isoAdvection::isoAdvection
     sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
     sweptVolumeCorrection_
     (
-        // auto (or no key): the mode of sweptScaleToPhi, the builds before
-        // the key (the value a case template renders by default)
+        // pyramid when no key (the reference setting, 2026-11-04); auto:
+        // the mode of sweptScaleToPhi, the builds before the key
         [this]() -> word
         {
             const word w =
-                modelDict().getOrDefault<word>("sweptVolumeCorrection", "auto");
+                modelDict().getOrDefault<word>("sweptVolumeCorrection", "pyramid");
             if (w != "auto") return w;
             return
                 modelDict().getOrDefault<bool>("sweptScaleToPhi", false)
@@ -273,7 +273,7 @@ Foam::advection::isoAdvection::isoAdvection
     ),
     sweptVolumeKeyGiven_
     (
-        modelDict().getOrDefault<word>("sweptVolumeCorrection", "auto") != "auto"
+        modelDict().getOrDefault<word>("sweptVolumeCorrection", "pyramid") != "auto"
     ),
     sweptPyrDeltaMax_(0),
     sweptVolDefectMax_(0),
@@ -560,14 +560,8 @@ Foam::advection::isoAdvection::isoAdvection
                     {
                         Info<< ", sweptWispSurface " << sweptWispSurface_;
                     }
-                    if (modelDict().found("sweptWispTol"))
-                    {
-                        Info<< ", sweptWispTol " << sweptWispTol_;
-                    }
-                    if (modelDict().found("sweptWispMatchTol"))
-                    {
-                        Info<< ", sweptWispMatchTol " << sweptWispMatchTol_;
-                    }
+                    Info<< ", sweptWispTol " << sweptWispTol_
+                        << ", sweptWispMatchTol " << sweptWispMatchTol_;
                     // the consistency keys (2026-11-02), printed only when on
                     if (sweptConsistent_)
                     {

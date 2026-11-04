@@ -1188,6 +1188,35 @@ written; the plane case without the keys (N = 20, normal arm,
 davof-detrixheAslam-exact) is unchanged (max L1(alphaf) 2.61e-15 over
 the ten steps, no ABORT line).
 
+## The reference setting of the swept-face advection (2026-11-04)
+
+The defaults of the keys below changed in one commit (Tomislav, via the coordinating
+session). A dictionary without the key gets the new value; the old value stays selectable
+by writing the key. The builds before this commit ignore none of these keys: a dictionary
+that writes every key renders the same run on both sides.
+
+| key (`alpha.water` dictionary) | old default | new default | other values |
+|---|---|---|---|
+| `sweptWispSurface` | `none` | `matched` | `neighbour`, `anchored` |
+| `sweptWispMatchTol` | `1e-11` | `1e-9` | any |
+| `sweptWispTol` | `1e-8` | `0` | any |
+| `sweptConsistent` | `false` | `true` | |
+| `sweptVolumeCorrection` | `auto` (the mode of `sweptScaleToPhi`, i.e. `none`) | `pyramid` | `scale`, `none`, `auto` |
+| `positioning` | `vofCutCell` | `ccs` | |
+| `positioningTol` | `1e-14` | `1e-14` (unchanged) | any |
+| `positioningMaxIter` | `30` | `30` (unchanged) | any |
+| `anchorSkipConverged` | `false` | `true` | |
+| `sweptPreTest` | `none` | `touching` | `strict` |
+| `sweptTraceCache` | `false` | `true` | |
+
+The wisp rule, the consistent variant (its wall faces kept at the boundary condition) and
+the pyramid are the state of the plane gate and the comparison of 2026-11-03; `ccs` and
+`anchorSkipConverged` are the positioning of 2026-11-04 (the fluxes within the anchor's
+1e-11 h); `sweptPreTest touching` and `sweptTraceCache` reproduce the clips bit for bit
+(the verification of the efficiency work, leia `docs/davof/REPORT-swept.md`). The startup
+line of `isoAdvection` prints every value, `sweptWispTol` and `sweptWispMatchTol` always.
+`sweptStateShortcut` stays `false` (not achieved) and `sweptPreTestCheck` is a debug check.
+
 ## How leia finds it
 
 leia's `etc/leia-env.sh` appends `$LEIA_TPF_DIR/platforms/<WM_OPTIONS>/{bin,lib}` after
