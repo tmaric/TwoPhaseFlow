@@ -681,9 +681,13 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         aPreFull += 0.5*((Tpre[i][1] - Tpre[i][0]) ^ (Tpre[i][2] - Tpre[i][0]));
     }
     scalar sumMagT = 0;
+    // the longest triangle edge of the list: the size bound of every polygon
+    // a clip can produce (sweptPreTest strict)
+    scalar LmaxT = 0;
     forAll(T, k)
     {
         sumMagT += mag(0.5*((T[k][1] - T[k][0]) ^ (T[k][2] - T[k][0])));
+        LmaxT = max(LmaxT, max(mag(T[k][1] - T[k][0]), max(mag(T[k][2] - T[k][1]), mag(T[k][0] - T[k][2]))));
     }
     scalar sumMagPre = 0;
     forAll(Tpre, k)
@@ -765,18 +769,65 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             << "xq " << xq << nl << "q " << q << nl;
     }
 
-    // The pieces
+    // The pieces. Two passes over the ring (2026-11-04): the first takes
+    // every cell's half-spaces and state and runs the pre-test
+    // (sweptPreTest) that decides whether the swept volume can hold a piece
+    // of the cell at all; the state shortcut (sweptStateShortcut) then
+    // settles a face whose touched cells are all full or all empty without
+    // a clip; the second pass clips the touched cells of the other faces
+    // exactly as before (the same ring order, the same sums).
     scalar threeV = 0;
     vector aPreWet(Zero);
     scalar coverage = 0, coveragePre = 0;
     bool rankFallback = false;
     List<davof::halfSpace> planes;
+
+    // The pre-test (sweptPreTest, 2026-11-04). The vertex set of the swept
+    // volume: x_f, the face points, the apex x_f' (where the pyramid moved
+    // it) and the traced points; a cell whose bounding box overlaps the
+    // swept volume's (the ring) still misses it when one of the cell's
+    // planes has the whole vertex set on its outer side. strict: skipped
+    // only when every vertex lies beyond 1e-10 L (L the longest triangle
+    // edge, the bound of every polygon size the clips meet, the tolerance
+    // of the contact and coplanar tests): such a cell's clips remove every
+    // triangle entirely (all signed distances positive, no triangle within
+    // the coplanar tolerance), so the result is the same bit for bit.
+    // touching (the default): skipped also when the vertices lie on the
+    // plane (signed distance >= 0, the cells sharing only a face, an edge
+    // or a point with the swept volume: 18 to 27 ring cells against 1.4
+    // pieces per face), unless a pre-image triangle lies in that plane (the
+    // coplanar rule of the face update keeps it). In exact arithmetic such
+    // a cell holds no volume and no area; the clips of the unskipped code
+    // leave zero-area polygons whose round-off area (1e-20 of the face)
+    // entered the wetted area vector, so the face fractions move by
+    // round-off (verified 2026-11-04 on the 20-step copies). none: no test.
+    const bool preTest = (sweptPreTest_ != "none");
+    const bool preStrict = (sweptPreTest_ == "strict");
+    DynamicList<point> Vsw(2*F + 2);
+    if (preTest)
+    {
+        Vsw.append(xf);
+        for (const label pi : mesh_.faces()[facei]) Vsw.append(P[pi]);
+        Vsw.append(xq);
+        forAll(q, i) Vsw.append(q[i]);
+    }
+    // a ring cell's planes (flat) and state
+    struct ringState
+    {
+        label c; const davof::remoteCell* rc; scalar a0c; bool hasS, wetPlane, wet, wisp, touched;
+        davof::halfSpace plic; label p0, np;
+    };
+    DynamicList<ringState> states(ring.size());
+    DynamicList<davof::halfSpace> ringPlanes(6*ring.size());
     for (const label e : ring)
     {
         // a ring entry: a local cell c = e, or a cell of another rank
         // (e <= -2) whose packed planes and state are read instead
-        const davof::remoteCell* rc = (e <= -2) ? &sweptRemote_[-2 - e] : nullptr;
-        const label c = rc ? rc->gid : e;
+        ringState st;
+        st.rc = (e <= -2) ? &sweptRemote_[-2 - e] : nullptr;
+        st.c = st.rc ? st.rc->gid : e;
+        const davof::remoteCell* rc = st.rc;
+        const label c = st.c;
         // the cell's half-spaces
         if (rc)
         {
@@ -793,6 +844,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 planes[j].x0 = Cf[cf[j]];
             }
         }
+        st.p0 = ringPlanes.size(); st.np = planes.size();
+        for (const davof::halfSpace& hs : planes) ringPlanes.append(hs);
         // the cell's state and plane
         const scalar a0c = rc ? rc->alpha0 : a0[c];
         const bool hasS = rc ? rc->hasSurface : hasSurface_.test(c);
@@ -844,6 +897,99 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 ++nSweptWispClipped_;
             }
         }
+        st.a0c = a0c; st.hasS = hasS; st.wetPlane = wetPlane; st.wet = wet; st.wisp = wisp; st.plic = plic;
+        // the pre-test
+        st.touched = true;
+        if (preTest)
+        {
+            forAll(planes, i)
+            {
+                const davof::halfSpace& hs = planes[i];
+                scalar smin = GREAT;
+                for (const point& v : Vsw) smin = min(smin, (v - hs.x0) & hs.n);
+                bool separated;
+                if (preStrict)
+                {
+                    separated = (smin > 1e-10*LmaxT);
+                }
+                else
+                {
+                    separated = (smin >= 0);
+                    if (separated)
+                    {
+                        // a pre-image triangle lying in the plane keeps the
+                        // face update's coplanar rule: no skip
+                        forAll(Tpre, j)
+                        {
+                            const FixedList<point, 3>& t = Tpre[j];
+                            const scalar L = max(mag(t[1] - t[0]), mag(t[2] - t[0]));
+                            scalar sMax = 0;
+                            for (label k = 0; k < 3; ++k) sMax = max(sMax, mag((t[k] - hs.x0) & hs.n));
+                            if (L > 0 && sMax <= 1e-10*L) { separated = false; break; }
+                        }
+                    }
+                }
+                if (separated) { st.touched = false; break; }
+            }
+        }
+        if (st.touched) ++nSweptPreClipped_; else ++nSweptPreSkipped_;
+        states.append(st);
+    }
+
+    // The state shortcut (sweptStateShortcut, 2026-11-04): every touched
+    // cell full (alpha^n exactly 1, no surface) or every one empty
+    // (exactly 0): the pieces would all be wet (or all dry), summing to the
+    // swept volume (or to nothing), and the pre-image fan wholly wet (or
+    // dry): V_liq = V_f (the scaling, or V_g) and the wetted area A_pre, or
+    // zero. Exact 0 and 1 rather than the wisp tolerance: with
+    // sweptConsistent a piece of a cell at alpha = 1 - 1e-10 carries
+    // alpha V_piece, which the shortcut would round to V_piece; the faces
+    // the tolerance would take in addition are counted apart. The empty
+    // shortcut gives the unclipped sums bit for bit (nothing is added);
+    // the full one differs by round-off (the sum of the pieces against
+    // V_g, the scaled V_liq against |phi_f| dt, the sum of the wetted parts
+    // against A_pre).
+    bool shortFull = false, shortEmpty = false;
+    if (sweptStateShortcut_)
+    {
+        bool allFull = true, allEmpty = true, allFullTol = true, allEmptyTol = true, anyRemote = false;
+        for (const ringState& st : states)
+        {
+            if (!st.touched) continue;
+            if (st.rc) anyRemote = true;
+            if (st.wetPlane) { allFull = allEmpty = allFullTol = allEmptyTol = false; break; }
+            if (st.a0c != 1) allFull = false;
+            if (st.a0c != 0) allEmpty = false;
+            if (st.a0c < 1 - sweptWispTol_) allFullTol = false;
+            if (st.a0c > sweptWispTol_) allEmptyTol = false;
+        }
+        shortFull = allFull; shortEmpty = allEmpty;
+        if (allFullTol && !allFull) ++nSweptShortFullTol_;
+        if (allEmptyTol && !allEmpty) ++nSweptShortEmptyTol_;
+        if (shortFull || shortEmpty)
+        {
+            if (shortFull) ++nSweptShortFull_; else ++nSweptShortEmpty_;
+            if (anyRemote) sweptFaceRemote_ = true;
+            threeV = shortFull ? 3*vTotal : 0;
+            aPreWet = shortFull ? aPreFull : vector(Zero);
+            coverage = sumMagT; coveragePre = sumMagPre;
+        }
+        else
+        {
+            ++nSweptShortPieces_;
+        }
+    }
+
+    for (const ringState& st : states)
+    {
+        if (!st.touched || shortFull || shortEmpty) continue;
+        const davof::remoteCell* rc = st.rc;
+        const label c = st.c;
+        const scalar a0c = st.a0c;
+        const bool hasS = st.hasS;
+        const bool wetPlane = st.wetPlane, wet = st.wet, wisp = st.wisp;
+        const davof::halfSpace& plic = st.plic;
+        const SubList<davof::halfSpace> planes(ringPlanes, st.np, st.p0);
 
         scalar dbgVol = 0, dbgCovV = 0;
         label dbgCaps = -1, dbgContact = 0;
@@ -1012,6 +1158,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     if (sweptScaleToPhi_ && sweeps && vTotal > VSMALL)
     {
         vLiq *= mag(phiF)*dt/vTotal;
+        // the full shortcut: the flux volume itself, not V_g (|phi_f| dt/V_g)
+        if (shortFull) vLiq = mag(phiF)*dt;
     }
     if (consLog && sweeps)
     {

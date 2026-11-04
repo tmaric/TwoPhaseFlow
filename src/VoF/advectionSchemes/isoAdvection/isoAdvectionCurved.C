@@ -70,6 +70,7 @@ SourceFiles
 #include "davofCurvedGeometry.H"
 #include "davofKromerBothe.H"
 #include "davofOrbit.H"
+#include "davofCcsPositioning.H"
 #include "interpolationCellPoint.H"
 #include "volPointInterpolation.H"
 #include "indexedOctree.H"
@@ -123,41 +124,12 @@ inline Foam::davof::cellSurface unpackSurface(const Foam::UList<Foam::scalar>& v
 
 constexpr Foam::label nPack = 21;
 
-// The root in (0, 1) of the cubic Hermite interpolant p(s) with p(0) = f0 < 0,
-// p(1) = f1 > 0 and the derivatives p'(0) = d0, p'(1) = d1 (in s): Newton on
-// the polynomial from the secant point, bisection where it leaves the
-// polynomial's own bracket. The volume anchor's Consecutive Cubic Spline step
-// (T. Maric, Iterative volume-of-fluid interface positioning in general
-// polyhedrons with Consecutive Cubic Spline interpolation, J. Comput. Phys.:
-// X 11 (2021) 100093, doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227).
-inline bool hermiteRoot01
-(
-    const Foam::scalar f0, const Foam::scalar d0,
-    const Foam::scalar f1, const Foam::scalar d1,
-    Foam::scalar& s
-)
-{
-    using Foam::scalar; using Foam::label; using Foam::mag;
-    auto p = [&](const scalar t, scalar& v, scalar& dv)
-    {
-        const scalar t2 = t*t, t3 = t2*t;
-        v = (2*t3 - 3*t2 + 1)*f0 + (t3 - 2*t2 + t)*d0 + (-2*t3 + 3*t2)*f1 + (t3 - t2)*d1;
-        dv = (6*t2 - 6*t)*f0 + (3*t2 - 4*t + 1)*d0 + (-6*t2 + 6*t)*f1 + (3*t2 - 2*t)*d1;
-    };
-    scalar a = 0, b = 1;
-    s = f0/(f0 - f1);
-    for (label it = 0; it < 60; ++it)
-    {
-        scalar v, dv;
-        p(s, v, dv);
-        if (v < 0) a = s; else b = s;
-        if (mag(v) <= 1e-15*(mag(f0) + mag(f1)) || b - a <= 1e-15) break;
-        scalar sn = (dv > 0) ? s - v/dv : 0.5*(a + b);
-        if (!(sn > a && sn < b)) sn = 0.5*(a + b);
-        s = sn;
-    }
-    return (s > 0 && s < 1);
-}
+// The root in (0, 1) of the cubic Hermite interpolant, the volume anchor's
+// Consecutive Cubic Spline step (T. Maric, J. Comput. Phys.: X 11 (2021)
+// 100093, doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227): since
+// 2026-11-04 in davofCcsPositioning.H, shared with the reconstruction's
+// positioning ccs; the function is the one that stood here, unchanged.
+using Foam::davof::hermiteRoot01;
 
 } // End anonymous namespace
 
@@ -185,6 +157,12 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
     nAnchorLeaves_ = 0;
     nAnchorEvals_ = 0;
     nAnchorEdge_ = 0;
+    nAnchorStartCells_ = 0;
+    anchorStartResMax_ = 0;
+    anchorStartResSum_ = 0;
+    nAnchorStartBelowTol_ = 0;
+    nAnchorSkipped_ = 0;
+    anchorKbVsCutMax_ = -1;
     nCompare_ = 0;
     nCompareDiff_ = 0;
     nCompareDiffEdge_ = 0;
@@ -535,9 +513,32 @@ void Foam::advection::isoAdvection::buildCellSurfaces(const scalar tState)
             // illinois keeps its bracket end as the ladder's reference path.
             const scalar tol = max(anchorTolRel_*Vc, 1e-14*Vc);
             const scalar cTol = 1e-11*h;
+            // the reconstruction's own cut residual of this plane (signed,
+            // positioning ccs; the plane S with c = 0 at the cut centroid
+            // along the used normal is that plane), else none
+            const bool posCcs =
+                (davofPtr_->positioning() == "ccs" && mag(normal[celli]) > 0 && S.c == 0);
+            const scalar posRes = posCcs ? davofPtr_->positioningResidual()[celli]*Vc : 0;
+            if (anchorSkipConverged_ && posCcs && mag(posRes) <= tol)
+            {
+                // anchorSkipConverged (2026-11-04, opt-in): the plane is
+                // kept as the reconstruction positioned it
+                ++nAnchorSkipped_;
+                cellSurfaces_[celli] = S;
+                hasSurface_.set(celli);
+                continue;
+            }
             const scalar cStart = S.c;
             const scalar rStart = volumeOfT(S) - target;
             const scalar AStart = slope;
+            ++nAnchorStartCells_;
+            anchorStartResMax_ = max(anchorStartResMax_, mag(rStart)/Vc);
+            anchorStartResSum_ += mag(rStart)/Vc;
+            if (mag(rStart) <= tol) ++nAnchorStartBelowTol_;
+            if (posCcs)
+            {
+                anchorKbVsCutMax_ = max(anchorKbVsCutMax_, mag(rStart - posRes)/Vc);
+            }
             // the diagnostic of the quadrature (key curvedDebug): on an exact
             // state the surface before the anchor encloses alpha V, so r0 is
             // the quadrature's own error; the worst cell is printed with its
@@ -1135,6 +1136,9 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptPieces_ = nSweptBeyond_ = nSweptRankFallback_ = nSweptPartialCells_ = 0;
     nSweptDegenerate_ = 0;
     nSweptCoplanar_ = 0;
+    nSweptPreSkipped_ = nSweptPreClipped_ = 0;
+    nSweptShortFull_ = nSweptShortEmpty_ = nSweptShortPieces_ = 0;
+    nSweptShortFullTol_ = nSweptShortEmptyTol_ = 0;
     sweptBeyondMax_ = sweptPieceClosureMax_ = 0;
     nSweptRemoteFaces_ = nSweptEulerTrace_ = 0;
     // the consistency counters (sweptConsistent, sweptConsistencyLog)
@@ -2278,6 +2282,22 @@ void Foam::advection::isoAdvection::reportCurved() const
             Info<< ", leaves " << nAnchL << ", evaluations " << nAnchE
                 << " (per cell " << scalar(nAnchE)/max(nFitC, label(1)) << ")"
                 << ", edge " << nAnchEdge;
+            // the anchor's start (2026-11-04)
+            label nStC = nAnchorStartCells_, nStB = nAnchorStartBelowTol_, nSk = nAnchorSkipped_;
+            scalar stMax = anchorStartResMax_, stSum = anchorStartResSum_, kbc = anchorKbVsCutMax_;
+            if (Pstream::parRun())
+            {
+                reduce(nStC, sumOp<label>()); reduce(nStB, sumOp<label>());
+                reduce(nSk, sumOp<label>()); reduce(stMax, maxOp<scalar>());
+                reduce(stSum, sumOp<scalar>()); reduce(kbc, maxOp<scalar>());
+            }
+            Info<< "; anchor start |r|/V max " << stMax << " mean "
+                << stSum/max(nStC, label(1)) << " over " << nStC
+                << " cells, within tol " << nStB << ", skipped " << nSk;
+            if (kbc >= 0)
+            {
+                Info<< ", |V_KB - V_cut|/V max " << kbc;
+            }
         }
         if (tensorCentroid_ == "anchored")
         {
@@ -2344,6 +2364,26 @@ void Foam::advection::isoAdvection::reportCurved() const
         // the coplanar parts of the face update, a separate clause so that
         // the converter's pattern of the clause above stays valid
         Info<< "; coplanar pre-image parts " << nCop;
+        // the pre-test and the state shortcut (2026-11-04), clauses of
+        // their own, only when on
+        if (sweptPreTest_ != "none")
+        {
+            label nSk = nSweptPreSkipped_, nCl = nSweptPreClipped_;
+            if (Pstream::parRun()) { reduce(nSk, sumOp<label>()); reduce(nCl, sumOp<label>()); }
+            Info<< "; pre-test: ring cells skipped " << nSk << ", clipped " << nCl;
+        }
+        if (sweptStateShortcut_)
+        {
+            label nF = nSweptShortFull_, nE = nSweptShortEmpty_, nP = nSweptShortPieces_;
+            label nFt = nSweptShortFullTol_, nEt = nSweptShortEmptyTol_;
+            if (Pstream::parRun())
+            {
+                reduce(nF, sumOp<label>()); reduce(nE, sumOp<label>()); reduce(nP, sumOp<label>());
+                reduce(nFt, sumOp<label>()); reduce(nEt, sumOp<label>());
+            }
+            Info<< "; faces by path: full " << nF << ", empty " << nE << ", pieces " << nP
+                << " (within the wisp tolerance but not exact: full " << nFt << ", empty " << nEt << ")";
+        }
         // sweptConsistent (2026-11-02), a clause of its own, only when on
         if (sweptConsistent_)
         {

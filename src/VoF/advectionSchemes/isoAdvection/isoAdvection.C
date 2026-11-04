@@ -173,6 +173,7 @@ Foam::advection::isoAdvection::isoAdvection
     curvedDebug_(modelDict().getOrDefault<bool>("curvedDebug", false)),
     anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
     anchorMethod_(modelDict().getOrDefault<word>("anchorMethod", "ccs")),
+    anchorSkipConverged_(modelDict().getOrDefault<bool>("anchorSkipConverged", false)),
     fluxIntegration_(modelDict().getOrDefault<word>("fluxIntegration", "prism")),
     sweptPlaneTol_(modelDict().getOrDefault<scalar>("sweptPlaneTol", 1e-6)),
     nSweptFaces_(0),
@@ -195,6 +196,15 @@ Foam::advection::isoAdvection::isoAdvection
     sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
     sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
     nSweptCoplanar_(0),
+    sweptPreTest_(modelDict().getOrDefault<word>("sweptPreTest", "touching")),
+    nSweptPreSkipped_(0),
+    nSweptPreClipped_(0),
+    sweptStateShortcut_(modelDict().getOrDefault<bool>("sweptStateShortcut", true)),
+    nSweptShortFull_(0),
+    nSweptShortEmpty_(0),
+    nSweptShortPieces_(0),
+    nSweptShortFullTol_(0),
+    nSweptShortEmptyTol_(0),
     sweptCapSet_(modelDict().getOrDefault<word>("sweptCapSet", "final")),
     sweptConsistencyLog_(modelDict().getOrDefault<bool>("sweptConsistencyLog", false)),
     sweptConsistent_(modelDict().getOrDefault<bool>("sweptConsistent", false)),
@@ -284,6 +294,12 @@ Foam::advection::isoAdvection::isoAdvection
     nAnchorLeaves_(0),
     nAnchorEvals_(0),
     nAnchorEdge_(0),
+    nAnchorStartCells_(0),
+    anchorStartResMax_(0),
+    anchorStartResSum_(0),
+    nAnchorStartBelowTol_(0),
+    nAnchorSkipped_(0),
+    anchorKbVsCutMax_(-1),
     nCompare_(0),
     nCompareDiff_(0),
     nCompareDiffEdge_(0),
@@ -430,7 +446,9 @@ Foam::advection::isoAdvection::isoAdvection
                     << ", anchorTolRel " << anchorTolRel_ << ", anchorMethod "
                     << anchorMethod_ << ", defectEvery "
                     << defectEvery_ << ", anchorDiagnostics "
-                    << (anchorDiagnostics_ ? "on" : "off");
+                    << (anchorDiagnostics_ ? "on" : "off")
+                    << ", anchorSkipConverged "
+                    << (anchorSkipConverged_ ? "true" : "false");
             }
             if
             (
@@ -511,9 +529,18 @@ Foam::advection::isoAdvection::isoAdvection
                             << "' unknown. Valid: none, neighbour, anchored, matched."
                             << exit(FatalIOError);
                     }
+                    if (sweptPreTest_ != "none" && sweptPreTest_ != "strict" && sweptPreTest_ != "touching")
+                    {
+                        FatalIOErrorInFunction(modelDict())
+                            << "sweptPreTest '" << sweptPreTest_
+                            << "' unknown. Valid: none, strict, touching."
+                            << exit(FatalIOError);
+                    }
                     Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
                         << ", sweptCoplanar " << sweptCoplanar_
-                        << ", sweptCapSet " << sweptCapSet_;
+                        << ", sweptCapSet " << sweptCapSet_
+                        << ", sweptPreTest " << sweptPreTest_
+                        << ", sweptStateShortcut " << sweptStateShortcut_;
                     // the wisp rule (2026-11-02), printed only when not none
                     if (sweptWispSurface_ != "none")
                     {

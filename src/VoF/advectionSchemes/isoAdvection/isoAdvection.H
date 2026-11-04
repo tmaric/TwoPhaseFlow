@@ -400,6 +400,13 @@ class isoAdvection
             //  isoAdvectionCurved.C); illinois keeps its bracket end there.
             word anchorMethod_;
 
+            //- anchorSkipConverged (2026-11-04, default false): with the
+            //  reconstruction's positioning ccs, a plane whose cut residual
+            //  |V_cut - alpha V| is already within the anchor's tolerance is
+            //  kept as the reconstruction left it (no start evaluation, no
+            //  anchor); counted as skipped
+            bool anchorSkipConverged_;
+
             //- The volume flux of a face (key fluxIntegration): prism (the
             //  default, the liquid volume of the prism between the face's
             //  pre-image and the face), trapezoidal (phi_f dt times the
@@ -488,6 +495,30 @@ class isoAdvection
             //  two fractions); the coplanar parts met in the step
             word sweptCoplanar_;
             label nSweptCoplanar_;
+
+            //- sweptFaceCells, the pre-test of a ring cell before the clips
+            //  (key sweptPreTest, 2026-11-04; isoAdvectionSwept.C): none,
+            //  strict (a cell skipped when one of its planes has every
+            //  vertex of the swept volume beyond 1e-10 L: bit for bit the
+            //  unskipped result) or touching (the default: also the cells
+            //  the swept volume only touches; round-off in the face
+            //  fractions). The ring cells skipped and clipped in the step.
+            word sweptPreTest_;
+            label nSweptPreSkipped_;
+            label nSweptPreClipped_;
+
+            //- sweptFaceCells, the state shortcut (key sweptStateShortcut,
+            //  default true, 2026-11-04): a face whose touched ring cells
+            //  are all full (alpha^n = 1, no surface) takes V_liq = |phi_f|
+            //  dt and alpha_f = 1, all empty V_liq = 0 and alpha_f = 0,
+            //  without a clip. The faces by path in the step, and the faces
+            //  the wisp tolerance (1e-8) would take in addition.
+            bool sweptStateShortcut_;
+            label nSweptShortFull_;
+            label nSweptShortEmpty_;
+            label nSweptShortPieces_;
+            label nSweptShortFullTol_;
+            label nSweptShortEmptyTol_;
 
             //- sweptFaceCells, the cap set of a piece (key sweptCapSet,
             //  2026-11-02): final (the default: the planes that produced an
@@ -719,6 +750,20 @@ class isoAdvection
             //- The cells anchored at the edge of the flat interval (a
             //  target of 0 or V) in the step
             label nAnchorEdge_;
+
+            //- The anchor's start (2026-11-04): the cells with a start
+            //  evaluation, the maximum and the sum of |r_start|/V, the cells
+            //  whose start residual is already within the tolerance, the
+            //  cells skipped (anchorSkipConverged), and the largest
+            //  disagreement |V_KromerBothe - V_cut|/V between the volume
+            //  rule and the reconstruction's cut of the same plane
+            //  (positioning ccs; -1 otherwise)
+            label nAnchorStartCells_;
+            scalar anchorStartResMax_;
+            scalar anchorStartResSum_;
+            label nAnchorStartBelowTol_;
+            label nAnchorSkipped_;
+            scalar anchorKbVsCutMax_;
 
             //- anchorMethod compare: the cells printed in the step, the
             //  cells whose offsets differ, those of them at the edge
