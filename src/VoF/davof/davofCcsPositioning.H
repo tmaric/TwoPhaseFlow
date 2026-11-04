@@ -52,17 +52,22 @@ Description
     explicit Gauss-theorem position pPlane_c, exact on a planar state), and
     keeps the bracket [lo, hi] with r(lo) = V(lo) - alpha V_c >= 0 >= r(hi),
     whose first ends are the vertex extrema (V = V_c and 0, A = 0, known
-    without a cut). The iterate is the root of the cubic Hermite interpolant
-    of r through the two evaluated bracket ends (the CCS step; exact up to
-    round-off once both ends lie between the same vertex levels), Newton's
-    step r/A from the latest point while only one bracket end has been
-    evaluated, and the bisection point where an iterate leaves the bracket
-    or the bracket was not halved over two steps. It stops when |r| <=
-    tolRel V_c (exit 1), when the residual stops decreasing with both ends
-    evaluated (the round-off floor; exit 2, the best iterate is returned),
+    without a cut). The iterate is the root of the cubic Hermite
+    interpolant of r through the two CONSECUTIVE evaluated points with
+    their slopes (the CCS step; exact up to round-off once both lie between
+    the same vertex levels as the root, so that the third cut is the
+    answer): through the bracket ends once both are evaluated, else through
+    the previous and the latest point, extrapolated, taken where the root
+    lies inside the bracket; Newton's step r/A from the single first point;
+    the bisection point where an iterate leaves the bracket or the bracket
+    was not halved over two steps. It stops when |r| <= tolRel V_c (exit
+    1), when the residual stops decreasing at a cubic step near the
+    tolerance (the round-off floor; exit 2, the best iterate is returned),
     when the bracket has closed to round-off (exit 3) or at maxIter (exit
-    4). The cut object holds the returned plane (re-cut at the best
-    iterate when the last cut was not the best, counted in nEvals).
+    4). A target at an end of [0, V_c] (alpha <= 0 or >= 1 within
+    round-off) takes the vertex extreme: the full or empty cell, no plane.
+    The cut object holds the returned plane (re-cut at the best iterate
+    when the last cut was not the best, counted in nEvals).
 
 SourceFiles
     none (inline)
@@ -119,6 +124,39 @@ inline bool hermiteRoot01
 }
 
 
+//- The root of the cubic Hermite interpolant p(s) with p(0) = f0, p(1) = f1
+//  and the derivatives p'(0) = d0, p'(1) = d1 (in s), by Newton on the
+//  polynomial from s0, anywhere on the line (the CCS step proper: the cubic
+//  through the two CONSECUTIVE iterates, extrapolated beyond them where
+//  the root lies outside; exact where the cubic is the function). False
+//  when Newton on the polynomial fails to settle.
+inline bool hermiteRootFrom
+(
+    const Foam::scalar f0, const Foam::scalar d0,
+    const Foam::scalar f1, const Foam::scalar d1,
+    const Foam::scalar s0,
+    Foam::scalar& s
+)
+{
+    using Foam::scalar; using Foam::label; using Foam::mag;
+    const scalar scale = mag(f0) + mag(f1);
+    s = s0;
+    for (label it = 0; it < 40; ++it)
+    {
+        const scalar t = s, t2 = t*t, t3 = t2*t;
+        const scalar v = (2*t3 - 3*t2 + 1)*f0 + (t3 - 2*t2 + t)*d0 + (-2*t3 + 3*t2)*f1 + (t3 - t2)*d1;
+        const scalar dv = (6*t2 - 6*t)*f0 + (3*t2 - 4*t + 1)*d0 + (-6*t2 + 6*t)*f1 + (3*t2 - 2*t)*d1;
+        if (mag(v) <= 1e-15*scale) return true;
+        if (!(dv != 0) || !std::isfinite(dv)) return false;
+        const scalar ds = v/dv;
+        s -= ds;
+        if (!std::isfinite(s) || mag(s) > 1e6) return false;
+        if (mag(ds) <= 1e-14*(1 + mag(s))) return true;
+    }
+    return true;
+}
+
+
 //- The record of one CCS positioning
 struct ccsRecord
 {
@@ -152,7 +190,9 @@ inline label ccsPositionPlane
 )
 {
     const scalar Vc = mesh.V()[celli];
-    const scalar target = alpha*Vc;
+    // the target within [0, V_c]: a volume fraction outside it (a round-off
+    // wisp of -3e-15, 2026-11-04) has no plane but the vertex extreme
+    const scalar target = min(max(alpha, scalar(0)), scalar(1))*Vc;
     const scalar tol = tolRel*Vc;
     const point& xc = mesh.C()[celli];
     const pointField& P = mesh.points();
@@ -184,17 +224,22 @@ inline label ccsPositionPlane
     scalar lo = pMin, hi = pMax, rlo = Vc - target, rhi = -target, Alo = 0, Ahi = 0;
     bool loEval = false, hiEval = false;
 
-    scalar p = min(max(p0, pMin), pMax);
+    // a target at an end of [0, V_c]: the plane at the vertex extreme, exact
+    // (the cell is then full or empty: no plane, as vofCutCell returns)
+    scalar p = (target <= 0) ? pMax : ((target >= Vc) ? pMin : min(max(p0, pMin), pMax));
     evaluate(p);
     rec.pStart = p;
     rec.rStart = r/Vc;
     scalar pBest = p, rBest = r;
     label statusBest = status;
     scalar wPrev = GREAT, wPrev2 = GREAT;
+    // the previous evaluated point (the consecutive cubic)
+    scalar pPrev = 0, rPrev = 0, APrev = 0;
+    bool havePrev = false;
 
     for (label it = 0; it < maxIter; ++it)
     {
-        if (mag(r) <= tol)
+        if (mag(r) <= tol || target <= 0 || target >= Vc)
         {
             rec.exitCode = 1;
             break;
@@ -209,11 +254,11 @@ inline label ccsPositionPlane
         }
 
         scalar pNew;
-        bool bisect = false;
+        bool bisect = false, cubic = false;
         if (loEval && hiEval)
         {
-            // the CCS step: the Hermite cubic of -r (increasing in p)
-            // through the bracket ends, in s = (p - lo)/w
+            // the CCS step on the bracket: the Hermite cubic of -r
+            // (increasing in p) through the bracket ends, in s = (p - lo)/w
             scalar s = 0.5;
             const bool ok = hermiteRoot01(-rlo, Alo*w, -rhi, Ahi*w, s);
             pNew = ok ? lo + s*w : 0.5*(lo + hi);
@@ -225,40 +270,70 @@ inline label ccsPositionPlane
             else
             {
                 ++rec.nHermite;
-            }
-        }
-        else if (A > 0)
-        {
-            // Newton from the latest point: r(p + dp) = r - A dp = 0
-            pNew = p + r/A;
-            if (!(pNew > lo && pNew < hi))
-            {
-                pNew = 0.5*(lo + hi);
-                bisect = true;
-            }
-            else
-            {
-                ++rec.nNewton;
+                cubic = true;
             }
         }
         else
         {
-            pNew = 0.5*(lo + hi);
-            bisect = true;
+            // the CCS step proper: the cubic through the two consecutive
+            // iterates (the previous and this one, with their slopes),
+            // its root found from Newton's estimate and taken where it
+            // lies inside the bracket; Newton's step from this point where
+            // there is no previous one or the cubic gives nothing
+            bool done = false;
+            if (havePrev && A > 0 && p != pPrev)
+            {
+                const scalar wc = p - pPrev;
+                scalar s = 1 + r/(A*wc);
+                if (hermiteRootFrom(rPrev, -APrev*wc, r, -A*wc, s, s))
+                {
+                    pNew = pPrev + s*wc;
+                    if (pNew > lo && pNew < hi)
+                    {
+                        ++rec.nHermite;
+                        cubic = true;
+                        done = true;
+                    }
+                }
+            }
+            if (!done)
+            {
+                if (A > 0)
+                {
+                    // Newton from the latest point: r(p + dp) = r - A dp = 0
+                    pNew = p + r/A;
+                    if (!(pNew > lo && pNew < hi))
+                    {
+                        pNew = 0.5*(lo + hi);
+                        bisect = true;
+                    }
+                    else
+                    {
+                        ++rec.nNewton;
+                    }
+                }
+                else
+                {
+                    pNew = 0.5*(lo + hi);
+                    bisect = true;
+                }
+            }
         }
         if (bisect) ++rec.nBisect;
         wPrev2 = wPrev; wPrev = w;
 
+        pPrev = p; rPrev = r; APrev = A; havePrev = true;
         p = pNew;
         evaluate(p);
         if (mag(r) < mag(rBest))
         {
             pBest = p; rBest = r; statusBest = status;
         }
-        else if (loEval && hiEval && !bisect)
+        else if (cubic && (mag(rBest) <= 100*tol || (loEval && hiEval)))
         {
-            // the residual did not decrease at a CCS step with both ends
-            // evaluated: the round-off floor
+            // the residual did not decrease at a cubic step near the
+            // tolerance (or with both bracket ends evaluated): the
+            // round-off floor; the best cut is returned
             rec.exitCode = 2;
             break;
         }
