@@ -67,8 +67,9 @@ Description
         the total liquid volume sum alpha V and against
         N_interface x eps x mean V_c (eps = 2.22e-16);
       - |V_plic - V_ind|/V_c max (the two clips against each other), and
-        |S_cap + A_plic|/V^(2/3) max (the cap area vector of (2) against the
-        production cut polygon's);
+        |S_cap + A_plic|/V^(2/3) max (the cap area vector of (2), out of
+        the liquid, against the production cut polygon's faceArea_, which
+        cutCell::calcGeomDataCutFace turns into the sub-cell);
       - the residual the iteration returned, |VolumeOfFluid() - alpha|, max,
         against the clip's;
       - the status counts, split by alpha inside/outside [tol, 1 - tol];
@@ -615,8 +616,9 @@ int main(int argc, char *argv[])
             scalar maxOutsideRes = 0;
             label worstCell = -1;
             scalar worstD = 0;
-            // the worst cells of this rank: (|d|, celli)
+            // the worst cells of this rank: (|d|, celli) and the normal used
             DynamicList<Pair<scalar>> worst(interfaceLabels.size());
+            DynamicList<vector> worstN(interfaceLabels.size());
 
             for (const label celli : interfaceLabels)
             {
@@ -744,8 +746,11 @@ int main(int argc, char *argv[])
                 if (ad > positionTol) ++nAboveTol;
                 ++hist[decadeBin(ad)];
                 maxPlicVsInd = max(maxPlicVsInd, mag(Vplic - Vind)/Vc);
-                maxCapArea = max(maxCapArea, mag(Scap - Aplic)/(h*h));
+                // cutCell::calcGeomDataCutFace turns faceArea_ into the
+                // sub-cell (into the liquid); S_cap points out of it
+                maxCapArea = max(maxCapArea, mag(Scap + Aplic)/(h*h));
                 worst.append(Pair<scalar>(ad, scalar(celli)));
+                worstN.append(nRaw);
 
                 // the orientation
                 if (mag(Vind/Vc - (1 - ac)) < ad) ++nFlip;
@@ -770,8 +775,7 @@ int main(int argc, char *argv[])
                 {
                     const label celli = label(worst[order[k]].second());
                     const scalar ac = a[celli];
-                    vector nRaw = (normalName == "areaNormal") ? m[celli]
-                        : (normalName == "field" ? fieldNormalPtr()[celli] : (o - C[celli]));
+                    const vector nRaw = worstN[order[k]];
                     traceRec T;
                     vofCutCellTraced(mesh, ccTrace, celli, ac, positionTol, 100, nRaw, T);
                     Pout<< "worst " << k << " (" << normalName << "): cell " << celli
