@@ -498,18 +498,19 @@ class isoAdvection
             label nSweptCoplanar_;
 
             //- sweptFaceCells, the pre-test of a ring cell before the clips
-            //  (key sweptPreTest, 2026-11-04; isoAdvectionSwept.C): none,
-            //  strict (a cell skipped when one of its planes has every
-            //  vertex of the swept volume beyond 1e-10 L: bit for bit the
-            //  unskipped result) or touching (the default: also the cells
-            //  the swept volume only touches; round-off in the face
-            //  fractions). The ring cells skipped and clipped in the step.
+            //  (key sweptPreTest, 2026-11-04; isoAdvectionSwept.C): none
+            //  (the default: the code of 720cfc6), strict (a cell skipped
+            //  when one of its planes has every vertex of the swept volume
+            //  beyond 1e-10 L: bit for bit the unskipped result) or
+            //  touching (also the cells the swept volume only touches;
+            //  round-off in the face fractions). The ring cells skipped and
+            //  clipped in the step.
             word sweptPreTest_;
             label nSweptPreSkipped_;
             label nSweptPreClipped_;
 
             //- sweptFaceCells, the state shortcut (key sweptStateShortcut,
-            //  default true, 2026-11-04): a face whose touched ring cells
+            //  default false, 2026-11-04): a face whose touched ring cells
             //  are all full (alpha^n = 1, no surface) takes V_liq = |phi_f|
             //  dt and alpha_f = 1, all empty V_liq = 0 and alpha_f = 0,
             //  without a clip. The faces by path in the step, and the faces
@@ -523,7 +524,7 @@ class isoAdvection
             List<boundBox> cellBoxes_;
 
             //- sweptFaceCells, the trace cache (key sweptTraceCache, default
-            //  true, 2026-11-04): a mesh point traced once per step
+            //  false, 2026-11-04): a mesh point traced once per step
             //  (sweptTriangles), the traced point, whether the trace used
             //  a remote cell, the hits and misses of the step
             bool sweptTraceCache_;
