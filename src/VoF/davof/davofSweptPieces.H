@@ -169,6 +169,74 @@ struct clipPolygon
 //  out, p[i+1] in) continues the rest of edge i (its label). Whether the
 //  plane bounds the final polygon is read from those labels after all
 //  clips (sweptPieceVolume), not from the return value.
+//  Since 2026-11-04 the clip is in two steps with the same arithmetic: the
+//  signed distances of the vertices (planeDistances, shared with the
+//  contact and coplanar tests that need them too) and the clip into a
+//  second polygon (clipWith; the caller alternates two buffers instead of
+//  copying the result back), so that the result is bit for bit the one of
+//  the single-step clip of 2026-11-02.
+inline void planeDistances
+(
+    const clipPolygon& poly,
+    const halfSpace& hs,
+    FixedList<scalar, 16>& s,
+    bool& anyIn,
+    bool& anyOut,
+    scalar& sMaxAbs
+)
+{
+    anyIn = false; anyOut = false; sMaxAbs = 0;
+    for (label i = 0; i < poly.n; ++i)
+    {
+        s[i] = (poly.p[i] - hs.x0) & hs.n;
+        if (s[i] <= 0) anyIn = true; else anyOut = true;
+        sMaxAbs = max(sMaxAbs, mag(s[i]));
+    }
+}
+
+//- The clip of poly by the plane with the distances s (anyIn and anyOut
+//  from planeDistances) into out. Returns true where the plane crossed the
+//  polygon (out holds the result, with n = 0 below three vertices), false
+//  where poly was entirely on one side: kept (unchanged) or removed (n set
+//  to 0 in poly).
+inline bool clipWith
+(
+    clipPolygon& poly,
+    const FixedList<scalar, 16>& s,
+    const bool anyIn,
+    const bool anyOut,
+    clipPolygon& out,
+    const label id = -1
+)
+{
+    if (poly.n < 3) return false;
+    if (!anyOut) return false;
+    if (!anyIn) { poly.n = 0; return false; }
+    label m = 0;
+    for (label i = 0; i < poly.n; ++i)
+    {
+        const label j = (i + 1) % poly.n;
+        const bool inI = (s[i] <= 0);
+        const bool inJ = (s[j] <= 0);
+        if (inI)
+        {
+            out.p[m] = poly.p[i];
+            out.e[m] = poly.e[i];
+            ++m;
+        }
+        if (inI != inJ)
+        {
+            out.p[m] = poly.p[i] + (s[i]/(s[i] - s[j]))*(poly.p[j] - poly.p[i]);
+            out.e[m] = inI ? id : poly.e[i];
+            ++m;
+        }
+    }
+    out.n = (m >= 3) ? m : 0;
+    return true;
+}
+
+//- The single-step clip (the distances and the clip, the result back in
+//  poly); kept for reference, the routines below use the two steps
 inline bool clipByHalfSpace
 (
     clipPolygon& poly,
@@ -178,38 +246,11 @@ inline bool clipByHalfSpace
 {
     if (poly.n < 3) return false;
     FixedList<scalar, 16> s;
-    bool anyIn = false, anyOut = false;
-    for (label i = 0; i < poly.n; ++i)
-    {
-        s[i] = (poly.p[i] - hs.x0) & hs.n;
-        if (s[i] <= 0) anyIn = true; else anyOut = true;
-    }
-    if (!anyOut) return false;
-    if (!anyIn) { poly.n = 0; return false; }
-    FixedList<point, 16> out;
-    FixedList<label, 16> lab;
-    label m = 0;
-    for (label i = 0; i < poly.n; ++i)
-    {
-        const label j = (i + 1) % poly.n;
-        const bool inI = (s[i] <= 0);
-        const bool inJ = (s[j] <= 0);
-        if (inI)
-        {
-            out[m] = poly.p[i];
-            lab[m] = poly.e[i];
-            ++m;
-        }
-        if (inI != inJ)
-        {
-            out[m] = poly.p[i] + (s[i]/(s[i] - s[j]))*(poly.p[j] - poly.p[i]);
-            lab[m] = inI ? id : poly.e[i];
-            ++m;
-        }
-    }
-    poly.p = out;
-    poly.e = lab;
-    poly.n = (m >= 3) ? m : 0;
+    bool anyIn, anyOut; scalar sMaxAbs;
+    planeDistances(poly, hs, s, anyIn, anyOut, sMaxAbs);
+    clipPolygon out;
+    if (!clipWith(poly, s, anyIn, anyOut, out, id)) return false;
+    poly = out;
     return true;
 }
 
@@ -293,14 +334,26 @@ inline pieceResult sweptPieceVolume
     bool plicCut = false;
     vector sumA(Zero);
     scalar moment = 0, sumMag = 0;
+    // the two polygon buffers of the clips (alternated, no copy back)
+    clipPolygon bufA, bufB;
+    FixedList<scalar, 16> s;
     forAll(T, k)
     {
         const FixedList<point, 3>& t = T[k];
         const scalar L =
             max(mag(t[1] - t[0]), max(mag(t[2] - t[1]), mag(t[0] - t[2])));
         if (!(L > 0)) continue;
-        clipPolygon poly;
-        poly.setTriangle(t[0], t[1], t[2]);
+        clipPolygon* cur = &bufA;
+        clipPolygon* nxt = &bufB;
+        cur->setTriangle(t[0], t[1], t[2]);
+        bool anyIn, anyOut; scalar sMaxAbs;
+        // one clip of the current polygon by hs into the other buffer
+        auto clip = [&](const halfSpace& hs, const label id) -> bool
+        {
+            planeDistances(*cur, hs, s, anyIn, anyOut, sMaxAbs);
+            if (clipWith(*cur, s, anyIn, anyOut, *nxt, id)) { Swap(cur, nxt); return true; }
+            return false;
+        };
 
         if (crossing)
         {
@@ -308,37 +361,48 @@ inline pieceResult sweptPieceVolume
             bool wasCut = false;
             for (label i = 0; i < nc; ++i)
             {
-                if (clipByHalfSpace(poly, cellPlanes[i])) { cut[i] = true; wasCut = true; }
-                if (poly.n < 3) break;
+                if (clip(cellPlanes[i], -1)) { cut[i] = true; wasCut = true; }
+                if (cur->n < 3) break;
             }
-            if (poly.n < 3) continue;
-            r.coverage += mag(poly.areaVector());
+            if (cur->n < 3) continue;
+            r.coverage += mag(cur->areaVector());
             if (wetPlane)
             {
-                if (clipByHalfSpace(poly, plic)) { plicCut = true; wasCut = true; }
-                if (poly.n < 3) continue;
+                if (clip(plic, -1)) { plicCut = true; wasCut = true; }
+                if (cur->n < 3) continue;
             }
             if (wasCut) ++r.nCut;
-            const vector a = poly.areaVector();
+            const vector a = cur->areaVector();
             sumA += a;
             sumMag += mag(a);
-            moment += (poly.p[0] - xRef) & a;
+            moment += (cur->p[0] - xRef) & a;
             continue;
         }
 
         // rule a: a triangle lying in a cell plane is a contact (dropped)
         // where Omega_f lies outside the cell, and is not clipped by that
         // plane where Omega_f lies inside; the side is the donor's (xSide),
-        // else the triangle's orientation
-        const vector aT = poly.areaVector();
+        // else the triangle's orientation. The distances of the three
+        // vertices to every plane are kept (s3): they are the distances the
+        // first clips would compute again (the same expression) while the
+        // polygon is still the triangle, and they settle a plane the whole
+        // triangle lies beyond (removed) or within (kept) with a margin of
+        // 1e-12 L that no crossing point's round-off reaches (2026-11-04).
+        const vector aT = cur->areaVector();
         FixedList<bool, 8> inPlane(false);
+        FixedList<FixedList<scalar, 3>, 8> s3;
+        FixedList<scalar, 8> s3min, s3max;
         bool contact = false;
+        bool beyond = false;
         for (label i = 0; i < nc; ++i)
         {
             scalar sMax = 0;
+            s3min[i] = GREAT; s3max[i] = -GREAT;
             for (label j = 0; j < 3; ++j)
             {
-                sMax = max(sMax, mag((t[j] - cellPlanes[i].x0) & cellPlanes[i].n));
+                s3[i][j] = (t[j] - cellPlanes[i].x0) & cellPlanes[i].n;
+                sMax = max(sMax, mag(s3[i][j]));
+                s3min[i] = min(s3min[i], s3[i][j]); s3max[i] = max(s3max[i], s3[i][j]);
             }
             if (sMax <= 1e-10*L)
             {
@@ -349,32 +413,59 @@ inline pieceResult sweptPieceVolume
                 if (outside) { contact = true; break; }
                 inPlane[i] = true;
             }
+            else if (s3min[i] > 1e-12*L)
+            {
+                // the triangle lies beyond this plane: its clip, or an
+                // earlier plane's, leaves nothing of it
+                beyond = true;
+            }
         }
         if (contact)
         {
             ++r.nContact;
             continue;
         }
+        if (beyond) continue;
 
         bool wasCut = false;
+        bool pristine = true;   // the polygon is still the triangle
         for (label i = 0; i < nc; ++i)
         {
             if (inPlane[i]) continue;
-            if (clipByHalfSpace(poly, cellPlanes[i], i)) wasCut = true;
-            if (poly.n < 3) break;
+            if (pristine)
+            {
+                // the triangle's own distances (the clip's values)
+                anyIn = anyOut = false;
+                for (label j = 0; j < 3; ++j)
+                {
+                    s[j] = s3[i][j];
+                    if (s[j] <= 0) anyIn = true; else anyOut = true;
+                }
+                if (clipWith(*cur, s, anyIn, anyOut, *nxt, i)) { Swap(cur, nxt); wasCut = true; pristine = false; }
+            }
+            else if (s3max[i] < -1e-12*L)
+            {
+                continue;   // the triangle lies within this plane: kept
+            }
+            else if (clip(cellPlanes[i], i))
+            {
+                wasCut = true;
+            }
+            if (cur->n < 3) break;
         }
-        if (poly.n < 3) continue;
+        if (cur->n < 3) continue;
         // a remnant of zero area (a triangle touching the cell in an edge
         // or a point) is dropped, edges and all
         const scalar areaTol = 1e-14*L*L;
-        const vector ac = poly.areaVector();
+        const vector ac = cur->areaVector();
         if (mag(ac) <= areaTol) continue;
         r.coverage += mag(ac);
         if (wetPlane)
         {
-            if (clipByHalfSpace(poly, plic, nc)) wasCut = true;
-            if (poly.n < 3) continue;
+            if (clip(plic, nc)) wasCut = true;
+            if (cur->n < 3) continue;
         }
+        const clipPolygon& poly = *cur;
         const vector a = poly.areaVector();
         if (mag(a) <= areaTol) continue;
 
@@ -530,43 +621,58 @@ inline vector sweptPieceArea
     if (aCell) *aCell = Zero;
     if (coplanarHit) *coplanarHit = false;
     const bool tie = (magSqr(nRef) > 0);
+    clipPolygon bufA, bufB;
+    FixedList<scalar, 16> s;
     forAll(T, k)
     {
-        clipPolygon poly;
-        poly.setTriangle(T[k][0], T[k][1], T[k][2]);
+        clipPolygon* cur = &bufA;
+        clipPolygon* nxt = &bufB;
+        cur->setTriangle(T[k][0], T[k][1], T[k][2]);
+        // the longest edge of the triangle: the bound of the size L of every
+        // polygon the clips leave (2026-11-04)
+        const scalar Le =
+            max(mag(T[k][1] - T[k][0]), max(mag(T[k][2] - T[k][1]), mag(T[k][0] - T[k][2])));
+        bool anyIn, anyOut; scalar sMaxAbs;
         forAll(cellPlanes, i)
         {
             // the coplanar test: every vertex within 1e-10 of the polygon's
-            // size of the plane
-            scalar L = 0, sMax = 0;
-            for (label j = 0; j < poly.n; ++j)
+            // size of the plane; the distances serve the clip below. A
+            // polygon whose largest distance exceeds 1e-10 Le is not
+            // coplanar (its size is at most Le); only the others measure
+            // their size
+            planeDistances(*cur, cellPlanes[i], s, anyIn, anyOut, sMaxAbs);
+            if (cur->n >= 3 && sMaxAbs <= 1e-10*Le)
             {
-                L = max(L, mag(poly.p[j] - poly.p[0]));
-                sMax = max(sMax, mag((poly.p[j] - cellPlanes[i].x0) & cellPlanes[i].n));
-            }
-            if (poly.n >= 3 && L > 0 && sMax <= 1e-10*L)
-            {
-                if (coplanarHit) *coplanarHit = true;
-                if (tie && (cellPlanes[i].n & nRef) <= 0)
+                scalar L = 0;
+                for (label j = 0; j < cur->n; ++j)
                 {
-                    poly.n = 0;     // the part belongs to the cell across
-                    break;
+                    L = max(L, mag(cur->p[j] - cur->p[0]));
                 }
-                continue;           // inside (the donor's side, or no rule)
+                if (L > 0 && sMaxAbs <= 1e-10*L)
+                {
+                    if (coplanarHit) *coplanarHit = true;
+                    if (tie && (cellPlanes[i].n & nRef) <= 0)
+                    {
+                        cur->n = 0;     // the part belongs to the cell across
+                        break;
+                    }
+                    continue;           // inside (the donor's side, or no rule)
+                }
             }
-            clipByHalfSpace(poly, cellPlanes[i]);
-            if (poly.n < 3) break;
+            if (clipWith(*cur, s, anyIn, anyOut, *nxt, -1)) Swap(cur, nxt);
+            if (cur->n < 3) break;
         }
-        if (poly.n < 3) continue;
-        const vector ac = poly.areaVector();
+        if (cur->n < 3) continue;
+        const vector ac = cur->areaVector();
         coverage += mag(ac);
         if (aCell) *aCell += ac;
         if (wetPlane)
         {
-            clipByHalfSpace(poly, plic);
-            if (poly.n < 3) continue;
+            planeDistances(*cur, plic, s, anyIn, anyOut, sMaxAbs);
+            if (clipWith(*cur, s, anyIn, anyOut, *nxt, -1)) Swap(cur, nxt);
+            if (cur->n < 3) continue;
         }
-        a += poly.areaVector();
+        a += cur->areaVector();
     }
     return a;
 }

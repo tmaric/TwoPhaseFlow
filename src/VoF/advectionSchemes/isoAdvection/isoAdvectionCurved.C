@@ -1155,6 +1155,22 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
         consResidueStep_.setSize(mesh_.nCells());
         consResidueStep_ = 0;
     }
+    // the cell bounding boxes of the ring search (sweptFaceCellsFlux),
+    // once per step and only when the mesh changed (2026-11-04)
+    if
+    (
+        fluxIntegration_ == "sweptFaceCells"
+     && (cellBoxes_.size() != mesh_.nCells() || mesh_.moving())
+    )
+    {
+        const pointField& Pm = mesh_.points();
+        const labelListList& cellPts = mesh_.cellPoints();
+        cellBoxes_.setSize(mesh_.nCells());
+        forAll(cellBoxes_, c)
+        {
+            cellBoxes_[c] = boundBox(Pm, cellPts[c], false);
+        }
+    }
     const auto tCurved0 = std::chrono::steady_clock::now();
     if (sweptClassify_)
     {

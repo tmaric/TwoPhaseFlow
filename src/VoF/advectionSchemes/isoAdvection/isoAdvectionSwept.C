@@ -706,10 +706,11 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     }
     sweptBox.inflate(1e-9);
     const pointField& P = mesh_.points();
+    // the cell's box from the per-step cache (curvedFlux, 2026-11-04; the
+    // same boundBox(points, cellPoints) as built here per face before)
     auto touches = [&](const label c) -> bool
     {
-        boundBox cellBox(P, cellPoints[c], false);
-        return cellBox.overlaps(sweptBox);
+        return cellBoxes_[c].overlaps(sweptBox);
     };
     DynamicList<label> ring(32);
     ring.append(donor);

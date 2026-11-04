@@ -76,6 +76,7 @@ SourceFiles
 #include "OFstream.H"
 #include "bitSet.H"
 #include "zeroField.H"
+#include "boundBox.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -514,6 +515,12 @@ class isoAdvection
             //  without a clip. The faces by path in the step, and the faces
             //  the wisp tolerance (1e-8) would take in addition.
             bool sweptStateShortcut_;
+
+            //- sweptFaceCells: the bounding boxes of the cells for the ring
+            //  search of a face (2026-11-04), built once per step in
+            //  curvedFlux (per face before: 26 boxes per face, hotspot 9 of
+            //  the profile of 2026-11-04)
+            List<boundBox> cellBoxes_;
             label nSweptShortFull_;
             label nSweptShortEmpty_;
             label nSweptShortPieces_;
