@@ -509,6 +509,40 @@ class isoAdvection
             label nSweptHybridSaddle_;
             label nSweptClips_;
 
+            //- sweptClip jointGuarded | jointConfig (2026-11-05, Tomislav's
+            //  recognition rule): the joint clip over the planes of the
+            //  touched cells WITH a surface (a wisp's constructed plane is
+            //  left out: positioned from a tiny volume it is not accurate
+            //  when extended, the plane gate showed), with the overdraw
+            //  through the cells without a plane recognised per face. No
+            //  touched full or empty cell (alpha within 1e-8 of 1 or 0, no
+            //  surface): the joint minimum is exact for the states, no
+            //  test. Otherwise jointGuarded tests the removed parts of every
+            //  clip against the full cells' boxes and the kept parts against
+            //  the empty cells' (davof::jointGuardViolated), jointConfig
+            //  falls back whenever the touched set holds such a cell AND two
+            //  or more interface cells (the only configuration in which an
+            //  extended plane can act inside it). A hit, a saddle or a
+            //  failed cap system takes the hybrid path for that face (the
+            //  donor by its own plane, the outside by the pieces with the
+            //  states). The counters of the step: the faces without a test,
+            //  tested, by the joint after the test, by the hybrid on a hit,
+            //  on a saddle, on the caps; the faces without a plane (pieces)
+            label nSweptGuardNoTest_;
+            label nSweptGuardTested_;
+            label nSweptGuardJoint_;
+            label nSweptGuardHit_;
+            label nSweptGuardSaddle_;
+            label nSweptGuardCaps_;
+            label nSweptGuardNoPlane_;
+
+            //- The per-donor check of the fluxes before the bounding (key
+            //  sweptDonorCheck, default false, 2026-11-05): per cell the
+            //  outgoing liquid of its faces against alpha_c V_c (an
+            //  overdrawn donor) and, for a full cell, the inflow against the
+            //  outflow (a gain turns into an excess); printed every step
+            bool sweptDonorCheck_;
+
             //- sweptFaceCells, the axis-aligned clip (key sweptHexClip,
             //  default false, 2026-11-05): on a mesh whose every face area
             //  vector has exactly two zero components (checked once, all

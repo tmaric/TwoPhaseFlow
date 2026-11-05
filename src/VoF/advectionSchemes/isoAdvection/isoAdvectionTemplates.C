@@ -154,6 +154,49 @@ void Foam::advection::isoAdvection::limitFluxes
     }
     label nBoundPasses = 0;
 
+    // The per-donor check (sweptDonorCheck, 2026-11-05): per cell the
+    // outgoing liquid of its faces against alpha_c V_c of the old state,
+    // and for a full cell (alpha within 1e-8 of 1) the inflow against the
+    // outflow; a gain of a full cell is an excess before the bounding
+    if (sweptDonorCheck_)
+    {
+        const scalarField& a0 = alpha1_.oldTime().primitiveField();
+        const scalarField& V = mesh_.V();
+        scalarField outL(mesh_.nCells(), 0), inL(mesh_.nCells(), 0);
+        const scalarField& dIn = dVf_.primitiveField();
+        forAll(dIn, f)
+        {
+            const scalar d = dIn[f];
+            if (d > 0) { outL[owner[f]] += d; inL[neighbour[f]] += d; }
+            else { outL[neighbour[f]] -= d; inL[owner[f]] -= d; }
+        }
+        forAll(dVf_.boundaryField(), patchi)
+        {
+            const fvsPatchScalarField& pd = dVf_.boundaryField()[patchi];
+            const labelUList& fc = pd.patch().faceCells();
+            forAll(pd, i)
+            {
+                if (pd[i] > 0) outL[fc[i]] += pd[i]; else inL[fc[i]] -= pd[i];
+            }
+        }
+        label nOver = 0, nGain = 0;
+        scalar overMax = 0, gainMax = 0;
+        forAll(outL, c)
+        {
+            const scalar ex = (outL[c] - a0[c]*V[c])/V[c];
+            if (ex > 1e-12) { ++nOver; overMax = max(overMax, ex); }
+            if (a0[c] >= 1 - 1e-8)
+            {
+                const scalar g = (inL[c] - outL[c])/V[c];
+                if (g > 1e-12) { ++nGain; gainMax = max(gainMax, g); }
+            }
+        }
+        reduce(nOver, sumOp<label>()); reduce(nGain, sumOp<label>());
+        reduce(overMax, maxOp<scalar>()); reduce(gainMax, maxOp<scalar>());
+        Info<< "isoAdvection: donor check: overdrawn donors " << nOver << " (max " << overMax
+            << " V), full cells gaining " << nGain << " (max " << gainMax << " V)" << endl;
+    }
+
     surfaceScalarField dVfcorrectionValues("dVfcorrectionValues", dVf_*0.0);
 
     bitSet needBounding(mesh_.nCells(),false);

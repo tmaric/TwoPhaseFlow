@@ -1143,6 +1143,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptTraceHits_ = nSweptTraceMisses_ = 0;
     nSweptJointFaces_ = nSweptJointMax_ = nSweptJointSaddle_ = nSweptJointCaps_ = nSweptJointNoPlane_ = 0;
     nSweptHybridInside_ = nSweptHybridFaces_ = nSweptHybridFallback_ = nSweptHybridMax_ = nSweptHybridSaddle_ = 0;
+    nSweptGuardNoTest_ = nSweptGuardTested_ = nSweptGuardJoint_ = nSweptGuardHit_ = 0;
+    nSweptGuardSaddle_ = nSweptGuardCaps_ = nSweptGuardNoPlane_ = 0;
     davof::clipCount() = 0;
     nSweptClips_ = 0;
     if (sweptTraceCache_ && fluxIntegration_ == "sweptFaceCells")
@@ -2473,6 +2475,22 @@ void Foam::advection::isoAdvection::reportCurved() const
             Info<< "; hybrid clip: faces inside the donor " << nI << ", hybrid " << nH
                 << " (with the maximum " << nX << ", a saddle piece by its own plane " << nS
                 << "), fallbacks to the pieces " << nF;
+        }
+        else if (sweptClip_ == "jointGuarded" || sweptClip_ == "jointConfig")
+        {
+            label nN = nSweptGuardNoTest_, nT = nSweptGuardTested_, nJ = nSweptGuardJoint_, nG = nSweptGuardHit_;
+            label nS = nSweptGuardSaddle_, nC = nSweptGuardCaps_, nP = nSweptGuardNoPlane_;
+            label nI = nSweptHybridInside_, nH = nSweptHybridFaces_, nF = nSweptHybridFallback_;
+            if (Pstream::parRun())
+            {
+                reduce(nN, sumOp<label>()); reduce(nT, sumOp<label>()); reduce(nJ, sumOp<label>()); reduce(nG, sumOp<label>());
+                reduce(nS, sumOp<label>()); reduce(nC, sumOp<label>()); reduce(nP, sumOp<label>());
+                reduce(nI, sumOp<label>()); reduce(nH, sumOp<label>()); reduce(nF, sumOp<label>());
+            }
+            Info<< "; guarded clip: faces without a test " << nN << ", tested " << nT
+                << ", joint " << nJ << ", hybrid on a hit " << nG << ", on a saddle " << nS
+                << ", on the caps " << nC << ", pieces on no plane " << nP
+                << " (hybrid faces inside the donor " << nI << ", hybrid " << nH << ", pieces " << nF << ")";
         }
         {
             label nCl = davof::clipCount();

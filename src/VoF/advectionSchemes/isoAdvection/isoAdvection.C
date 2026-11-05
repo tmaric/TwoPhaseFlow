@@ -205,6 +205,14 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptHybridMax_(0),
     nSweptHybridSaddle_(0),
     nSweptClips_(0),
+    nSweptGuardNoTest_(0),
+    nSweptGuardTested_(0),
+    nSweptGuardJoint_(0),
+    nSweptGuardHit_(0),
+    nSweptGuardSaddle_(0),
+    nSweptGuardCaps_(0),
+    nSweptGuardNoPlane_(0),
+    sweptDonorCheck_(modelDict().getOrDefault<bool>("sweptDonorCheck", false)),
     sweptHexClip_(modelDict().getOrDefault<bool>("sweptHexClip", false)),
     sweptMeshHex_(-1),
     sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
@@ -565,11 +573,15 @@ Foam::advection::isoAdvection::isoAdvection
                             << "' unknown. Valid: none, strict, touching."
                             << exit(FatalIOError);
                     }
-                    if (sweptClip_ != "pieces" && sweptClip_ != "joint" && sweptClip_ != "hybrid")
+                    if
+                    (
+                        sweptClip_ != "pieces" && sweptClip_ != "joint" && sweptClip_ != "hybrid"
+                     && sweptClip_ != "jointGuarded" && sweptClip_ != "jointConfig"
+                    )
                     {
                         FatalIOErrorInFunction(modelDict())
                             << "sweptClip '" << sweptClip_
-                            << "' unknown. Valid: pieces, joint, hybrid."
+                            << "' unknown. Valid: pieces, joint, hybrid, jointGuarded, jointConfig."
                             << exit(FatalIOError);
                     }
                     Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
@@ -579,7 +591,8 @@ Foam::advection::isoAdvection::isoAdvection
                         << ", sweptStateShortcut " << sweptStateShortcut_
                         << ", sweptTraceCache " << sweptTraceCache_
                         << ", sweptClip " << sweptClip_
-                        << ", sweptHexClip " << sweptHexClip_;
+                        << ", sweptHexClip " << sweptHexClip_
+                        << ", sweptDonorCheck " << sweptDonorCheck_;
                     if (sweptPreTestCheck_) Info<< ", sweptPreTestCheck true";
                     // the wisp rule (2026-11-02), printed only when not none
                     if (sweptWispSurface_ != "none")

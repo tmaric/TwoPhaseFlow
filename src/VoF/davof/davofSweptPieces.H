@@ -116,6 +116,7 @@ SourceFiles
 #include "vector.H"
 #include "FixedList.H"
 #include "List.H"
+#include "boundBox.H"
 
 namespace Foam
 {
@@ -288,6 +289,81 @@ inline bool clipByHalfSpace
     if (!clipWith(poly, s, anyIn, anyOut, out, id)) return false;
     poly = out;
     return true;
+}
+
+
+//- The guard of the joint clip (sweptClip jointGuarded, 2026-11-05;
+//  Tomislav's recognition rule): the joint minimum over the planes P is
+//  wrong exactly where a part REMOVED by a plane lies inside a touched full
+//  cell, or a part KEPT lies inside a touched empty cell. The boundary
+//  triangles of the swept volume are clipped by the planes in turn as the
+//  joint clip does, and after every clip the removed polygon (the other
+//  side of the same Sutherland-Hodgman pass, with the distances negated) is
+//  tested with its vertices and its centroid against the bounding boxes
+//  boxRemoved (strictly inside by tol), the final kept polygon against
+//  boxKept. Returns true at the first hit (the caller falls back to the
+//  exact path for this face). For the maximum (a concave body) the caller
+//  passes the complement planes and swaps the box lists. The clips are
+//  counted with the others.
+inline bool jointGuardViolated
+(
+    const UList<FixedList<point, 3>>& T,
+    const UList<halfSpace>& P,
+    const UList<boundBox>& boxRemoved,
+    const UList<boundBox>& boxKept,
+    const scalar tol
+)
+{
+    auto inside = [&](const point& p, const boundBox& b) -> bool
+    {
+        return p.x() > b.min().x() + tol && p.x() < b.max().x() - tol
+            && p.y() > b.min().y() + tol && p.y() < b.max().y() - tol
+            && p.z() > b.min().z() + tol && p.z() < b.max().z() - tol;
+    };
+    auto hit = [&](const clipPolygon& poly, const UList<boundBox>& boxes) -> bool
+    {
+        if (poly.n < 3 || boxes.empty()) return false;
+        point c(Zero);
+        for (label i = 0; i < poly.n; ++i) c += poly.p[i];
+        c /= poly.n;
+        for (const boundBox& b : boxes)
+        {
+            if (inside(c, b)) return true;
+            for (label i = 0; i < poly.n; ++i)
+            {
+                if (inside(poly.p[i], b)) return true;
+            }
+        }
+        return false;
+    };
+    clipPolygon bufA, bufB, rem;
+    FixedList<scalar, 16> s, sNeg;
+    forAll(T, k)
+    {
+        clipPolygon* cur = &bufA;
+        clipPolygon* nxt = &bufB;
+        cur->setTriangle(T[k][0], T[k][1], T[k][2]);
+        forAll(P, i)
+        {
+            bool anyIn, anyOut; scalar sMaxAbs;
+            planeDistances(*cur, P[i], s, anyIn, anyOut, sMaxAbs);
+            if (!anyOut) continue;                       // wholly kept by this plane
+            if (!anyIn)
+            {
+                // wholly removed by this plane
+                if (hit(*cur, boxRemoved)) return true;
+                cur->n = 0;
+                break;
+            }
+            for (label j = 0; j < cur->n; ++j) sNeg[j] = -s[j];
+            clipWith(*cur, sNeg, anyOut, anyIn, rem, -1);   // the removed side
+            if (hit(rem, boxRemoved)) return true;
+            if (clipWith(*cur, s, anyIn, anyOut, *nxt, i)) Swap(cur, nxt);
+            if (cur->n < 3) break;
+        }
+        if (cur->n >= 3 && hit(*cur, boxKept)) return true;
+    }
+    return false;
 }
 
 

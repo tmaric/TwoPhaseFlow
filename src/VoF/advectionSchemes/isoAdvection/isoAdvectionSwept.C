@@ -1184,12 +1184,30 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // inside the piece: no overdraw beyond the pieces' by construction. A
     // saddle keeps the own plane in that piece. The face update takes the
     // same clips of the pre-image fan.
+    // jointGuarded | jointConfig (2026-11-05, Tomislav's recognition rule):
+    // the joint clip over the planes of the touched cells WITH a surface
+    // only (a wisp's constructed plane, positioned from a tiny volume, is
+    // not accurate when extended: the pure joint failed the plane gate
+    // through them); the overdraw through the cells without a plane is
+    // recognised per face. No touched full or empty cell (alpha within
+    // 1e-8 of 1 or 0, no surface): nothing to violate, no test. Otherwise
+    // jointGuarded clips the boundary triangles by the planes in turn and
+    // tests every removed part against the full cells' boxes and the final
+    // kept part against the empty cells' (davof::jointGuardViolated; the
+    // maximum with the complements and the boxes swapped); jointConfig
+    // skips the test and falls back whenever such a cell is touched
+    // together with two or more interface cells. A hit, a saddle or a
+    // failed cap system takes the hybrid path for the face (bounded by
+    // construction, the same value for both cells of the face).
     const bool jointClip = (sweptClip_ == "joint"), hybridClip = (sweptClip_ == "hybrid");
+    const bool guardClip = (sweptClip_ == "jointGuarded"), configClip = (sweptClip_ == "jointConfig");
     bool jointDone = false;
-    if ((jointClip || hybridClip) && !shortcut && !check)
+    if ((jointClip || hybridClip || guardClip || configClip) && !shortcut && !check)
     {
-        DynamicList<davof::halfSpace> Pj(8), Pc(8);
+        DynamicList<davof::halfSpace> Pj(8), Pc(8), Ps(8), Psc(8);
+        DynamicList<boundBox> fullB(8), emptyB(8);
         bool donorOnly = true, anyRemote = false;
+        label nInt = 0;
         const ringState* stDonor = nullptr;
         for (const ringState& st : states)
         {
@@ -1201,24 +1219,36 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 Pj.append(st.plic);
                 davof::halfSpace cpl = st.plic; cpl.n = -st.plic.n; Pc.append(cpl);
             }
+            if (st.hasS)
+            {
+                ++nInt;
+                Ps.append(st.plic);
+                davof::halfSpace cpl = st.plic; cpl.n = -st.plic.n; Psc.append(cpl);
+            }
+            else if (guardClip || configClip)
+            {
+                if (st.a0c >= 1 - 1e-8) fullB.append(st.rc ? boundBox(st.rc->bbMin, st.rc->bbMax) : cellBoxes_[st.c]);
+                else if (st.a0c <= 1e-8) emptyB.append(st.rc ? boundBox(st.rc->bbMin, st.rc->bbMax) : cellBoxes_[st.c]);
+            }
         }
         const label k = Pj.size();
-        // the opening of the plane pairs: 1 convex (the minimum), -1
-        // concave (the maximum), 0 mixed (a saddle); one plane: convex
-        label sgn = 1;
+        // the opening of the plane pairs of a set: 1 convex (the minimum),
+        // -1 concave (the maximum), 0 mixed (a saddle); one plane: convex
+        auto openingOf = [&](const UList<davof::halfSpace>& Q) -> label
         {
             label pos = 0, neg = 0;
             const scalar tol = 1e-12*h*h;
-            for (label i = 0; i < k; ++i)
+            forAll(Q, i)
             {
-                for (label j = i + 1; j < k; ++j)
+                for (label j = i + 1; j < Q.size(); ++j)
                 {
-                    const scalar s = (Pj[j].n - Pj[i].n) & (Pj[j].x0 - Pj[i].x0);
+                    const scalar s = (Q[j].n - Q[i].n) & (Q[j].x0 - Q[i].x0);
                     if (s > tol) ++pos; else if (s < -tol) ++neg;
                 }
             }
-            sgn = (pos && neg) ? 0 : ((neg && !pos) ? -1 : 1);
-        }
+            return (pos && neg) ? 0 : ((neg && !pos) ? -1 : 1);
+        };
+        const label sgn = openingOf(Pj);
         davof::halfSpace none; none.n = Zero; none.x0 = Zero;
         const List<davof::halfSpace> noPlanes;
         // the list and the pre-image fan clipped by the planes pl (as the
@@ -1240,71 +1270,53 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             scalar cov = 0;
             aw = davof::sweptPieceArea(Tpre, pl, wp, pc, cov, nRef);
         };
-        if (jointClip)
+        // the joint clip of the whole list by the planes Q (the opening sg):
+        // the volume and the wetted pre-image area, false where the cap
+        // system failed or the list is degenerate (the caller counts)
+        auto jointFace = [&](const UList<davof::halfSpace>& Q, const UList<davof::halfSpace>& Qc, const label sg, scalar& V, vector& aw) -> bool
         {
-            if (k == 0) ++nSweptJointNoPlane_;
-            else if (sgn == 0) ++nSweptJointSaddle_;
-            else
+            bool ok, deg;
+            if (sg > 0)
             {
-                scalar V; vector aw; bool ok, deg;
-                if (sgn > 0)
-                {
-                    clipBy(Pj, false, none, V, aw, ok, deg);
-                }
-                else
-                {
-                    scalar Vd; vector ad;
-                    clipBy(Pc, false, none, Vd, ad, ok, deg);
-                    V = vTotal - Vd; aw = aPreFull - ad;
-                }
-                if (ok && !deg)
-                {
-                    jointDone = true;
-                    ++nSweptJointFaces_;
-                    if (sgn < 0) ++nSweptJointMax_;
-                    if (anyRemote) sweptFaceRemote_ = true;
-                    threeV = 3*V; aPreWet = aw;
-                    coverage = sumMagT; coveragePre = sumMagPre;
-                }
-                else
-                {
-                    ++nSweptJointCaps_;
-                }
-            }
-        }
-        else if (donorOnly && stDonor)
-        {
-            // hybrid, the swept volume inside the donor: the donor's plane
-            // alone, or the donor's state (sweptConsistent: alpha V_f)
-            scalar V = 0; vector aw(Zero); bool ok = true, deg = false;
-            if (stDonor->wetPlane)
-            {
-                clipBy(noPlanes, true, stDonor->plic, V, aw, ok, deg);
+                clipBy(Q, false, none, V, aw, ok, deg);
             }
             else
             {
-                const scalar w = consRule ? stDonor->a0c : (stDonor->wet ? scalar(1) : scalar(0));
-                V = w*vTotal; aw = w*aPreFull;
+                scalar Vd; vector ad;
+                clipBy(Qc, false, none, Vd, ad, ok, deg);
+                V = vTotal - Vd; aw = aPreFull - ad;
             }
-            if (ok && !deg)
+            return ok && !deg;
+        };
+        // the hybrid path of the face: inside the donor the donor's plane
+        // alone; otherwise the pieces of the touched cells, the interface
+        // pieces outside the donor by the joint planes; false where a piece's
+        // cap system failed (the caller falls back to the pieces)
+        auto hybridFace = [&]() -> bool
+        {
+            if (donorOnly && stDonor)
             {
-                jointDone = true;
+                // the swept volume inside the donor: the donor's plane
+                // alone, or the donor's state (sweptConsistent: alpha V_f)
+                scalar V = 0; vector aw(Zero); bool ok = true, deg = false;
+                if (stDonor->wetPlane)
+                {
+                    clipBy(noPlanes, true, stDonor->plic, V, aw, ok, deg);
+                }
+                else
+                {
+                    const scalar w = consRule ? stDonor->a0c : (stDonor->wet ? scalar(1) : scalar(0));
+                    V = w*vTotal; aw = w*aPreFull;
+                }
+                if (!(ok && !deg)) { ++nSweptHybridFallback_; return false; }
                 ++nSweptHybridInside_;
                 threeV = 3*V; aPreWet = aw;
                 coverage = sumMagT; coveragePre = sumMagPre;
+                if (anyRemote) sweptFaceRemote_ = true;
+                return true;
             }
-            else
-            {
-                ++nSweptHybridFallback_;
-            }
-        }
-        else
-        {
-            // hybrid, the swept volume leaving the donor: the pieces of the
-            // touched cells, the interface pieces outside the donor by the
-            // joint planes
             scalar threeVh = 0; vector awh(Zero);
-            bool okAll = true, usedMax = false, usedSaddle = false;
+            bool usedMax = false, usedSaddle = false;
             List<davof::halfSpace> pl;
             for (const ringState& st : states)
             {
@@ -1346,24 +1358,104 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                     clipBy(cp, false, none, V, aw, ok, deg);
                     V *= w; aw *= w;
                 }
-                if (!ok) { okAll = false; break; }
+                if (!ok) { ++nSweptHybridFallback_; return false; }
                 // a degenerate piece (a zero-thickness slab): no volume, as
                 // the pieces; its area part stays
                 threeVh += 3*V; awh += aw;
             }
-            if (okAll)
+            ++nSweptHybridFaces_;
+            if (usedMax) ++nSweptHybridMax_;
+            if (usedSaddle) ++nSweptHybridSaddle_;
+            if (anyRemote) sweptFaceRemote_ = true;
+            threeV = threeVh; aPreWet = awh;
+            coverage = sumMagT; coveragePre = sumMagPre;
+            return true;
+        };
+
+        if (jointClip)
+        {
+            if (k == 0) ++nSweptJointNoPlane_;
+            else if (sgn == 0) ++nSweptJointSaddle_;
+            else
             {
-                jointDone = true;
-                ++nSweptHybridFaces_;
-                if (usedMax) ++nSweptHybridMax_;
-                if (usedSaddle) ++nSweptHybridSaddle_;
-                if (anyRemote) sweptFaceRemote_ = true;
-                threeV = threeVh; aPreWet = awh;
-                coverage = sumMagT; coveragePre = sumMagPre;
+                scalar V; vector aw;
+                if (jointFace(Pj, Pc, sgn, V, aw))
+                {
+                    jointDone = true;
+                    ++nSweptJointFaces_;
+                    if (sgn < 0) ++nSweptJointMax_;
+                    if (anyRemote) sweptFaceRemote_ = true;
+                    threeV = 3*V; aPreWet = aw;
+                    coverage = sumMagT; coveragePre = sumMagPre;
+                }
+                else
+                {
+                    ++nSweptJointCaps_;
+                }
+            }
+        }
+        else if (hybridClip)
+        {
+            jointDone = hybridFace();
+        }
+        else
+        {
+            // jointGuarded | jointConfig over the planes of the cells with a
+            // surface
+            const label ks = Ps.size();
+            if (ks == 0)
+            {
+                ++nSweptGuardNoPlane_;
             }
             else
             {
-                ++nSweptHybridFallback_;
+                const label sg = openingOf(Ps);
+                bool toHybrid = false;
+                if (sg == 0)
+                {
+                    ++nSweptGuardSaddle_; toHybrid = true;
+                }
+                else if (fullB.empty() && emptyB.empty())
+                {
+                    ++nSweptGuardNoTest_;
+                }
+                else
+                {
+                    ++nSweptGuardTested_;
+                    bool viol;
+                    if (configClip)
+                    {
+                        viol = (nInt >= 2);
+                    }
+                    else
+                    {
+                        viol = davof::jointGuardViolated
+                        (
+                            T, (sg > 0) ? Ps : Psc,
+                            (sg > 0) ? fullB : emptyB, (sg > 0) ? emptyB : fullB,
+                            1e-10*h
+                        );
+                    }
+                    if (viol) { ++nSweptGuardHit_; toHybrid = true; }
+                }
+                if (!toHybrid)
+                {
+                    scalar V; vector aw;
+                    if (jointFace(Ps, Psc, sg, V, aw))
+                    {
+                        jointDone = true;
+                        ++nSweptGuardJoint_;
+                        if (sg < 0) ++nSweptJointMax_;
+                        if (anyRemote) sweptFaceRemote_ = true;
+                        threeV = 3*V; aPreWet = aw;
+                        coverage = sumMagT; coveragePre = sumMagPre;
+                    }
+                    else
+                    {
+                        ++nSweptGuardCaps_; toHybrid = true;
+                    }
+                }
+                if (toHybrid) jointDone = hybridFace();
             }
         }
     }
