@@ -616,11 +616,11 @@ class isoAdvection
             bool sweptPreTestCoplanarSide_;
 
             //- Round 4 (2026-11-05), the keys default false:
-            //  sweptNoFluxLayer: a face without a flux whose vertex set lies
-            //  on the donor's side of the face plane skips the ring cells
-            //  across that plane before their planes and states (they add
-            //  nothing: B.3's argument, decided from the face plane's own
-            //  distances); sweptAxisPlanes: the signed distance to an
+            //  sweptNoFluxLayer: a face without a flux skips a ring cell
+            //  across the face plane before its planes and state when the
+            //  cell's own face in that plane separates it (the pre-test's
+            //  test on that one plane, B.3 on: the same decision, the other
+            //  five planes and the state spared); sweptAxisPlanes: the signed distance to an
             //  axis-aligned cell plane is the one coordinate difference
             //  (davofSweptPieces.H halfSpace::dist, bit for bit);
             //  sweptPointVelocityLazy: the point velocity (the

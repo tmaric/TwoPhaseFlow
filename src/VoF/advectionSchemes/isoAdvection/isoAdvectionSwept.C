@@ -915,28 +915,24 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // A face whose pre-image leaves the mesh (the inflow boundary) or the
     // ring fails it and keeps the pieces with their coverage accounting.
     List<bool> coveredV(Vsw.size(), false);
-    // sweptNoFluxLayer (round 4, gain 1): a face without a flux whose vertex
-    // set lies on the donor's side of the face plane (every (v - x_f).nRef
-    // <= 0; the pre-image of such a face lies in the plane or behind it)
-    // skips the ring cells whose centre lies across that plane before their
-    // planes and states: each of them has the face plane among its own
-    // planes with the opposite normal, so every vertex lies at or beyond it
-    // and the cell adds nothing (its coplanar part belongs to the donor's
-    // side, B.3; a part strictly beyond is clipped away); the pre-test's
-    // decision for it uses the same signed distances negated (its own
-    // face plane's centre differs for a cell across an edge or a vertex,
-    // and such a cell adds nothing either way), so the sums are bit for bit
+    // sweptNoFluxLayer (round 4, gain 1): a face without a flux (its
+    // pre-image lies in the face plane or close to it) has ring cells
+    // across that plane; such a cell carries the face plane among its own
+    // planes with the opposite normal, and the pre-test (B.3 on: no
+    // coplanar exception for a plane facing the donor's side) skips it
+    // when that plane alone separates it. That one plane is tested first,
+    // with the cell's own face in the plane (its centre, the pre-test's
+    // arithmetic: the same signed distances, the same rule), before the
+    // cell's planes and state are built: the decision is the pre-test's
+    // own for that plane, and a cell it does not separate goes through the
+    // full pre-test as before, so the sums are bit for bit. The first form
+    // of this skip (c884540) decided from the face plane through x_f and
+    // moved the plane gate's oblique arm by 6e-13 (the distances to a
+    // diagonal cell's own face differ by round-off); this form does not.
     const bool noFluxLayer =
-        sweptNoFluxLayer_ && !sweeps && !sweptPreTestCheck_ && !donorOnly && magSqr(nRef) > 0;
-    bool donorSideAll = false;
-    if (noFluxLayer)
-    {
-        donorSideAll = true;
-        for (const point& v : Vsw)
-        {
-            if (((v - xf) & nRef) > 0) { donorSideAll = false; break; }
-        }
-    }
+        sweptNoFluxLayer_ && !sweeps && !sweptPreTestCheck_ && !donorOnly
+     && sweptPreTestCoplanarSide_ && preTest && magSqr(nRef) > 0;
+    const vector nAcross = -nRef;
     const vectorField& Cc = mesh_.cellCentres();
     const double tPre0 = tick();
     for (const label e : ring)
@@ -948,10 +944,29 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         st.c = st.rc ? st.rc->gid : e;
         const davof::remoteCell* rc = st.rc;
         const label c = st.c;
-        if (noFluxLayer && donorSideAll && !rc && c != donor && (((Cc[c] - xf) & nRef) > 0))
+        if (noFluxLayer && !rc && c != donor && (((Cc[c] - xf) & nRef) > 0))
         {
-            ++nSweptPreSkipped_;
-            continue;
+            // the cell's own face in the face plane (a hexahedral mesh: its
+            // outward normal is exactly -nRef); the pre-test's test on it
+            bool separated = false;
+            for (const label cf : cells[c])
+            {
+                const vector nOut = (own[cf] == c) ? Sf[cf] : -Sf[cf];
+                davof::halfSpace hs;
+                hs.n = nOut/max(mag(nOut), VSMALL);
+                if (hs.n != nAcross) continue;
+                hs.x0 = Cf[cf];
+                if (sweptAxisPlanes_) davof::setAxis(hs);
+                scalar smin = GREAT;
+                for (const point& v : Vsw) smin = min(smin, hs.dist(v));
+                separated = preStrict ? (smin > 1e-10*LmaxT) : (smin >= 0);
+                break;
+            }
+            if (separated)
+            {
+                ++nSweptPreSkipped_;
+                continue;
+            }
         }
         // the cell's half-spaces
         if (rc)
