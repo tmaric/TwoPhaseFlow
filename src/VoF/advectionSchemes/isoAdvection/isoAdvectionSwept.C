@@ -1008,13 +1008,21 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                     {
                         // a pre-image triangle lying in the plane keeps the
                         // face update's coplanar rule: no skip
-                        forAll(Tpre, j)
+                        // sweptPreTestCoplanarSide (B.3): the cell across
+                        // the plane from the donor gets nothing from the
+                        // part (the coplanar rule donorSide), stays skipped
+                        const bool acrossSkip =
+                            sweptPreTestCoplanarSide_ && magSqr(nRef) > 0 && ((hs.n & nRef) <= 0);
+                        if (!acrossSkip)
                         {
-                            const FixedList<point, 3>& t = Tpre[j];
-                            const scalar L = max(mag(t[1] - t[0]), mag(t[2] - t[0]));
-                            scalar sMax = 0;
-                            for (label k = 0; k < 3; ++k) sMax = max(sMax, mag((t[k] - hs.x0) & hs.n));
-                            if (L > 0 && sMax <= 1e-10*L) { separated = false; break; }
+                            forAll(Tpre, j)
+                            {
+                                const FixedList<point, 3>& t = Tpre[j];
+                                const scalar L = max(mag(t[1] - t[0]), mag(t[2] - t[0]));
+                                scalar sMax = 0;
+                                for (label k = 0; k < 3; ++k) sMax = max(sMax, mag((t[k] - hs.x0) & hs.n));
+                                if (L > 0 && sMax <= 1e-10*L) { separated = false; break; }
+                            }
                         }
                     }
                 }
@@ -1093,6 +1101,10 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // the shortcut's (the pieces' values are kept, the counters report)
     const bool check = sweptPreTestCheck_;
     const bool shortcut = shortFull || shortEmpty;
+    // the face update from the volume clip (sweptFaceUpdateFromVolume, B.2):
+    // the sweeping faces, outside the dump, the debug face and the check
+    const bool areaFromVolume =
+        sweptFaceUpdateFromVolume_ && sweeps && !dump && !debugFace && !check;
     const scalar threeVsc = threeV; const vector aPreWetSc = aPreWet;
     if (check && shortcut) { threeV = 0; aPreWet = Zero; coverage = 0; coveragePre = 0; }
     for (const ringState& st : states)
@@ -1154,6 +1166,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         scalar dbgVol = 0, dbgCovV = 0;
         label dbgCaps = -1, dbgContact = 0;
         bool dbgOk = true, dbgDeg = false;
+        vector preAw(Zero); scalar preCov = 0;
         if (sweeps)
         {
             const double tv0 = tick();
@@ -1164,6 +1177,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                     sweptCapSet_ == "crossing"
                 );
             tStatVol += tick() - tv0;
+            // the pre-image's wetted part in the face's orientation (preSign)
+            if (areaFromVolume) { preAw = preSign*r.aPre; preCov = r.covPre; }
             nStatVolClips += r.nClip; nStatTris += r.nTri;
             if (r.coverage > 1e-12*sumMagT) ++nStatPieces;
             dbgVol = r.volume;
@@ -1212,9 +1227,17 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         scalar cov = 0;
         vector ac(Zero);
         bool cop = false;
-        const double ta0 = tick();
-        const vector aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov, nRef, &ac, &cop, stats ? &nStatAreaClips : nullptr);
-        tStatArea += tick() - ta0;
+        vector aw(Zero);
+        if (areaFromVolume)
+        {
+            aw = preAw; cov = preCov;
+        }
+        else
+        {
+            const double ta0 = tick();
+            aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov, nRef, &ac, &cop, stats ? &nStatAreaClips : nullptr);
+            tStatArea += tick() - ta0;
+        }
         coveragePre += cov;
         if (rc && cov > 0) sweptFaceRemote_ = true;
         if (cop) ++nSweptCoplanar_;

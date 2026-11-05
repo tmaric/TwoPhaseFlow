@@ -586,6 +586,32 @@ class isoAdvection
             //  faces taking it per step.
             bool sweptDonorFastPath_;
             label nSweptDonorFast_;
+
+            //- sweptFaceCells, the face update from the volume clip (key
+            //  sweptFaceUpdateFromVolume, default false, 2026-11-05, B.2 of
+            //  profile round 3): the pre-image fan triangles are part of the
+            //  swept volume's closed list, so their wetted parts from the
+            //  volume clip (pieceResult::aPre, the same cell planes and PLIC
+            //  plane) give the wetted area vector of a sweeping face without
+            //  the separate sweptPieceArea clip. Round-off, not bit for bit:
+            //  the triangles enter the clip in the opposite vertex order
+            //  (outward), the crossing points are computed from the other
+            //  end, and the volume clip's remnant filter (1e-14 L^2) applies.
+            //  The faces without a flux, the dump and the debug face keep the
+            //  separate clip, which stays selectable (the key off).
+            bool sweptFaceUpdateFromVolume_;
+
+            //- sweptFaceCells, the pre-test's coplanar exception refined (key
+            //  sweptPreTestCoplanarSide, 2026-11-05, B.3 of profile round 3):
+            //  a ring cell separated from the swept volume by one of its
+            //  planes that holds a pre-image triangle was kept for the face
+            //  update's coplanar rule; with the rule donorSide that part
+            //  belongs to the cell on the donor's side of the plane, so a
+            //  cell across the plane ((n . nRef) <= 0) adds nothing (its
+            //  coplanar part is dropped, a contact is dropped) and is
+            //  skipped: bit for bit. One third of the faces under a rotation
+            //  carry no flux and touched eight cells, four of them across.
+            bool sweptPreTestCoplanarSide_;
             FixedList<label, 4> nClsFaces_;
             FixedList<label, 4> nClsTouched_;
             FixedList<label, 4> nClsPieces_;

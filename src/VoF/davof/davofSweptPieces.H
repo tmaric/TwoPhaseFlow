@@ -284,6 +284,13 @@ struct pieceResult
     label nClip = 0;
     label nTri = 0;
 
+    //- The wetted area vector (in the list's orientation) and the coverage
+    //  of the pre-image fan triangles (every fourth triangle, k % 4 == 1,
+    //  of sweptTriangles' list) after the same clips: the face update from
+    //  the volume clip (sweptFaceUpdateFromVolume, 2026-11-05)
+    vector aPre = Zero;
+    scalar covPre = 0;
+
     //- The boundary triangles dropped as contacts: lying in a cell plane
     //  with Omega_f (the donor) outside the cell (the file header, rule a)
     label nContact = 0;
@@ -374,6 +381,7 @@ inline pieceResult sweptPieceVolume
             }
             if (cur->n < 3) continue;
             r.coverage += mag(cur->areaVector());
+            if (k % 4 == 1) r.covPre += mag(cur->areaVector());
             if (wetPlane)
             {
                 if (clip(plic, -1)) { plicCut = true; wasCut = true; }
@@ -381,6 +389,7 @@ inline pieceResult sweptPieceVolume
             }
             if (wasCut) ++r.nCut;
             const vector a = cur->areaVector();
+            if (k % 4 == 1) r.aPre += a;
             sumA += a;
             sumMag += mag(a);
             moment += (cur->p[0] - xRef) & a;
@@ -469,6 +478,7 @@ inline pieceResult sweptPieceVolume
         const vector ac = cur->areaVector();
         if (mag(ac) <= areaTol) continue;
         r.coverage += mag(ac);
+        if (k % 4 == 1) r.covPre += mag(ac);
         if (wetPlane)
         {
             if (clip(plic, nc)) wasCut = true;
@@ -477,6 +487,7 @@ inline pieceResult sweptPieceVolume
         const clipPolygon& poly = *cur;
         const vector a = poly.areaVector();
         if (mag(a) <= areaTol) continue;
+        if (k % 4 == 1) r.aPre += a;
 
         // rule b: the planes that produced an edge of the final polygon
         for (label j = 0; j < poly.n; ++j)
