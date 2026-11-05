@@ -1217,6 +1217,29 @@ the pyramid are the state of the plane gate and the comparison of 2026-11-03; `c
 line of `isoAdvection` prints every value, `sweptWispTol` and `sweptWispMatchTol` always.
 `sweptStateShortcut` stays `false` (not achieved) and `sweptPreTestCheck` is a debug check.
 
+## The clipping rules of the swept-face flux (branch davof-swept-joint, 2026-11-05)
+
+The study of Tomislav's joint clipping function (leia `docs/davof/davof-swept-joint`,
+`REPORT-swept.md`): the swept volume clipped by the minimum (or maximum) of the PLIC
+planes of the cells it touches, without the split by cell faces. Opt-in keys, all in the
+`alpha.water` dictionary; without them the path is the pieces unchanged.
+
+| key | default | values |
+|---|---|---|
+| `sweptClip` | `pieces` | `joint` (the single clip by the touched interface cells' planes, no cell states), `hybrid` (the donor's piece by its own plane, the outside pieces by the joint minimum with the states), `jointGuarded` (the planes of the cells with a surface, the full / empty cells recognised per face by the removed and kept parts, the hybrid on a hit), `jointConfig` (the hybrid whenever a full or empty cell is touched with two or more interface cells) |
+| `sweptHexClip` | `false` | `true`: on an axis-aligned hexahedral mesh (checked once) a cell-plane clip is one coordinate difference times the normal's component, bit for bit the dot product (verified: identical fields on every case of the study) |
+| `sweptDonorCheck` | `false` | `true`: per step the donors whose outgoing liquid exceeds `alpha V` and the full cells gaining, before the bounding |
+| `sweptJointDumpSteps` | `()` | a list of time indices: the per-face dump of the swept volumes, the ring cells' states, planes and pieces, and the exact-sphere liquid volume (the prototype's data) |
+
+Every step prints the state before the bounding (`isoAdvection: before bounding: min(alpha)
+= ..., max(alpha) = 1 + ..., cells out of [0, 1] by 1e-10: n`), the bounding passes, the
+half-space clips of the step and the faces by path of the selected rule. Measured
+(2026-11-05): no joint variant is bounded before the bounding step on the rotated or
+translated sphere (the liquid of a region depends on the face that sweeps it: a
+per-face plane set is not a single-valued indicator), the pure joint diverges, the hybrid
+is bounded from below only; none is faster per step than the pieces. `sweptHexClip` is
+the one result that stands. The pieces stay the default.
+
 ## How leia finds it
 
 leia's `etc/leia-env.sh` appends `$LEIA_TPF_DIR/platforms/<WM_OPTIONS>/{bin,lib}` after
