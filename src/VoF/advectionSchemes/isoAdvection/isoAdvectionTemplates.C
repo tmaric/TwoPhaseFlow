@@ -135,6 +135,25 @@ void Foam::advection::isoAdvection::limitFluxes
         << "isoAdvection: Before conservative bounding: min(alpha) = "
         << minAlpha << ", max(alpha) = 1 + " << maxAlphaMinus1 << endl;
 
+    // The state before the bounding (2026-11-05, branch davof-swept-joint:
+    // the boundedness of a clipping rule without the bounding step): the
+    // extrema and the cells out of [0, 1] by more than 1e-10, every step;
+    // the passes of the loop below that corrected anything are counted and
+    // printed after it
+    {
+        const scalarField& aIn = alpha1_.primitiveField();
+        label nOut = 0;
+        forAll(aIn, i)
+        {
+            if (aIn[i] < -1e-10 || aIn[i] > 1 + 1e-10) ++nOut;
+        }
+        reduce(nOut, sumOp<label>());
+        Info<< "isoAdvection: before bounding: min(alpha) = " << minAlpha
+            << ", max(alpha) = 1 + " << maxAlphaMinus1
+            << ", cells out of [0, 1] by 1e-10: " << nOut << endl;
+    }
+    label nBoundPasses = 0;
+
     surfaceScalarField dVfcorrectionValues("dVfcorrectionValues", dVf_*0.0);
 
     bitSet needBounding(mesh_.nCells(),false);
@@ -165,6 +184,7 @@ void Foam::advection::isoAdvection::limitFluxes
         if (maxAlphaMinus1 > aTol || minAlpha < -aTol) // Note: tolerances
         {
             DebugInfo << "boundAlpha... " << endl;
+            ++nBoundPasses;
 
             if (extendBounding)
             {
@@ -245,6 +265,7 @@ void Foam::advection::isoAdvection::limitFluxes
     }
 
     alpha1_.correctBoundaryConditions();
+    Info<< "isoAdvection: bounding passes " << nBoundPasses << endl;
 
     if (extendBounding)
     {
