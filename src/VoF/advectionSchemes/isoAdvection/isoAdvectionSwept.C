@@ -749,13 +749,45 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // bounding box meets the swept volume's (a cell that does not touch
     // the swept volume holds no piece; at Co 0.2 the swept volume of a face
     // touches the donor and the cells about the face's edges and vertices)
+    const pointField& P = mesh_.points();
+    const point xf = Cf[facei];
+    // The donor fast path (sweptDonorFastPath, 2026-11-05): the vertex set of
+    // the swept volume (as the pre-test's) tested against the donor's planes
+    // first; strictly inside every one by more than 1e-10 L_max, the face
+    // needs the donor alone (isoAdvection.H)
+    bool donorOnly = false;
+    DynamicList<point> Vsw(2*F + 2);
+    if (sweptDonorFastPath_ || sweptPreTest_ != "none" || sweptStateShortcut_ || sweptPreTestCheck_)
+    {
+        Vsw.append(xf);
+        for (const label pi : mesh_.faces()[facei]) Vsw.append(P[pi]);
+        Vsw.append(xq);
+        forAll(q, i) Vsw.append(q[i]);
+    }
+    if (sweptDonorFastPath_ && !sweptPreTestCheck_ && !sweptStateShortcut_ && !sweptFaceDump_)
+    {
+        donorOnly = true;
+        const scalar margin = 1e-10*LmaxT;
+        const labelList& cf = cells[donor];
+        forAll(cf, j)
+        {
+            const vector nOut = (own[cf[j]] == donor) ? Sf[cf[j]] : -Sf[cf[j]];
+            const vector n = nOut/max(mag(nOut), VSMALL);
+            const point& x0 = Cf[cf[j]];
+            for (const point& v : Vsw)
+            {
+                if (((v - x0) & n) >= -margin) { donorOnly = false; break; }
+            }
+            if (!donorOnly) break;
+        }
+        if (donorOnly) ++nSweptDonorFast_;
+    }
     boundBox sweptBox(T[0][0], T[0][0]);
     forAll(T, k)
     {
         sweptBox.add(T[k][0]); sweptBox.add(T[k][1]); sweptBox.add(T[k][2]);
     }
     sweptBox.inflate(1e-9);
-    const pointField& P = mesh_.points();
     // the cell's box from the per-step cache (curvedFlux, 2026-11-04; the
     // same boundBox(points, cellPoints) as built here per face before)
     auto touches = [&](const label c) -> bool
@@ -764,16 +796,17 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     };
     DynamicList<label> ring(32);
     ring.append(donor);
-    for (const label pi : cellPoints[donor])
+    if (!donorOnly)
     {
-        for (const label c : pointCells[pi])
+        for (const label pi : cellPoints[donor])
         {
-            if (c != donor && !ring.found(c) && touches(c)) ring.append(c);
+            for (const label c : pointCells[pi])
+            {
+                if (c != donor && !ring.found(c) && touches(c)) ring.append(c);
+            }
         }
-    }
-    // in parallel the ring cells of other ranks (sweptExchange), after the
-    // local ones, as -2 - k (k their index in sweptRemote_)
-    {
+        // in parallel the ring cells of other ranks (sweptExchange), after the
+        // local ones, as -2 - k (k their index in sweptRemote_)
         const auto remoteIter = sweptRemoteRing_.cfind(donor);
         if (remoteIter.good())
         {
@@ -784,7 +817,6 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             }
         }
     }
-    const point xf = Cf[facei];
     // the donor's centre: the side of a cell plane on which a boundary
     // triangle lying in that plane bounds the swept volume (the contact
     // rule of sweptPieceVolume, davofSweptPieces.H, 2026-11-02)
@@ -852,16 +884,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // leave zero-area polygons whose round-off area (1e-20 of the face)
     // entered the wetted area vector, so the face fractions move by
     // round-off (verified 2026-11-04 on the 20-step copies). none: no test.
-    const bool preTest = (sweptPreTest_ != "none");
+    const bool preTest = (sweptPreTest_ != "none") && !donorOnly;
     const bool preStrict = (sweptPreTest_ == "strict");
-    DynamicList<point> Vsw(2*F + 2);
-    if (preTest)
-    {
-        Vsw.append(xf);
-        for (const label pi : mesh_.faces()[facei]) Vsw.append(P[pi]);
-        Vsw.append(xq);
-        forAll(q, i) Vsw.append(q[i]);
-    }
     // a ring cell's planes (flat) and state
     struct ringState
     {
@@ -871,16 +895,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     };
     DynamicList<ringState> states(ring.size());
     DynamicList<davof::halfSpace> ringPlanes(6*ring.size());
-    if (preTest || sweptStateShortcut_ || sweptPreTestCheck_)
-    {
-        if (Vsw.empty())
-        {
-            Vsw.append(xf);
-            for (const label pi : mesh_.faces()[facei]) Vsw.append(P[pi]);
-            Vsw.append(xq);
-            forAll(q, i) Vsw.append(q[i]);
-        }
-    }
+
     // the vertices of the swept volume held by a touched ring cell (the
     // coverage condition of the state shortcut, 2026-11-04): with every
     // vertex inside a touched cell the swept volume, within the convex hull
@@ -918,8 +933,9 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 planes[j].x0 = Cf[cf[j]];
             }
         }
-        st.p0 = ringPlanes.size(); st.np = planes.size();
-        for (const davof::halfSpace& hs : planes) ringPlanes.append(hs);
+        // the donor fast path: no cell planes (their clips would be no-ops)
+        st.p0 = ringPlanes.size(); st.np = donorOnly ? 0 : planes.size();
+        if (!donorOnly) for (const davof::halfSpace& hs : planes) ringPlanes.append(hs);
         // the cell's state and plane
         const scalar a0c = rc ? rc->alpha0 : a0[c];
         const bool hasS = rc ? rc->hasSurface : hasSurface_.test(c);

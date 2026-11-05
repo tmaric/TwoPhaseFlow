@@ -218,6 +218,8 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptShortFullTol_(0),
     nSweptShortEmptyTol_(0),
     sweptClassStats_(modelDict().getOrDefault<bool>("sweptClassStats", false)),
+    sweptDonorFastPath_(modelDict().getOrDefault<bool>("sweptDonorFastPath", false)),
+    nSweptDonorFast_(0),
     nClsFaces_(label(0)),
     nClsTouched_(label(0)),
     nClsPieces_(label(0)),
@@ -567,6 +569,7 @@ Foam::advection::isoAdvection::isoAdvection
                         << ", sweptTraceCache " << sweptTraceCache_;
                     if (sweptPreTestCheck_) Info<< ", sweptPreTestCheck true";
                     if (sweptClassStats_) Info<< ", sweptClassStats true";
+                    Info<< ", sweptDonorFastPath " << sweptDonorFastPath_;
                     // the wisp rule (2026-11-02), printed only when not none
                     if (sweptWispSurface_ != "none")
                     {

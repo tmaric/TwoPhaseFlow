@@ -565,6 +565,22 @@ class isoAdvection
             //  (sweptTriangles) and the first pass (cell planes, state, the
             //  pre-test), by steady_clock around the calls; counters only
             bool sweptClassStats_;
+
+            //- sweptFaceCells, the donor fast path (key sweptDonorFastPath,
+            //  2026-11-05, B.1 of profile round 3): a swept volume whose
+            //  vertices (x_f, the face points, the apex, the traced points)
+            //  all lie strictly inside the donor, beyond 1e-10 L_max of every
+            //  donor plane (L_max the longest triangle edge), is clipped by
+            //  the donor's PLIC plane alone, with no ring search, no pre-test
+            //  of the ring and no cell-plane clips: those clips are no-ops
+            //  (a clip changes nothing when no vertex is outside; the
+            //  contact, beyond and coplanar tests need a vertex within
+            //  1e-10 L or 1e-12 L of a plane), so the piece and the pre-image
+            //  part are bit for bit the pieces path's, and every other ring
+            //  cell is separated from the swept volume by the donor's planes
+            //  (the pre-test would skip it). The faces taking it per step.
+            bool sweptDonorFastPath_;
+            label nSweptDonorFast_;
             FixedList<label, 3> nClsFaces_;
             FixedList<label, 3> nClsTouched_;
             FixedList<label, 3> nClsPieces_;

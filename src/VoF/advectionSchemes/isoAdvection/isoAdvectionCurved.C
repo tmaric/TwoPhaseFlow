@@ -1141,6 +1141,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptShortFullTol_ = nSweptShortEmptyTol_ = 0;
     nSweptPreViol_ = nSweptPreSlab_ = nSweptShortViol_ = nSweptShortNotInside_ = 0;
     nSweptTraceHits_ = nSweptTraceMisses_ = 0;
+    nSweptDonorFast_ = 0;
     for (label k = 0; k < 3; ++k)
     {
         nClsFaces_[k] = nClsTouched_[k] = nClsPieces_[k] = nClsVolClips_[k] = nClsAreaClips_[k] = nClsTris_[k] = 0;
@@ -2430,6 +2431,12 @@ void Foam::advection::isoAdvection::reportCurved() const
             label nH = nSweptTraceHits_, nM = nSweptTraceMisses_;
             if (Pstream::parRun()) { reduce(nH, sumOp<label>()); reduce(nM, sumOp<label>()); }
             Info<< "; trace cache: points reused " << nH << ", traced " << nM;
+        }
+        if (sweptDonorFastPath_)
+        {
+            label nDf = nSweptDonorFast_;
+            if (Pstream::parRun()) reduce(nDf, sumOp<label>());
+            Info<< "; donor fast path: faces " << nDf;
         }
         // the per-face-class statistics (sweptClassStats, 2026-11-05): one
         // clause per class, the sums over the ranks; the times are the sums
