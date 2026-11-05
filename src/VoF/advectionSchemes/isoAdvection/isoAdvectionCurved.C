@@ -73,6 +73,7 @@ SourceFiles
 #include "davofCcsPositioning.H"
 #include "interpolationCellPoint.H"
 #include "volPointInterpolation.H"
+#include "davofVelocityAt.H"
 #include "indexedOctree.H"
 #include "treeDataCell.H"
 #include "volFields.H"
@@ -1206,24 +1207,62 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     // calls and cannot be asked again here)
     buildCellSurfaces(mesh_.time().value() - dt);
 
-    interpolationCellPoint<vector> UInterp(U_);
-
     // fluxIntegration sweptFace: the velocity at the mesh points (the
     // volPointInterpolation of U) for the backward trace of the face
-    // vertices (isoAdvectionSwept.C)
+    // vertices (isoAdvectionSwept.C); with sweptPointVelocityLazy the
+    // points evaluated on first use (ensurePointVelocity)
     const bool sweptFlux =
         (fluxIntegration_ == "sweptFace" || fluxIntegration_ == "sweptFaceCells");
     tmp<pointVectorField> tUp;
+    static const vectorField noUp;
+    const vectorField* UpPtr = &noUp;
     if (sweptFlux)
     {
-        tUp = volPointInterpolation::New(mesh_).interpolate(U_);
+        if (sweptPointVelocityLazy_)
+        {
+            upLazy_.setSize(mesh_.nPoints());
+            upDone_.reset(); upDone_.resize(mesh_.nPoints());
+            nUpLazy_ = 0;
+            if (anyPatchPoint_.size() != mesh_.nPoints())
+            {
+                anyPatchPoint_.reset(); anyPatchPoint_.resize(mesh_.nPoints());
+                for (const polyPatch& pp : mesh_.boundaryMesh())
+                {
+                    for (const face& f : pp) for (const label pi : f) anyPatchPoint_.set(pi);
+                }
+            }
+            UpPtr = &upLazy_;
+        }
+        else
+        {
+            tUp = volPointInterpolation::New(mesh_).interpolate(U_);
+            UpPtr = &tUp().primitiveField();
+        }
         // the search structures of the trace's cell lookup (the octree and
         // the tet base points of polyMesh::findCell), built here on every
         // rank: their construction is collective
         (void)mesh_.tetBasePtIs();
         (void)mesh_.cellTree();
     }
-    const pointVectorField* UpPtr = tUp.valid() ? &tUp() : nullptr;
+    // the velocity at a point of a cell: interpolationCellPoint (its own
+    // whole-mesh point interpolation), or the cached tetrahedra with the
+    // point velocities above (sweptTetCache; davofVelocityAt.H)
+    const bool tetCache = sweptTetCache_ && sweptFlux;
+    autoPtr<interpolationCellPoint<vector>> icpPtr;
+    if (!tetCache) icpPtr.reset(new interpolationCellPoint<vector>(U_));
+    if (tetCache && (cellTets_.size() != mesh_.nCells() || mesh_.moving()))
+    {
+        cellTets_.clear(); cellTets_.setSize(mesh_.nCells());
+    }
+    std::function<void(label)> ensureUp;
+    if (sweptPointVelocityLazy_ && sweptFlux)
+    {
+        ensureUp = [this](const label pi) { ensurePointVelocity(pi); };
+    }
+    const davof::velocityAt UInterp
+    (
+        mesh_, U_.primitiveField(), *UpPtr, icpPtr.get(), &cellTets_, ensureUp
+    );
 
     const labelList& own = mesh_.faceOwner();
     const labelList& nei = mesh_.faceNeighbour();
@@ -2636,3 +2675,42 @@ void Foam::advection::isoAdvection::reportCurved() const
 
 
 // ************************************************************************* //
+
+
+// * * * * * * * * * * * * * * * Round 4 (2026-11-05) * * * * * * * * * * * //
+
+void Foam::advection::isoAdvection::ensurePointVelocity(const label pi) const
+{
+    if (upDone_.test(pi)) return;
+    if (anyPatchPoint_.test(pi))
+    {
+        // a point of a patch: the whole-mesh interpolation, computed once
+        // (the boundary points' weights, constraints and synchronisation
+        // of volPointInterpolation), every point then done
+        const tmp<pointVectorField> t = volPointInterpolation::New(mesh_).interpolate(U_);
+        upLazy_ = t().primitiveField();
+        upDone_.set(labelRange(0, mesh_.nPoints()));
+        return;
+    }
+    // an interior point: volPointInterpolation's inverse-distance weights
+    // normalised by their sum, then the weighted cell values, in the
+    // library's order (makeInternalWeights, makeWeights,
+    // interpolateInternalField)
+    const labelList& pc = mesh_.pointCells()[pi];
+    const point& p = mesh_.points()[pi];
+    const vectorField& Cc = mesh_.cellCentres();
+    const vectorField& Uc = U_.primitiveField();
+    upWeights_.setSize(pc.size());
+    scalar sum = 0;
+    forAll(pc, j)
+    {
+        upWeights_[j] = 1.0/mag(p - Cc[pc[j]]);
+        sum += upWeights_[j];
+    }
+    forAll(pc, j) upWeights_[j] /= sum;
+    vector v(Zero);
+    forAll(pc, j) v += upWeights_[j]*Uc[pc[j]];
+    upLazy_[pi] = v;
+    upDone_.set(pi);
+    ++nUpLazy_;
+}

@@ -222,6 +222,16 @@ Foam::advection::isoAdvection::isoAdvection
     nSweptDonorFast_(0),
     sweptFaceUpdateFromVolume_(modelDict().getOrDefault<bool>("sweptFaceUpdateFromVolume", false)),
     sweptPreTestCoplanarSide_(modelDict().getOrDefault<bool>("sweptPreTestCoplanarSide", false)),
+    sweptNoFluxLayer_(modelDict().getOrDefault<bool>("sweptNoFluxLayer", false)),
+    sweptAxisPlanes_(modelDict().getOrDefault<bool>("sweptAxisPlanes", false)),
+    sweptPointVelocityLazy_(modelDict().getOrDefault<bool>("sweptPointVelocityLazy", false)),
+    sweptTetCache_(modelDict().getOrDefault<bool>("sweptTetCache", false)),
+    upLazy_(),
+    upDone_(),
+    anyPatchPoint_(),
+    upWeights_(16),
+    nUpLazy_(0),
+    cellTets_(),
     nClsFaces_(label(0)),
     nClsTouched_(label(0)),
     nClsPieces_(label(0)),
@@ -573,7 +583,11 @@ Foam::advection::isoAdvection::isoAdvection
                     if (sweptClassStats_) Info<< ", sweptClassStats true";
                     Info<< ", sweptDonorFastPath " << sweptDonorFastPath_
                         << ", sweptFaceUpdateFromVolume " << sweptFaceUpdateFromVolume_
-                        << ", sweptPreTestCoplanarSide " << sweptPreTestCoplanarSide_;
+                        << ", sweptPreTestCoplanarSide " << sweptPreTestCoplanarSide_
+                        << ", sweptNoFluxLayer " << sweptNoFluxLayer_
+                        << ", sweptAxisPlanes " << sweptAxisPlanes_
+                        << ", sweptPointVelocityLazy " << sweptPointVelocityLazy_
+                        << ", sweptTetCache " << sweptTetCache_;
                     // the wisp rule (2026-11-02), printed only when not none
                     if (sweptWispSurface_ != "none")
                     {

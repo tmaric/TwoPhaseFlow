@@ -187,6 +187,7 @@ SourceFiles
 #include "isoAdvection.H"
 #include "davofSimplexGeometry.H"
 #include "davofSweptPieces.H"
+#include "davofVelocityAt.H"
 #include "interpolationCellPoint.H"
 #include "pointFields.H"
 #include "FixedList.H"
@@ -277,8 +278,8 @@ void Foam::advection::isoAdvection::sweptTriangles
     const scalar dt,
     const scalar phiF,
     const bool sweeps,
-    const interpolationCellPoint<vector>& UInterp,
-    const pointVectorField& Up,
+    const davof::velocityAt& UInterp,
+    const vectorField& Up,
     List<FixedList<point, 3>>& T,
     pointField& q,
     point& xq,
@@ -293,6 +294,11 @@ void Foam::advection::isoAdvection::sweptTriangles
     const labelListList& pointCells = mesh_.pointCells();
     const label F = f.size();
     const scalar h = Foam::cbrt(mesh_.V()[donor]);
+    // the point velocities of the face's points (sweptPointVelocityLazy)
+    if (sweptPointVelocityLazy_)
+    {
+        for (const label pi : f) ensurePointVelocity(pi);
+    }
 
     // The cell that holds a point of the trajectory: the donor, else the
     // cells sharing a vertex with the donor (a midpoint lies within Co h/2
@@ -573,8 +579,8 @@ void Foam::advection::isoAdvection::sweptFaceFlux
     const scalar dt,
     const scalar phiF,
     const bool sweeps,
-    const interpolationCellPoint<vector>& UInterp,
-    const pointVectorField& Up,
+    const davof::velocityAt& UInterp,
+    const vectorField& Up,
     scalar& af,
     vector& aWet,
     scalar& vLiq,
@@ -664,8 +670,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     const scalar dt,
     const scalar phiF,
     const bool sweeps,
-    const interpolationCellPoint<vector>& UInterp,
-    const pointVectorField& Up,
+    const davof::velocityAt& UInterp,
+    const vectorField& Up,
     scalar& af,
     vector& aWet,
     scalar& vLiq,
@@ -771,11 +777,13 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         forAll(cf, j)
         {
             const vector nOut = (own[cf[j]] == donor) ? Sf[cf[j]] : -Sf[cf[j]];
-            const vector n = nOut/max(mag(nOut), VSMALL);
-            const point& x0 = Cf[cf[j]];
+            davof::halfSpace hs;
+            hs.n = nOut/max(mag(nOut), VSMALL);
+            hs.x0 = Cf[cf[j]];
+            if (sweptAxisPlanes_) davof::setAxis(hs);
             for (const point& v : Vsw)
             {
-                if (((v - x0) & n) > 0) { donorOnly = false; break; }
+                if (hs.dist(v) > 0) { donorOnly = false; break; }
             }
             if (!donorOnly) break;
         }
@@ -906,6 +914,29 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // A face whose pre-image leaves the mesh (the inflow boundary) or the
     // ring fails it and keeps the pieces with their coverage accounting.
     List<bool> coveredV(Vsw.size(), false);
+    // sweptNoFluxLayer (round 4, gain 1): a face without a flux whose vertex
+    // set lies on the donor's side of the face plane (every (v - x_f).nRef
+    // <= 0; the pre-image of such a face lies in the plane or behind it)
+    // skips the ring cells whose centre lies across that plane before their
+    // planes and states: each of them has the face plane among its own
+    // planes with the opposite normal, so every vertex lies at or beyond it
+    // and the cell adds nothing (its coplanar part belongs to the donor's
+    // side, B.3; a part strictly beyond is clipped away); the pre-test's
+    // decision for it uses the same signed distances negated (its own
+    // face plane's centre differs for a cell across an edge or a vertex,
+    // and such a cell adds nothing either way), so the sums are bit for bit
+    const bool noFluxLayer =
+        sweptNoFluxLayer_ && !sweeps && !sweptPreTestCheck_ && !donorOnly && magSqr(nRef) > 0;
+    bool donorSideAll = false;
+    if (noFluxLayer)
+    {
+        donorSideAll = true;
+        for (const point& v : Vsw)
+        {
+            if (((v - xf) & nRef) > 0) { donorSideAll = false; break; }
+        }
+    }
+    const vectorField& Cc = mesh_.cellCentres();
     const double tPre0 = tick();
     for (const label e : ring)
     {
@@ -916,10 +947,16 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         st.c = st.rc ? st.rc->gid : e;
         const davof::remoteCell* rc = st.rc;
         const label c = st.c;
+        if (noFluxLayer && donorSideAll && !rc && c != donor && (((Cc[c] - xf) & nRef) > 0))
+        {
+            ++nSweptPreSkipped_;
+            continue;
+        }
         // the cell's half-spaces
         if (rc)
         {
             davof::remoteCellPlanes(*rc, planes);
+            if (sweptAxisPlanes_) for (davof::halfSpace& hs : planes) davof::setAxis(hs);
         }
         else
         {
@@ -930,6 +967,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 const vector nOut = (own[cf[j]] == c) ? Sf[cf[j]] : -Sf[cf[j]];
                 planes[j].n = nOut/max(mag(nOut), VSMALL);
                 planes[j].x0 = Cf[cf[j]];
+                if (sweptAxisPlanes_) davof::setAxis(planes[j]);
             }
         }
         // the donor fast path: no cell planes (their clips would be no-ops)
@@ -995,7 +1033,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             {
                 const davof::halfSpace& hs = planes[i];
                 scalar smin = GREAT;
-                for (const point& v : Vsw) smin = min(smin, (v - hs.x0) & hs.n);
+                for (const point& v : Vsw) smin = min(smin, hs.dist(v));
                 bool separated;
                 if (preStrict)
                 {
@@ -1020,7 +1058,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                                 const FixedList<point, 3>& t = Tpre[j];
                                 const scalar L = max(mag(t[1] - t[0]), mag(t[2] - t[0]));
                                 scalar sMax = 0;
-                                for (label k = 0; k < 3; ++k) sMax = max(sMax, mag((t[k] - hs.x0) & hs.n));
+                                for (label k = 0; k < 3; ++k) sMax = max(sMax, mag(hs.dist(t[k])));
                                 if (L > 0 && sMax <= 1e-10*L) { separated = false; break; }
                             }
                         }
@@ -1038,7 +1076,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 bool in = true;
                 forAll(planes, i)
                 {
-                    if (((Vsw[vi] - planes[i].x0) & planes[i].n) > 0) { in = false; break; }
+                    if (planes[i].dist(Vsw[vi]) > 0) { in = false; break; }
                 }
                 if (in) coveredV[vi] = true;
             }
@@ -1481,8 +1519,8 @@ void Foam::advection::isoAdvection::writeFaceDump
 void Foam::advection::isoAdvection::sweptConsistencyProbe
 (
     const scalar dt,
-    const interpolationCellPoint<vector>& UInterp,
-    const pointVectorField& Up
+    const davof::velocityAt& UInterp,
+    const vectorField& Up
 )
 {
     // The diagnostic of sweptConsistencyLog (2026-11-02, serial). Every
@@ -1748,7 +1786,7 @@ void Foam::advection::isoAdvection::sweptConsistencyProbe
 void Foam::advection::isoAdvection::packSweptCell
 (
     const label celli,
-    const pointVectorField& Up,
+    const vectorField& Up,
     DynamicList<scalar>& v
 ) const
 {
@@ -1756,6 +1794,10 @@ void Foam::advection::isoAdvection::packSweptCell
     const vectorField& Cf = mesh_.faceCentres();
     const vectorField& Sf = mesh_.faceAreas();
     const labelList& own = mesh_.faceOwner();
+    if (sweptPointVelocityLazy_)
+    {
+        for (const label pi : mesh_.cellPoints()[celli]) ensurePointVelocity(pi);
+    }
     v.clear();
     v.append(1);
     davof::appendVector(mesh_.cellCentres()[celli], v);
@@ -1799,7 +1841,7 @@ void Foam::advection::isoAdvection::packSweptCell
 void Foam::advection::isoAdvection::sweptExchange
 (
     const boolList& donors,
-    const pointVectorField& Up
+    const vectorField& Up
 )
 {
     sweptRemote_.clear();

@@ -122,12 +122,34 @@ namespace Foam
 namespace davof
 {
 
-//- A half-space (x - x0).n <= 0, n a unit vector
+//- A half-space (x - x0).n <= 0, n a unit vector. An axis-aligned plane
+//  (two components of n exactly zero, the third +-1; the faces of a
+//  hexahedral mesh) carries its axis and sign (setAxis, key
+//  sweptAxisPlanes, 2026-11-05): its signed distance is then the one
+//  coordinate difference, sgn (p[a] - x0[a]), which is bit for bit the dot
+//  product (p - x0).n (the two zero products and their sums vanish exactly,
+//  the product by +-1 is exact) at a fifth of the cost
 struct halfSpace
 {
     vector n;
     point x0;
+    label axis = -1;
+    scalar sgn = 1;
+
+    inline scalar dist(const point& p) const
+    {
+        return (axis < 0) ? ((p - x0) & n) : sgn*(p[axis] - x0[axis]);
+    }
 };
+
+//- The axis of an axis-aligned half-space (none otherwise)
+inline void setAxis(halfSpace& hs)
+{
+    hs.axis = -1;
+    if (hs.n.y() == 0 && hs.n.z() == 0 && (hs.n.x() == 1 || hs.n.x() == -1)) { hs.axis = 0; hs.sgn = hs.n.x(); }
+    else if (hs.n.x() == 0 && hs.n.z() == 0 && (hs.n.y() == 1 || hs.n.y() == -1)) { hs.axis = 1; hs.sgn = hs.n.y(); }
+    else if (hs.n.x() == 0 && hs.n.y() == 0 && (hs.n.z() == 1 || hs.n.z() == -1)) { hs.axis = 2; hs.sgn = hs.n.z(); }
+}
 
 //- A polygon of at most 16 vertices (a triangle clipped by up to 13
 //  planes keeps at most 16)
@@ -188,7 +210,7 @@ inline void planeDistances
     anyIn = false; anyOut = false; sMaxAbs = 0;
     for (label i = 0; i < poly.n; ++i)
     {
-        s[i] = (poly.p[i] - hs.x0) & hs.n;
+        s[i] = hs.dist(poly.p[i]);
         if (s[i] <= 0) anyIn = true; else anyOut = true;
         sMaxAbs = max(sMaxAbs, mag(s[i]));
     }
@@ -417,14 +439,13 @@ inline pieceResult sweptPieceVolume
             s3min[i] = GREAT; s3max[i] = -GREAT;
             for (label j = 0; j < 3; ++j)
             {
-                s3[i][j] = (t[j] - cellPlanes[i].x0) & cellPlanes[i].n;
+                s3[i][j] = cellPlanes[i].dist(t[j]);
                 sMax = max(sMax, mag(s3[i][j]));
                 s3min[i] = min(s3min[i], s3[i][j]); s3max[i] = max(s3max[i], s3[i][j]);
             }
             if (sMax <= 1e-10*L)
             {
-                const scalar sSide =
-                    xSide ? ((*xSide - cellPlanes[i].x0) & cellPlanes[i].n) : 0;
+                const scalar sSide = xSide ? cellPlanes[i].dist(*xSide) : 0;
                 const bool outside =
                     (mag(sSide) > 1e-10*L) ? (sSide > 0) : ((aT & cellPlanes[i].n) < 0);
                 if (outside) { contact = true; break; }

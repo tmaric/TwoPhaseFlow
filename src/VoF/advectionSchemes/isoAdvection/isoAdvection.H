@@ -77,6 +77,8 @@ SourceFiles
 #include "bitSet.H"
 #include "zeroField.H"
 #include "boundBox.H"
+#include "triFace.H"
+namespace Foam { namespace davof { class velocityAt; } }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -612,6 +614,35 @@ class isoAdvection
             //  skipped: bit for bit. One third of the faces under a rotation
             //  carry no flux and touched eight cells, four of them across.
             bool sweptPreTestCoplanarSide_;
+
+            //- Round 4 (2026-11-05), the keys default false:
+            //  sweptNoFluxLayer: a face without a flux whose vertex set lies
+            //  on the donor's side of the face plane skips the ring cells
+            //  across that plane before their planes and states (they add
+            //  nothing: B.3's argument, decided from the face plane's own
+            //  distances); sweptAxisPlanes: the signed distance to an
+            //  axis-aligned cell plane is the one coordinate difference
+            //  (davofSweptPieces.H halfSpace::dist, bit for bit);
+            //  sweptPointVelocityLazy: the point velocity (the
+            //  volPointInterpolation of U) evaluated per point on first use,
+            //  the interior points by the library's own inverse-distance
+            //  weights repeated operation by operation, a point of a patch
+            //  by the whole-mesh interpolation computed once (bit for bit);
+            //  sweptTetCache: the trace's velocity lookup on the cell's
+            //  tetrahedra cached per cell (davofVelocityAt.H, bit for bit)
+            bool sweptNoFluxLayer_;
+            bool sweptAxisPlanes_;
+            bool sweptPointVelocityLazy_;
+            bool sweptTetCache_;
+            mutable vectorField upLazy_;
+            mutable bitSet upDone_;
+            mutable bitSet anyPatchPoint_;
+            mutable DynamicList<scalar> upWeights_;
+            mutable label nUpLazy_;
+            mutable List<List<triFace>> cellTets_;
+
+            //- The point velocity of point pi (sweptPointVelocityLazy)
+            void ensurePointVelocity(const label pi) const;
             FixedList<label, 4> nClsFaces_;
             FixedList<label, 4> nClsTouched_;
             FixedList<label, 4> nClsPieces_;
@@ -1157,8 +1188,8 @@ public:
                 const scalar dt,
                 const scalar phiF,
                 const bool sweeps,
-                const interpolationCellPoint<vector>& UInterp,
-                const pointVectorField& Up,
+                const davof::velocityAt& UInterp,
+                const vectorField& Up,
                 scalar& af,
                 vector& aWet,
                 scalar& vLiq,
@@ -1181,8 +1212,8 @@ public:
                 const scalar dt,
                 const scalar phiF,
                 const bool sweeps,
-                const interpolationCellPoint<vector>& UInterp,
-                const pointVectorField& Up,
+                const davof::velocityAt& UInterp,
+                const vectorField& Up,
                 scalar& af,
                 vector& aWet,
                 scalar& vLiq,
@@ -1202,8 +1233,8 @@ public:
                 const scalar dt,
                 const scalar phiF,
                 const bool sweeps,
-                const interpolationCellPoint<vector>& UInterp,
-                const pointVectorField& Up,
+                const davof::velocityAt& UInterp,
+                const vectorField& Up,
                 List<FixedList<point, 3>>& T,
                 pointField& q,
                 point& xq,
@@ -1219,7 +1250,7 @@ public:
             void sweptExchange
             (
                 const boolList& donors,
-                const pointVectorField& Up
+                const vectorField& Up
             );
 
             //- sweptConsistencyLog: the algebraic faces of the step (the
@@ -1229,15 +1260,15 @@ public:
             void sweptConsistencyProbe
             (
                 const scalar dt,
-                const interpolationCellPoint<vector>& UInterp,
-                const pointVectorField& Up
+                const davof::velocityAt& UInterp,
+                const vectorField& Up
             );
 
             //- The packed cell of davofSweptRemote.H (the owner's side)
             void packSweptCell
             (
                 const label celli,
-                const pointVectorField& Up,
+                const vectorField& Up,
                 DynamicList<scalar>& v
             ) const;
 
