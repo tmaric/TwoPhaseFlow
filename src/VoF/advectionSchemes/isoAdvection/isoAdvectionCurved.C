@@ -1233,6 +1233,11 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
                 }
             }
             UpPtr = &upLazy_;
+            // in parallel the whole field up front on every rank: the
+            // interpolation of a patch point is collective (the processor
+            // patches' points are synchronised), and a rank reaching its
+            // first patch point alone would wait for the others
+            if (Pstream::parRun()) ensureAllPointVelocities();
         }
         else
         {
@@ -2692,17 +2697,25 @@ void Foam::advection::isoAdvection::reportCurved() const
 
 // * * * * * * * * * * * * * * * Round 4 (2026-11-05) * * * * * * * * * * * //
 
+void Foam::advection::isoAdvection::ensureAllPointVelocities() const
+{
+    // the whole-mesh interpolation, computed once (the boundary points'
+    // weights, constraints and synchronisation of volPointInterpolation),
+    // every point then done
+    const tmp<pointVectorField> t = volPointInterpolation::New(mesh_).interpolate(U_);
+    upLazy_ = t().primitiveField();
+    upDone_.set(labelRange(0, mesh_.nPoints()));
+}
+
+
 void Foam::advection::isoAdvection::ensurePointVelocity(const label pi) const
 {
     if (upDone_.test(pi)) return;
     if (anyPatchPoint_.test(pi))
     {
-        // a point of a patch: the whole-mesh interpolation, computed once
-        // (the boundary points' weights, constraints and synchronisation
-        // of volPointInterpolation), every point then done
-        const tmp<pointVectorField> t = volPointInterpolation::New(mesh_).interpolate(U_);
-        upLazy_ = t().primitiveField();
-        upDone_.set(labelRange(0, mesh_.nPoints()));
+        // a point of a patch: the whole field (serial; in parallel it was
+        // computed up front in curvedFlux)
+        ensureAllPointVelocities();
         return;
     }
     // an interior point: volPointInterpolation's inverse-distance weights

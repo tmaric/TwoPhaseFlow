@@ -650,6 +650,10 @@ class isoAdvection
 
             //- The point velocity of point pi (sweptPointVelocityLazy)
             void ensurePointVelocity(const label pi) const;
+
+            //- Every point velocity by the whole-mesh interpolation (a patch
+            //  point in serial; every rank up front in parallel: collective)
+            void ensureAllPointVelocities() const;
             FixedList<label, 4> nClsFaces_;
             FixedList<label, 4> nClsTouched_;
             FixedList<label, 4> nClsPieces_;
