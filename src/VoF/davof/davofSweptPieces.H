@@ -628,6 +628,78 @@ inline pieceResult sweptPieceVolume
 }
 
 
+//- The piece of a cell that ONE plane alone cuts, in closed form (round 4,
+//  gain 5, key sweptSliverClosedForm, 2026-11-05): the cell holds no PLIC
+//  plane and every other cell plane has no vertex of the swept volume
+//  outside, so the piece is Omega_f cut by hs. Each triangle's part inside
+//  hs is a triangle, a quadrilateral or nothing (davof::triNegativePolygon,
+//  the one-donor clip's closed form, no polygon clipping), the volume is
+//  (1/3) sum_T (x_T - x0) . a_T about the plane's point x0, where the cap's
+//  moment (x_cap - x0) . a_cap vanishes (the cap lies in the plane): no cap
+//  system. The contact rule and the remnant filter of sweptPieceVolume are
+//  kept (a triangle lying in the plane with xSide outside is dropped, with
+//  xSide inside kept whole; a part below 1e-14 L^2 is dropped). Round-off
+//  against the clip: the parts' area vectors come from the closed form
+//  instead of the clipped polygon, and the moments are taken about x0
+//  instead of the face centre with the cap solved. aPre and covPre as in
+//  sweptPieceVolume (k % 4 == 1). No citation: the identity is the
+//  divergence theorem on the piece's closed boundary.
+inline pieceResult sweptPieceOnePlane
+(
+    const UList<FixedList<point, 3>>& T,
+    const halfSpace& hs,
+    const point* xSide = nullptr
+)
+{
+    pieceResult r;
+    scalar threeV = 0;
+    forAll(T, k)
+    {
+        const FixedList<point, 3>& t = T[k];
+        const scalar L =
+            max(mag(t[1] - t[0]), max(mag(t[2] - t[1]), mag(t[0] - t[2])));
+        if (!(L > 0)) continue;
+        ++r.nTri;
+        const scalar s0 = hs.dist(t[0]), s1 = hs.dist(t[1]), s2 = hs.dist(t[2]);
+        const scalar sMax = max(mag(s0), max(mag(s1), mag(s2)));
+        const vector aFull = 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
+        vector a(Zero);
+        if (sMax <= 1e-10*L)
+        {
+            // rule a: a triangle lying in the plane
+            const scalar sSide = xSide ? hs.dist(*xSide) : 0;
+            const bool outside = (mag(sSide) > 1e-10*L) ? (sSide > 0) : ((aFull & hs.n) < 0);
+            if (outside) { ++r.nContact; continue; }
+            a = aFull;
+        }
+        else if (s0 > 0 && s1 > 0 && s2 > 0)
+        {
+            continue;
+        }
+        else if (s0 <= 0 && s1 <= 0 && s2 <= 0)
+        {
+            a = aFull;
+        }
+        else
+        {
+            point xw;
+            triNegativePolygon(t[0], t[1], t[2], s0, s1, s2, a, xw);
+            ++r.nCut;
+        }
+        ++r.nClip;
+        const scalar areaTol = 1e-14*L*L;
+        if (mag(a) <= areaTol) continue;
+        r.coverage += mag(a);
+        if (k % 4 == 1) { r.covPre += mag(a); r.aPre += a; }
+        // the moment about x0: t[0] lies in the part's plane
+        threeV += (t[0] - hs.x0) & a;
+    }
+    r.volume = threeV/3;
+    r.nCaps = 1;
+    return r;
+}
+
+
 //- The wetted area vector of the pre-image fan triangles T (in the face's
 //  orientation) inside the cell planes, clipped by the PLIC half-space when
 //  wetPlane; coverage as above.

@@ -899,6 +899,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         label c; const davof::remoteCell* rc; scalar a0c; bool hasS, wetPlane, wet, wisp, touched;
         davof::halfSpace plic; label p0, np;
         label sepPlane = -1; scalar sepMin = 0;   // the separating plane of a skipped cell (the check)
+        label nOut = 0, outPlane = -1;            // the planes with a vertex outside (sweptSliverClosedForm)
     };
     DynamicList<ringState> states(ring.size());
     DynamicList<davof::halfSpace> ringPlanes(6*ring.size());
@@ -1032,8 +1033,9 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             forAll(planes, i)
             {
                 const davof::halfSpace& hs = planes[i];
-                scalar smin = GREAT;
-                for (const point& v : Vsw) smin = min(smin, hs.dist(v));
+                scalar smin = GREAT, smax = -GREAT;
+                for (const point& v : Vsw) { const scalar sv = hs.dist(v); smin = min(smin, sv); smax = max(smax, sv); }
+                if (smax > 0) { ++st.nOut; st.outPlane = i; }
                 bool separated;
                 if (preStrict)
                 {
@@ -1208,8 +1210,16 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         if (sweeps)
         {
             const double tv0 = tick();
+            // sweptSliverClosedForm (round 4, gain 5): a ring cell without a
+            // PLIC plane that one plane alone cuts (the pre-test's count)
+            const bool oneCut =
+                sweptSliverClosedForm_ && preTest && !wetPlane && !rc && c != donor
+             && st.nOut == 1 && sweptCapSet_ != "crossing";
+            if (oneCut) ++nSweptSliverClosed_;
             const davof::pieceResult r =
-                davof::sweptPieceVolume
+                oneCut
+              ? davof::sweptPieceOnePlane(T, planes[st.outPlane], &xDonor)
+              : davof::sweptPieceVolume
                 (
                     T, planes, wetPlane, plic, xf, &xDonor,
                     sweptCapSet_ == "crossing"

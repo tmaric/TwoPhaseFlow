@@ -1143,6 +1143,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptPreViol_ = nSweptPreSlab_ = nSweptShortViol_ = nSweptShortNotInside_ = 0;
     nSweptTraceHits_ = nSweptTraceMisses_ = 0;
     nSweptDonorFast_ = 0;
+    nSweptSliverClosed_ = 0;
     for (label k = 0; k < 4; ++k)
     {
         nClsFaces_[k] = nClsTouched_[k] = nClsPieces_[k] = nClsVolClips_[k] = nClsAreaClips_[k] = nClsTris_[k] = 0;
@@ -2476,6 +2477,18 @@ void Foam::advection::isoAdvection::reportCurved() const
             label nDf = nSweptDonorFast_;
             if (Pstream::parRun()) reduce(nDf, sumOp<label>());
             Info<< "; donor fast path: faces " << nDf;
+        }
+        if (sweptSliverClosedForm_)
+        {
+            label nSc = nSweptSliverClosed_;
+            if (Pstream::parRun()) reduce(nSc, sumOp<label>());
+            Info<< "; sliver closed form: pieces " << nSc;
+        }
+        if (sweptPointVelocityLazy_)
+        {
+            label nUp = nUpLazy_;
+            if (Pstream::parRun()) reduce(nUp, sumOp<label>());
+            Info<< "; point velocity: points evaluated " << nUp << " of " << returnReduce(mesh_.nPoints(), sumOp<label>());
         }
         // the per-face-class statistics (sweptClassStats, 2026-11-05): one
         // clause per class, the sums over the ranks; the times are the sums

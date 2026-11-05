@@ -226,6 +226,8 @@ Foam::advection::isoAdvection::isoAdvection
     sweptAxisPlanes_(modelDict().getOrDefault<bool>("sweptAxisPlanes", false)),
     sweptPointVelocityLazy_(modelDict().getOrDefault<bool>("sweptPointVelocityLazy", false)),
     sweptTetCache_(modelDict().getOrDefault<bool>("sweptTetCache", false)),
+    sweptSliverClosedForm_(modelDict().getOrDefault<bool>("sweptSliverClosedForm", false)),
+    nSweptSliverClosed_(0),
     upLazy_(),
     upDone_(),
     anyPatchPoint_(),
@@ -587,7 +589,8 @@ Foam::advection::isoAdvection::isoAdvection
                         << ", sweptNoFluxLayer " << sweptNoFluxLayer_
                         << ", sweptAxisPlanes " << sweptAxisPlanes_
                         << ", sweptPointVelocityLazy " << sweptPointVelocityLazy_
-                        << ", sweptTetCache " << sweptTetCache_;
+                        << ", sweptTetCache " << sweptTetCache_
+                        << ", sweptSliverClosedForm " << sweptSliverClosedForm_;
                     // the wisp rule (2026-11-02), printed only when not none
                     if (sweptWispSurface_ != "none")
                     {

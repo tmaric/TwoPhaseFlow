@@ -634,6 +634,13 @@ class isoAdvection
             bool sweptAxisPlanes_;
             bool sweptPointVelocityLazy_;
             bool sweptTetCache_;
+
+            //- sweptSliverClosedForm (round 4, gain 5, default false,
+            //  round-off): the piece of a touched ring cell without a PLIC
+            //  plane that one plane alone cuts, by davof::sweptPieceOnePlane
+            //  (davofSweptPieces.H); the pieces taken per step
+            bool sweptSliverClosedForm_;
+            label nSweptSliverClosed_;
             mutable vectorField upLazy_;
             mutable bitSet upDone_;
             mutable bitSet anyPatchPoint_;
