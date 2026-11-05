@@ -753,8 +753,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     const point xf = Cf[facei];
     // The donor fast path (sweptDonorFastPath, 2026-11-05): the vertex set of
     // the swept volume (as the pre-test's) tested against the donor's planes
-    // first; strictly inside every one by more than 1e-10 L_max, the face
-    // needs the donor alone (isoAdvection.H)
+    // first; no vertex outside any of them (s <= 0, a vertex on a plane
+    // allowed), the face needs the donor alone (isoAdvection.H)
     bool donorOnly = false;
     DynamicList<point> Vsw(2*F + 2);
     if (sweptDonorFastPath_ || sweptPreTest_ != "none" || sweptStateShortcut_ || sweptPreTestCheck_)
@@ -767,7 +767,6 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     if (sweptDonorFastPath_ && !sweptPreTestCheck_ && !sweptStateShortcut_ && !sweptFaceDump_)
     {
         donorOnly = true;
-        const scalar margin = 1e-10*LmaxT;
         const labelList& cf = cells[donor];
         forAll(cf, j)
         {
@@ -776,7 +775,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             const point& x0 = Cf[cf[j]];
             for (const point& v : Vsw)
             {
-                if (((v - x0) & n) >= -margin) { donorOnly = false; break; }
+                if (((v - x0) & n) > 0) { donorOnly = false; break; }
             }
             if (!donorOnly) break;
         }

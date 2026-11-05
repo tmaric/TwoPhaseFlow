@@ -569,16 +569,20 @@ class isoAdvection
             //- sweptFaceCells, the donor fast path (key sweptDonorFastPath,
             //  2026-11-05, B.1 of profile round 3): a swept volume whose
             //  vertices (x_f, the face points, the apex, the traced points)
-            //  all lie strictly inside the donor, beyond 1e-10 L_max of every
-            //  donor plane (L_max the longest triangle edge), is clipped by
-            //  the donor's PLIC plane alone, with no ring search, no pre-test
-            //  of the ring and no cell-plane clips: those clips are no-ops
-            //  (a clip changes nothing when no vertex is outside; the
-            //  contact, beyond and coplanar tests need a vertex within
-            //  1e-10 L or 1e-12 L of a plane), so the piece and the pre-image
-            //  part are bit for bit the pieces path's, and every other ring
-            //  cell is separated from the swept volume by the donor's planes
-            //  (the pre-test would skip it). The faces taking it per step.
+            //  have no vertex outside any donor plane (signed distance <= 0,
+            //  a vertex on a plane allowed) is clipped by the donor's PLIC
+            //  plane alone, with no ring search, no pre-test of the ring and
+            //  no cell-plane clips: those clips are no-ops (clipWith changes
+            //  nothing without a vertex strictly outside; a triangle lying
+            //  in a donor plane is kept uncut by the contact rule, the
+            //  donor's centre being inside; a pre-image part lying in the
+            //  face's own plane is kept by the coplanar rule on the donor's
+            //  side), so the piece and the pre-image part are bit for bit
+            //  the pieces path's; every other ring cell is separated from
+            //  the swept volume by a donor plane (the pre-test skipped it)
+            //  or, the cell across a face parallel to the velocity, adds
+            //  nothing (its contact and its coplanar part are dropped). The
+            //  faces taking it per step.
             bool sweptDonorFastPath_;
             label nSweptDonorFast_;
             FixedList<label, 3> nClsFaces_;
