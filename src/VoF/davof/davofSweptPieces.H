@@ -278,6 +278,12 @@ struct pieceResult
     //- The clipped triangles (partially cut by any plane)
     label nCut = 0;
 
+    //- The half-space clips run (planeDistances + clipWith, or the clip of
+    //  the pristine triangle) and the triangles entered (sweptClassStats,
+    //  2026-11-05; counters only)
+    label nClip = 0;
+    label nTri = 0;
+
     //- The boundary triangles dropped as contacts: lying in a cell plane
     //  with Omega_f (the donor) outside the cell (the file header, rule a)
     label nContact = 0;
@@ -350,10 +356,12 @@ inline pieceResult sweptPieceVolume
         // one clip of the current polygon by hs into the other buffer
         auto clip = [&](const halfSpace& hs, const label id) -> bool
         {
+            ++r.nClip;
             planeDistances(*cur, hs, s, anyIn, anyOut, sMaxAbs);
             if (clipWith(*cur, s, anyIn, anyOut, *nxt, id)) { Swap(cur, nxt); return true; }
             return false;
         };
+        ++r.nTri;
 
         if (crossing)
         {
@@ -441,6 +449,7 @@ inline pieceResult sweptPieceVolume
                     s[j] = s3[i][j];
                     if (s[j] <= 0) anyIn = true; else anyOut = true;
                 }
+                ++r.nClip;
                 if (clipWith(*cur, s, anyIn, anyOut, *nxt, i)) { Swap(cur, nxt); wasCut = true; pristine = false; }
             }
             else if (s3max[i] < -1e-12*L)
@@ -613,13 +622,15 @@ inline vector sweptPieceArea
     scalar& coverage,
     const vector& nRef = vector::zero,
     vector* aCell = nullptr,
-    bool* coplanarHit = nullptr
+    bool* coplanarHit = nullptr,
+    label* nClipOut = nullptr
 )
 {
     vector a(Zero);
     coverage = 0;
     if (aCell) *aCell = Zero;
     if (coplanarHit) *coplanarHit = false;
+    label nClip = 0;
     const bool tie = (magSqr(nRef) > 0);
     clipPolygon bufA, bufB;
     FixedList<scalar, 16> s;
@@ -640,6 +651,7 @@ inline vector sweptPieceArea
             // polygon whose largest distance exceeds 1e-10 Le is not
             // coplanar (its size is at most Le); only the others measure
             // their size
+            ++nClip;
             planeDistances(*cur, cellPlanes[i], s, anyIn, anyOut, sMaxAbs);
             if (cur->n >= 3 && sMaxAbs <= 1e-10*Le)
             {
@@ -668,12 +680,14 @@ inline vector sweptPieceArea
         if (aCell) *aCell += ac;
         if (wetPlane)
         {
+            ++nClip;
             planeDistances(*cur, plic, s, anyIn, anyOut, sMaxAbs);
             if (clipWith(*cur, s, anyIn, anyOut, *nxt, -1)) Swap(cur, nxt);
             if (cur->n < 3) continue;
         }
         a += cur->areaVector();
     }
+    if (nClipOut) *nClipOut += nClip;
     return a;
 }
 

@@ -554,6 +554,28 @@ class isoAdvection
             label nSweptShortFullTol_;
             label nSweptShortEmptyTol_;
 
+            //- sweptFaceCells, the per-face-class statistics (key
+            //  sweptClassStats, default false, 2026-11-05; profile round 3):
+            //  the classes donor-only (an internal face whose pre-test
+            //  touches the donor alone), multi-cell (two or more touched
+            //  cells) and boundary (a patch face); per class and step the
+            //  faces, the touched cells, the pieces, the half-space clips of
+            //  the volume clip and of the face update, the triangles entered,
+            //  and the time in sweptPieceVolume, sweptPieceArea, the trace
+            //  (sweptTriangles) and the first pass (cell planes, state, the
+            //  pre-test), by steady_clock around the calls; counters only
+            bool sweptClassStats_;
+            FixedList<label, 3> nClsFaces_;
+            FixedList<label, 3> nClsTouched_;
+            FixedList<label, 3> nClsPieces_;
+            FixedList<label, 3> nClsVolClips_;
+            FixedList<label, 3> nClsAreaClips_;
+            FixedList<label, 3> nClsTris_;
+            FixedList<scalar, 3> tClsVol_;
+            FixedList<scalar, 3> tClsArea_;
+            FixedList<scalar, 3> tClsTrace_;
+            FixedList<scalar, 3> tClsPre_;
+
             //- sweptFaceCells, the cap set of a piece (key sweptCapSet,
             //  2026-11-02): final (the default: the planes that produced an
             //  edge of the final clipped polygons, a triangle lying in a

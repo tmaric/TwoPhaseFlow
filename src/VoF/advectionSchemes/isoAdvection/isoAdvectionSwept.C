@@ -697,12 +697,24 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     label nWispF = 0;
     scalar wispSumF = 0, wispAbsF = 0, wispMaxF = 0;
 
+    // the per-class statistics (sweptClassStats, 2026-11-05): the wall
+    // clock around the calls, read only when the key is on
+    const bool stats = sweptClassStats_;
+    auto tick = [&]() -> double
+    {
+        return stats ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0.0;
+    };
+    double tStatVol = 0, tStatArea = 0;
+    label nStatPieces = 0, nStatVolClips = 0, nStatAreaClips = 0, nStatTris = 0;
+
     List<FixedList<point, 3>> T;
     pointField q;
     point xq;
     label preSign;
     scalar vTotal;
+    const double tTrace0 = tick();
     sweptTriangles(facei, donor, dt, phiF, sweeps, UInterp, Up, T, q, xq, preSign, vTotal);
+    const double tStatTrace = tick() - tTrace0;
     if (qOut) *qOut = q;
     if (xqOut) *xqOut = xq;
 
@@ -880,6 +892,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     // A face whose pre-image leaves the mesh (the inflow boundary) or the
     // ring fails it and keeps the pieces with their coverage accounting.
     List<bool> coveredV(Vsw.size(), false);
+    const double tPre0 = tick();
     for (const label e : ring)
     {
         // a ring entry: a local cell c = e, or a cell of another rank
@@ -1009,6 +1022,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         }
         states.append(st);
     }
+    const double tStatPre = tick() - tPre0;
     bool covered = (sweptStateShortcut_ || sweptPreTestCheck_);
     for (const bool b : coveredV) covered = covered && b;
 
@@ -1127,12 +1141,16 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         bool dbgOk = true, dbgDeg = false;
         if (sweeps)
         {
+            const double tv0 = tick();
             const davof::pieceResult r =
                 davof::sweptPieceVolume
                 (
                     T, planes, wetPlane, plic, xf, &xDonor,
                     sweptCapSet_ == "crossing"
                 );
+            tStatVol += tick() - tv0;
+            nStatVolClips += r.nClip; nStatTris += r.nTri;
+            if (r.coverage > 1e-12*sumMagT) ++nStatPieces;
             dbgVol = r.volume;
             dbgCovV = r.coverage;
             dbgCaps = r.nCaps; dbgContact = r.nContact; dbgOk = r.ok; dbgDeg = r.degenerate;
@@ -1179,7 +1197,9 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         scalar cov = 0;
         vector ac(Zero);
         bool cop = false;
-        const vector aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov, nRef, &ac, &cop);
+        const double ta0 = tick();
+        const vector aw = davof::sweptPieceArea(Tpre, planes, wetPlane, plic, cov, nRef, &ac, &cop, stats ? &nStatAreaClips : nullptr);
+        tStatArea += tick() - ta0;
         coveragePre += cov;
         if (rc && cov > 0) sweptFaceRemote_ = true;
         if (cop) ++nSweptCoplanar_;
@@ -1203,6 +1223,18 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             word cls = (!rc && c == donor) ? "donor" : (wetPlane ? "interface" : (a0c >= 1 - 1e-8 ? "full" : (a0c <= 1e-8 ? "empty" : "wisp")));
             pieceRows.append({c, cls, (wetPlane || wet) ? aw : vector(Zero), ac, cop});
         }
+    }
+
+    // the per-class statistics (sweptClassStats): the class of the face from
+    // the pre-test's touched cells, the sums of this face
+    if (stats)
+    {
+        label nTouched = 0;
+        for (const ringState& st : states) if (st.touched) ++nTouched;
+        const label k = (facei >= mesh_.nInternalFaces()) ? 2 : (nTouched <= 1 ? 0 : 1);
+        ++nClsFaces_[k]; nClsTouched_[k] += nTouched; nClsPieces_[k] += nStatPieces;
+        nClsVolClips_[k] += nStatVolClips; nClsAreaClips_[k] += nStatAreaClips; nClsTris_[k] += nStatTris;
+        tClsVol_[k] += tStatVol; tClsArea_[k] += tStatArea; tClsTrace_[k] += tStatTrace; tClsPre_[k] += tStatPre;
     }
 
     // the shortcut against the pieces (sweptPreTestCheck)

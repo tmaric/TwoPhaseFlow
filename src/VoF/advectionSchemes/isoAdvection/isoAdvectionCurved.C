@@ -1141,6 +1141,11 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptShortFullTol_ = nSweptShortEmptyTol_ = 0;
     nSweptPreViol_ = nSweptPreSlab_ = nSweptShortViol_ = nSweptShortNotInside_ = 0;
     nSweptTraceHits_ = nSweptTraceMisses_ = 0;
+    for (label k = 0; k < 3; ++k)
+    {
+        nClsFaces_[k] = nClsTouched_[k] = nClsPieces_[k] = nClsVolClips_[k] = nClsAreaClips_[k] = nClsTris_[k] = 0;
+        tClsVol_[k] = tClsArea_[k] = tClsTrace_[k] = tClsPre_[k] = 0;
+    }
     if (sweptTraceCache_ && fluxIntegration_ == "sweptFaceCells")
     {
         // the trace cache of the step (sweptTriangles)
@@ -2425,6 +2430,29 @@ void Foam::advection::isoAdvection::reportCurved() const
             label nH = nSweptTraceHits_, nM = nSweptTraceMisses_;
             if (Pstream::parRun()) { reduce(nH, sumOp<label>()); reduce(nM, sumOp<label>()); }
             Info<< "; trace cache: points reused " << nH << ", traced " << nM;
+        }
+        // the per-face-class statistics (sweptClassStats, 2026-11-05): one
+        // clause per class, the sums over the ranks; the times are the sums
+        // over the ranks of the wall time around the calls
+        if (sweptClassStats_)
+        {
+            static const char* clsName[3] = {"donor-only", "multi-cell", "boundary"};
+            for (label k = 0; k < 3; ++k)
+            {
+                label nF = nClsFaces_[k], nT = nClsTouched_[k], nP = nClsPieces_[k];
+                label nV = nClsVolClips_[k], nA = nClsAreaClips_[k], nTr = nClsTris_[k];
+                scalar tV = tClsVol_[k], tA = tClsArea_[k], tT = tClsTrace_[k], tP = tClsPre_[k];
+                if (Pstream::parRun())
+                {
+                    reduce(nF, sumOp<label>()); reduce(nT, sumOp<label>()); reduce(nP, sumOp<label>());
+                    reduce(nV, sumOp<label>()); reduce(nA, sumOp<label>()); reduce(nTr, sumOp<label>());
+                    reduce(tV, sumOp<scalar>()); reduce(tA, sumOp<scalar>()); reduce(tT, sumOp<scalar>()); reduce(tP, sumOp<scalar>());
+                }
+                Info<< "; class " << clsName[k] << ": faces " << nF << ", touched cells " << nT
+                    << ", pieces " << nP << ", volume clips " << nV << ", area clips " << nA
+                    << ", triangles " << nTr << ", time volume " << tV << " area " << tA
+                    << " trace " << tT << " pre-test " << tP;
+            }
         }
         // sweptConsistent (2026-11-02), a clause of its own, only when on
         if (sweptConsistent_)
