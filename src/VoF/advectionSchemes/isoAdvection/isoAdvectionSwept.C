@@ -1246,7 +1246,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     {
         label nTouched = 0;
         for (const ringState& st : states) if (st.touched) ++nTouched;
-        const label k = (facei >= mesh_.nInternalFaces()) ? 2 : (nTouched <= 1 ? 0 : 1);
+        const label k = (facei >= mesh_.nInternalFaces()) ? 3 : (!sweeps ? 0 : (nTouched <= 1 ? 1 : 2));
         ++nClsFaces_[k]; nClsTouched_[k] += nTouched; nClsPieces_[k] += nStatPieces;
         nClsVolClips_[k] += nStatVolClips; nClsAreaClips_[k] += nStatAreaClips; nClsTris_[k] += nStatTris;
         tClsVol_[k] += tStatVol; tClsArea_[k] += tStatArea; tClsTrace_[k] += tStatTrace; tClsPre_[k] += tStatPre;

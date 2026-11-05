@@ -1142,7 +1142,7 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptPreViol_ = nSweptPreSlab_ = nSweptShortViol_ = nSweptShortNotInside_ = 0;
     nSweptTraceHits_ = nSweptTraceMisses_ = 0;
     nSweptDonorFast_ = 0;
-    for (label k = 0; k < 3; ++k)
+    for (label k = 0; k < 4; ++k)
     {
         nClsFaces_[k] = nClsTouched_[k] = nClsPieces_[k] = nClsVolClips_[k] = nClsAreaClips_[k] = nClsTris_[k] = 0;
         tClsVol_[k] = tClsArea_[k] = tClsTrace_[k] = tClsPre_[k] = 0;
@@ -2443,8 +2443,8 @@ void Foam::advection::isoAdvection::reportCurved() const
         // over the ranks of the wall time around the calls
         if (sweptClassStats_)
         {
-            static const char* clsName[3] = {"donor-only", "multi-cell", "boundary"};
-            for (label k = 0; k < 3; ++k)
+            static const char* clsName[4] = {"no-sweep", "donor-only", "multi-cell", "boundary"};
+            for (label k = 0; k < 4; ++k)
             {
                 label nF = nClsFaces_[k], nT = nClsTouched_[k], nP = nClsPieces_[k];
                 label nV = nClsVolClips_[k], nA = nClsAreaClips_[k], nTr = nClsTris_[k];
