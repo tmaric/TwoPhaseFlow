@@ -292,6 +292,12 @@ struct pieceResult
     label nCaps = 0;
     bool ok = true;
 
+    //- sweptExactCaps (2026-11-06): the piece took the exact path (no cap
+    //  system), and, for a piece the closure solved, |V_exact - V_closure|
+    //  (the validation of the exact path against the closure; -1 unset)
+    bool exactUsed = false;
+    scalar exactDiff = -1;
+
     //- The coverage: the total area of the boundary triangles' parts inside
     //  the cell planes (before the PLIC clip), for the check that the
     //  pieces of the ring cells cover the whole boundary
@@ -735,6 +741,7 @@ inline pieceResult sweptPieceVolume
             // control (a): the exact piece volume, no cap system
             r.volume = sweptPieceExactVolume(T, cellPlanes, wetPlane, plic, xRef);
             r.closureResidual = 0;
+            r.exactUsed = true;
             return r;
         }
         r.ok = false;
@@ -768,6 +775,7 @@ inline pieceResult sweptPieceVolume
             {
                 r.volume = sweptPieceExactVolume(T, cellPlanes, wetPlane, plic, xRef);
                 r.closureResidual = 0;
+                r.exactUsed = true;
                 return r;
             }
             r.ok = false;
@@ -818,6 +826,12 @@ inline pieceResult sweptPieceVolume
         return r;
     }
     r.volume = (moment + capTerm)/3;
+    if (exactCaps)
+    {
+        // the validation of the exact path on the pieces the closure solves
+        r.exactDiff =
+            mag(sweptPieceExactVolume(T, cellPlanes, wetPlane, plic, xRef) - r.volume);
+    }
     return r;
 }
 

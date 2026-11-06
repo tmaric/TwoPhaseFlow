@@ -1244,6 +1244,12 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             // the pre-image's wetted part in the face's orientation (preSign)
             if (areaFromVolume) { preAw = preSign*r.aPre; preCov = r.covPre; }
             nStatVolClips += r.nClip; nStatTris += r.nTri;
+            if (r.exactUsed) ++nSweptExactUsed_;
+            if (r.exactDiff >= 0)
+            {
+                ++nSweptExactChecked_;
+                sweptExactDiffMax_ = max(sweptExactDiffMax_, r.exactDiff/mesh_.V()[donor]);
+            }
             if (r.coverage > 1e-12*sumMagT) ++nStatPieces;
             dbgVol = r.volume;
             dbgCovV = r.coverage;

@@ -674,6 +674,12 @@ class isoAdvection
             label nFragWisp_;
             label nFragNone_;
             autoPtr<OFstream> fragStream_;
+            //- sweptExactCaps: the pieces that took the exact path per step,
+            //  the pieces checked against the closure and the largest
+            //  |V_exact - V_closure| over the donor's cell volume
+            label nSweptExactUsed_;
+            label nSweptExactChecked_;
+            scalar sweptExactDiffMax_;
             mutable vectorField upLazy_;
             mutable bitSet upDone_;
             mutable bitSet anyPatchPoint_;
