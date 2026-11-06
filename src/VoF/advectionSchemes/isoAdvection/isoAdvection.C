@@ -29,6 +29,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "isoAdvection.H"
+#include "emptyPolyPatch.H"
 #include "volFields.H"
 #include "interpolationCellPoint.H"
 #include "volPointInterpolation.H"
@@ -946,6 +947,15 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
                 const label f = Df[dfi];
                 if (alphafSetFace_.test(f)) continue;
                 if (bestSurf[f] == si) continue;     // visited by this plane
+                // a face of an empty patch carries no value (the one-cell-
+                // thick mesh of the 2D tests): the sweep leaves it, as the
+                // boundary loop of timeIntegratedFlux does (2026-11-07)
+                if (!mesh_.isInternalFace(f))
+                {
+                    const polyPatch& pp =
+                        mesh_.boundaryMesh()[mesh_.boundaryMesh().patchID()[f - mesh_.nInternalFaces()]];
+                    if (isA<emptyPolyPatch>(pp) || pp.empty()) continue;
+                }
                 const scalar d =
                     mag(((Cf[f] - surfX0_[si]) & surfN0_[si]) - surfUn0_[si]*dt);
                 if (d < bestDist[f])

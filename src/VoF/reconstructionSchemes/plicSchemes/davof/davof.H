@@ -478,6 +478,11 @@ inline Foam::scalar Foam::reconstruction::davof::faceFraction
     }
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
     const label patchi = pbm.patchID()[facei - nInt];
+    // a face of an empty patch carries no value (the 2D tests)
+    if (alphaf_.boundaryField()[patchi].size() != pbm[patchi].size())
+    {
+        return 0;
+    }
     return alphaf_.boundaryField()[patchi][facei - pbm[patchi].start()];
 }
 
