@@ -515,27 +515,37 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             }
             else if (storeAf)
             {
-                // The inflow boundary face of a surface cell: the owner's
-                // plane sweeps it, only the end area is kept (the flux is
-                // the boundary condition's); on a processor patch the
-                // neighbouring surface cell's value replaces it in the sync
-                const scalar magSf = magSfb[patchi][patchFacei];
-                advectFace_.timeIntegratedFaceFlux
-                (
-                    facei,
-                    bsx0_[i],
-                    bsn0_[i],
-                    bsUn0_[i],
-                    dt,
-                    phiP,
-                    magSf
-                );
-                storeAreaFraction
-                (
-                    facei,
-                    advectFace_.subFaceAreaEnd(),
-                    false
-                );
+                // The inflow boundary face of a surface cell: the alpha
+                // boundary condition's value, as the flux is the boundary
+                // condition's (2026-11-06); on a processor patch the
+                // owner's plane sweeps it, only the end area is kept, and
+                // the neighbouring surface cell's value replaces it in the
+                // sync
+                scalar aBC = 0;
+                if (inflowBoundaryFraction(facei, aBC))
+                {
+                    storeInflowBoundaryFraction(facei, aBC);
+                }
+                else
+                {
+                    const scalar magSf = magSfb[patchi][patchFacei];
+                    advectFace_.timeIntegratedFaceFlux
+                    (
+                        facei,
+                        bsx0_[i],
+                        bsn0_[i],
+                        bsUn0_[i],
+                        dt,
+                        phiP,
+                        magSf
+                    );
+                    storeAreaFraction
+                    (
+                        facei,
+                        advectFace_.subFaceAreaEnd(),
+                        false
+                    );
+                }
             }
         }
     }
@@ -654,10 +664,54 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
     fvsPatchScalarField& pf = alphafPtr_->boundaryFieldRef()[patchi];
     if (pf.size())
     {
-        const scalar af = alpha[own[facei]];
+        scalar af = alpha[own[facei]];
+        inflowBoundaryFraction(facei, af);
         pf[facei - pbm[patchi].start()] = af;
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
     }
+}
+
+
+bool Foam::advection::isoAdvection::inflowBoundaryFraction
+(
+    const label facei,
+    scalar& af
+) const
+{
+    if (mesh_.isInternalFace(facei))
+    {
+        return false;
+    }
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label patchi = pbm.patchID()[facei - mesh_.nInternalFaces()];
+    if (pbm[patchi].coupled())
+    {
+        return false;
+    }
+    const fvsPatchScalarField& phip = phi_.boundaryField()[patchi];
+    const label i = facei - pbm[patchi].start();
+    if (!phip.size() || phip[i] >= 0)
+    {
+        return false;
+    }
+    af = alpha1_.boundaryField()[patchi][i];
+    return true;
+}
+
+
+void Foam::advection::isoAdvection::storeInflowBoundaryFraction
+(
+    const label facei,
+    const scalar af
+)
+{
+    setFaceValue(*alphafPtr_, facei, af);
+    wetFace_.set(facei, (af != 0) ? 1u : 0u);
+    if (!alphafSetFace_.test(facei))
+    {
+        alphafSetFaces_.append(facei);
+    }
+    alphafSetFace_.set(facei);
 }
 
 
@@ -892,6 +946,10 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
                 const label f = Df[dfi];
                 if (alphafSetFace_.test(f)) continue;
                 if (bestSurf[f] == si) continue;     // visited by this plane
+                // an inflow boundary face holds the boundary condition's
+                // value (the defaults), not a plane's
+                scalar aBC = 0;
+                if (inflowBoundaryFraction(f, aBC)) continue;
                 const scalar d =
                     mag(((Cf[f] - surfX0_[si]) & surfN0_[si]) - surfUn0_[si]*dt);
                 if (d < bestDist[f])

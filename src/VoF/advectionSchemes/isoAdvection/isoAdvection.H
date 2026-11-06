@@ -398,12 +398,29 @@ class isoAdvection
 
             //- The default of one face from the alpha field given: the
             //  upwind cell's value (phi >= 0: the owner), boundary faces
-            //  the owner's; faces of empty patches carry no value
+            //  the owner's, an inflow boundary face the boundary
+            //  condition's value (inflowBoundaryFraction); faces of empty
+            //  patches carry no value
             void setDefaultAreaFraction
             (
                 const label facei,
                 const scalarField& alpha
             );
+
+            //- An inflow face of a non-coupled patch (phi_f < 0: the flux
+            //  enters the domain) carries the alpha boundary condition's
+            //  value as its face fraction, as its flux is the boundary
+            //  condition's (2026-11-06: a liquid inlet's faces hold the
+            //  inlet's alpha, 1 for the nozzle of the jet in cross flow;
+            //  before, the owner's plane or the owner's alpha). Returns
+            //  true for such a face and sets af; false for every other
+            //  face (internal, coupled, outflow, no flux)
+            bool inflowBoundaryFraction(const label facei, scalar& af) const;
+
+            //- Store the boundary condition's value on an inflow boundary
+            //  face of a surface cell (counted as a plane-set face: the
+            //  second ring and the defaults leave it)
+            void storeInflowBoundaryFraction(const label facei, const scalar af);
 
             //- After the bounding: every face not set by a plane in this
             //  step holds the upwind cell's new alpha. Evaluated on the

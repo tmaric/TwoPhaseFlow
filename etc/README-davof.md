@@ -180,9 +180,19 @@ step):
    crossing the face during the step (the swept part); a pure W the plane
    does not reach keeps the upwind flux (the side value of an extended
    plane can contradict a pure cell's content on a curved interface).
-4. Boundary faces of a surface cell: the owner's plane sets `alphaf`; the
-   outflow flux is the plane's as before, an inflow face keeps the boundary
-   condition's flux.
+4. Boundary faces of a surface cell: the owner's plane sets `alphaf` on an
+   outflow face, whose flux is the plane's as before; an INFLOW face of a
+   non-coupled patch (phi_f < 0) keeps the boundary condition's flux and
+   (since 2026-11-06) holds the alpha boundary condition's value as its
+   face fraction (`inflowBoundaryFraction`: a liquid inlet's faces carry
+   the inlet's alpha, 1 for the nozzle of the jet in cross flow), in the
+   sweep, in the second ring (such faces are no candidates) and in the
+   defaults (rule 1); before, the owner's plane or the owner's alpha. On a
+   processor patch the owner's plane sweeps the face and the sync replaces
+   the value. With a `zeroGradient` alpha condition the value is the
+   owner's alpha, as before; the identity on the eight verification cases
+   (`zeroGradient` and `fixedValue` inlets at alpha 0 reached by no
+   plane) is kept bit for bit.
 5. The second ring: every face no plane has set whose cell shares a face
    with a surface cell is swept by the neighbouring plane whose
    end-of-step position is closest to the face centre (one and the same
