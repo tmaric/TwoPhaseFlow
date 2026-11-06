@@ -409,12 +409,16 @@ class isoAdvection
 
             //- An inflow face of a non-coupled patch (phi_f < 0: the flux
             //  enters the domain) carries the alpha boundary condition's
-            //  value as its face fraction, as its flux is the boundary
-            //  condition's (2026-11-06: a liquid inlet's faces hold the
-            //  inlet's alpha, 1 for the nozzle of the jet in cross flow;
-            //  before, the owner's plane or the owner's alpha). Returns
-            //  true for such a face and sets af; false for every other
-            //  face (internal, coupled, outflow, no flux)
+            //  value as its face fraction where no plane sweeps it (the
+            //  defaults) and, when the condition says the face is wholly
+            //  liquid (alpha_b = 1, a liquid inlet: the nozzle of the jet
+            //  in cross flow), also where a plane sweeps it; a face the
+            //  condition calls gas while a plane crosses it keeps the
+            //  plane's liquid area (the plane gate's inlet, whose fixed
+            //  value 0 is not the face's state: the identity check of
+            //  2026-11-06). Returns true for an inflow face and sets af;
+            //  false for every other face (internal, coupled, outflow, no
+            //  flux)
             bool inflowBoundaryFraction(const label facei, scalar& af) const;
 
             //- Store the boundary condition's value on an inflow boundary

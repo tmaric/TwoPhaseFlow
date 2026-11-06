@@ -521,8 +521,13 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 // owner's plane sweeps it, only the end area is kept, and
                 // the neighbouring surface cell's value replaces it in the
                 // sync
+                // (a liquid inlet, alpha_b = 1, pins the face wholly
+                // liquid; a face the boundary condition calls gas while the
+                // plane crosses it keeps the plane's liquid area: the plane
+                // gate's inlet, where the fixed value 0 is not the face's
+                // state, 2026-11-06)
                 scalar aBC = 0;
-                if (inflowBoundaryFraction(facei, aBC))
+                if (inflowBoundaryFraction(facei, aBC) && aBC >= 1)
                 {
                     storeInflowBoundaryFraction(facei, aBC);
                 }
@@ -946,10 +951,10 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
                 const label f = Df[dfi];
                 if (alphafSetFace_.test(f)) continue;
                 if (bestSurf[f] == si) continue;     // visited by this plane
-                // an inflow boundary face holds the boundary condition's
-                // value (the defaults), not a plane's
+                // a liquid inlet's face (alpha_b = 1) holds the boundary
+                // condition's value (the defaults), not a plane's
                 scalar aBC = 0;
-                if (inflowBoundaryFraction(f, aBC)) continue;
+                if (inflowBoundaryFraction(f, aBC) && aBC >= 1) continue;
                 const scalar d =
                     mag(((Cf[f] - surfX0_[si]) & surfN0_[si]) - surfUn0_[si]*dt);
                 if (d < bestDist[f])

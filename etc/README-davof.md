@@ -183,16 +183,20 @@ step):
 4. Boundary faces of a surface cell: the owner's plane sets `alphaf` on an
    outflow face, whose flux is the plane's as before; an INFLOW face of a
    non-coupled patch (phi_f < 0) keeps the boundary condition's flux and
-   (since 2026-11-06) holds the alpha boundary condition's value as its
-   face fraction (`inflowBoundaryFraction`: a liquid inlet's faces carry
-   the inlet's alpha, 1 for the nozzle of the jet in cross flow), in the
-   sweep, in the second ring (such faces are no candidates) and in the
-   defaults (rule 1); before, the owner's plane or the owner's alpha. On a
-   processor patch the owner's plane sweeps the face and the sync replaces
-   the value. With a `zeroGradient` alpha condition the value is the
-   owner's alpha, as before; the identity on the eight verification cases
-   (`zeroGradient` and `fixedValue` inlets at alpha 0 reached by no
-   plane) is kept bit for bit.
+   (since 2026-11-06, `inflowBoundaryFraction`) holds the alpha boundary
+   condition's value as its face fraction where no plane sweeps it (the
+   defaults, rule 1; before, the owner's alpha) and, when the condition
+   says the face is wholly liquid (alpha_b = 1: a liquid inlet, the nozzle
+   of the jet in cross flow), also where a plane sweeps it (the sweep and
+   the second ring, which takes no such face). A face the condition calls
+   gas (alpha_b = 0) while a plane crosses it keeps the plane's liquid
+   area: on the plane gate's inlet the fixed value 0 is the entering
+   fluid, not the face's state, and the plane's area is exact there (the
+   version that took the condition's value on every swept inflow face
+   moved the oblique arm by 1.8e-2 in alpha within 20 steps, 2026-11-06).
+   On a processor patch the owner's plane sweeps the face and the sync
+   replaces the value. The eight verification cases (`zeroGradient` and
+   `fixedValue` 0 inlets) are unchanged bit for bit.
 5. The second ring: every face no plane has set whose cell shares a face
    with a surface cell is swept by the neighbouring plane whose
    end-of-step position is closest to the face centre (one and the same
