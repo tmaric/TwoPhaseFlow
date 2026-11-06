@@ -315,6 +315,161 @@ void Foam::davofInit::quadraticFaces
 }
 
 
+void Foam::davofInit::exactCylinder
+(
+    volScalarField& alpha,
+    surfaceScalarField& alphaf
+)
+{
+    addProfilingInFunction(geometricVoF);
+
+    // The Detrixhe-Aslam state first (the tet reference mTet_ and the
+    // fallbacks), as for the sphere.
+    scalarField alphafAll, psiF, psiP;
+    detrixheAslamState(alpha, alphafAll, psiF, psiP);
+    nFaceFallback_ = 0;
+
+    const point c = dict_.get<point>("origin");
+    const scalar R = dict_.get<scalar>("radius");
+    vector d = dict_.get<vector>("direction");
+    d /= mag(d);
+
+    // The axis along a coordinate direction
+    if (cmptMax(cmptMag(d)) < 1 - 1e-10)
+    {
+        FatalErrorInFunction
+            << "davofMethod exactCylinder needs the axis along a coordinate"
+            << " axis; direction " << d << exit(FatalError);
+    }
+    direction axis = 0;
+    for (direction k = 1; k < 3; ++k)
+    {
+        if (mag(d[k]) > mag(d[axis])) axis = k;
+    }
+    const direction a1 = (axis + 1) % 3, a2 = (axis + 2) % 3;
+
+    const pointField& P = mesh_.points();
+    const faceList& faces = mesh_.faces();
+    const vectorField& Cf = mesh_.faceCentres();
+    const vectorField& Sf = mesh_.faceAreas();
+    const scalarField& V = mesh_.V();
+
+    // Axis-aligned hexahedra: every face normal along one axis, and the
+    // cell's bounding box has the cell's volume.
+    forAll(Sf, facei)
+    {
+        const scalar A = mag(Sf[facei]);
+        if (A <= VSMALL) continue;
+        const vector n = Sf[facei]/A;
+        if (cmptMax(cmptMag(n)) < 1 - 1e-10)
+        {
+            FatalErrorInFunction
+                << "davofMethod exactCylinder needs axis-aligned hexahedral "
+                << "cells; face " << facei << " has the unit normal " << n
+                << exit(FatalError);
+        }
+    }
+
+    // The squared distance of a point from the axis
+    auto axisDist2 = [&](const point& p) -> scalar
+    {
+        const vector q = p - c;
+        return magSqr(q - (q & d)*d);
+    };
+
+    // Faces. A face whose normal is along the axis is cut by the cylinder in
+    // the disc of radius R about the axis point in its plane: the ball of
+    // radius R centred there cuts the plane in the same disc, so the sphere's
+    // face routine applies. A face whose normal is across the axis is a
+    // rectangle with one pair of edges along the axis; the cylinder cuts it
+    // in the band |s - s_c| < sqrt(R^2 - delta^2) across the axis (delta the
+    // face plane's offset from the axis), so the fraction is the length of
+    // the band inside the face over the face's width. Snapped at 1e-12 as
+    // for the sphere.
+    const scalar snapTol = 1e-12;
+    forAll(alphafAll, facei)
+    {
+        const scalar A = mag(Sf[facei]);
+        if (A <= VSMALL) { alphafAll[facei] = 0; continue; }
+        const face& f = faces[facei];
+        const vector n = Sf[facei]/A;
+        scalar a = 0;
+        if (mag(n & d) > 1 - 1e-10)
+        {
+            bool allInside = true;
+            forAll(f, i)
+            {
+                if (axisDist2(P[f[i]]) > R*R) { allInside = false; break; }
+            }
+            if (allInside) { alphafAll[facei] = 1; continue; }
+            const point cp = c + ((Cf[facei] - c) & d)*d;
+            a = davof::faceBallArea(f, P, Cf[facei], n, cp, R)/A;
+        }
+        else
+        {
+            const scalar delta = (Cf[facei] - c) & n;
+            if (mag(delta) < R)
+            {
+                const scalar w = Foam::sqrt(R*R - delta*delta);
+                const vector e = n ^ d;
+                scalar smin = GREAT, smax = -GREAT;
+                forAll(f, i)
+                {
+                    const scalar s = (P[f[i]] - c) & e;
+                    smin = min(smin, s); smax = max(smax, s);
+                }
+                const scalar lo = max(smin, -w), hi = min(smax, w);
+                a = (smax > smin) ? max(hi - lo, scalar(0))/(smax - smin) : 0;
+            }
+        }
+        if (a < snapTol) a = 0;
+        else if (a > 1 - snapTol) a = 1;
+        alphafAll[facei] = min(max(a, scalar(0)), scalar(1));
+    }
+
+    // Cells: axis-aligned boxes, the cross-section rectangle cut by the disc
+    const labelListList& cellPoints = mesh_.cellPoints();
+    forAll(alpha, celli)
+    {
+        const pointField cp(P, cellPoints[celli]);
+        const boundBox bb(cp, false);
+        const vector span = bb.span();
+        const scalar Vbb = span.x()*span.y()*span.z();
+        if (mag(Vbb - V[celli]) > 1e-8*V[celli])
+        {
+            FatalErrorInFunction
+                << "davofMethod exactCylinder needs axis-aligned hexahedral "
+                << "cells; cell " << celli << " has volume " << V[celli]
+                << " but bounding-box volume " << Vbb << exit(FatalError);
+        }
+        const scalar x0 = bb.min()[a1] - c[a1], x1 = bb.max()[a1] - c[a1];
+        const scalar y0 = bb.min()[a2] - c[a2], y1 = bb.max()[a2] - c[a2];
+        const scalar farthest2 =
+            max(sqr(x0), sqr(x1)) + max(sqr(y0), sqr(y1));
+        const scalar qx = min(max(scalar(0), x0), x1);
+        const scalar qy = min(max(scalar(0), y0), y1);
+        const scalar nearest2 = qx*qx + qy*qy;
+        if (farthest2 <= R*R)
+        {
+            alpha[celli] = 1;
+        }
+        else if (nearest2 >= R*R)
+        {
+            alpha[celli] = 0;
+        }
+        else
+        {
+            const scalar a =
+                davof::rectDiskArea(x0, x1, y0, y1, R)/(span[a1]*span[a2]);
+            alpha[celli] = min(max(a, scalar(0)), scalar(1));
+        }
+    }
+    maxAlphaClip_ = 0;
+    alpha.correctBoundaryConditions();
+    fillFaceField(alphafAll, alphaf);
+}
+
+
 void Foam::davofInit::exactSphere
 (
     volScalarField& alpha,

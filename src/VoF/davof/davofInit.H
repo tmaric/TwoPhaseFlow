@@ -65,6 +65,10 @@ Description
                       the ball in closed form, cell fractions by adaptive
                       quadrature of the exact cross-section
                       (davofSphereGeometry.H).
+      exactCylinder   the exact fractions of a cylinder (origin, direction,
+                      radius; the axis along a coordinate axis) on
+                      axis-aligned hexahedra: the sheared disc of the 2D
+                      tests on a one-cell-thick mesh (2026-11-07).
 
     The Detrixhe-Aslam formulas are exact on the chord surface only when psi is
     a signed distance. The dictionary switch `signedDistance true` replaces
@@ -202,6 +206,14 @@ public:
         //- The exact state of the sphere (origin, radius) on axis-aligned
         //  hexahedra; FatalError on any other cell
         void exactSphere(volScalarField& alpha, surfaceScalarField& alphaf);
+
+        //- The exact state of the cylinder (origin, direction, radius; the
+        //  axis along a coordinate axis) on axis-aligned hexahedra: the
+        //  faces along the axis cut by the disc in closed form, the faces
+        //  across it by the band of the chord, the cells by the disc on the
+        //  cross-section rectangle; FatalError on any other cell. The 2D
+        //  disc on a one-cell-thick mesh.
+        void exactCylinder(volScalarField& alpha, surfaceScalarField& alphaf);
 
         //- Interface-cell threshold on |m_c|: wispTol V_c^(2/3)
         static scalar wispThreshold

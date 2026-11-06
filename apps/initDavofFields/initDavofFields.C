@@ -35,7 +35,7 @@ Description
     Reads system/initAlphaFieldDict as initAlphaField does (field, the
     implicit function `type` and its parameters), plus
 
-        davofMethod  detrixheAslam | quadraticFaces | exactSphere;
+        davofMethod  detrixheAslam | quadraticFaces | exactSphere | exactCylinder;
         wispTol      1e-6;      // interface cell: |m_c| > wispTol V_c^(2/3)
         signedDistance false;   // Newton-projected signed distance (ellipsoid)
         invert       false;
@@ -136,6 +136,10 @@ int main(int argc, char *argv[])
     else if (davofMethod == "exactSphere")
     {
         init.exactSphere(alpha1, alphaf);
+    }
+    else if (davofMethod == "exactCylinder")
+    {
+        init.exactCylinder(alpha1, alphaf);
     }
     else
     {

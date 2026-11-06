@@ -118,7 +118,10 @@ exactSphere`), `reconstructionError` (`src/postProcessing/`), the apps `advector
 (`setFlow` at the half step, the abort guard), `initDavofFields`, `planeVolumeConsistency`,
 `staticFaceFractions`, `initShearFlow3D` (the 3D shear flow of Liovic et al. 2006 at t = 0,
 U and phi, for the verification's `isoShear3D` case of leia; the time factor is
-advectorVoF's `spirallingFlow`), the unit test `testCutFaceAdvectEndArea`, and the
+advectorVoF's `spirallingFlow`), `initVortex2D` (the 2D single vortex of Rider & Kothe
+1998 at t = 0 in the x-z plane of a one-cell-thick mesh, phi the exact line integral of
+the stream function; the `isoShear2D` case of leia, 2026-11-07), the unit test
+`testCutFaceAdvectEndArea`, and the
 benchmark dictionaries `run/benchmark/{advection,reconstruction}`; the liquid jet in
 cross flow `run/rhoVoF/jetCrossFlow` (its README).
 

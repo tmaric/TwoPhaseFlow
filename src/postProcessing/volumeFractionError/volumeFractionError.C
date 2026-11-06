@@ -53,8 +53,8 @@ void Foam::functionObjects::volumeFractionError::writeFileHeader(Ostream& os) co
     writeHeader
     (
         os,
-        (exactState_ == "exactSphere")
-      ? "volumeFractionError (exactState exactSphere)"
+        (exactState_ == "exactSphere" || exactState_ == "exactCylinder")
+      ? "volumeFractionError (exactState " + exactState_ + ")"
       : "volumeFractionError "
     );
     writeCommented(os, "Time");
@@ -118,11 +118,11 @@ bool Foam::functionObjects::volumeFractionError::read(const dictionary& dict)
     {
         const word fType(dict.get<word>("functionType"));
         const word key(dict.getOrDefault<word>("exactState", "auto"));
-        if (key != "auto" && key != "exactSphere" && key != "cutCellIso")
+        if (key != "auto" && key != "exactSphere" && key != "exactCylinder" && key != "cutCellIso")
         {
             FatalIOErrorInFunction(dict)
                 << "exactState '" << key << "' unknown. Valid: auto,"
-                << " exactSphere, cutCellIso." << exit(FatalIOError);
+                << " exactSphere, exactCylinder, cutCellIso." << exit(FatalIOError);
         }
         bool boxes = true;
         {
@@ -156,7 +156,10 @@ bool Foam::functionObjects::volumeFractionError::read(const dictionary& dict)
         }
         if (key == "auto")
         {
-            exactState_ = (fType == "sphere" && boxes) ? "exactSphere" : "cutCellIso";
+            exactState_ =
+                (fType == "sphere" && boxes) ? "exactSphere"
+              : (fType == "cylinder" && boxes) ? "exactCylinder"
+              : "cutCellIso";
         }
         else
         {
@@ -166,6 +169,12 @@ bool Foam::functionObjects::volumeFractionError::read(const dictionary& dict)
         {
             FatalIOErrorInFunction(dict)
                 << "exactState exactSphere needs functionType sphere on"
+                << " axis-aligned hexahedra" << exit(FatalIOError);
+        }
+        if (exactState_ == "exactCylinder" && (fType != "cylinder" || !boxes))
+        {
+            FatalIOErrorInFunction(dict)
+                << "exactState exactCylinder needs functionType cylinder on"
                 << " axis-aligned hexahedra" << exit(FatalIOError);
         }
         Info<< type() << " " << name() << ": exactState " << exactState_
@@ -323,7 +332,7 @@ bool Foam::functionObjects::volumeFractionError::write()
           "calculated"
     );
 
-    if (exactState_ == "exactSphere")
+    if (exactState_ == "exactSphere" || exactState_ == "exactCylinder")
     {
         // the exact sphere at origin(t) (2026-11-02): the cell fractions of
         // davofInit::exactSphere, the state of initDavofFields and the
@@ -344,7 +353,14 @@ bool Foam::functionObjects::volumeFractionError::write()
             calculatedFvsPatchScalarField::typeName
         );
         davofInit init(mesh_, func(), dict_);
-        init.exactSphere(alphaExact, alphafExact);
+        if (exactState_ == "exactSphere")
+        {
+            init.exactSphere(alphaExact, alphafExact);
+        }
+        else
+        {
+            init.exactCylinder(alphaExact, alphafExact);
+        }
     }
     else
     {

@@ -216,6 +216,10 @@ bool Foam::functionObjects::areaFractionError::write()
     {
         init.exactSphere(alphaEx, alphafEx);
     }
+    else if (davofMethod_ == "exactCylinder")
+    {
+        init.exactCylinder(alphaEx, alphafEx);
+    }
     else if (davofMethod_ == "quadraticFaces")
     {
         init.quadraticFaces(alphaEx, alphafEx);
@@ -228,7 +232,7 @@ bool Foam::functionObjects::areaFractionError::write()
     {
         FatalErrorInFunction
             << "Unknown davofMethod '" << davofMethod_
-            << "'. Valid: exactSphere, quadraticFaces, detrixheAslam."
+            << "'. Valid: exactSphere, exactCylinder, quadraticFaces, detrixheAslam."
             << exit(FatalError);
     }
 
