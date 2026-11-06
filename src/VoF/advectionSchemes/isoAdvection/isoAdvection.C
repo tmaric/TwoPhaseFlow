@@ -139,6 +139,7 @@ Foam::advection::isoAdvection::isoAdvection
     boundSecondLayer_(modelDict().getOrDefault<bool>("boundSecondLayer", true)),
     nBoundedBeyondRing_(0),
     contentBound_(modelDict().getOrDefault<bool>("contentBound", true)),
+    massDiagnostics_(modelDict().getOrDefault<bool>("massDiagnostics", false)),
     planeFluxUpCell_(0),
     dVfUpwindPlaneFace_(0),
     nContentBoundFaces_(0),

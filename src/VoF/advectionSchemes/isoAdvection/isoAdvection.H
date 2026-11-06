@@ -244,6 +244,11 @@ class isoAdvection
             //  (boundCellContent; dictionary key contentBound, default true)
             bool contentBound_;
 
+            //- Mass diagnostics per step (key massDiagnostics, default
+            //  false): sum(alpha V) against the boundary sum of dVf, the
+            //  bounding and the clipping (2026-11-07)
+            bool massDiagnostics_;
+
             //- Per face: the non-surface upwind cell for which planeFlux
             //  set the plane's flux in this step (-1 otherwise), and the
             //  upwind flux it replaced

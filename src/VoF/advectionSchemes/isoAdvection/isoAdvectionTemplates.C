@@ -445,6 +445,33 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // Do the isoAdvection on surface cells
     timeIntegratedFlux();
 
+    // Mass diagnostics (massDiagnostics true, 2026-11-07): sum(alpha V)
+    // before the step, the boundary (non-coupled patches) and internal sums
+    // of dVf, and the changes of sum(alpha V) by the flux step, the
+    // bounding and the clipping. The flux step's change plus the boundary
+    // sum is the antisymmetry residual (the internal faces cancel in the
+    // divergence); the bounding's change plus its boundary correction
+    // likewise.
+    auto boundarySum = [&](const surfaceScalarField& f) -> scalar
+    {
+        scalar s = 0;
+        forAll(f.boundaryField(), patchi)
+        {
+            if (!f.boundaryField()[patchi].coupled())
+            {
+                s += sum(f.boundaryField()[patchi]);
+            }
+        }
+        return returnReduce(s, sumOp<scalar>());
+    };
+    scalar mOld = 0, sB0 = 0, sI0 = 0, m1 = 0, m2 = 0, sB1 = 0;
+    if (massDiagnostics_)
+    {
+        mOld = gSum(alpha1_.oldTime().primitiveField()*mesh_.V());
+        sB0 = boundarySum(dVf_);
+        sI0 = gSum(dVf_.primitiveField());
+    }
+
     // Adjust alpha for mesh motion
     if (mesh_.moving())
     {
@@ -461,12 +488,23 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
 
     alpha1_.correctBoundaryConditions();
 
+    if (massDiagnostics_)
+    {
+        m1 = gSum(alpha1In_*mesh_.V());
+    }
+
     // Adjust dVf for unbounded cells
     limitFluxes
     (
         Sp,
         Su
     );
+
+    if (massDiagnostics_)
+    {
+        m2 = gSum(alpha1In_*mesh_.V());
+        sB1 = boundarySum(dVf_);
+    }
 
     scalar maxAlphaMinus1 = gMax(alpha1In_) - 1;
     scalar minAlpha = gMin(alpha1In_);
@@ -477,6 +515,18 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // Apply non-conservative bounding mechanisms (clipping and snapping)
     // Note: We should be able to write out alpha before this is done!
     applyBruteForceBounding();
+
+    if (massDiagnostics_)
+    {
+        const scalar m3 = gSum(alpha1In_*mesh_.V());
+        Info<< "isoAdvection: mass: old " << mOld
+            << ", flux dM " << m1 - mOld << " boundary dVf " << sB0
+            << " residual " << (m1 - mOld) + sB0
+            << ", bounding dM " << m2 - m1 << " boundary correction " << sB1 - sB0
+            << " residual " << (m2 - m1) + (sB1 - sB0)
+            << ", clip dM " << m3 - m2
+            << ", internal dVf sum " << sI0 << endl;
+    }
 
     // DAVOF: the faces no plane has set carry the upwind cell's new alpha
     if (storeAreaFractions_ && alphafPtr_)
