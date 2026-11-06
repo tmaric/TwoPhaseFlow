@@ -27,6 +27,7 @@ License
 
 #include "surfaceIteratorPLIC.H"
 #include "scalarMatrices.H"
+#include "davofCcsPositioning.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -38,11 +39,101 @@ Foam::surfaceIteratorPLIC::surfaceIteratorPLIC
 :
     mesh_(mesh),
     cutCell_(mesh_),
-    surfCellTol_(tol)
+    surfCellTol_(tol),
+    positioning_("vofCutCell"),
+    positioningTol_(1e-14),
+    positioningMaxIter_(30),
+    nPosCells_(0),
+    nPosEvals_(0),
+    maxPosEvals_(0),
+    maxPosRes_(0),
+    sumPosRes_(0)
 {}
 
 
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+Foam::label Foam::surfaceIteratorPLIC::ccsCutCell
+(
+    const label celli,
+    const scalar alpha1,
+    const vector& normal
+)
+{
+    // The start: the linear estimate between the vertex extrema (V = V_c
+    // at the lowest vertex, 0 at the highest)
+    const point& xc = mesh_.C()[celli];
+    const pointField& P = mesh_.points();
+    scalar pMin = GREAT, pMax = -GREAT;
+    for (const label pi : mesh_.cellPoints(celli))
+    {
+        const scalar f = (P[pi] - xc) & normal;
+        pMin = min(pMin, f);
+        pMax = max(pMax, f);
+    }
+    const scalar p0 = pMin + (1 - alpha1)*(pMax - pMin);
+
+    davof::ccsRecord rec;
+    const label status = davof::ccsPositionPlane
+    (
+        mesh_, cutCell_, celli, alpha1, normal, p0,
+        positioningTol_, positioningMaxIter_, rec
+    );
+    ++nPosCells_;
+    nPosEvals_ += rec.nEvals;
+    maxPosEvals_ = max(maxPosEvals_, rec.nEvals);
+    const scalar res = mag(rec.rFinal);
+    maxPosRes_ = max(maxPosRes_, res);
+    sumPosRes_ += res;
+    return status;
+}
+
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::surfaceIteratorPLIC::readPositioning(const dictionary& dict)
+{
+    positioning_ = dict.getOrDefault<word>("positioning", "vofCutCell");
+    positioningTol_ = dict.getOrDefault<scalar>("positioningTol", 1e-14);
+    positioningMaxIter_ = dict.getOrDefault<label>("positioningMaxIter", 30);
+    if (positioning_ != "vofCutCell" && positioning_ != "ccs")
+    {
+        FatalIOErrorInFunction(dict)
+            << "positioning '" << positioning_
+            << "' unknown. Valid: vofCutCell, ccs." << exit(FatalIOError);
+    }
+    if (positioning_ == "ccs")
+    {
+        Info<< "surfaceIteratorPLIC: positioning ccs (Consecutive Cubic"
+            << " Spline on the cutCellPLIC cut, positioningTol "
+            << positioningTol_ << " of V, positioningMaxIter "
+            << positioningMaxIter_ << ")" << endl;
+    }
+}
+
+
+void Foam::surfaceIteratorPLIC::reportPositioning(Ostream& os)
+{
+    if (positioning_ != "ccs")
+    {
+        return;
+    }
+    label nC = nPosCells_, nE = nPosEvals_, mE = maxPosEvals_;
+    scalar rMax = maxPosRes_, rSum = sumPosRes_;
+    if (Pstream::parRun())
+    {
+        reduce(nC, sumOp<label>()); reduce(nE, sumOp<label>());
+        reduce(mE, maxOp<label>());
+        reduce(rMax, maxOp<scalar>()); reduce(rSum, sumOp<scalar>());
+    }
+    os  << "surfaceIteratorPLIC: positioning ccs: " << nC
+        << " positionings, cuts per cell " << scalar(nE)/max(nC, label(1))
+        << " (max " << mE << "), residual max " << rMax << " mean "
+        << rSum/max(nC, label(1)) << endl;
+    nPosCells_ = nPosEvals_ = maxPosEvals_ = 0;
+    maxPosRes_ = sumPosRes_ = 0;
+}
+
 
 Foam::label Foam::surfaceIteratorPLIC::vofCutCell
 (
@@ -86,6 +177,13 @@ Foam::label Foam::surfaceIteratorPLIC::vofCutCell
     else if (1 - alpha1 < tol)
     {
         return 1;
+    }
+
+    // The ccs positioning (readPositioning): the same cut object, the
+    // vofCutCell path below untouched
+    if (positioning_ == "ccs")
+    {
+        return ccsCutCell(celli, alpha1, normal);
     }
 
     // Finding the two vertices inbetween which the isovalue giving alpha1 lies

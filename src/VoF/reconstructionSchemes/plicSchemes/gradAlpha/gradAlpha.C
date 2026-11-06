@@ -119,6 +119,7 @@ Foam::reconstruction::gradAlpha::gradAlpha
     surfCellTol_(modelDict().lookupOrDefault<scalar>("surfCellTol", 1e-8)),
     sIterPLIC_(mesh_,surfCellTol_)
 {
+    sIterPLIC_.readPositioning(modelDict());
     reconstruct();
 }
 
@@ -194,6 +195,8 @@ void Foam::reconstruction::gradAlpha::reconstruct(bool forceUpdate)
             centre_[celli] = Zero;
         }
     }
+
+    sIterPLIC_.reportPositioning(Info);
 }
 
 

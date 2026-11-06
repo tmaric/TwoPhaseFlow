@@ -190,29 +190,6 @@ void Foam::davofInit::detrixheAslamState
         alphafAll[facei] = faceFraction(facei, psiF, psiP);
     }
 
-    // The wetted area vectors of the same fan cuts (the linear cut's wet
-    // polygon per triangle; its fraction is triNegativeFraction's)
-    const faceList& faces = mesh_.faces();
-    wetVecAll_.setSize(mesh_.nFaces());
-    forAll(wetVecAll_, facei)
-    {
-        const face& f = faces[facei];
-        const point& xf = Cf[facei];
-        vector a(Zero);
-        forAll(f, ip)
-        {
-            const label ip1 = f.nextLabel(ip);
-            vector Swet;
-            point xwet;
-            davof::triNegativePolygon
-            (
-                xf, P[f[ip]], P[ip1], psiF[facei], psiP[f[ip]], psiP[ip1],
-                Swet, xwet
-            );
-            a += Swet;
-        }
-        wetVecAll_[facei] = a;
-    }
     alpha.correctBoundaryConditions();
 }
 
@@ -256,8 +233,7 @@ Foam::davofInit::davofInit
     signedDistance_(dict.getOrDefault<bool>("signedDistance", false)),
     maxAlphaClip_(0),
     nFaceFallback_(0),
-    mTet_(mesh.nCells(), Zero),
-    wetVecAll_(mesh.nFaces(), Zero)
+    mTet_(mesh.nCells(), Zero)
 {}
 
 
@@ -301,7 +277,6 @@ void Foam::davofInit::quadraticFaces
         const scalar phif = psiF[facei];
 
         scalar liqA = 0, totA = 0;
-        vector aWet(Zero);
         bool fb = false;
         forAll(f, ip)
         {
@@ -327,13 +302,11 @@ void Foam::davofInit::quadraticFaces
             if (tfb) { fb = true; break; }
             liqA += fr*triA;
             totA += triA;
-            aWet += min(max(fr, scalar(0)), scalar(1))*St;
         }
         if (fb) { ++nFallback; continue; }
         if (totA > VSMALL)
         {
             alphafAll[facei] = min(max(liqA/totA, scalar(0)), scalar(1));
-            wetVecAll_[facei] = aWet;
         }
     }
     nFaceFallback_ = returnReduce(nFallback, sumOp<label>());
@@ -404,12 +377,6 @@ void Foam::davofInit::exactSphere
         else if (a > 1 - snapTol) a = 1;
         alphafAll[facei] = min(max(a, scalar(0)), scalar(1));
     }
-    // planar faces (checked above): the wetted area vector is alpha_f S_f
-    forAll(alphafAll, facei)
-    {
-        wetVecAll_[facei] = alphafAll[facei]*Sf[facei];
-    }
-
     // Cells: axis-aligned boxes.
     const labelListList& cellPoints = mesh_.cellPoints();
     forAll(alpha, celli)
@@ -600,88 +567,6 @@ Foam::scalar Foam::davofInit::maxConsistency
         }
     }
     return returnReduce(worst, maxOp<scalar>());
-}
-
-
-void Foam::davofInit::areaNormal
-(
-    const fvMesh& mesh,
-    const surfaceScalarField& alphaf,
-    const surfaceVectorField& wetVec,
-    vectorField& m
-)
-{
-    const labelUList& own = mesh.faceOwner();
-    const labelUList& nei = mesh.faceNeighbour();
-    const label nInt = mesh.nInternalFaces();
-
-    m.setSize(mesh.nCells());
-    m = Zero;
-    for (label facei = 0; facei < nInt; ++facei)
-    {
-        if (alphaf[facei] == 0) continue;
-        const vector& a = wetVec[facei];
-        m[own[facei]] += a;
-        m[nei[facei]] -= a;
-    }
-    forAll(alphaf.boundaryField(), patchi)
-    {
-        const polyPatch& pp = mesh.boundaryMesh()[patchi];
-        const fvsPatchScalarField& pf = alphaf.boundaryField()[patchi];
-        const fvsPatchVectorField& pv = wetVec.boundaryField()[patchi];
-        if (pv.size() != pf.size()) continue;
-        forAll(pf, i)
-        {
-            if (pf[i] == 0) continue;
-            m[own[pp.start() + i]] += pv[i];
-        }
-    }
-}
-
-
-Foam::scalar Foam::davofInit::maxConsistency
-(
-    const surfaceScalarField& alphaf,
-    const surfaceVectorField& wetVec,
-    const scalar wispTol
-) const
-{
-    vectorField m;
-    areaNormal(mesh_, alphaf, wetVec, m);
-    const scalarField& V = mesh_.V();
-    scalar worst = 0;
-    forAll(m, celli)
-    {
-        if (mag(m[celli]) > wispThreshold(mesh_, celli, wispTol))
-        {
-            worst = max
-            (
-                worst,
-                mag(m[celli] - mTet_[celli])/Foam::pow(V[celli], 2.0/3.0)
-            );
-        }
-    }
-    return returnReduce(worst, maxOp<scalar>());
-}
-
-
-void Foam::davofInit::fillWettedArea(surfaceVectorField& wetVec) const
-{
-    vectorField& in = wetVec.primitiveFieldRef();
-    forAll(in, facei)
-    {
-        in[facei] = wetVecAll_[facei];
-    }
-    surfaceVectorField::Boundary& bf = wetVec.boundaryFieldRef();
-    forAll(bf, patchi)
-    {
-        const label start = mesh_.boundaryMesh()[patchi].start();
-        fvsPatchVectorField& pf = bf[patchi];
-        forAll(pf, i)
-        {
-            pf[i] = wetVecAll_[start + i];
-        }
-    }
 }
 
 

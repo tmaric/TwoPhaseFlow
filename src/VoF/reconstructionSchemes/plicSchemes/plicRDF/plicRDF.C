@@ -448,6 +448,7 @@ Foam::reconstruction::plicRDF::plicRDF
     RDF_(reconstructedDistanceFunction::New(alpha1.mesh())),
     sIterPLIC_(mesh_,surfCellTol_)
 {
+    sIterPLIC_.readPositioning(modelDict());
     setInitNormals(false);
 
     centre_ = dimensionedVector("centre", dimLength, Zero);
@@ -659,6 +660,8 @@ void Foam::reconstruction::plicRDF::reconstruct(bool forceUpdate)
             break;
         }
     }
+
+    sIterPLIC_.reportPositioning(Info);
 }
 
 

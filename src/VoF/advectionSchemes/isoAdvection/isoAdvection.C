@@ -104,7 +104,6 @@ Foam::advection::isoAdvection::isoAdvection
     bsx0_(bsFaces_.size()),
     bsn0_(bsFaces_.size()),
     bsUn0_(bsFaces_.size()),
-    bsU0_(0),
 
     // Parallel run data
     procPatchLabels_(mesh_.boundary().size()),
@@ -148,228 +147,11 @@ Foam::advection::isoAdvection::isoAdvection
     surfX0_(0),
     surfN0_(0),
     surfUn0_(0),
-    surfU0_(0),
     cellToSurf_(0),
-    faceClippingPtr_(nullptr),
-    clipCorrects_(false),
     planeFluxFaces_(0),
     secondRingFaces_(0),
     secondRingBest_(0),
-    secondRingDist_(0),
-    clippingSurface_(modelDict().getOrDefault<word>("clippingSurface", "none")),
-    faceState_(modelDict().getOrDefault<word>("faceState", "scalar")),
-    wetVecPtr_(nullptr),
-    tensorCentroid_(modelDict().getOrDefault<word>("tensorCentroid", "cut")),
-    nCentroidFail_(0),
-    curvedTolRel_(modelDict().getOrDefault<scalar>("curvedTolRel", 1e-11)),
-    curvedMaxDepth_(modelDict().getOrDefault<label>("curvedMaxDepth", 12)),
-    fitPriorWeight_(modelDict().getOrDefault<scalar>("fitPriorWeight", 1e-2)),
-    fitTol_(modelDict().getOrDefault<scalar>("fitTol", 1e-10)),
-    fitMaxIter_(modelDict().getOrDefault<label>("fitMaxIter", 50)),
-    fitAnchor_(modelDict().getOrDefault<word>("fitAnchor", "faces")),
-    fitDof_(modelDict().getOrDefault<word>("fitDof", "six")),
-    anchorTolRel_(modelDict().getOrDefault<scalar>("anchorTolRel", 1e-11)),
-    defectEvery_(modelDict().getOrDefault<label>("defectEvery", 10)),
-    curvedDebug_(modelDict().getOrDefault<bool>("curvedDebug", false)),
-    anchorDiagnostics_(modelDict().getOrDefault<bool>("anchorDiagnostics", false)),
-    anchorMethod_(modelDict().getOrDefault<word>("anchorMethod", "ccs")),
-    anchorSkipConverged_(modelDict().getOrDefault<bool>("anchorSkipConverged", true)),
-    fluxIntegration_(modelDict().getOrDefault<word>("fluxIntegration", "prism")),
-    sweptPlaneTol_(modelDict().getOrDefault<scalar>("sweptPlaneTol", 1e-6)),
-    nSweptFaces_(0),
-    nSweptFlips_(0),
-    nSweptOutOfDonor_(0),
-    nSweptClipTris_(0),
-    sweptClosureMax_(0),
-    sweptClassify_(modelDict().getOrDefault<bool>("sweptClassify", false)),
-    sweptClass_(),
-    nSweptClass_(label(0)),
-    sweptEventReported_(false),
-    dVfBeforeBound_(),
-    nSweptPieces_(0),
-    nSweptBeyond_(0),
-    sweptBeyondMax_(0),
-    nSweptRankFallback_(0),
-    nSweptPartialCells_(0),
-    sweptPieceClosureMax_(0),
-    nSweptDegenerate_(0),
-    sweptCellsFaceUpdate_(modelDict().getOrDefault<word>("sweptCellsFaceUpdate", "pieces")),
-    sweptCoplanar_(modelDict().getOrDefault<word>("sweptCoplanar", "donorSide")),
-    nSweptCoplanar_(0),
-    sweptPreTest_(modelDict().getOrDefault<word>("sweptPreTest", "touching")),
-    nSweptPreSkipped_(0),
-    nSweptPreClipped_(0),
-    sweptStateShortcut_(modelDict().getOrDefault<bool>("sweptStateShortcut", false)),
-    sweptPreTestCheck_(modelDict().getOrDefault<bool>("sweptPreTestCheck", false)),
-    nSweptPreViol_(0),
-    nSweptPreSlab_(0),
-    nSweptShortViol_(0),
-    nSweptShortNotInside_(0),
-    cellBoxes_(),
-    sweptTraceCache_(modelDict().getOrDefault<bool>("sweptTraceCache", true)),
-    traceCell_(),
-    traceU_(),
-    traceDone_(),
-    nSweptTraceHits_(0),
-    nSweptTraceMisses_(0),
-    nSweptShortFull_(0),
-    nSweptShortEmpty_(0),
-    nSweptShortPieces_(0),
-    nSweptShortFullTol_(0),
-    nSweptShortEmptyTol_(0),
-    sweptClassStats_(modelDict().getOrDefault<bool>("sweptClassStats", false)),
-    sweptDonorFastPath_(modelDict().getOrDefault<bool>("sweptDonorFastPath", false)),
-    nSweptDonorFast_(0),
-    sweptFaceUpdateFromVolume_(modelDict().getOrDefault<bool>("sweptFaceUpdateFromVolume", false)),
-    sweptPreTestCoplanarSide_(modelDict().getOrDefault<bool>("sweptPreTestCoplanarSide", false)),
-    sweptNoFluxLayer_(modelDict().getOrDefault<bool>("sweptNoFluxLayer", false)),
-    sweptAxisPlanes_(modelDict().getOrDefault<bool>("sweptAxisPlanes", false)),
-    sweptPointVelocityLazy_(modelDict().getOrDefault<bool>("sweptPointVelocityLazy", false)),
-    sweptTetCache_(modelDict().getOrDefault<bool>("sweptTetCache", false)),
-    sweptSliverClosedForm_(modelDict().getOrDefault<bool>("sweptSliverClosedForm", false)),
-    nSweptSliverClosed_(0),
-    upLazy_(),
-    upDone_(),
-    anyPatchPoint_(),
-    upWeights_(16),
-    nUpLazy_(0),
-    cellTets_(),
-    nClsFaces_(label(0)),
-    nClsTouched_(label(0)),
-    nClsPieces_(label(0)),
-    nClsVolClips_(label(0)),
-    nClsAreaClips_(label(0)),
-    nClsTris_(label(0)),
-    tClsVol_(scalar(0)),
-    tClsArea_(scalar(0)),
-    tClsTrace_(scalar(0)),
-    tClsPre_(scalar(0)),
-    sweptCapSet_(modelDict().getOrDefault<word>("sweptCapSet", "final")),
-    sweptConsistencyLog_(modelDict().getOrDefault<bool>("sweptConsistencyLog", false)),
-    sweptConsistent_(modelDict().getOrDefault<bool>("sweptConsistent", true)),
-    sweptConsistentTol_(modelDict().getOrDefault<scalar>("sweptConsistentTol", 1e-8)),
-    nConsProbed_(0),
-    nConsReach_(0),
-    nConsReachInterface_(0),
-    nConsReachWisp_(0),
-    nConsReachOpposite_(0),
-    nConsProbeFallback_(0),
-    consAlgMisSum_(0),
-    consAlgMisAbs_(0),
-    consAlgMisMax_(0),
-    nConsWispPieces_(0),
-    consWispMisSum_(0),
-    consWispMisAbs_(0),
-    consWispMisMax_(0),
-    sweptFaceConsDelta_(0),
-    nConsCandAdded_(0),
-    nConsNoSurface_(0),
-    nConsFallback_(0),
-    nConsBoundaryKept_(0),
-    sweptNoDonorSurface_(false),
-    sweptWispSurface_(modelDict().getOrDefault<word>("sweptWispSurface", "matched")),
-    sweptWispTol_(modelDict().getOrDefault<scalar>("sweptWispTol", 0)),
-    wispSurfaces_(),
-    hasWispSurface_(),
-    nSweptWispClipped_(0),
-    nSweptWispNoNeighbour_(0),
-    nSweptWispAnchorFail_(0),
-    nSweptWispMatched_(0),
-    sweptWispMatchTol_(modelDict().getOrDefault<scalar>("sweptWispMatchTol", 1e-9)),
-    consResidueStep_(),
-    consSummary_(),
-    consResiduePtr_(),
-    planeSource_(modelDict().getOrDefault<word>("planeSource", "anchor")),
-    sweptFaceDump_(modelDict().getOrDefault<bool>("sweptFaceDump", false)),
-    dumpFaces_(),
-    dumpPieces_(),
-    sweptScaleToPhi_(modelDict().getOrDefault<bool>("sweptScaleToPhi", false)),
-    sweptVolumeCorrection_
-    (
-        // pyramid when no key (the reference setting, 2026-11-04); auto:
-        // the mode of sweptScaleToPhi, the builds before the key
-        [this]() -> word
-        {
-            const word w =
-                modelDict().getOrDefault<word>("sweptVolumeCorrection", "pyramid");
-            if (w != "auto") return w;
-            return
-                modelDict().getOrDefault<bool>("sweptScaleToPhi", false)
-              ? word("scale") : word("none");
-        }()
-    ),
-    sweptVolumeKeyGiven_
-    (
-        modelDict().getOrDefault<word>("sweptVolumeCorrection", "pyramid") != "auto"
-    ),
-    sweptPyrDeltaMax_(0),
-    sweptVolDefectMax_(0),
-    sweptDispAxisMax_(0),
-    nSweptTwisted_(0),
-    nSweptPyrSkipped_(0),
-    sweptRemote_(),
-    sweptRemoteRing_(),
-    nSweptRemoteCells_(0),
-    nSweptRemoteFaces_(0),
-    nSweptEulerTrace_(0),
-    sweptFaceRemote_(false),
-    sweptFaceFallback_(false),
-    sweptExchangeTime_(0),
-    sweptCurvedTime_(0),
-    sweptExchangeParts_(Zero),
-    sweptStencilDone_(),
-    sweptMap_(),
-    sweptPrevNeed_(),
-    sweptPrevCompact_(),
-    sweptFaceLog_(modelDict().getOrDefault<bool>("sweptFaceLog", false)),
-    sweptDebug_(modelDict().found("sweptDebugPoint")),
-    sweptDebugPoint_(modelDict().getOrDefault<point>("sweptDebugPoint", point(GREAT, GREAT, GREAT))),
-    sweptFaceLogFile_(),
-    debugR0Max_(0),
-    debugCellR0_(-1),
-    debugSurface_(),
-    debugAlpha_(0),
-    nAnchorFail_(0),
-    nAnchorLeaves_(0),
-    nAnchorEvals_(0),
-    nAnchorEdge_(0),
-    nAnchorStartCells_(0),
-    anchorStartResMax_(0),
-    anchorStartResSum_(0),
-    nAnchorStartBelowTol_(0),
-    nAnchorSkipped_(0),
-    anchorKbVsCutMax_(-1),
-    nCompare_(0),
-    nCompareDiff_(0),
-    nCompareDiffEdge_(0),
-    nCompareDiffResolved_(0),
-    anchorShiftMax_(0),
-    anchorShiftSum_(0),
-    defectLevels_(modelDict().getOrDefault<label>("defectLevels", 3)),
-    writeCurvedFields_(modelDict().getOrDefault<bool>("writeCurvedFields", false)),
-    cellSurfaces_(0),
-    hasSurface_(),
-    volumeRulePtr_(nullptr),
-    nRuleFallback_(0),
-    nCurvedFaces_(0),
-    nCurvedSecondRing_(0),
-    nCurvedBoundary_(0),
-    nCurvedSkipped_(0),
-    nCurvedFallback_(0),
-    nCurvedLeaves_(0),
-    nFitCells_(0),
-    nFitConverged_(0),
-    nFitStalled_(0),
-    nFitSingular_(0),
-    nFitNoBracket_(0),
-    nFitNoFrame_(0),
-    fitResMax_(0),
-    fitResSum_(0),
-    defectMax_(0),
-    defectSum_(0),
-    nDefectCells_(0),
-    fitResidualPtr_(nullptr),
-    paraboloidDefectPtr_(nullptr)
+    secondRingDist_(0)
 {
    cutFaceAdvect::debug = debug;
 
@@ -378,317 +160,6 @@ Foam::advection::isoAdvection::isoAdvection
     if (storeAreaFractions_ && alphafPtr_ && isA<reconstruction::davof>(*surf_))
     {
         davofPtr_ = &refCast<reconstruction::davof>(*surf_);
-
-        // The face-clipping model (default plane: nothing changes)
-        faceClippingPtr_ = davofFaceClipping::New(modelDict(), *davofPtr_);
-        clipCorrects_ = faceClippingPtr_->corrects();
-        if (clipCorrects_)
-        {
-            advectFace_.keepChord(true);
-        }
-        if (faceClippingPtr_->needsCurvatureTensor())
-        {
-            // The scheme keeps what the tensor needs from now on; the
-            // tensor itself is fitted after the reconstruction at the
-            // start of every step (advect)
-            davofPtr_->requestCurvatureTensor(true);
-        }
-        Info<< "isoAdvection: faceClipping " << faceClippingPtr_->type()
-            << endl;
-
-        // The curved clipping surface: the dual advection with one surface
-        // per cell replaces the plane sweep (isoAdvectionCurved.C)
-        if (clippingSurface_ != "none")
-        {
-            // plane (2026-10-28): the paraboloid path with a zero curvature
-            // tensor, i.e. the plane in the frame of the used normal
-            // positioned by the volume anchor (fitDof none or one, fitAnchor
-            // volume), the surface of the swept-face flux
-            if
-            (
-                clippingSurface_ != "exactSphere" && clippingSurface_ != "paraboloid"
-             && clippingSurface_ != "plane"
-            )
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "clippingSurface '" << clippingSurface_
-                    << "' unknown. Valid: none, exactSphere, paraboloid, plane."
-                    << exit(FatalIOError);
-            }
-            if (clipCorrects_)
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "clippingSurface " << clippingSurface_
-                    << " replaces the plane sweep; faceClipping must be plane"
-                    << exit(FatalIOError);
-            }
-            if (clippingSurface_ == "paraboloid")
-            {
-                davofPtr_->requestCurvatureTensor(true);
-            }
-            Info<< "isoAdvection: clippingSurface " << clippingSurface_
-                << " (the volume flux and the face update from one surface"
-                << " per cell; curvedTolRel " << curvedTolRel_
-                << ", curvedMaxDepth " << curvedMaxDepth_;
-            if (planeSource_ != "anchor" && planeSource_ != "exact")
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "planeSource '" << planeSource_
-                    << "' unknown. Valid: anchor, exact." << exit(FatalIOError);
-            }
-            if (planeSource_ == "exact")
-            {
-                Info<< ", planeSource exact (the tangent plane of the exact"
-                    << " sphere per interface cell, no anchor)";
-            }
-            if (clippingSurface_ == "plane" && fitDof_ == "six")
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "clippingSurface plane needs fitDof none or one (the"
-                    << " six-coefficient fit would set a curvature tensor)"
-                    << exit(FatalIOError);
-            }
-            if (clippingSurface_ != "exactSphere")
-            {
-                if (fitAnchor_ != "faces" && fitAnchor_ != "volume")
-                {
-                    FatalIOErrorInFunction(modelDict())
-                        << "fitAnchor '" << fitAnchor_
-                        << "' unknown. Valid: faces, volume." << exit(FatalIOError);
-                }
-                if (fitDof_ != "six" && fitDof_ != "one" && fitDof_ != "none")
-                {
-                    FatalIOErrorInFunction(modelDict())
-                        << "fitDof '" << fitDof_
-                        << "' unknown. Valid: six, one, none." << exit(FatalIOError);
-                }
-                if (fitDof_ == "none" && fitAnchor_ != "volume")
-                {
-                    FatalIOErrorInFunction(modelDict())
-                        << "fitDof none needs fitAnchor volume (the offset"
-                        << " comes from nowhere else)" << exit(FatalIOError);
-                }
-                if
-                (
-                    anchorMethod_ != "ccs" && anchorMethod_ != "newton"
-                 && anchorMethod_ != "illinois" && anchorMethod_ != "compare"
-                )
-                {
-                    FatalIOErrorInFunction(modelDict())
-                        << "anchorMethod '" << anchorMethod_
-                        << "' unknown. Valid: ccs, newton, illinois, compare."
-                        << exit(FatalIOError);
-                }
-                Info<< ", fitPriorWeight " << fitPriorWeight_ << ", fitTol "
-                    << fitTol_ << ", fitMaxIter " << fitMaxIter_
-                    << ", fitAnchor " << fitAnchor_ << ", fitDof " << fitDof_
-                    << ", anchorTolRel " << anchorTolRel_ << ", anchorMethod "
-                    << anchorMethod_ << ", defectEvery "
-                    << defectEvery_ << ", anchorDiagnostics "
-                    << (anchorDiagnostics_ ? "on" : "off")
-                    << ", anchorSkipConverged "
-                    << (anchorSkipConverged_ ? "true" : "false");
-            }
-            if
-            (
-                fluxIntegration_ != "prism" && fluxIntegration_ != "trapezoidal"
-             && fluxIntegration_ != "simpson" && fluxIntegration_ != "simpsonSplit"
-             && fluxIntegration_ != "gaussSplit" && fluxIntegration_ != "simpsonSplitS"
-             && fluxIntegration_ != "sweptFace" && fluxIntegration_ != "sweptFaceCells"
-            )
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "fluxIntegration '" << fluxIntegration_
-                    << "' unknown. Valid: prism, trapezoidal, simpson, simpsonSplit,"
-                    << " simpsonSplitS, gaussSplit, sweptFace, sweptFaceCells."
-                    << exit(FatalIOError);
-            }
-            const bool swept =
-                (fluxIntegration_ == "sweptFace" || fluxIntegration_ == "sweptFaceCells");
-            if (swept && clippingSurface_ == "exactSphere")
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "fluxIntegration " << fluxIntegration_ << " needs a plane surface"
-                    << " (clippingSurface plane, or paraboloid with a zero"
-                    << " tensor); exactSphere is a sphere" << exit(FatalIOError);
-            }
-            Info<< ", fluxIntegration " << fluxIntegration_;
-            if (swept)
-            {
-                // the volume correction (2026-11-02): the mode replaces the
-                // flag; sweptScaleToPhi stays the flag of the mode scale
-                if
-                (
-                    sweptVolumeCorrection_ != "none" && sweptVolumeCorrection_ != "scale"
-                 && sweptVolumeCorrection_ != "pyramid"
-                )
-                {
-                    FatalIOErrorInFunction(modelDict())
-                        << "sweptVolumeCorrection '" << sweptVolumeCorrection_
-                        << "' unknown. Valid: auto (sweptScaleToPhi decides), none,"
-                        << " scale, pyramid." << exit(FatalIOError);
-                }
-                sweptScaleToPhi_ = (sweptVolumeCorrection_ == "scale");
-                Info<< " (sweptPlaneTol " << sweptPlaneTol_ << ", sweptScaleToPhi "
-                    << (sweptScaleToPhi_ ? "true" : "false");
-                if (sweptVolumeKeyGiven_)
-                {
-                    Info<< ", sweptVolumeCorrection " << sweptVolumeCorrection_
-                        << " (V_f = phi_f dt: phi of the half step, setFlow at"
-                        << " t + dt/2, paired with the midpoint trace)";
-                }
-                if (fluxIntegration_ == "sweptFaceCells")
-                {
-                    if (sweptCellsFaceUpdate_ != "pieces" && sweptCellsFaceUpdate_ != "donor")
-                    {
-                        FatalIOErrorInFunction(modelDict())
-                            << "sweptCellsFaceUpdate '" << sweptCellsFaceUpdate_
-                            << "' unknown. Valid: pieces, donor." << exit(FatalIOError);
-                    }
-                    if (sweptCoplanar_ != "donorSide" && sweptCoplanar_ != "both")
-                    {
-                        FatalIOErrorInFunction(modelDict())
-                            << "sweptCoplanar '" << sweptCoplanar_
-                            << "' unknown. Valid: donorSide, both." << exit(FatalIOError);
-                    }
-                    if (sweptCapSet_ != "final" && sweptCapSet_ != "crossing")
-                    {
-                        FatalIOErrorInFunction(modelDict())
-                            << "sweptCapSet '" << sweptCapSet_
-                            << "' unknown. Valid: final, crossing." << exit(FatalIOError);
-                    }
-                    if
-                    (
-                        sweptWispSurface_ != "none" && sweptWispSurface_ != "neighbour"
-                     && sweptWispSurface_ != "anchored" && sweptWispSurface_ != "matched"
-                    )
-                    {
-                        FatalIOErrorInFunction(modelDict())
-                            << "sweptWispSurface '" << sweptWispSurface_
-                            << "' unknown. Valid: none, neighbour, anchored, matched."
-                            << exit(FatalIOError);
-                    }
-                    if (sweptPreTest_ != "none" && sweptPreTest_ != "strict" && sweptPreTest_ != "touching")
-                    {
-                        FatalIOErrorInFunction(modelDict())
-                            << "sweptPreTest '" << sweptPreTest_
-                            << "' unknown. Valid: none, strict, touching."
-                            << exit(FatalIOError);
-                    }
-                    Info<< ", sweptCellsFaceUpdate " << sweptCellsFaceUpdate_
-                        << ", sweptCoplanar " << sweptCoplanar_
-                        << ", sweptCapSet " << sweptCapSet_
-                        << ", sweptPreTest " << sweptPreTest_
-                        << ", sweptStateShortcut " << sweptStateShortcut_
-                        << ", sweptTraceCache " << sweptTraceCache_;
-                    if (sweptPreTestCheck_) Info<< ", sweptPreTestCheck true";
-                    if (sweptClassStats_) Info<< ", sweptClassStats true";
-                    Info<< ", sweptDonorFastPath " << sweptDonorFastPath_
-                        << ", sweptFaceUpdateFromVolume " << sweptFaceUpdateFromVolume_
-                        << ", sweptPreTestCoplanarSide " << sweptPreTestCoplanarSide_
-                        << ", sweptNoFluxLayer " << sweptNoFluxLayer_
-                        << ", sweptAxisPlanes " << sweptAxisPlanes_
-                        << ", sweptPointVelocityLazy " << sweptPointVelocityLazy_
-                        << ", sweptTetCache " << sweptTetCache_
-                        << ", sweptSliverClosedForm " << sweptSliverClosedForm_;
-                    // the wisp rule (2026-11-02), printed only when not none
-                    if (sweptWispSurface_ != "none")
-                    {
-                        Info<< ", sweptWispSurface " << sweptWispSurface_;
-                    }
-                    Info<< ", sweptWispTol " << sweptWispTol_
-                        << ", sweptWispMatchTol " << sweptWispMatchTol_;
-                    // the consistency keys (2026-11-02), printed only when on
-                    if (sweptConsistent_)
-                    {
-                        Info<< ", sweptConsistent true (sweptConsistentTol "
-                            << sweptConsistentTol_ << ")";
-                    }
-                    if (sweptConsistencyLog_)
-                    {
-                        if (Pstream::parRun())
-                        {
-                            FatalIOErrorInFunction(modelDict())
-                                << "sweptConsistencyLog true is a serial"
-                                << " diagnostic (it probes the algebraic faces"
-                                << " in the local vertex rings)"
-                                << exit(FatalIOError);
-                        }
-                        Info<< ", sweptConsistencyLog true";
-                    }
-                }
-                else if (sweptConsistent_ || sweptConsistencyLog_ || sweptWispSurface_ != "none")
-                {
-                    FatalIOErrorInFunction(modelDict())
-                        << "sweptConsistent, sweptConsistencyLog and"
-                        << " sweptWispSurface need fluxIntegration sweptFaceCells"
-                        << exit(FatalIOError);
-                }
-                Info<< ")";
-            }
-            Info<< ", defectLevels " << defectLevels_ << ")" << endl;
-
-            // The rule for the volumes and face fractions under a surface
-            volumeRulePtr_ = davofVolumeRule::New(mesh_, modelDict());
-        }
-
-        // The face state on warped faces (2026-10-25): the wetted area
-        // vector next to the scalar fraction, produced by the curved face
-        // update only
-        if (faceState_ != "scalar" && faceState_ != "vector")
-        {
-            FatalIOErrorInFunction(modelDict())
-                << "faceState '" << faceState_
-                << "' unknown. Valid: scalar, vector." << exit(FatalIOError);
-        }
-        if (tensorCentroid_ != "cut" && tensorCentroid_ != "anchored")
-        {
-            FatalIOErrorInFunction(modelDict())
-                << "tensorCentroid '" << tensorCentroid_
-                << "' unknown. Valid: cut, anchored." << exit(FatalIOError);
-        }
-        if (faceState_ == "vector")
-        {
-            if (clippingSurface_ == "none")
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "faceState vector needs a clippingSurface (the plane"
-                    << " sweep stores the scalar fraction only)"
-                    << exit(FatalIOError);
-            }
-            wetVecPtr_ = davofPtr_->wettedAreaPtr();
-            if (!wetVecPtr_)
-            {
-                FatalIOErrorInFunction(modelDict())
-                    << "faceState vector: the davof scheme holds no wetted"
-                    << " area vector field" << exit(FatalIOError);
-            }
-            Info<< "isoAdvection: faceState vector (the wetted area vector "
-                << wetVecPtr_->name() << " transported with alphaf)" << endl;
-        }
-        if (tensorCentroid_ == "anchored" && clippingSurface_ != "paraboloid")
-        {
-            FatalIOErrorInFunction(modelDict())
-                << "tensorCentroid anchored needs clippingSurface paraboloid"
-                << " (the ring tensor is fitted there only)" << exit(FatalIOError);
-        }
-        if (tensorCentroid_ == "anchored")
-        {
-            Info<< "isoAdvection: tensorCentroid anchored (the ring tensor's"
-                << " centroids re-anchored by the volume rule)" << endl;
-        }
-    }
-    else if (modelDict().getOrDefault<word>("clippingSurface", "none") != "none")
-    {
-        FatalIOErrorInFunction(modelDict())
-            << "clippingSurface needs the davof reconstruction scheme with"
-            << " stored face fractions" << exit(FatalIOError);
-    }
-    else if (modelDict().getOrDefault<word>("faceClipping", "plane") != "plane")
-    {
-        FatalIOErrorInFunction(modelDict())
-            << "faceClipping other than plane needs the davof reconstruction"
-            << " scheme with stored face fractions" << exit(FatalIOError);
     }
 
     // Prepare lists used in parallel runs
@@ -829,11 +300,6 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
         surfX0_.clear();
         surfN0_.clear();
         surfUn0_.clear();
-        surfU0_.clear();
-        if (clipCorrects_)
-        {
-            faceClippingPtr_->resetCounters();
-        }
 
         // The per-face and per-cell records: allocated and filled on the
         // first call or a changed mesh; otherwise they were reset at the
@@ -882,10 +348,8 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             n0 /= (mag(n0));
 
             // Get the speed of the isoface by interpolating velocity and
-            // dotting it with isoface unit normal (the velocity itself is
-            // kept for the face-clipping models: the same dot product)
-            const vector U0 = UInterp.interpolate(x0, celli);
-            const scalar Un0 = U0 & n0;
+            // dotting it with isoface unit normal
+            const scalar Un0 = UInterp.interpolate(x0, celli) & n0;
 
             DebugInfo
                 << "calcIsoFace gives initial surface: \nx0 = " << x0
@@ -898,7 +362,6 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 surfX0_.append(x0);
                 surfN0_.append(n0);
                 surfUn0_.append(Un0);
-                surfU0_.append(U0);
             }
 
             // Estimate time integrated flux through each downwind face
@@ -948,8 +411,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                             (
                                 facei,
                                 advectFace_.subFaceAreaEnd(),
-                                false,
-                                celli, x0, n0, U0, dt
+                                false
                             );
                         }
                     }
@@ -978,8 +440,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                             (
                                 facei,
                                 advectFace_.subFaceAreaEnd(),
-                                false,
-                                celli, x0, n0, U0, dt
+                                false
                             );
                             // The flux is the plane's where the plane can
                             // speak for the upwind cell (planeFlux)
@@ -995,10 +456,6 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                     bsx0_.append(x0);
                     bsn0_.append(n0);
                     bsUn0_.append(Un0);
-                    if (storeAf)
-                    {
-                        bsU0_.append(U0);
-                    }
 
                     // Note: we must not check if the face is on the
                     // processor patch here.
@@ -1052,8 +509,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                     (
                         facei,
                         advectFace_.subFaceAreaEnd(),
-                        false,
-                        own[facei], bsx0_[i], bsn0_[i], bsU0_[i], dt
+                        false
                     );
                 }
             }
@@ -1078,8 +534,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 (
                     facei,
                     advectFace_.subFaceAreaEnd(),
-                    false,
-                    own[facei], bsx0_[i], bsn0_[i], bsU0_[i], dt
+                    false
                 );
             }
         }
@@ -1139,11 +594,6 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                 << returnReduce(nContentBoundCells_, sumOp<label>())
                 << " cells";
         }
-        if (clipCorrects_)
-        {
-            Info<< "; ";
-            faceClippingPtr_->report(Info);
-        }
         Info<< endl;
     }
 }
@@ -1196,12 +646,6 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
             (phif >= 0) ? alpha[own[facei]] : alpha[mesh_.faceNeighbour()[facei]];
         alphafPtr_->primitiveFieldRef()[facei] = af;
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
-        if (wetVecPtr_)
-        {
-            // the planar default of the vector state: alpha_up S_f (the
-            // fan triangles' area vectors sum to S_f)
-            wetVecPtr_->primitiveFieldRef()[facei] = af*mesh_.faceAreas()[facei];
-        }
         return;
     }
 
@@ -1213,11 +657,6 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
         const scalar af = alpha[own[facei]];
         pf[facei - pbm[patchi].start()] = af;
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
-        if (wetVecPtr_)
-        {
-            wetVecPtr_->boundaryFieldRef()[patchi][facei - pbm[patchi].start()] =
-                af*mesh_.faceAreas()[facei];
-        }
     }
 }
 
@@ -1355,16 +794,11 @@ void Foam::advection::isoAdvection::publishWetFaces()
 void Foam::advection::isoAdvection::storeAreaFraction
 (
     const label facei,
-    const scalar areaEndPlane,
-    const bool secondRing,
-    const label planeCell,
-    const point& x0,
-    const vector& n0,
-    const vector& U0,
-    const scalar dt
+    const scalar areaEnd,
+    const bool secondRing
 )
 {
-    if (areaEndPlane < 0)
+    if (areaEnd < 0)
     {
         // The default the former pass before the sweep had written: the
         // upwind cell's alpha at the start of the step (alpha1_ is
@@ -1375,25 +809,6 @@ void Foam::advection::isoAdvection::storeAreaFraction
         setDefaultAreaFraction(facei, alpha1_.primitiveField());
         alphafFallbackFaces_.append(facei);
         return;
-    }
-
-    // The face-clipping model: the plane-clipped area corrected (plane:
-    // never called, the branch is the only addition to the sweep). n0
-    // points OUT of the liquid (isoAdvector's convention, n0 =
-    // -normal/|normal|), the model takes the normal INTO the liquid; the
-    // plane's centroid at the end of the step is x0 + U0 dt
-    scalar areaEnd = areaEndPlane;
-    if (clipCorrects_)
-    {
-        areaEnd = faceClippingPtr_->correct
-        (
-            facei,
-            planeCell,
-            -n0,
-            x0 + U0*dt,
-            advectFace_.chordEnd(),
-            areaEndPlane
-        );
     }
 
     scalar af = areaEnd/mag(mesh_.faceAreas()[facei]);
@@ -1525,8 +940,7 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
         (
             f,
             advectFace_.subFaceAreaEnd(),
-            true,
-            surfCells_[si], surfX0_[si], surfN0_[si], surfU0_[si], dt
+            true
         );
 
         // The flux is the plane's where the plane can speak for the
@@ -1780,8 +1194,7 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
     surfaceScalarField& dVf,
     const surfaceScalarField& phi,
     bool returnSyncedFaces,
-    surfaceScalarField* alphaf,
-    surfaceVectorField* wetVec
+    surfaceScalarField* alphaf
 )
 {
     DynamicLabelList syncedFaces(0);
@@ -1822,15 +1235,6 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
                 );
                 toNbr << afPatch;
             }
-            if (wetVec)
-            {
-                const UIndirectList<vector> wvPatch
-                (
-                    wetVec->boundaryField()[patchi],
-                    surfCellFacesOnProcPatch
-                );
-                toNbr << wvPatch;
-            }
         }
 
         pBufs.finishedSends();
@@ -1853,11 +1257,6 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
             if (alphaf)
             {
                 fromNeighb >> nbrAf;
-            }
-            List<vector> nbrWv;
-            if (wetVec)
-            {
-                fromNeighb >> nbrWv;
             }
             if (returnSyncedFaces)
             {
@@ -1888,13 +1287,6 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
                 {
                     // The upwind side's face fraction, no sign change
                     alphaf->boundaryFieldRef()[patchi][facei] = nbrAf[i];
-                    if (wetVec)
-                    {
-                        // the wetted area vector is oriented with each
-                        // side's own outward patch face: the sign flips,
-                        // as the flux's does
-                        wetVec->boundaryFieldRef()[patchi][facei] = -nbrWv[i];
-                    }
                     const label meshFacei = procPatch.start() + facei;
                     wetFace_.set(meshFacei, (nbrAf[i] != 0) ? 1u : 0u);
                     if (!alphafSetFace_.test(meshFacei))

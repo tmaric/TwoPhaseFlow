@@ -1,7 +1,10 @@
-# The `davof` branch
+# The `davof-isoAdvector` branch
 
-Reference build of TwoPhaseFlow for the DAVOF (dual area/volume-of-fluid) benchmarks, which
-live in the sibling `leia` clone (`<workspace>/leia`, branch `development`).
+Reference build of TwoPhaseFlow for the DAVOF (dual area/volume-of-fluid) improvement of
+isoAdvector and its verification; the benchmarks live in the sibling `leia` clone
+(`<workspace>/leia`). The package is defined in the next section; the branch `davof-swept`
+holds the full method development (the swept-face advection, the curved dual advection, the
+volume rules) as history.
 
 ## What it is
 
@@ -27,8 +30,8 @@ export WM_NCOMPPROCS=24
 `Allwmake` sources `etc/davof-env.sh`, which redirects `FOAM_USER_APPBIN` / `FOAM_USER_LIBBIN`
 (the only install variables the `Make/files` use) to `platforms/<WM_OPTIONS>/{bin,lib}` inside
 this clone, and removes the account-wide `$HOME/OpenFOAM/$USER-<version>/platforms` from
-`PATH` and `LD_LIBRARY_PATH`. No `Make/files` or `Make/options` is changed, so merging
-upstream stays trivial. Nothing is written to, or deleted from, the account default.
+`PATH` and `LD_LIBRARY_PATH`. Nothing is written to, or deleted from, the account default.
+`src/VoF/Make/files` lists the davof sources; no third-party library is needed.
 
 `platforms/<WM_OPTIONS>/.openfoam-version` records the OpenFOAM version of the build.
 v2512 and v2606 share `WM_OPTIONS`, so `davof-env.sh` refuses to run when the sourced
@@ -55,6 +58,85 @@ Known, accepted leftovers: `libVoFphaseModelCompressibleTurbulenceModels` still 
 template instantiations with OpenFOAM's `libVoFphaseCompressibleTurbulenceModels` (only
 when loaded explicitly); `dynamicAlphaContactAngleJiang` is defined in two of this
 repository's own libraries.
+
+
+## The package (branch `davof-isoAdvector`, 2026-11-06)
+
+Tomislav's decision of 2026-11-06: the method (the swept-face advection, the paraboloid
+dual advection, the volume rules, the swept geometry) is ported into leia (branch
+`davof-port`); this fork keeps ONLY what the isoAdvector improvement needs and runs the
+verification that demonstrates it. The branch starts from `davof-swept` at `c5c00c5` and
+removes the rest; the diff against upstream `origin/master` (`ba10702`) is the package below
+plus the `inline namespace twoPhaseFlow` fix of `feature/parasitic-currents` ("What it is").
+
+(a) The DAVOF reconstruction for isoAdvector (the plane-clipped loop):
+
+- `src/VoF/reconstructionSchemes/plicSchemes/davof/`: the `davof` scheme (the normal from
+  the face fractions by the Gauss identity, the plane positioned by alpha; keys
+  `wispTol`, `surfCellTol`, `isoFaceTol`, `positioning` (default `ccs`),
+  `positioningTol`, `positioningMaxIter`, `normalModel`, `applyTo`, `sliverTol`,
+  `maxAngle`, `exactNormal`, `weight`; the per-cell diagnostics `areaNormalDavof`,
+  `sliverFlag`, `pPlane`, `planeVolDefect`, `planeAreaDefect`, `positioningResidual`).
+- `src/VoF/davof/normalModels/`: the normal models `cellLocal` (the identity normal),
+  `youngs`, `plicRDF` (the control), `exact` (the control from the exact state), `ringArea`
+  (the stable model: the area-weighted mean over the vertex ring) and `ringFit`
+  ("Normal models" below).
+- `src/VoF/davof/davofCcsPositioning.H`: the CCS positioning (b).
+- `src/VoF/davof/davofInit.{H,C}` with `davofSimplexGeometry.H`,
+  `davofQuadraticFaceGeometry.H`, `davofSphereGeometry.H`: the DAVOF state from an implicit
+  function (`detrixheAslam`, `quadraticFaces`, `exactSphere`), and `davofOrbit.H` (the
+  translated/rotated exact state of the function objects).
+- `src/VoF/advectionSchemes/isoAdvection/`: the face update of isoAdvector's own plane
+  sweep ("The face update" below): `storeAreaFractions` (the end-of-step submerged face
+  areas as `alphaf.<group>`), the second-ring sweep, `planeSpeaks`/`planeFlux`, the
+  content bound (`contentBound`), the second bounding layer (`boundSecondLayer`), the
+  defaults `defaultAreaFractions`, the processor sync of `alphaf` with `dVf`, the wet-face
+  list handed to the scheme; `cutFaceAdvect::subFaceAreaEnd()` and `faceSwept()`.
+  Keys of the alpha dictionary: `storeAreaFractions`, `boundSecondLayer`, `contentBound`,
+  `debugCell`.
+
+(b) The CCS positioning for every plane-positioning reconstruction scheme
+(`src/VoF/surfaceIterators/surfaceIteratorPLIC.{H,C}`, 2026-11-06): `plicRDF` and
+`gradAlpha` position their planes with `surfaceIteratorPLIC::vofCutCell`; it now reads
+`positioning vofCutCell | ccs;` (default `vofCutCell`, the code unchanged), `positioningTol`
+(1e-14 of V_c) and `positioningMaxIter` (30) from the scheme's dictionary
+(`readPositioning`). With `ccs` the plane is positioned by `davof::ccsPositionPlane` on the
+same `cutCellPLIC` cut (the cubic Hermite interpolant through the bracket ends with the
+exact slopes dV/dp = -A, bisection-safeguarded; T. Maric, J. Comput. Phys.: X 11 (2021)
+100093, doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227), started from the linear estimate
+between the vertex extrema; the full/empty returns of `vofCutCell` (alpha within `isoFaceTol`
+of 0 or 1) are the same on both paths. One Info line per reconstruction with `ccs`
+(`surfaceIteratorPLIC: positioning ccs: N positionings, cuts per cell ...`); none with
+`vofCutCell`, so the default logs are unchanged. `isoAlpha` positions an iso-value of the
+point-interpolated alpha (`surfaceIteratorIso`), not a plane along a normal: the CCS step
+needs the slope of the cut volume, which `cutCellIso` does not provide, so `isoAlpha` is
+unchanged (the third reference row of the verification). `davof` keeps its own
+`positioning` key (default `ccs`).
+
+(c) The function objects `areaFractionError`, `volumeFractionError` (`exactState
+exactSphere`), `reconstructionError` (`src/postProcessing/`), the apps `advectorVoF`
+(`setFlow` at the half step, the abort guard), `initDavofFields`, `planeVolumeConsistency`,
+`staticFaceFractions`, the unit test `testCutFaceAdvectEndArea`, and the benchmark
+dictionaries `run/benchmark/{advection,reconstruction}`.
+
+Removed from this branch (history on `davof-swept`): `isoAdvectionSwept.C` and every
+`swept*` key, `isoAdvectionCurved.C` (the paraboloid dual advection, the keys
+`clippingSurface`, `fluxIntegration`, `fit*`, `anchor*`, `curved*`, `tensorCentroid`,
+`planeSource`, `defectLevels`, `writeCurvedFields`), the volume rules
+(`src/VoF/davof/volumeRules/`, key `volumeRule`, the vendored overlap library and the Eigen
+dependency), the swept geometry (`davofSweptPieces.H`, `davofSweptRemote.H`,
+`davofVelocityAt.H`, `davofCurvedGeometry.H`), the face-clipping models
+(`src/VoF/davof/faceClipping/`, key `faceClipping`; `planeSagitta` with the curvature
+tensor of the `davof` scheme, keys `tensor*`, `writeCurvatureTensor`), the vector face
+state of `davof-warped` (`faceState vector`, `wettedAreaDavof`) and `apps/test/testSweptPieces`.
+A dictionary that still writes one of these keys is not rejected (unread keys), except
+`clippingSurface`/`faceClipping`, which no longer exist as keys at all; `fluxIntegration`
+and `volumeRule` are not read.
+
+Identity (keys off = the same code path): the rows davof-ringArea, davof-exact, plicRDF and
+isoAlpha of the preprint's smoke cases reproduce the `davof-swept` binary's results bit for
+bit; the check and its result are recorded in leia `docs/davof/REPORT-swept.md` ("The
+isoAdvector improvement: the verification in the fork (2026-11-06)").
 
 ## The face update (isoAdvection with the davof reconstruction)
 
@@ -393,500 +475,6 @@ state construction given; every row carries `NONORMALFALLBACK` (default
 in `fvSolution` and reported in the results CSV. `getResults.py --cases
 DIR --suffix S` collects another case tree into sibling CSV names.
 
-### Face clipping models (2026-10-15)
-
-What the face update stores on a face a plane has set is a
-run-time-selectable model (`src/VoF/davof/faceClipping`, base
-`davofFaceClipping`, keyword `faceClipping` of the alpha solver
-dictionary, default `plane`; constructed by isoAdvection when the
-reconstruction scheme is `davof`). `isoAdvection::storeAreaFraction`
-hands the model, for every face a plane sets (the downwind faces of a
-surface cell, the upwind faces its plane sweeps, the boundary faces, the
-second ring; the processor sync exchanges the final values), the plane's
-cell, the unit normal INTO the liquid, the plane's centroid translated to
-the end of the step, the chord (the plane's trace on the face at the end
-of the step, `cutFaceAdvect::chordEnd()`) and the plane-clipped area
-(`subFaceAreaEnd()`), and stores what the model returns as the fraction.
-
-- `plane`: the plane-clipped area itself, the face update as it was. Its
-  `corrects()` is false, so isoAdvection keeps no chords and never calls
-  the model: every existing row is bit-identical with the build before
-  the models, by construction. The only additions on the path of a
-  plane-set face are one tested bool (`clipCorrects_`, false), the split
-  of `Un0 = UInterp.interpolate(x0, celli) & n0` into the vector `U0`
-  and the same dot product `U0 & n0`, and the appends of `U0` to the
-  per-plane lists; `cutFaceAdvect` fills `chordEnd_` only after
-  `keepChord(true)`; the scheme's `usedNormal_` is a separate array; the
-  tensor fields are allocated on request only. No floating-point
-  operation of the sweep, the bounding or the reconstruction changes and
-  no counter changes. The check on the cluster is the plane gate
-  (`planeTranslation3D_hexCheck`-style, every value to all digits) and
-  the hex sphere study's end values.
-- `planeSagitta`: the sagitta correction, below.
-
-The geometry and the sign convention (verified in the code's
-conventions): the davof scheme's `normal_` and `m_c` point INTO the
-liquid (alpha = 1; cutCell's `(p - base).n > 0` is liquid); isoAdvector's
-plane normal `n0 = -normal/|normal|` points OUT of the liquid (its
-`Un0 > 0` means "the cell fills"), so `storeAreaFraction` passes `-n0` to
-the model. The curvature tensor `B` is the Hessian of the Monge patch
-`z = z_0 + (1/2) x.B.x` of the interface over the positioned plane, `z`
-along the normal `n` into the liquid, `x` in the plane from the plane's
-centroid, in the frame of `davofNormalModel::mongeFit` (the ringFit
-model's fit, factored out and shared; `e3 = n`, and for the ringFit model
-`e3 = m_c/|m_c|` as before): for a liquid sphere the ring's plane
-centroids lie on the liquid side of the tangent plane, `z = (x^2 + y^2)
-/(2R)`, so the fitted `d, f` are positive and `B = I_t/R` is positive
-definite, `tr B = 2/R`: "the surface bends toward the liquid" is
-`t.B.t > 0`. `B` is stored as a symmetric tensor in the global frame
-(`curvatureTensorDavof.<group>`, `t.B.t` for any in-plane `t`), with the
-offset `z_0 = -(1/2) B : M` (`curvatureOffsetDavof.<group>`, `M` the cut
-polygon's second moments about its centroid): the plane is positioned by
-the cell's volume, so it is a SECANT of the surface over the cell and the
-paraboloid's vertex sits at `z_0` (below the plane, `z_0 < 0`, for a
-convex liquid region). Both fields are zero outside the interface cells
-and in the fallback cells (fewer than `tensorMinCells` (6) usable ring
-planes, `n_k.e3 <= tensorAlignTol` (0.2), a singular system; counted
-"tensor fallbacks"); they are allocated on the first update, written with
-`writeCurvatureTensor true` (default false). The tensor of the
-start-of-step reconstruction serves the whole step (`advect` fits it right
-after `reconstruct`; a translation does not change the curvature). The
-scheme also exposes `usedNormals()`, the unit normal every interface
-cell's plane was positioned along.
-
-The correction. On a face with unit normal `n_f`, chord end points `p1,
-p2` (length `L`, direction `t`), the surface's trace is displaced from the
-chord in the face plane, along the chord's in-plane normal into the
-liquid, by `w/cos(phi)`, where `w(l) = z_0 + (1/2) x(l).B.x(l)` is the
-surface's offset from the plane along `n` at the chord point `x(l) = a +
-l t`, `a = p1 - c'`, `c' = x0 + U0 dt` the centroid at the end of the
-step, and `cos(phi) = |n - (n.n_f) n_f|` (Meusnier: the trace's curvature
-is the normal curvature over `cos(phi)`). Where `w > 0` the surface lies
-on the liquid side of the plane and the true liquid area is smaller than
-the plane's:
-
-    dA = -(1/cos(phi)) int_0^L w(l) dl
-       = -(1/cos(phi)) [ z_0 L + (1/2)( a.B.a L + a.B.t L^2 + t.B.t L^3/3 ) ]
-
-exact to O(h^4) in the area for a second-order normal and a first-order
-`B` (the end triangles where chord and arc meet the face's edges are
-O(h^4); an O(h) error of `B` moves the area by O(h^4)), so the stored
-fraction is second order where the plane clipping is first order
-(`sagittaForm full`, the default). The original formulation, the
-parabolic segment between the chord and the arc through its end points,
-`dA = +(2/3) L s / cos(phi)` with the sagitta `s = t.B.t L^2/8`, i.e.
-`t.B.t L^3/(12 cos(phi))`, is kept as `sagittaForm segment`: it assumes the
-chord's end points ON the arc, which the volume-positioned plane does not
-give, and drops the offset and the `a`-terms, which are of the same
-order. The check on a cube of side `h` cut through its centre by a plane
-normal to `e3` with `B = diag(B11, B22)`: `M = diag(h^2/12, h^2/12)`,
-`z_0 = -(B11 + B22) h^2/24`; on the face `x = h/2` (`L = h`, `t = e2`,
-`a = (h/2, -h/2)`) the full form gives `int w = B11 h^3/12`, `dA = -B11
-h^3/12`: the plane OVERESTIMATES the wetted area of every side face of a
-convex liquid region (the surface's trace lies on the liquid side of the
-secant's trace), while the segment form gives `+B22 h^3/12`, the opposite
-sign and the curvature of the other direction. Guards (keywords, with
-their defaults): no correction without a chord (the face on one side of
-the plane at the end of the step: a corner triangle of O(h^4) at most)
-or in a tensor-fallback cell; `sagittaMinCos 0.2` (`cos(phi)` below it:
-the interface nearly parallel to the face, the trace ill-conditioned;
-"skipped (cos)"); `sagittaMinChord 0.05` (`L` below it times
-`sqrt(|S_f|)`: the plane grazes a corner; "skipped (chord)");
-`sagittaMaxFraction 0.25` (`|dA|` capped at it times `|S_f|`; "capped");
-the stored area clamped to `[0, |S_f|]` ("clamped"); `tensorSource ring`
-(the ring Monge fit, the only source in this round). Planar faces: the
-chord is the plane's trace at `t = dt` on the face's edges (the cut
-points of the last quadrilateral of `timeIntegratedArea`, the cut points
-of `calcSubFace` for a stationary plane); on a non-planar face (the fan)
-the crossings of the plane with the face polygon's edges and the face's
-mean normal are used, an approximation (the perturbed-mesh transport is
-a separate matter). Configuration (the alpha solver dictionary; the old
-configuration without the keyword is the default):
-
-```
-faceClipping        planeSagitta;   // plane (default) | planeSagitta
-sagittaMinCos       0.2;
-sagittaMinChord     0.05;
-sagittaMaxFraction  0.25;
-sagittaForm         full;           // full | segment
-tensorSource        ring;
-tensorAlignTol      0.2;            // the scheme's fit (davof keys)
-tensorMinCells      6;
-writeCurvatureTensor false;
-```
-
-Info lines: the scheme prints `davof: curvature tensor on N cells, F
-tensor fallbacks` after the start-of-step reconstruction, and the face
-update's line gains `; sagitta corrected F faces, C capped, K clamped, S
-skipped (cos), M skipped (chord)` (only when the model is not `plane`;
-leia's `tpf_advection_metrics.py` parses both).
-
-Expected on the plane test (`planeTranslation3D`): the ring's planes of
-an exact plane state have centroids on the plane and exact normals to
-round-off, so the fitted quadratic coefficients are round-off (`d, e, f`
-about 1e-15 in the scaled units, `B` about 1e-15/h, 5e-12 1/m at N = 20
-of the 4 mm box) and `|dA|/|S_f|` about `B h/12` ~ 1e-16 per face, the
-offset term `z_0 L/|S_f|` ~ `B h/24` as small: the plane gate at 1e-12
-must hold for the sagitta rows as for the plane rows (a tensor of the
-order of 1e-13 1/m moves a fraction by 1e-13 h/12, far below the gate at
-every N). Expected on the sphere: the face-fraction error second order
-with the exact normal (the clipping law's q = 1 was the plane's, the
-corrected fraction is O(h^2)), the own normal recovered at second order
-where the slivers take the ring normal; the ring normal's first-order
-bias on a curved interface limits its row (the slope error O(h) enters
-`w` at O(h^2)). The sphere's `z_0`: the plane positioned by alpha in a
-cube cut through its centre, `z_0 = -h^2/(12 R)`, 1.7e-3 h at R = 4.8 h.
-
-### The curved clipping surface and its volume rules (2026-10-23/24)
-
-`clippingSurface exactSphere | paraboloid` in the isoAdvector dictionary replaces the plane
-sweep by ONE quadric surface per interface cell for both the volume flux (the liquid volume of
-the prism swept between a face's pre-image f - U dt and the face under the upwind cell's
-surface) and the face update (the pre-image's liquid fraction under the same surface), so that
-alpha_k and alpha_f are the moments of one surface at every step (`isoAdvectionCurved.C`,
-`davofCurvedGeometry.H`). `exactSphere` takes the sphere of the `exactNormal` dictionary at the
-state's time (the machinery gate for the sphere translation case); `paraboloid` the paraboloid
-in the frame of the normal the scheme used, with `fitDof six | one | none` (how many of its
-coefficients the cell's own face fractions set) and `fitAnchor faces | volume` (the offset from
-the faces or from alpha_k V). The stable variant is `fitDof none; fitAnchor volume`: the frame
-from the normal, the curvature tensor from the ring, the offset from the conserved alpha_k.
-Serial runs only until the surfaces are exchanged across processor boundaries.
-
-The three geometric quantities, the cell volume under a surface (the anchor, the surface
-defect), the prism volume (the flux) and the face fraction (the update), come from one
-run-time selected rule, `volumeRule` (`davof/volumeRules`, `davofVolumeRule`, RTS as the normal
-models):
-
-- `splitQuadrature` (the default, the reference): the triangle integrals split at the exact
-  traces of the quadric (the roots along every sweep line and the swept edge, three evaluations
-  each), 12-point Gauss-Legendre per piece, refined adaptively in both sweep directions to
-  `curvedTolRel` of the volume (default 1e-11, depth cap `curvedMaxDepth`). Any quadric. On the
-  translated plane at N = 40 it reproduces the exact linear cut to 2e-14 of the cell.
-- `kromerBothe`: J. Kromer, D. Bothe, Third-order accurate initialization of volume fractions
-  on unstructured meshes with arbitrary polyhedral cells, J. Comput. Phys. 475 (2023) 111840,
-  doi:10.1016/j.jcp.2022.111840, arXiv:2111.01073 (building on J. Comput. Phys. 396 (2019)
-  761-784, doi:10.1016/j.jcp.2019.07.005, arXiv:1805.03136). Their local paraboloid is the DAVOF
-  surface itself: the divergence theorem with x - o gives the face sum plus the paraboloid
-  patch integral, which Green's theorem turns into the line integral of H1 = c t1 - (b11 t1^3/6
-  + b12 t1^2 t2/2 + b22 t1 t2^2/2) along the conic traces on the faces; the wetted face areas
-  by Green's theorem as well. The conic is classified in principal form (their Eqs. 26-34) to
-  order the boundary crossings and to split long arcs; every arc is integrated as the graph
-  over its chord with the exact root along the chord's normal, adaptive Gauss-Legendre 12
-  (`davofKromerBothe.H`). A planar face (every vertex within 1e-10 L_s of the face plane) is
-  integrated whole, a warped face as the fan triangles about the face centre; the key
-  `kromerBotheFan` overrides the test (`auto`, the default, the test; `true` every face
-  fanned, the rule before 2026-10-25; `false` every face whole). The same choice applies to
-  the cell faces of the volume anchor, the top and bottom of the flux prisms and the displaced
-  faces of the face fractions. On the hexahedral sphere the whole faces cut the step by 45 %
-  at N = 64 and 40 % at N = 128, the end error changing in the eighth digit (L1(alphaf)
-  0.00195336 against 0.00195339). Falls back to `splitQuadrature`
-  per polyhedron where a configuration is not resolved, and for a sphere surface; counted in
-  the Info line ("volume rule kromerBothe fallbacks N") and, when any occur, by reason
-  ("kromerBothe fallbacks by reason: conic, point, root, gradient, area, volume"). On a flat
-  arc (a line trace, or a parabola of round-off curvature, as on the translated plane where
-  the ring tensor is 1e-10) the arc's midpoint lies on its chord to round-off and the root
-  along the chord's normal is the one nearest to the chord; selecting it by the arc's side
-  took the far root of the near-degenerate quadratic in up to 70000 prisms per step and
-  sent them to the capped fallback (fixed 2026-10-25; the plane test is at round-off and
-  without fallbacks since).
-- `exactSphere`: S. Strobl, A. Formella, T. Pöschel, Exact calculation of the overlap volume of
-  spheres and mesh elements, J. Comput. Phys. 311 (2016) 158-172, doi:10.1016/j.jcp.2016.02.003,
-  through the authors' reference implementation (`davof/thirdParty/overlap/overlap.hpp`, MIT,
-  header-only on Eigen 3; `src/VoF/Make/options` adds `-isystem $(EIGEN_INC)`, which
-  `etc/davof-env.sh` sets to `$HOME/OpenFOAM/thirdparty/eigen/eigen-3.4.0` when unset). The
-  cell as the (centre, face centre, edge) tetrahedra of every face's fan, the prism as three
-  tetrahedra per fan triangle; the face fraction by the quadratic face cut (exact for the
-  circle trace up to the sliver's 12-point rule). For `clippingSurface exactSphere`; a
-  paraboloid falls back to `splitQuadrature`, counted.
-
-Other algorithms of the curved flux, with their sources: the volume anchor's root (key
-`anchorMethod`: `ccs`, the default; `newton`; `illinois`; `compare`; 2026-10-25). The slope
-dV/dc of the cell's liquid volume in the offset is the area of the wetted patch projected along
-the frame's axis, which the Kromer-Bothe rule returns as the line integral oint t1 dt2 around
-the trace arcs it walks for the volume anyway (`cellLiquidVolumeSlope`). `ccs`: the
-Consecutive Cubic Spline positioning of T. Marić, Iterative volume-of-fluid interface
-positioning in general polyhedrons with Consecutive Cubic Spline interpolation, J. Comput.
-Phys.: X 11 (2021) 100093, doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227, applied to the
-paraboloid: once the root is bracketed (a Newton step from the start), the iterate is the root
-of the cubic Hermite interpolant through the two bracket ends with the exact volumes and
-slopes, re-bracketed at every step, an iterate outside the bracket or a bracket not halved in
-two steps replaced by the bisection point; between the vertex offsets (the breakpoints of
-V(c), where its second derivative jumps) V is smooth, a cubic for a plane, so the model is
-exact there up to the quadrature. `newton`: Newton on the slope, safeguarded by the bracket
-the iterates build (an iterate outside it is replaced by the bisection point: the rtsafe of
-Press, Teukolsky, Vetterling, Flannery, Numerical Recipes, 3rd ed., Cambridge University
-Press, 2007, Sect. 4.6 and 9.4, ISBN 978-0-521-88068-8) and corrected by the quadratic model
-whose second derivative is the secant of the two latest slopes (Halley's step with that
-estimate: T. R. Scavo, J. B. Thoo, On the geometry of Halley's method, Amer. Math. Monthly 102
-(1995) 417-426, doi:10.2307/2975033). Both converge when the bracket closes to 1e-11 h or the
-Newton step r/A is below it with the residual within `anchorTolRel`; where the slope is not
-available (a fallback polyhedron, another rule) and no bracket exists yet, or with
-`anchorMethod illinois`, the root by a bracket of doubling steps and the Illinois rule,
-M. Dowell, P. Jarratt, A modified regula falsi method for computing the root of an equation,
-BIT 11 (1971) 168-174, doi:10.1007/BF01934364 (the only method until 2026-10-25: 6.2
-cell-volume evaluations per interface cell per step, 57 % of the advection step at N = 64).
-Where the target is 0 or V (a full or empty cell flagged as an interface cell) V(c) is flat on
-an interval of roots; Illinois stops at the first bracket end of its doubling steps (0.75 h or
-1.75 h from the start) and the ladder's ring row carries that choice; the offset of such a cell
-is DEFINED (2026-10-25) as the edge of the interval, the surface tangent to the cell (the first
-offset at which the cell is entirely liquid or entirely empty), computed exactly as the extremum
-of the offset function over the cell's vertices, edges and face planes (`kbOffsetRange`) and
-moved 1e-12 h onto the flat side; `ccs` and `newton` take it (the Info line counts these cells,
-"edge N"), `illinois` keeps its bracket end. `compare` runs Illinois and ccs from the same
-start, continues with ccs, counts the cells whose offsets differ by more than 1e-9 h (and those
-of them at the edge) in a second Info line and prints the first 20 per step. The Info line
-counts the anchor's evaluations ("evaluations N (per cell x)"). The anchor's two face-fraction
-diagnostics, the face residual before the anchor and the face shift after it (14 % of the
-step), are computed and printed only with `anchorDiagnostics true` (default false). The
-six-coefficient fit by
-Gauss-Newton with the damping of D. W. Marquardt, An algorithm for least-squares estimation of
-nonlinear parameters, J. Soc. Indust. Appl. Math. 11 (1963) 431-441, doi:10.1137/0111030; the
-six-point degree-4 triangle rule of the retired unsplit quadrature from D. A. Dunavant, High
-degree efficient symmetrical Gaussian quadrature rules for the triangle, Int. J. Numer. Meth.
-Engng. 21 (1985) 1129-1148, doi:10.1002/nme.1620210612; the Gauss-Legendre nodes by Newton on
-the Legendre polynomials (Press, Teukolsky, Vetterling, Flannery, Numerical Recipes, 3rd ed.,
-Cambridge University Press, 2007, Sect. 4.6, ISBN 978-0-521-88068-8); the tetrahedral cell
-fractions of the initialisation from M. Detrixhe, T. D. Aslam, From level set to volume of
-fluid and back again at second-order accuracy, Int. J. Numer. Meth. Fluids 80 (2016) 231-255,
-doi:10.1002/fld.4076. The closed forms of F. Evrard, R. Chiodi, A. Han, B. van Wachem, O.
-Desjardins, First moments of a polyhedron clipped by a paraboloid, SIAM J. Sci. Comput. 45
-(2023) A2250-A2274, doi:10.1137/22M1524308, arXiv:2210.07772, are the alternative to the
-Kromer-Bothe rule for the paraboloid and are not implemented.
-
-The volume flux of a face (key `fluxIntegration`, 2026-10-25): the phase-specific flux is phi_f
-times the time integral of the wetted face fraction over the step. `prism` (the default): the
-liquid volume of the prism between the face's pre-image f - d and f under the upwind surface,
-that integral exactly for a uniform translation, by the volume rule. `trapezoidal`: phi_f dt
-(alpha_f^n + alpha_f^{n+1})/2 from the face fractions the loop has, alpha_f^n the stored
-fraction and alpha_f^{n+1} the pre-image's liquid fraction under the same surface, which the
-face update computes in the same pass; no prism volume. `simpson`: phi_f dt (alpha_f^n + 4
-alpha_f^{n+1/2} + alpha_f^{n+1})/6 with alpha_f^{n+1/2} the liquid fraction of the half-step
-pre-image f - d/2 under the same surface (one more face fraction per face instead of the prism's
-faces). The fraction of a face is a cubic in time between the passages of the trace over the
-face's vertices, so Simpson's rule is exact on a step without such a passage and the
-trapezoidal rule is second order. `simpsonSplit`: Simpson's rule on the sub-intervals between
-those passages, whose times are predictable: the roots sigma in (0, 1) of phi(x_v - sigma d) = 0
-along the trajectory of every vertex of the face over the step (and of the face centre, the apex
-of a warped face's fan), a quadratic in sigma for the paraboloid; each sub-interval takes the
-pre-image fractions at its ends and its midpoint (two more face fractions per sub-interval, and
-few faces have a breakpoint in a step), so that on the plane the rule is exact in every step; the
-time-quadrature analogue of the split quadrature's breakpoints. Where three or more vertices
-meet the surface at one time the face lies on the surface then (a face parallel to a plane that
-passes it: an axis-aligned plane on a hexahedral mesh; not the plane test, whose plane is
-oblique to the mesh) and its fraction jumps from 0 to 1 or back; the end values of such a
-breakpoint are the one-sided limits, evaluated 1e-9 of the step before and after it (the
-pre-image is then entirely on one side). `simpsonSplitS`: the same rule with every value a
-fraction under the surface S, the first one the face's own fraction under S at sigma = 0 instead
-of the stored alpha_f^n (which differs from it by the anchor's face shift under a curved
-surface), and the values at every breakpoint the one-sided limits 1e-12 of the step before and
-after it instead of the value at the breakpoint, where a pre-image vertex lies exactly on the
-surface. `gaussSplit`: the three-point Gauss-Legendre rule on
-the same sub-intervals (exact for a quintic in time); its nodes lie inside the sub-intervals, so
-no face fraction is evaluated at a breakpoint, the instant at which a vertex of the pre-image
-lies exactly on the surface (the degenerate configuration of the face integral), and the stored
-fraction alpha_f^n does not enter: every value is a fraction under the same surface, as the
-prism volume is; three face fractions per sub-interval. The signs follow the prism path
-(the flux carries the sign of phi_f); a face that does not sweep (|d . S_f| below 1e-10 |d| |S_f|)
-gets no flux in every mode. The leia token is `TPF_FLUX_INTEGRATION` (default `prism`).
-
-`sweptFace` (branch davof-swept, 2026-10-28; `isoAdvectionSwept.C`; the working note
-`leia/docs/davof/davof-swept-volume` and its Python prototype): the semi-Lagrangian swept-face
-flux. The prism assumes that the face translates by the displacement of its centre, so under a
-non-uniform velocity its volume is not the volume the face sweeps. Here the face's vertices p_i
-and centre x_f are traced BACKWARD along the velocity over the step to the pre-image f' (p_i',
-x_f'), as in the face-vertex flux computation of T. Maric, H. Marschall, D. Bothe, An enhanced
-un-split face-vertex flux-based VoF method, J. Comput. Phys. 371 (2018) 967-993,
-doi:10.1016/j.jcp.2018.03.048; the swept volume is the closed list of 4F planar triangles (the
-fan (x_f, p_i, p_{i+1}) on the face, the fan (x_f', p_{i+1}', p_i') on the pre-image, reversed,
-and the two triangles (p_i, p_i', p_{i+1}'), (p_i, p_{i+1}', p_{i+1}) of every lateral quad),
-outward for phi_f > 0 with S_f owner -> neighbour and reversed for phi_f < 0; the signed volume
-(1/6) sum p.(q x r) checks the orientation and the list is flipped where it is negative
-(counted). Every triangle is clipped against the donor cell's PLANE (liquid where
-(x - x0).n <= 0, the wet polygon's area vector a_T^- by `davof::triNegativePolygon`), and
-
-    V_f^-         = (1/3) sum_T (p_T - x0) . a_T^-        (p_T any vertex of T, x0 on the plane)
-    alpha_f^{n+1} = (a_{f'}^- . A_{f'}) / |A_{f'}|^2      (a_{f'}^- the wet area vector of the
-                                                          pre-image fan, A_{f'} its area vector)
-
-so that the flux volume and the new face fraction come from the same clips of the same donor
-plane (the divergence theorem for x on the truncated volume; the cap's integral of x.n is
-(x0.n) times its area, fixed by the closure of the wet boundary, and vanishes with x0 on the
-plane). dVf carries the sign of phi_f as the prism's does; both cells of a face see the same
-volume; the bounding and the clipping of alpha are unchanged. SCOPE AND LIMITS: (1) PLANES
-ONLY, since the formula needs x.n constant on the cap: the donor's surface must be a plane, a
-`cellSurface` without the paraboloid flag or one whose tensor is at round-off, max|b_ij| h below
-`sweptPlaneTol` (default 1e-6; the translated plane's ring tensor gives 2e-14); a true
-paraboloid or a sphere surface (`clippingSurface exactSphere`) is a FatalError, never a silent
-fallback. (2) ONE DONOR CELL: the whole swept volume is clipped by the donor's plane; the faces
-whose pre-image points leave the donor (the face-plane test at 1e-9 h) are counted per step and
-the multi-cell cut is not implemented. (3) TRAJECTORIES: the backward midpoint rule (explicit
-RK2, second order in dt), the vertex velocities by `volPointInterpolation`, the face centre's
-the cell-point interpolate in the donor (the prism's d = U(x_f) dt, so for a uniform U the
-pre-image is f - d and the swept volume IS the prism), the midpoint velocity the cell-point
-interpolate in the cell that holds the midpoint (the donor, a face neighbour, else the mesh
-search; a midpoint outside the mesh, or in parallel beyond the donor's ring on another rank,
-takes the Euler step, exact
-for a uniform U as well). The Info line gains `; swept faces N, flips F, out of donor D, clipped
-triangles T, closure max C` (C = |sum_T a_T| / sum_T |a_T| over the lists, round-off by
-construction); leia's `tpf_advection_metrics.py` parses it. Cost per face: 4F triangle clips
-(three signed distances, at most two crossings each), no quadrature, no volume rule.
-
-`sweptFaceCells` (2026-10-29; the piecewise clip, `davofSweptPieces.H`, the note's `multicell.py`):
-the one-donor clip above over-fluxes where the pre-image reaches another cell (under the
-rotation of the sphere every swept face's pre-image leaves the donor). The swept volume is cut
-into the pieces inside the donor and inside every cell sharing a vertex with it (one layer of
-neighbours, enough at Co 0.2) by clipping every boundary triangle against each cell's six face
-planes; a piece in a FULL cell (alpha^n >= 1 - 1e-8) is wet in total, in an EMPTY cell dry, in
-an INTERFACE cell clipped by THAT cell's PLIC plane of t^n, the donor's pieces by the donor's
-plane (a partial cell without a surface, a wisp, is wet where alpha^n >= 1/2, counted). The
-volume of a piece follows from its clipped triangles and the cap areas A_i solved from the
-closure sum_T a_T^- + sum_i A_i n_i = 0 (k <= 3 caps: the cut cell planes and the PLIC plane; a
-face neighbour has two, an edge neighbour three), V = (1/3)[sum_T p_T.a_T^- + sum_i A_i
-(x0_i.n_i)]; no cut polygon is built. The flux is the sum over the pieces, the face fraction the
-same clip of the pre-image fan alone (2D). A part of the boundary beyond the ring is skipped and
-counted ("beyond layer", with the largest uncovered share); a rank-deficient cap system (more
-than three caps, or a PLIC plane parallel to a cell face) sends the face back to the one-donor
-clip ("rank fallbacks"); the Info line gains `; cells: pieces P, beyond layer B (max X), rank
-fallbacks R, partial cells Q, piece closure max C`. The cap set (2026-11-02, key `sweptCapSet`,
-default `final`) is read from the final clipped polygons (a plane carries a cap when it produced
-an edge of positive length of a polygon of positive area), and a boundary triangle lying in a
-cell plane with the donor on the other side is a contact, not part of that cell's piece, so the
-fallback does not depend on the order of a cell's faces (it did: one face of the N = 32
-sixteen-rank run at step 20); `crossing` restores the earlier order-dependent rule for the
-comparison. Unit check: `apps/test/testSweptPieces`
-reproduces the two translation configurations of the note's `data/multicell.csv` (the face
-x = 1 of a unit cell, planar and warped, traced into the y-, z- and edge neighbours, each with
-its own tangent-plane PLIC of a sphere) to 1e-13 relative, the csv's printed precision.
-
-PARALLEL RUNS of `sweptFace` and `sweptFaceCells` (branch davof-swept-par, 2026-10-30,
-`davofSweptRemote.H`): the ring of a donor is its cell-point-cell stencil, which OpenFOAM's
-`zoneDistribute` / `zoneCPCStencil` gives across processor boundaries with global cell indices
-(introduced for plicRDF by H. Scheufler, J. Roenby, J. Comput. Phys. 383 (2019) 1-23,
-doi:10.1016/j.jcp.2019.01.009). Once per step `sweptExchange` marks the donors of the faces the
-rank computes, updates the stencil (cached per cell), and fetches the stencil's cells on other
-ranks in ONE `mapDistributeBase` transfer built from their global indices: each remote cell
-travels as a packed scalar list with alpha^n, the surface flag and surface (21 scalars), the
-bounding box of its points, the outward area vector and centre of each face, and the tetrahedra
-of its cell-point decomposition (the face's tet base point, as `cellPointWeight` uses it) with
-the `volPointInterpolation` velocities at their points and the cell velocity. The pieces in a
-remote cell and the velocity at a midpoint in a remote cell are then computed from the same
-numbers as in serial (the tetrahedron search of `cellPointWeight::findTetrahedron` is
-replicated with its tolerance). The remote cells follow the local ones in the ring, so the sums
-differ from serial in their order only. A processor face is computed on its upwind side (the
-donor's rank) and copied by `syncProcPatches`. In serial nothing is exchanged and the code path
-is unchanged. A further Info line per step: `isoAdvection: swept parallel: remote cells R, faces
-with remote cells F, Euler traces E; wall time max over P ranks: advect A s, curvedFlux C s,
-exchange X s`. `sweptFaceLog true` writes per step and rank `postProcessing/sweptFaceLog/<step>_<rank>.csv`
-(face centre, face fraction, flux in the face's canonical orientation, the remote and the
-processor-face flags, and since 2026-11-02 the rank-fallback flag) for the comparison of
-decompositions. Not covered: pieces beyond one layer
-(skipped as in serial), cyclic patches across ranks, `sweptClassify` and `sweptFaceDump` (local
-cells only). `sweptClassify true` (2026-10-29, any flux of the curved loop)
-classifies every face per step by the cells its pre-image reaches (donor only / interface /
-full / empty / outside the ring), prints the first cell that leaves [0, 1] by more than 1e-10
-after the conservative bounding with its faces' fluxes before and after the bounding, and the
-curved loop prints every step the mass change through the advection, the bounding and the
-clipping relative to sum(alpha V) at t^n.
-
-`clippingSurface plane` (2026-10-28, with the swept flux): the paraboloid path with a zero
-curvature tensor, i.e. the plane in the frame of the normal the scheme used, positioned by the
-volume anchor (`fitDof none` or `one`, `fitAnchor volume`; `fitDof six` is refused), for the
-volume flux and the face update as the paraboloid is; the ring tensor is neither requested nor
-read. The surface of the swept-face flux on a curved interface (leia rows `davof-planeSurf-*`).
-
-The leia token is `TPF_VOLUME_RULE` (default `splitQuadrature`; `cases/davof/*Translation3D`).
-
-### Warped faces: the wetted area vector as the face state (branch davof-warped, 2026-10-25)
-
-On a non-planar face the wetted part's area vector a_f = sum_t A_wet,t n_t (the fan triangles
-(x_f, p_i, p_{i+1}) about the face centre, each with its own unit normal n_t) is not parallel to
-S_f, and alpha_f S_f does not carry the normal identity sum_f a_f^out = -A n. Every fan triangle
-contains x_f, so (x - x_f).n_t = 0 on it and the first moment of the wet part is
-int_f chi (x - x_c).n dS = (x_f - x_c).a_f: the vector alone (three scalars) is the transportable
-face state; no separate first moment is needed for the explicit position. On a planar face
-a_f = alpha_f S_f to round-off.
-
-Keys (the alpha-solver dictionary; every default is the behaviour before the keys, and every new
-branch sits behind a null pointer or a false flag, so the default runs are bit-identical):
-
-```
-faceState            scalar;      // | vector: wettedAreaDavof.<group> (surfaceVectorField, m^2)
-                                  //   transported next to alphaf; needs a clippingSurface
-tensorCentroid       cut;         // | anchored: the centroids of the ring Monge fit of the
-                                  //   curvature tensor re-anchored by the volume rule
-kromerBothePrismApex vertexMean;  // | faceCentre: the warped flux prism's top and bottom fanned
-                                  //   about the mesh face centre (the cell's own fan)
-```
-
-- Initialisation: `initDavofFields` with `faceState vector` in `initAlphaFieldDict` writes
-  `wettedAreaDavof.<phase>` from the same fan cuts as alphaf (detrixheAslam: the linear cut's wet
-  polygon per triangle, `davof::triNegativePolygon`; quadraticFaces: the quadratic fraction times
-  the triangle's area vector; exactSphere: alpha_f S_f, its faces are planar); `invert` maps it to
-  S_f - a_f; the consistency against the tet sum is printed for the vector state too.
-- Face update (`isoAdvectionCurved.C`): `davofVolumeRule::faceWettedArea` returns the
-  pre-image's wetted area vector with the fraction (Kromer-Bothe: `kbFaceWettedArea`, the Green
-  integral's wetted area per fan triangle, or of the whole face where it is planar, times its unit
-  normal; the base rule: the quadratic triangle cut per triangle, `faceCutDisplacedVector`). The
-  volume flux is unchanged. Faces no surface sets take alpha_up S_f (`setDefaultAreaFraction`).
-  Processor patches: the vector travels with alphaf in `syncProcPatches`, with its sign flipped
-  (each side's patch face is oriented outward from its own cell, as the flux).
-- Reconstruction (`davof.C`): m_c = sum_f a_f^out over the same wet-face list in the same order,
-  and the face moment of the explicit position (x_f - x_c).a_f. Everything downstream (the normal
-  models, the ring normal, the tensor fit, the positioning by alpha) reads m_c as before.
-- The tensor centroids. OpenFOAM's `cutCellPLIC` (the positioning by alpha) closes the wet part of
-  a warped face by the chord between the two edge crossings, while the fan face's wet region ends
-  at the plane's trace on the fan triangles: the cut is that of another polyhedron than the fan
-  polyhedron of the mesh, of the Detrixhe-Aslam alpha and of the volume rule, so the positioned
-  plane and its centroid are off the true plane by a fraction of h even for exact data, and the
-  ring Monge fit through those centroids returns a spurious tensor (a curved surface for a plane).
-  `tensorCentroid anchored` re-anchors, before the fit, every interface cell's plane in the frame
-  of its used normal through the cut centroid by the volume rule's cell volume (bracket over the
-  cell's extent along the normal, the Illinois rule of Dowell and Jarratt, BIT 11 (1971) 168-174,
-  doi:10.1007/BF01934364, to a residual of 1e-15 V or an offset bracket of 1e-13 h) and hands
-  o + c e3 to the fit (`davof::tensorCentres()`, exchanged across processors in place of
-  `centre_`); failures are counted in the Info line ("anchored centroids: failed N"). The scheme's
-  `centre_` (the surface origin, the exact model's evaluation point, the reconstruction error) is
-  unchanged; the offset of the surface is the volume anchor's in any case.
-- The prism apex. The Kromer-Bothe rule fans a warped prism's top and bottom about their vertex
-  mean, the cell's faces and the face fractions about the mesh face centre; on a warped face the two
-  fans differ by a thin lens, whose liquid enters the flux and not the cell's own volume.
-  `kromerBothePrismApex faceCentre` uses the mesh face centre and its translate.
-- The flux prism over a warped face (two fixes found on the perturbed plane's oblique arm,
-  U = (1 0 0), where every row and face state failed at 2e-3 to 1e-2 while the normal arm was
-  exact; unconditional, the faces of a prism over a planar face unchanged vertex for vertex
-  (there the interior-point test and the sign of d.S_f agree) and the hexahedral gate
-  bit-identical): (1) `kbPrismFaces` oriented the prism's fan triangles and sides by an
-  interior-point test, which on a thin prism over a warped face (d nearly parallel to the face)
-  reads the warp; they are now oriented by the sign of d.S_f (`kbOrientedFan`), and the
-  split-quadrature fallback `faceSweptLiquidVolume` gives a fan triangle that d sweeps backwards
-  its negative sign. (2) The net liquid volume through such a face lies in [-V_back, V_fwd] (the
-  backward and forward triangle sweeps), not in [0, |d.S_f|]; the rule's range check and clamps
-  use that range (`kbPrismRange`) where a triangle is swept backwards.
-- Measured on the perturbed hexahedra (every vertex displaced by up to 0.1 h; leia
-  `planeTranslation3D_perturbedWarped`, Co 0.2, N = 20/40/80, both arms, the volume-anchored
-  ring-tensor paraboloid with the Kromer-Bothe rule, `kromerBothePrismApex faceCentre`): with
-  `faceState vector` and `tensorCentroid anchored` the exact-normal row is at round-off on both
-  arms at every N (run maxima of L1(alphaf) 1e-14 to 6e-14, L1(n) 1e-14), the ring-normal row at
-  round-off on both arms at every N as well (before the davof-sliver merge f133781 the oblique arm
-  at N = 80 had isolated single-face events, L1 up to 1.1e-8, at faces with a vertex 2e-4 h from
-  the start-of-step plane: the dropped sliver arc that merge removes; on f133781 the case is at
-  7.0e-14). The scalar state fails in the
-  ring row (L1(n) 2.1e-3 to 2.4e-3, L1(alphaf) 2.6e-4 to 4.1e-4, flat in N); `tensorCentroid cut`
-  fails in every row at 1.3e-5 to 1.7e-5, flat in N; `kromerBothePrismApex vertexMean` fails
-  at 2e-5 to 3.5e-5 with everything else in place. On the hexahedra `faceState scalar` is
-  bit-identical with the unmodified build (8a1c5e4, then f133781 and 1f914f9 after the rebases
-  onto the sliver and the perf merges) in every number of areaFractionError.dat, error.dat and
-  volumeFractionError.dat (8 cases), `vector` at round-off; on 1f914f9 the perturbed plane's
-  vector + anchored cases are at 5e-15 to 6e-14 in L1(alphaf) and 2e-16 in L1(n) throughout.
-- Diagnostics: `areaFractionError` takes m_c of both states from the vectors when
-  `wettedAreaDavof` is registered (the interface-cell set of the norms) and logs the vector error
-  |a_f - a_f,exact|/|S_f| (L1, Linf); the .dat columns are unchanged. Its `consistency` column
-  compares m_c with the area vector of the CUT polygon, which carries the chord closure above on a
-  warped mesh, with either state.
-
-The leia tokens (both `cases/davof/*Translation3D`, defaults as above): `TPF_FACE_STATE` (also in
-`initAlphaFieldDict`), `TPF_TENSOR_CENTROID`, `TPF_KB_PRISM_APEX`.
-
 ### The mixed normal and the normal-source controls (2026-10-13, superseded by the normal models above)
 
 The closed loop (own normal from alphaf, the alpha-positioned plane, alphaf
@@ -1187,35 +775,6 @@ max(alpha) 1), the run ends with "End" and the fields of t = 0.69375
 written; the plane case without the keys (N = 20, normal arm,
 davof-detrixheAslam-exact) is unchanged (max L1(alphaf) 2.61e-15 over
 the ten steps, no ABORT line).
-
-## The reference setting of the swept-face advection (2026-11-04)
-
-The defaults of the keys below changed in one commit (Tomislav, via the coordinating
-session). A dictionary without the key gets the new value; the old value stays selectable
-by writing the key. The builds before this commit ignore none of these keys: a dictionary
-that writes every key renders the same run on both sides.
-
-| key (`alpha.water` dictionary) | old default | new default | other values |
-|---|---|---|---|
-| `sweptWispSurface` | `none` | `matched` | `neighbour`, `anchored` |
-| `sweptWispMatchTol` | `1e-11` | `1e-9` | any |
-| `sweptWispTol` | `1e-8` | `0` | any |
-| `sweptConsistent` | `false` | `true` | |
-| `sweptVolumeCorrection` | `auto` (the mode of `sweptScaleToPhi`, i.e. `none`) | `pyramid` | `scale`, `none`, `auto` |
-| `positioning` | `vofCutCell` | `ccs` | |
-| `positioningTol` | `1e-14` | `1e-14` (unchanged) | any |
-| `positioningMaxIter` | `30` | `30` (unchanged) | any |
-| `anchorSkipConverged` | `false` | `true` | |
-| `sweptPreTest` | `none` | `touching` | `strict` |
-| `sweptTraceCache` | `false` | `true` | |
-
-The wisp rule, the consistent variant (its wall faces kept at the boundary condition) and
-the pyramid are the state of the plane gate and the comparison of 2026-11-03; `ccs` and
-`anchorSkipConverged` are the positioning of 2026-11-04 (the fluxes within the anchor's
-1e-11 h); `sweptPreTest touching` and `sweptTraceCache` reproduce the clips bit for bit
-(the verification of the efficiency work, leia `docs/davof/REPORT-swept.md`). The startup
-line of `isoAdvection` prints every value, `sweptWispTol` and `sweptWispMatchTol` always.
-`sweptStateShortcut` stays `false` (not achieved) and `sweptPreTestCheck` is a debug check.
 
 ## How leia finds it
 

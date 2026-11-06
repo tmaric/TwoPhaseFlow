@@ -59,9 +59,7 @@ Description
       positioning failed, counted);
     - the face fraction, rule upwind: the value of the face's donor cell,
       the owner for phi_f >= 0 and the neighbour otherwise (boundary faces:
-      the owner), the limit dt -> 0 of the loop's face update
-      (sweptFaceCells pieces with the donorSide coplanar rule: the
-      pre-image is the face itself, given to the donor); phi from the time
+      the owner), the limit dt -> 0 of the face update; phi from the time
       directory, else U0.S_f; rule mean: the mean of the two cells' values.
 
     The cell-level error over the interface cells of the exact state

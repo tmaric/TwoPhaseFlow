@@ -54,6 +54,7 @@ SourceFiles
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "cutCellPLIC.H"
+#include "dictionary.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -81,6 +82,43 @@ class surfaceIteratorPLIC
         //  Those with surfCellTol_ < alpha1 < 1 - surfCellTol_
         scalar surfCellTol_;
 
+        //- The plane positioning (readPositioning; 2026-11-06): vofCutCell
+        //  (the default, the code below: the cubic through four cuts and
+        //  Newton, then the secant on the residual, to tol in alpha) or
+        //  ccs (the Consecutive Cubic Spline positioning of
+        //  davofCcsPositioning.H on the same cutCellPLIC cut: the cubic
+        //  Hermite interpolant through the bracket ends with the exact
+        //  slopes dV/dp = -A, A the cut polygon's area, started from the
+        //  linear estimate between the vertex extrema, to positioningTol
+        //  of V_c or the round-off floor, at most positioningMaxIter cuts;
+        //  T. Maric, J. Comput. Phys.: X 11 (2021) 100093,
+        //  doi:10.1016/j.jcpx.2021.100093, arXiv:2012.02227). The full and
+        //  empty returns of vofCutCell (alpha1 within tol of 0 or 1) are
+        //  the same on both paths.
+        word positioning_;
+        scalar positioningTol_;
+        label positioningMaxIter_;
+
+        //- ccs: the counters since the last reportPositioning (the cells
+        //  positioned, the cuts, the largest cut count, the largest and
+        //  the summed |V_cut - alpha V_c|/V_c of the returned cuts)
+        label nPosCells_;
+        label nPosEvals_;
+        label maxPosEvals_;
+        scalar maxPosRes_;
+        scalar sumPosRes_;
+
+
+    // Private Member Functions
+
+        //- The ccs positioning of celli along the unit normal
+        label ccsCutCell
+        (
+            const label celli,
+            const scalar alpha1,
+            const vector& normal
+        );
+
 
 public:
 
@@ -102,6 +140,21 @@ public:
              && alpha1 < 1 - surfCellTol_
             );
         }
+
+        //- Select the positioning from the scheme's dictionary (keys
+        //  positioning vofCutCell | ccs, positioningTol, positioningMaxIter;
+        //  absent: vofCutCell, 1e-14, 30)
+        void readPositioning(const dictionary& dict);
+
+        //- The positioning in use
+        const word& positioning() const noexcept
+        {
+            return positioning_;
+        }
+
+        //- With ccs: one Info line of the counters (reduced over the
+        //  ranks), then the counters reset; nothing with vofCutCell
+        void reportPositioning(Ostream& os);
 
         //- Finds matching cutValue for the given value fraction
         //  \return the cellStatus
