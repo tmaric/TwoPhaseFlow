@@ -140,7 +140,9 @@ int main(int argc, char *argv[])
     const labelUList& own = mesh.faceOwner();
     const labelUList& nei = mesh.faceNeighbour();
     scalarField sumAbs(mesh.nCells(), Zero), sumPhi(mesh.nCells(), Zero);
-    forAll(own, facei)
+    // the internal faces only (faceOwner lists every face, faceNeighbour the
+    // internal ones: the loop over every face indexed nei beyond its size)
+    for (label facei = 0; facei < mesh.nInternalFaces(); ++facei)
     {
         const scalar p = phi.primitiveField()[facei];
         sumAbs[own[facei]] += mag(p); sumAbs[nei[facei]] += mag(p);
