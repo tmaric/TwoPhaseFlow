@@ -486,7 +486,10 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     scalar mOld = 0, sB0 = 0, sI0 = 0, m1 = 0, m2 = 0, sB1 = 0;
     if (massDiagnostics_)
     {
-        mOld = gSum(alpha1_.oldTime().primitiveField()*mesh_.V());
+        // alpha1In_ still holds the start-of-step values here (the update
+        // follows); oldTime() is not touched, so the diagnostics leave the
+        // field's old-time bookkeeping as it is
+        mOld = gSum(alpha1In_*mesh_.V());
         sB0 = boundarySum(dVf_);
         sI0 = gSum(dVf_.primitiveField());
     }
