@@ -1457,6 +1457,10 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
             else
             {
                 ++nSweptWispNoNeighbour_;
+                if (sweptFragmentLog_ && fragWispCells_.size() > c)
+                {
+                    fragWispCells_.set(c);
+                }
             }
         }
     }
@@ -2739,4 +2743,203 @@ void Foam::advection::isoAdvection::ensurePointVelocity(const label pi) const
     upLazy_[pi] = v;
     upDone_.set(pi);
     ++nUpLazy_;
+}
+
+
+// * * * * * * * * * * the deformation diagnosis (2026-11-06) * * * * * * * * //
+
+#include "cutFacePLIC.H"
+
+void Foam::advection::isoAdvection::reinitFaceFractions()
+{
+    if (!alphafPtr_ || !davofPtr_) return;
+    const boolList& ic = surf_->interfaceCell();
+    if (ic.size() != mesh_.nCells()) return;
+    label nIc = 0;
+    forAll(ic, celli)
+    {
+        if (ic[celli]) ++nIc;
+    }
+    if (returnReduce(nIc, sumOp<label>()) == 0)
+    {
+        // before the first reconstruction: the initial state is kept
+        return;
+    }
+    const volVectorField& nrm = surf_->normal();
+    const volVectorField& ctr = surf_->centre();
+    const vectorField& Sf = mesh_.faceAreas();
+    const labelUList& own = mesh_.faceOwner();
+    const labelUList& nei = mesh_.faceNeighbour();
+    const label nInt = mesh_.nInternalFaces();
+    cutFacePLIC cutFace(mesh_);
+    // the wetted fraction of a face by the plane of a cell: normal_ points
+    // into the liquid, as cutFacePLIC assumes ((p - base).n > 0 liquid)
+    auto clipBy = [&](const label facei, const label celli) -> scalar
+    {
+        cutFace.calcSubFace(facei, nrm[celli], ctr[celli]);
+        const scalar af = mag(cutFace.subFaceArea())/mag(Sf[facei]);
+        return min(max(af, scalar(0)), scalar(1));
+    };
+    if (wetFace_.size() != mesh_.nFaces())
+    {
+        wetFace_.resize(mesh_.nFaces());
+    }
+    label nTwo = 0, nOne = 0, nAlpha = 0;
+    for (label facei = 0; facei < nInt; ++facei)
+    {
+        const label o = own[facei], n = nei[facei];
+        scalar af = 0;
+        if (ic[o] && ic[n])
+        {
+            af = 0.5*(clipBy(facei, o) + clipBy(facei, n));
+            ++nTwo;
+        }
+        else if (ic[o])
+        {
+            af = clipBy(facei, o);
+            ++nOne;
+        }
+        else if (ic[n])
+        {
+            af = clipBy(facei, n);
+            ++nOne;
+        }
+        else
+        {
+            af = 0.5*(alpha1_[o] + alpha1_[n]);
+            ++nAlpha;
+        }
+        setFaceValue(*alphafPtr_, facei, af);
+        wetFace_.set(facei, (af != 0) ? 1u : 0u);
+    }
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    forAll(pbm, patchi)
+    {
+        const polyPatch& pp = pbm[patchi];
+        if (alphafPtr_->boundaryField()[patchi].size() != pp.size()) continue;
+        forAll(pp, i)
+        {
+            const label facei = pp.start() + i;
+            const label o = own[facei];
+            const scalar af = ic[o] ? clipBy(facei, o) : alpha1_[o];
+            setFaceValue(*alphafPtr_, facei, af);
+            wetFace_.set(facei, (af != 0) ? 1u : 0u);
+        }
+    }
+    publishWetFaces();
+    Info<< "isoAdvection: face fractions re-initialised from the planes of the"
+        << " previous reconstruction: " << returnReduce(nTwo, sumOp<label>())
+        << " faces between two planes (the mean of the clips), "
+        << returnReduce(nOne, sumOp<label>()) << " by one plane, "
+        << returnReduce(nAlpha, sumOp<label>()) << " from alpha" << endl;
+}
+
+
+void Foam::advection::isoAdvection::fragmentLog()
+{
+    const label nCells = mesh_.nCells(), nFaces = mesh_.nFaces();
+    if (fragLogged_.size() != nCells)
+    {
+        fragLogged_.resize(nCells); fragLogged_.reset();
+        fragFallbackFaces_.resize(nFaces); fragFallbackFaces_.reset();
+        fragFallbackFacesPrev_.resize(nFaces); fragFallbackFacesPrev_.reset();
+        fragBound2Cells_.resize(nCells); fragBound2Cells_.reset();
+        fragBound2CellsPrev_.resize(nCells); fragBound2CellsPrev_.reset();
+        fragWispCells_.resize(nCells); fragWispCells_.reset();
+        fragWispCellsPrev_.resize(nCells); fragWispCellsPrev_.reset();
+    }
+    const boolList& ic = surf_->interfaceCell();
+    if (ic.size() != nCells) return;
+    const volVectorField& m =
+        mesh_.lookupObject<volVectorField>
+        (
+            IOobject::groupName("areaNormalDavof", alpha1_.group())
+        );
+    const scalarField& V = mesh_.V();
+    const cellList& cells = mesh_.cells();
+    const vectorField& C = mesh_.cellCentres();
+    label nNew = 0, nFb = 0, nB2 = 0, nW = 0, nNone = 0;
+    forAll(ic, celli)
+    {
+        if (!ic[celli] || fragLogged_.test(celli)) continue;
+        const scalar a = alpha1_[celli];
+        if (!(a < 1e-6 || a > 1 - 1e-6)) continue;
+        fragLogged_.set(celli);
+        ++nNew;
+        const labelList& cf = cells[celli];
+        bool fb1 = false, fb2 = false;
+        for (const label f : cf)
+        {
+            if (fragFallbackFaces_.test(f)) fb1 = true;
+            if (fragFallbackFacesPrev_.test(f)) fb2 = true;
+        }
+        const bool b1 = fragBound2Cells_.test(celli);
+        const bool b2 = fragBound2CellsPrev_.test(celli);
+        const bool w1 = fragWispCells_.test(celli);
+        const bool w2 = fragWispCellsPrev_.test(celli);
+        if (fb1 || fb2) ++nFb;
+        if (b1 || b2) ++nB2;
+        if (w1 || w2) ++nW;
+        if (!(fb1 || fb2 || b1 || b2 || w1 || w2)) ++nNone;
+        if (nFragLogged_ < 200)
+        {
+            if (!fragStream_)
+            {
+                const fileName dir
+                (
+                    mesh_.time().globalPath()/"postProcessing"/"sweptFragmentLog"
+                );
+                mkDir(dir);
+                fragStream_.reset
+                (
+                    new OFstream
+                    (
+                        dir/("cells_" + Foam::name(Pstream::myProcNo()) + ".csv")
+                    )
+                );
+                fragStream_().precision(17);
+                fragStream_()
+                    << "step,t,cell,cx,cy,cz,alpha,mOverV23,af0,af1,af2,af3,af4,af5,"
+                    << "fallbackPrev1,fallbackPrev2,bound2Prev1,bound2Prev2,wispPrev1,wispPrev2"
+                    << nl;
+            }
+            fragStream_()
+                << mesh_.time().timeIndex() << ',' << mesh_.time().value() << ','
+                << celli << ',' << C[celli].x() << ',' << C[celli].y() << ',' << C[celli].z()
+                << ',' << a << ',' << mag(m[celli])/Foam::pow(V[celli], 2.0/3.0);
+            for (label i = 0; i < 6; ++i)
+            {
+                fragStream_() << ','
+                    << ((i < cf.size()) ? faceValue(*alphafPtr_, cf[i]) : scalar(-1));
+            }
+            fragStream_()
+                << ',' << fb1 << ',' << fb2 << ',' << b1 << ',' << b2
+                << ',' << w1 << ',' << w2 << nl;
+            ++nFragLogged_;
+        }
+    }
+    nFragFallback_ += nFb; nFragBound2_ += nB2; nFragWisp_ += nW; nFragNone_ += nNone;
+    const label gNew = returnReduce(nNew, sumOp<label>());
+    if (gNew > 0)
+    {
+        Info<< "sweptFragmentLog: new face-fraction interface cells with alpha"
+            << " within 1e-6 of 0 or 1: " << gNew
+            << " (fallback-adjacent " << returnReduce(nFb, sumOp<label>())
+            << ", second-layer bounded " << returnReduce(nB2, sumOp<label>())
+            << ", wisp without a surface " << returnReduce(nW, sumOp<label>())
+            << ", none " << returnReduce(nNone, sumOp<label>())
+            << "); cumulative fallback-adjacent "
+            << returnReduce(nFragFallback_, sumOp<label>())
+            << ", second-layer bounded " << returnReduce(nFragBound2_, sumOp<label>())
+            << ", wisp " << returnReduce(nFragWisp_, sumOp<label>())
+            << ", none " << returnReduce(nFragNone_, sumOp<label>()) << endl;
+    }
+    // the sets of the last step become the step before; the new step fills
+    // the current ones
+    fragFallbackFacesPrev_ = fragFallbackFaces_;
+    fragFallbackFaces_.reset();
+    fragBound2CellsPrev_ = fragBound2Cells_;
+    fragBound2Cells_.reset();
+    fragWispCellsPrev_ = fragWispCells_;
+    fragWispCells_.reset();
 }

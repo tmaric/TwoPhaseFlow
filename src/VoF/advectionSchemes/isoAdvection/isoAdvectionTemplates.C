@@ -178,6 +178,10 @@ void Foam::advection::isoAdvection::limitFluxes
                     )
                     {
                         ++nBoundedBeyondRing_;
+                        if (sweptFragmentLog_ && fragBound2Cells_.size() > celli)
+                        {
+                            fragBound2Cells_.set(celli);
+                        }
                     }
                 }
             }
@@ -430,8 +434,21 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
 
     scalar rDeltaT = 1/mesh_.time().deltaTValue();
 
+    // the deformation diagnosis (2026-11-06): the face fractions from the
+    // previous reconstruction's planes before the reconstruction, the
+    // per-cell fragment log after it
+    if (sweptReinitFaceFractions_ && davofPtr_)
+    {
+        reinitFaceFractions();
+    }
+
     // reconstruct the interface
     surf_->reconstruct();
+
+    if (sweptFragmentLog_ && davofPtr_)
+    {
+        fragmentLog();
+    }
 
     // DAVOF: the curvature tensor of the start-of-step planes for the
     // face-clipping model that corrects the plane clipping (planeSagitta);

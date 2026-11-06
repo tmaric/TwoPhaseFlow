@@ -342,6 +342,186 @@ struct pieceResult
 //  when it crosses the polygon at its turn in the clipping order, no
 //  contact rule, no remnant filter; fork key sweptCapSet crossing, kept for
 //  the comparison). See the file header.
+//- The exact volume of the piece for ANY number of caps (the deformation
+//  diagnosis of 2026-11-06, control (a), key sweptExactCaps of isoAdvection):
+//  the closed triangle list of the swept volume is decomposed into the
+//  signed tetrahedra (x_ref, T) about one point (the volume of a closed
+//  oriented triangulation as the sum of signed tetrahedra, the divergence
+//  theorem face by face: C. Zhang, T. Chen, Efficient feature extraction
+//  for 2D/3D objects in mesh representation, Proceedings of the IEEE
+//  International Conference on Image Processing (ICIP 2001), vol. 3,
+//  935-938, doi:10.1109/ICIP.2001.958278); every tetrahedron is clipped as
+//  a convex polyhedron by the cell's half-spaces and, where the cell holds
+//  a plane, by the PLIC half-space, face by face with the polygon clipping
+//  of I. E. Sutherland, G. W. Hodgman, Reentrant polygon clipping, Commun.
+//  ACM 17 (1974) 32-42, doi:10.1145/360767.360802, the cap of each clip
+//  closed from the crossing points ordered about their centroid in the
+//  plane (a convex section); the volume of each clipped polyhedron is
+//  (1/3) sum_faces (p_0 - x_ref) . a_face. The identity
+//  sum_T vol(tet_T ∩ K) = vol(P ∩ K) holds for every convex K because the
+//  signed indicators of the tetrahedra about one point sum to the
+//  indicator of the closed volume P (the winding number), so no cap system
+//  is solved: k > 3 caps and a PLIC plane parallel to a cell face need no
+//  fallback. The same sign convention as sweptPieceVolume (the list's
+//  orientation). Cost: one convex clip per triangle and plane; used by
+//  sweptPieceVolume only where its cap system is not solvable.
+inline scalar sweptPieceExactVolume
+(
+    const UList<FixedList<point, 3>>& T,
+    const UList<halfSpace>& cellPlanes,
+    const bool wetPlane,
+    const halfSpace& plic,
+    const point& xRef
+)
+{
+    struct poly
+    {
+        FixedList<point, 24> p;
+        label n = 0;
+    };
+    const label nc = cellPlanes.size();
+    scalar vol = 0;
+    forAll(T, k)
+    {
+        const FixedList<point, 3>& t = T[k];
+        const scalar L =
+            max(mag(t[1] - t[0]), max(mag(t[2] - t[1]), mag(t[0] - t[2])));
+        if (!(L > 0)) continue;
+        const vector aT = 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
+        if (mag(aT) <= 1e-16*L*L) continue;
+        const scalar vs = ((t[0] - xRef) & aT)/3;
+        if (mag(vs) <= 1e-30) continue;
+        const scalar sgn = (vs > 0) ? 1 : -1;
+        // the base (A, B, C) with the apex on its negative side, the four
+        // faces outward
+        point A = t[0], B = t[1], C = t[2];
+        if (sgn < 0) Swap(B, C);
+        FixedList<poly, 16> P;
+        label nP = 4;
+        auto set3 = [](poly& q, const point& u, const point& v, const point& w)
+        {
+            q.p[0] = u; q.p[1] = v; q.p[2] = w; q.n = 3;
+        };
+        set3(P[0], A, B, C);
+        set3(P[1], xRef, B, A);
+        set3(P[2], xRef, C, B);
+        set3(P[3], xRef, A, C);
+        bool anyLeft = true;
+        auto clipAll = [&](const halfSpace& hs)
+        {
+            FixedList<point, 48> cross;
+            label nCross = 0;
+            anyLeft = false;
+            for (label i = 0; i < nP; ++i)
+            {
+                poly& q = P[i];
+                if (q.n < 3) continue;
+                poly out;
+                for (label j = 0; j < q.n; ++j)
+                {
+                    const point& p0 = q.p[j];
+                    const point& p1 = q.p[(j + 1) % q.n];
+                    const scalar s0 = hs.dist(p0), s1 = hs.dist(p1);
+                    if (s0 <= 0 && out.n < 24) out.p[out.n++] = p0;
+                    if ((s0 <= 0) != (s1 <= 0))
+                    {
+                        const point x = p0 + (p1 - p0)*(s0/(s0 - s1));
+                        if (out.n < 24) out.p[out.n++] = x;
+                        if (nCross < 48) cross[nCross++] = x;
+                    }
+                }
+                if (out.n < 3) out.n = 0;
+                q = out;
+                if (q.n >= 3) anyLeft = true;
+            }
+            if (nCross >= 3 && nP < 16)
+            {
+                // the plane's outward normal (the kept side is dist <= 0)
+                vector nrm = hs.n;
+                if (hs.axis >= 0)
+                {
+                    nrm = Zero;
+                    nrm[hs.axis] = hs.sgn;
+                }
+                nrm /= max(mag(nrm), VSMALL);
+                point cen(Zero);
+                for (label i = 0; i < nCross; ++i) cen += cross[i];
+                cen /= nCross;
+                // a basis in the plane
+                vector u = (mag(nrm.x()) < 0.9) ? vector(1, 0, 0) : vector(0, 1, 0);
+                u -= (u & nrm)*nrm;
+                u /= max(mag(u), VSMALL);
+                const vector v = nrm ^ u;
+                FixedList<scalar, 48> ang;
+                FixedList<label, 48> idx;
+                for (label i = 0; i < nCross; ++i)
+                {
+                    const vector d = cross[i] - cen;
+                    ang[i] = Foam::atan2(d & v, d & u);
+                    idx[i] = i;
+                }
+                // insertion sort by the angle
+                for (label i = 1; i < nCross; ++i)
+                {
+                    const label key = idx[i];
+                    label j = i - 1;
+                    while (j >= 0 && ang[idx[j]] > ang[key])
+                    {
+                        idx[j + 1] = idx[j];
+                        --j;
+                    }
+                    idx[j + 1] = key;
+                }
+                poly& cap = P[nP];
+                cap.n = 0;
+                for (label i = 0; i < nCross && cap.n < 24; ++i)
+                {
+                    cap.p[cap.n++] = cross[idx[i]];
+                }
+                // orient the cap outward
+                vector ac(Zero);
+                for (label i = 0; i < cap.n; ++i)
+                {
+                    ac += cap.p[i] ^ cap.p[(i + 1) % cap.n];
+                }
+                if ((ac & nrm) < 0)
+                {
+                    for (label i = 0; i < cap.n/2; ++i)
+                    {
+                        Swap(cap.p[i], cap.p[cap.n - 1 - i]);
+                    }
+                }
+                ++nP;
+                anyLeft = true;
+            }
+        };
+        for (label i = 0; i < nc && anyLeft; ++i)
+        {
+            clipAll(cellPlanes[i]);
+        }
+        if (wetPlane && anyLeft)
+        {
+            clipAll(plic);
+        }
+        if (!anyLeft) continue;
+        scalar v3 = 0;
+        for (label i = 0; i < nP; ++i)
+        {
+            const poly& q = P[i];
+            if (q.n < 3) continue;
+            vector a(Zero);
+            for (label j = 0; j < q.n; ++j)
+            {
+                a += (q.p[j] - xRef) ^ (q.p[(j + 1) % q.n] - xRef);
+            }
+            v3 += (q.p[0] - xRef) & (0.5*a);
+        }
+        vol += sgn*v3/3;
+    }
+    return vol;
+}
+
+
 inline pieceResult sweptPieceVolume
 (
     const UList<FixedList<point, 3>>& T,
@@ -350,7 +530,8 @@ inline pieceResult sweptPieceVolume
     const halfSpace& plic,
     const point& xRef,
     const point* xSide = nullptr,
-    const bool crossing = false
+    const bool crossing = false,
+    const bool exactCaps = false
 )
 {
     pieceResult r;
@@ -549,6 +730,13 @@ inline pieceResult sweptPieceVolume
     }
     if (k > 3)
     {
+        if (exactCaps)
+        {
+            // control (a): the exact piece volume, no cap system
+            r.volume = sweptPieceExactVolume(T, cellPlanes, wetPlane, plic, xRef);
+            r.closureResidual = 0;
+            return r;
+        }
         r.ok = false;
         r.closureResidual = mag(sumA)/sumMag;
         return r;
@@ -576,6 +764,12 @@ inline pieceResult sweptPieceVolume
         }
         if (mag(det) < 1e-10)
         {
+            if (exactCaps)
+            {
+                r.volume = sweptPieceExactVolume(T, cellPlanes, wetPlane, plic, xRef);
+                r.closureResidual = 0;
+                return r;
+            }
             r.ok = false;
             r.closureResidual = mag(sumA)/sumMag;
             return r;

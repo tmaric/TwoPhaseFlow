@@ -641,6 +641,39 @@ class isoAdvection
             //  (davofSweptPieces.H); the pieces taken per step
             bool sweptSliverClosedForm_;
             label nSweptSliverClosed_;
+
+            //- The deformation diagnosis (2026-11-06, leia REPORT-swept "The
+            //  3D Enright deformation", all default false): sweptExactCaps,
+            //  the exact piece volume by davof::sweptPieceExactVolume where
+            //  the cap system is not solvable (control a, no rank fallback);
+            //  sweptReinitFaceFractions, the face fractions set at the start
+            //  of every step from the previous reconstruction's planes (the
+            //  mean of the two clips on a face between two planes, one clip
+            //  by one plane, the mean of the two alphas without a plane), the
+            //  transported state discarded (controls c and d);
+            //  sweptFragmentLog, the per-cell history of the cells that
+            //  become face-fraction interface cells while alpha is within
+            //  1e-6 of 0 or 1 (postProcessing/sweptFragmentLog/cells_<rank>.csv,
+            //  the first 200 per rank; the per-step class counts in the log:
+            //  a face of the cell computed by the rank fallback in the
+            //  previous step or the one before, the cell in the second-layer
+            //  bounding set, the cell a wisp without a neighbour surface)
+            bool sweptExactCaps_;
+            bool sweptReinitFaceFractions_;
+            bool sweptFragmentLog_;
+            bitSet fragFallbackFaces_;
+            bitSet fragFallbackFacesPrev_;
+            bitSet fragBound2Cells_;
+            bitSet fragBound2CellsPrev_;
+            bitSet fragWispCells_;
+            bitSet fragWispCellsPrev_;
+            bitSet fragLogged_;
+            label nFragLogged_;
+            label nFragFallback_;
+            label nFragBound2_;
+            label nFragWisp_;
+            label nFragNone_;
+            autoPtr<OFstream> fragStream_;
             mutable vectorField upLazy_;
             mutable bitSet upDone_;
             mutable bitSet anyPatchPoint_;
@@ -1171,6 +1204,13 @@ public:
             //  interface cells and their neighbours from the surface of the
             //  upwind cell (second ring: the closest neighbouring surface)
             void curvedFlux(const scalar dt);
+
+            //- The deformation diagnosis (2026-11-06): the face fractions
+            //  from the previous reconstruction's planes
+            //  (sweptReinitFaceFractions) and the per-cell fragment log
+            //  (sweptFragmentLog), both called from advect
+            void reinitFaceFractions();
+            void fragmentLog();
 
             //- tensorCentroid anchored: for every interface cell the plane
             //  in the frame of the used normal through the cut centroid

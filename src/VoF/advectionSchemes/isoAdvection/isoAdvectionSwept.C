@@ -1177,7 +1177,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 davof::pieceResult r;
                 if (sweeps)
                 {
-                    r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing");
+                    r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing", sweptExactCaps_);
                     covV = r.coverage;
                     // the pieces' own gate: a piece counts above 1e-12 of
                     // the boundary; below it nothing is added
@@ -1237,7 +1237,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
               : davof::sweptPieceVolume
                 (
                     T, planes, wetPlane, plic, xf, &xDonor,
-                    sweptCapSet_ == "crossing"
+                    sweptCapSet_ == "crossing",
+                    sweptExactCaps_
                 );
             tStatVol += tick() - tv0;
             // the pre-image's wetted part in the face's orientation (preSign)
@@ -1364,7 +1365,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                     if (!st.touched) continue;
                     const SubList<davof::halfSpace> planes(ringPlanes, st.np, st.p0);
                     davof::pieceResult r;
-                    if (sweeps) r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing");
+                    if (sweeps) r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing", sweptExactCaps_);
                     Pout<< " [cell " << st.c << (st.rc ? "r" : "") << " alpha " << st.a0c
                         << " cov " << r.coverage/max(sumMagT, VSMALL) << " V/V_g " << (vTotal > VSMALL ? r.volume/vTotal : 0)
                         << " deg " << r.degenerate << " ok " << r.ok << " caps " << r.nCaps << " contacts " << r.nContact << "]";
@@ -1429,6 +1430,10 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
         // the one-donor clip of this face (counted)
         ++nSweptRankFallback_;
         sweptFaceFallback_ = true;
+        if (sweptFragmentLog_ && fragFallbackFaces_.size() > facei)
+        {
+            fragFallbackFaces_.set(facei);
+        }
         if (sweptNoDonorSurface_)
         {
             // a face without a surface (sweptConsistent): no plane to clip
@@ -1682,7 +1687,8 @@ void Foam::advection::isoAdvection::sweptConsistencyProbe
                 davof::sweptPieceVolume
                 (
                     T, planes, hasS, plic, Cf[facei], &C[donor],
-                    sweptCapSet_ == "crossing"
+                    sweptCapSet_ == "crossing",
+                    sweptExactCaps_
                 );
             if (r.coverage <= 1e-12*sumMagT) continue;
             if (!r.ok) fallback = true;
