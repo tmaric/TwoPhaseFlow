@@ -84,7 +84,7 @@ plus the `inline namespace twoPhaseFlow` fix of `feature/parasitic-currents` ("W
 - `src/VoF/davof/davofCcsPositioning.H`: the CCS positioning (b).
 - `src/VoF/davof/davofInit.{H,C}` with `davofSimplexGeometry.H`,
   `davofQuadraticFaceGeometry.H`, `davofSphereGeometry.H`: the DAVOF state from an implicit
-  function (`detrixheAslam`, `quadraticFaces`, `exactSphere`), and `davofOrbit.H` (the
+  function (`detrixheAslam`, `quadraticFaces`, `exactSphere`, `exactCylinder`), and `davofOrbit.H` (the
   translated/rotated exact state of the function objects).
 - `src/VoF/advectionSchemes/isoAdvection/`: the face update of isoAdvector's own plane
   sweep ("The face update" below): `storeAreaFractions` (the end-of-step submerged face
@@ -200,8 +200,9 @@ step):
    face took it (690a023), by 5.7e-6 when the liquid inlet's faces took it
    in the sweep, the second ring and the defaults (4da5799, b09b800: the
    plane's cut of an inlet face the condition calls liquid is below 1);
-   the defaults alone leave the sweep untouched (the identity check
-   iso/ident5 of 2026-11-07). On a processor patch the owner's plane
+   the defaults alone leave the eight cases unchanged bit for bit (the
+   identity check iso/ident5, job 56013017, 2026-11-07). On a processor
+   patch the owner's plane
    sweeps the face and the sync replaces the value.
 5. The second ring: every face no plane has set whose cell shares a face
    with a surface cell is swept by the neighbouring plane whose
