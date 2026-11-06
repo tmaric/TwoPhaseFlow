@@ -515,42 +515,33 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             }
             else if (storeAf)
             {
-                // The inflow boundary face of a surface cell: the alpha
-                // boundary condition's value, as the flux is the boundary
-                // condition's (2026-11-06); on a processor patch the
-                // owner's plane sweeps it, only the end area is kept, and
-                // the neighbouring surface cell's value replaces it in the
-                // sync
-                // (a liquid inlet, alpha_b = 1, pins the face wholly
-                // liquid; a face the boundary condition calls gas while the
-                // plane crosses it keeps the plane's liquid area: the plane
-                // gate's inlet, where the fixed value 0 is not the face's
-                // state, 2026-11-06)
-                scalar aBC = 0;
-                if (inflowBoundaryFraction(facei, aBC) && aBC >= 1)
-                {
-                    storeInflowBoundaryFraction(facei, aBC);
-                }
-                else
-                {
-                    const scalar magSf = magSfb[patchi][patchFacei];
-                    advectFace_.timeIntegratedFaceFlux
-                    (
-                        facei,
-                        bsx0_[i],
-                        bsn0_[i],
-                        bsUn0_[i],
-                        dt,
-                        phiP,
-                        magSf
-                    );
-                    storeAreaFraction
-                    (
-                        facei,
-                        advectFace_.subFaceAreaEnd(),
-                        false
-                    );
-                }
+                // The inflow boundary face of a surface cell: the plane's
+                // liquid area at the end of the step, as on every other face
+                // of the cell (the plane's inflow is the sweep's; on a
+                // processor patch only the end area is kept and the
+                // neighbouring surface cell's value replaces it in the
+                // sync). The alpha boundary condition's value enters the
+                // defaults alone (setDefaultAreaFraction: a liquid inlet,
+                // alpha_b = 1, on a face no plane sets), so that the plane
+                // gate's inlet, where the plane crosses the inlet, is
+                // unchanged (2026-11-06/07)
+                const scalar magSf = magSfb[patchi][patchFacei];
+                advectFace_.timeIntegratedFaceFlux
+                (
+                    facei,
+                    bsx0_[i],
+                    bsn0_[i],
+                    bsUn0_[i],
+                    dt,
+                    phiP,
+                    magSf
+                );
+                storeAreaFraction
+                (
+                    facei,
+                    advectFace_.subFaceAreaEnd(),
+                    false
+                );
             }
         }
     }
@@ -705,22 +696,6 @@ bool Foam::advection::isoAdvection::inflowBoundaryFraction
     }
     af = alpha1_.boundaryField()[patchi][i];
     return true;
-}
-
-
-void Foam::advection::isoAdvection::storeInflowBoundaryFraction
-(
-    const label facei,
-    const scalar af
-)
-{
-    setFaceValue(*alphafPtr_, facei, af);
-    wetFace_.set(facei, (af != 0) ? 1u : 0u);
-    if (!alphafSetFace_.test(facei))
-    {
-        alphafSetFaces_.append(facei);
-    }
-    alphafSetFace_.set(facei);
 }
 
 
@@ -955,10 +930,6 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
                 const label f = Df[dfi];
                 if (alphafSetFace_.test(f)) continue;
                 if (bestSurf[f] == si) continue;     // visited by this plane
-                // a liquid inlet's face (alpha_b = 1) holds the boundary
-                // condition's value (the defaults), not a plane's
-                scalar aBC = 0;
-                if (inflowBoundaryFraction(f, aBC) && aBC >= 1) continue;
                 const scalar d =
                     mag(((Cf[f] - surfX0_[si]) & surfN0_[si]) - surfUn0_[si]*dt);
                 if (d < bestDist[f])

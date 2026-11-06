@@ -410,21 +410,16 @@ class isoAdvection
             //  enters the domain) whose alpha boundary condition says the
             //  face is wholly liquid (alpha_b = 1, a liquid inlet: the
             //  nozzle of the jet in cross flow) holds 1 as its face
-            //  fraction, in the sweep, the second ring and the defaults;
-            //  every other inflow face keeps the plane's liquid area or the
-            //  owner's alpha, because a condition's value below 1 is the
-            //  entering fluid, not the face's state (the plane gate's
-            //  inlet, fixedValue 0 while the plane crosses it or a full
-            //  cell sits at it: the identity checks of 2026-11-06).
-            //  Returns true for an inflow face and sets af to the
-            //  condition's value; false for every other face (internal,
-            //  coupled, outflow, no flux)
+            //  fraction in the defaults (setDefaultAreaFraction: a face no
+            //  plane sets); a face a plane sweeps keeps the plane's liquid
+            //  area, and every other inflow face the owner's alpha, because
+            //  a condition's value below 1 is the entering fluid, not the
+            //  face's state (the plane gate's inlet, fixedValue 0 while the
+            //  plane crosses it or a full cell sits at it: the identity
+            //  checks of 2026-11-06/07). Returns true for an inflow face
+            //  and sets af to the condition's value; false for every other
+            //  face (internal, coupled, outflow, no flux)
             bool inflowBoundaryFraction(const label facei, scalar& af) const;
-
-            //- Store the boundary condition's value on an inflow boundary
-            //  face of a surface cell (counted as a plane-set face: the
-            //  second ring and the defaults leave it)
-            void storeInflowBoundaryFraction(const label facei, const scalar af);
 
             //- After the bounding: every face not set by a plane in this
             //  step holds the upwind cell's new alpha. Evaluated on the

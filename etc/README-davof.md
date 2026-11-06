@@ -186,20 +186,23 @@ step):
 4. Boundary faces of a surface cell: the owner's plane sets `alphaf` on an
    outflow face, whose flux is the plane's as before, and on an inflow
    face (phi_f < 0) of a non-coupled patch, whose flux is the boundary
-   condition's; since 2026-11-06 (`inflowBoundaryFraction`) an inflow face
-   whose alpha condition says the face is wholly liquid (alpha_b = 1: a
-   liquid inlet, the nozzle of the jet in cross flow) holds 1 instead, in
-   the sweep, in the second ring (which takes no such face) and in the
-   defaults (rule 1). Every other inflow face keeps the plane's liquid
-   area or the owner's alpha: a condition's value below 1 is the entering
-   fluid, not the face's state. On the plane gate's inlet (fixedValue 0)
-   the plane crosses the inlet and full cells sit at it; the version that
-   took the condition's value on every swept inflow face moved the
-   oblique arm by 1.8e-2 in alpha within 20 steps, the version that took
-   it in the defaults alone by 5.7e-6 (2026-11-06). On a processor patch
-   the owner's plane sweeps the face and the sync replaces the value.
-   The eight verification cases (`zeroGradient` and `fixedValue` 0
-   inlets) are unchanged bit for bit.
+   condition's: the plane's liquid area at the end of the step on both,
+   the plane's inflow being the sweep's. The alpha boundary condition's
+   value enters the defaults alone (rule 1, `inflowBoundaryFraction`,
+   2026-11-06/07): an inflow face no plane sets whose condition says the
+   face is wholly liquid (alpha_b = 1: a liquid inlet, the nozzle of the
+   jet in cross flow) holds 1 instead of the owner's alpha; every other
+   inflow face keeps the owner's alpha, a condition's value below 1 being
+   the entering fluid, not the face's state. On the plane gate's inlet
+   (fixedValue 0; the plane crosses the inlet and full cells sit at it)
+   the versions that took the condition's value in the sweep moved the
+   oblique arm in alpha within 20 steps: by 1.8e-2 when every swept inflow
+   face took it (690a023), by 5.7e-6 when the liquid inlet's faces took it
+   in the sweep, the second ring and the defaults (4da5799, b09b800: the
+   plane's cut of an inlet face the condition calls liquid is below 1);
+   the defaults alone leave the sweep untouched (the identity check
+   iso/ident5 of 2026-11-07). On a processor patch the owner's plane
+   sweeps the face and the sync replaces the value.
 5. The second ring: every face no plane has set whose cell shares a face
    with a surface cell is swept by the neighbouring plane whose
    end-of-step position is closest to the face centre (one and the same
