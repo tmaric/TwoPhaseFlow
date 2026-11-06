@@ -30,6 +30,7 @@ License
 #include "davofInit.H"
 #include "davofCcsPositioning.H"
 #include "syncTools.H"
+#include "zoneDistribute.H"
 #include "addToRunTimeSelectionTable.H"
 #include "profiling.H"
 
@@ -115,9 +116,14 @@ bool Foam::reconstruction::davof::positionPlane
         }
         const scalar ac = alpha1_[celli];
         Foam::davof::ccsRecord rec;
+        // positioningDirection areaNormal (2026-11-08): the vector as
+        // selected, the start scaled with it (the cut is scale-free in |n|)
+        const bool raw = (positioningDirection_ == "areaNormal");
         const label status = Foam::davof::ccsPositionPlane
         (
-            mesh_, cutCellPos_, celli, ac, n/nMag, pPlane_[celli],
+            mesh_, cutCellPos_, celli, ac,
+            raw ? n : n/nMag,
+            raw ? pPlane_[celli]*nMag : pPlane_[celli],
             positioningTol_, positioningMaxIter_, rec
         );
         const bool atEnd = (ac < isoFaceTol_) || (1 - ac < isoFaceTol_);
@@ -366,6 +372,7 @@ Foam::reconstruction::davof::davof
     interfaceCellRule_(modelDict().getOrDefault<word>("interfaceCellRule", "normalOnly")),
     positioningTol_(modelDict().getOrDefault<scalar>("positioningTol", 1e-14)),
     positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 30)),
+    positioningDirection_(modelDict().getOrDefault<word>("positioningDirection", "unit")),
     cutCellPos_(alpha1.mesh()),
     positioningResidual_
     (
@@ -420,6 +427,21 @@ Foam::reconstruction::davof::davof
         mesh_,
         dimensionedVector(dimArea, Zero)
     ),
+    ringSum_
+    (
+        IOobject
+        (
+            IOobject::groupName("davofRingSum", alpha1.group()),
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            IOobject::NO_REGISTER
+        ),
+        mesh_,
+        dimensionedVector(dimArea, Zero)
+    ),
+    ringSumFilled_(),
     sliverFlag_
     (
         IOobject
@@ -488,13 +510,25 @@ Foam::reconstruction::davof::davof
     (
         interfaceCellRule_ != "normalOnly" && interfaceCellRule_ != "normalAndAlpha"
      && interfaceCellRule_ != "normalAndAlphaReset"
+     && interfaceCellRule_ != "alphaAndRingSum"
     )
     {
         FatalIOErrorInFunction(modelDict())
             << "interfaceCellRule " << interfaceCellRule_
-            << ": normalOnly | normalAndAlpha | normalAndAlphaReset" << exit(FatalIOError);
+            << ": normalOnly | normalAndAlpha | normalAndAlphaReset | alphaAndRingSum"
+            << exit(FatalIOError);
     }
     Info<< "davof: interfaceCellRule " << interfaceCellRule_ << endl;
+    if (positioningDirection_ != "unit" && positioningDirection_ != "areaNormal")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "positioningDirection " << positioningDirection_
+            << ": unit | areaNormal" << exit(FatalIOError);
+    }
+    if (positioningDirection_ != "unit")
+    {
+        Info<< "davof: positioningDirection " << positioningDirection_ << endl;
+    }
     if (positioning_ == "ccs")
     {
         Info<< "davof: positioning ccs (Consecutive Cubic Spline on the"
@@ -650,6 +684,8 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     // well, and the all-dry rule assigned +0), so it is skipped without
     // reading its faces: the cells the sum touched are visited, in cell
     // order (the bitSet iterates ascending), the others hold +0.
+    const bool ringRule = (interfaceCellRule_ == "alphaAndRingSum");
+    nRuleCandidates_ = nRuleNoRingSum_ = 0;
     for (const label celli : touchedCell_)
     {
         if (m[celli] == vector::zero) continue;
@@ -667,6 +703,10 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
         {
             m[celli] = Zero;
         }
+        else if (ringRule)
+        {
+            continue;   // selected below, by alpha and the ring sum
+        }
         else if (mag(m[celli]) > davofInit::wispThreshold(mesh_, celli, wispTol_))
         {
             const bool inside = alphaInside(celli);
@@ -678,6 +718,58 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
                 interfaceLabels_.append(celli);
             }
         }
+    }
+
+    if (ringRule)
+    {
+        // "pure" DAVOF (2026-11-08): the candidates are the cells with
+        // alpha inside (tol, 1 - tol); each takes the sum of m over its
+        // point-neighbour ring (zoneDistribute's stencil of the candidate
+        // zone, the cell included, every ring cell's m whatever its state,
+        // exchanged across processor boundaries) and is an interface cell
+        // when that sum is not zero. The ring sums are kept (ringSum_) for
+        // the normal model ringSum, in the candidate cells, zeroed there
+        // before the next selection.
+        vectorField& d = ringSum_.primitiveFieldRef();
+        for (const label celli : ringSumFilled_)
+        {
+            d[celli] = Zero;
+        }
+        boolList cand(mesh_.nCells(), false);
+        label nCand = 0;
+        forAll(cand, celli)
+        {
+            if (alphaInside(celli))
+            {
+                cand[celli] = true;
+                ++nCand;
+            }
+        }
+        zoneDistribute& exchange = zoneDistribute::New(mesh_);
+        exchange.setUpCommforZone(cand, true);
+        const Map<vector> mapM(exchange.getDatafromOtherProc(cand, areaNormal_));
+        const labelListList& stencil = exchange.getStencil();
+        DynamicList<label> filled(nCand);
+        forAll(cand, celli)
+        {
+            if (!cand[celli]) continue;
+            vector sum(Zero);
+            for (const label gblIdx : stencil[celli])
+            {
+                sum += exchange.getValue(areaNormal_, mapM, gblIdx);
+            }
+            d[celli] = sum;
+            filled.append(celli);
+            if (sum == vector::zero)
+            {
+                ++nRuleNoRingSum_;
+                continue;
+            }
+            interfaceCell_[celli] = true;
+            interfaceLabels_.append(celli);
+        }
+        ringSumFilled_.transfer(filled);
+        nRuleCandidates_ = nCand;
     }
 
     // The faces of one cell in ascending order: primitiveMesh::cells()
@@ -705,6 +797,16 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     {
         const label celli = interfaceLabels_[i];
         const scalar mMag = mag(m[celli]);
+
+        // A cell with m_c = 0 (the rule alphaAndRingSum admits a partial
+        // cell whose faces all carry the same fraction): no explicit
+        // position (the start at the cell centre), no explicit-plane
+        // defects, no sliver flag
+        if (mMag == 0)
+        {
+            pPlane_[celli] = 0;
+            continue;
+        }
         const vector n = m[celli]/mMag;
 
         if (normalModel_->isSliver(celli, mMag))
@@ -829,6 +931,17 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
             reduce(nRc, sumOp<label>()); reduce(nRf, sumOp<label>());
             reduce(dMax, maxOp<scalar>());
         }
+        if (interfaceCellRule_ == "alphaAndRingSum")
+        {
+            label nCa = nRuleCandidates_, nNo = nRuleNoRingSum_;
+            if (Pstream::parRun())
+            {
+                reduce(nCa, sumOp<label>()); reduce(nNo, sumOp<label>());
+            }
+            Info<< "; interface-cell rule alphaAndRingSum: candidates (alpha inside) "
+                << nCa << ", without a ring sum " << nNo;
+        }
+        else
         Info<< "; interface-cell rule " << interfaceCellRule_
             << ": cells with |m_c| above the threshold and alpha outside (tol, 1 - tol) "
             << nO << ", with a plane " << nOP;

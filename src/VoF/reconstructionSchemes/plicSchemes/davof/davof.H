@@ -196,14 +196,38 @@ class davof
         //  Per step: the cells with |m_c| above the threshold and alpha
         //  outside (tol, 1 - tol), how many got a plane, the cells and faces
         //  reset, the largest |dalphaf|.
+        //  "pure" DAVOF (Tomislav's decision, 2026-11-08): the value
+        //  alphaAndRingSum = surfCellTol < alpha < 1 - surfCellTol AND
+        //  d_c != 0, d_c = sum_j m_j over the point-neighbour ring of the
+        //  cell (the cell included) of EVERY ring cell (not the interface
+        //  cells only, as the ringArea model sums); no wisp threshold
+        //  (wispTol unused); the plane positioned along d_c (the normal
+        //  model ringSum returns it). A partial cell with m_c = 0 (every
+        //  face at the same fraction) is an interface cell when its ring
+        //  sum is not zero; its explicit position being undefined, the
+        //  positioning starts at the cell centre. Per step: the candidates
+        //  (alpha inside), those without a ring sum.
         word interfaceCellRule_;
         label nRuleOutside_ {0};
         label nRuleOutsidePlane_ {0};
         label nRuleResetCells_ {0};
         label nRuleResetFaces_ {0};
         scalar ruleResetMaxDaf_ {0};
+        label nRuleCandidates_ {0};
+        label nRuleNoRingSum_ {0};
         scalar positioningTol_;
         label positioningMaxIter_;
+
+        //- The direction handed to the ccs positioning (key
+        //  positioningDirection unit | areaNormal, default unit = the
+        //  former normalisation n/|n|, the explicit start pPlane_c along
+        //  it; areaNormal = the vector as selected, un-normalised, the start
+        //  pPlane_c |n|: the cut is scale-free in |n| (the vertex levels
+        //  (x - x_c).n and the cut value scale together), the kernel's
+        //  tolerances are of the volume except the length floor
+        //  V_c^(1/3) of its bracket-closure test, so the planes agree to
+        //  round-off; measured on the identity set, 2026-11-08)
+        word positioningDirection_;
 
         //- ccs: the cut object of the positioned plane (normal_, centre_
         //  and the polygon moments are read from it)
@@ -267,6 +291,13 @@ class davof
 
         //- m_c = sum_f alpha_f S_f^out [m^2]
         volVectorField areaNormal_;
+
+        //- The ring sum d_c of the rule alphaAndRingSum [m^2] (zero
+        //  elsewhere and under the other rules; set in the candidate cells,
+        //  listed in ringSumFilled_ and zeroed there before the next
+        //  reconstruction; unregistered)
+        volVectorField ringSum_;
+        labelList ringSumFilled_;
 
         //- 1 in sliver cells
         volScalarField sliverFlag_;
@@ -418,6 +449,17 @@ public:
         const volScalarField& pPlane() const
         {
             return pPlane_;
+        }
+
+        //- The ring sum of the rule alphaAndRingSum (zero under the others)
+        const volVectorField& ringSum() const
+        {
+            return ringSum_;
+        }
+
+        const word& interfaceCellRule() const noexcept
+        {
+            return interfaceCellRule_;
         }
 
         const volScalarField& planeVolDefect() const

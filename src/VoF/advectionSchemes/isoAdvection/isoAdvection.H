@@ -277,6 +277,30 @@ class isoAdvection
             label recomputeEvals_ {0};
             label recomputeEvalsMax_ {0};
 
+            //- "pure" DAVOF (Tomislav's decision, 2026-11-08): the
+            //  reconstruction scheme only, the face fractions confined to
+            //  what isoAdvector's own flux computes. Two keys, their
+            //  defaults the former behaviour:
+            //  davofFluxExtension none | secondRing: secondRing = the
+            //  plane's flux on the faces beyond the downwind faces of the
+            //  surface cells where the plane can speak for the upwind cell
+            //  (planeFlux), and the per-cell content bound of those fluxes;
+            //  none = isoAdvector's flux untouched (planeFlux returns the
+            //  upwind flux, boundCellContent is not called).
+            //  davofFaceFractionSource secondRing | sweepOnly: secondRing =
+            //  the end area of a plane sweep on the surface cells' upwind
+            //  faces and inflow boundary faces and the second-ring sweep of
+            //  the neighbours' faces; sweepOnly = the end area on the faces
+            //  isoAdvector's sweep used the plane for only (the downwind
+            //  faces, the outflow boundary faces), every other face the
+            //  upwind cell's state after the bounding (the default of
+            //  defaultAreaFractions: 0 or 1 for a dry or full cell, alpha
+            //  for a partial cell without a plane, the alpha boundary
+            //  condition's value on a liquid inlet); no sweep of the upwind
+            //  faces (so no plane flux beyond the donor either).
+            word davofFluxExtension_;
+            word davofFaceFractionSource_;
+
             //- The plane loop's fragment log (key planeFragmentLog, default
             //  false; the analogue of the swept loop's sweptFragmentLog of
             //  davof-swept-enright 5d8e57d, 2026-11-07): the cells that

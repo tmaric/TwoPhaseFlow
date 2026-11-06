@@ -24,6 +24,7 @@ davof/normalModels/youngsNormal.C
 davof/normalModels/plicRDFNormal.C
 davof/normalModels/exactNormal.C
 davof/normalModels/ringAreaNormal.C
+davof/normalModels/ringSumNormal.C
 davof/normalModels/ringFitNormal.C
 
 /* Run-time selectable implicitFunctions */

@@ -142,6 +142,8 @@ Foam::advection::isoAdvection::isoAdvection
     contentBound_(modelDict().getOrDefault<bool>("contentBound", true)),
     massDiagnostics_(modelDict().getOrDefault<bool>("massDiagnostics", false)),
     sweptBoundedFaceFraction_(modelDict().getOrDefault<word>("sweptBoundedFaceFraction", "none")),
+    davofFluxExtension_(modelDict().getOrDefault<word>("davofFluxExtension", "secondRing")),
+    davofFaceFractionSource_(modelDict().getOrDefault<word>("davofFaceFractionSource", "secondRing")),
     planeFragmentLog_(modelDict().getOrDefault<bool>("planeFragmentLog", false)),
     fragRingFaces_(), fragRingFacesPrev_(),
     fragRingFluxFaces_(), fragRingFluxFacesPrev_(),
@@ -185,6 +187,24 @@ Foam::advection::isoAdvection::isoAdvection
     if (storeAreaFractions_)
     {
         Info<< "isoAdvection: sweptBoundedFaceFraction " << sweptBoundedFaceFraction_ << endl;
+    }
+    // "pure" DAVOF (2026-11-08): the flux extension and the face-fraction source
+    if (davofFluxExtension_ != "none" && davofFluxExtension_ != "secondRing")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "davofFluxExtension " << davofFluxExtension_
+            << ": none | secondRing" << exit(FatalIOError);
+    }
+    if (davofFaceFractionSource_ != "sweepOnly" && davofFaceFractionSource_ != "secondRing")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "davofFaceFractionSource " << davofFaceFractionSource_
+            << ": sweepOnly | secondRing" << exit(FatalIOError);
+    }
+    if (storeAreaFractions_)
+    {
+        Info<< "isoAdvection: davofFluxExtension " << davofFluxExtension_
+            << ", davofFaceFractionSource " << davofFaceFractionSource_ << endl;
     }
 
     if (storeAreaFractions_ && alphafPtr_ && isA<reconstruction::davof>(*surf_))
@@ -303,6 +323,12 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     // evaluates it after the bounding (a sweep that falls back writes
     // the default itself; nothing reads an unset face in between)
     const bool storeAf = (storeAreaFractions_ && alphafPtr_);
+    // "pure" DAVOF (2026-11-08): with davofFaceFractionSource sweepOnly no
+    // plane is swept over a surface cell's upwind faces or inflow boundary
+    // faces and no second ring is swept (those faces take the upwind
+    // default); the plane flux beyond the donor needs that sweep, so
+    // davofFluxExtension secondRing acts only with the former source
+    const bool sweepsUpwindFaces = (davofFaceFractionSource_ == "secondRing");
     if (storeAf)
     {
         alphafSetFace_.reset();
@@ -445,7 +471,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                             );
                         }
                     }
-                    else if (storeAf)
+                    else if (storeAf && sweepsUpwindFaces)
                     {
                         // The upwind face: the upwind cell's plane sets it
                         // when that cell is a surface cell (its downwind
@@ -543,7 +569,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                     );
                 }
             }
-            else if (storeAf)
+            else if (storeAf && sweepsUpwindFaces)
             {
                 // The inflow boundary face of a surface cell: the plane's
                 // liquid area at the end of the step, as on every other face
@@ -580,10 +606,14 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     // has set yet, swept by the neighbouring plane
     if (storeAf)
     {
-        sweepSecondRing(dt);
+        if (sweepsUpwindFaces)
+        {
+            sweepSecondRing(dt);
+        }
 
-        // The content bound of the cells the planes set fluxes for
-        if (contentBound_)
+        // The content bound of the cells the planes set fluxes for (none
+        // with davofFluxExtension none: planeFlux records no face)
+        if (contentBound_ && davofFluxExtension_ == "secondRing")
         {
             boundCellContent(dt);
         }
@@ -622,7 +652,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             << " fallbacks, "
             << returnReduce(nAlphafClipped_, sumOp<label>())
             << " clips";
-        if (contentBound_)
+        if (contentBound_ && davofFluxExtension_ == "secondRing")
         {
             Info<< "; content bound on "
                 << returnReduce(nContentBoundFaces_, sumOp<label>())
@@ -1190,7 +1220,8 @@ Foam::scalar Foam::advection::isoAdvection::planeFlux
     const scalar dVfUpwind
 )
 {
-    if (!planeSpeaks(upCell))
+    // "pure" DAVOF (2026-11-08): isoAdvector's flux untouched
+    if (davofFluxExtension_ == "none" || !planeSpeaks(upCell))
     {
         return dVfUpwind;
     }
