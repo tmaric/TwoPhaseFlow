@@ -141,6 +141,7 @@ Foam::advection::isoAdvection::isoAdvection
     nBoundedBeyondRing_(0),
     contentBound_(modelDict().getOrDefault<bool>("contentBound", true)),
     massDiagnostics_(modelDict().getOrDefault<bool>("massDiagnostics", false)),
+    sweptBoundedFaceFraction_(modelDict().getOrDefault<word>("sweptBoundedFaceFraction", "none")),
     planeFragmentLog_(modelDict().getOrDefault<bool>("planeFragmentLog", false)),
     fragRingFaces_(), fragRingFacesPrev_(),
     fragRingFluxFaces_(), fragRingFluxFacesPrev_(),
@@ -169,6 +170,22 @@ Foam::advection::isoAdvection::isoAdvection
    cutFaceAdvect::debug = debug;
 
     initAreaFractions();
+
+    // decision 2 (2026-11-07): the face fractions under the bounding
+    if
+    (
+        sweptBoundedFaceFraction_ != "none" && sweptBoundedFaceFraction_ != "scale"
+     && sweptBoundedFaceFraction_ != "recompute"
+    )
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "sweptBoundedFaceFraction " << sweptBoundedFaceFraction_
+            << ": none | scale | recompute" << exit(FatalIOError);
+    }
+    if (storeAreaFractions_)
+    {
+        Info<< "isoAdvection: sweptBoundedFaceFraction " << sweptBoundedFaceFraction_ << endl;
+    }
 
     if (storeAreaFractions_ && alphafPtr_ && isA<reconstruction::davof>(*surf_))
     {
@@ -1415,6 +1432,127 @@ void Foam::advection::isoAdvection::checkIfOnProcPatch(const label facei)
 }
 
 
+
+
+Foam::label Foam::advection::isoAdvection::faceSurface(const label facei) const
+{
+    if (cellToSurf_.size() == mesh_.nCells())
+    {
+        const label own = mesh_.faceOwner()[facei];
+        const bool internal = mesh_.isInternalFace(facei);
+        const scalar phif = faceValue(phi_, facei);
+        const label upCell =
+            (internal && phif < 0) ? mesh_.faceNeighbour()[facei] : own;
+        if (cellToSurf_[upCell] >= 0) return cellToSurf_[upCell];
+        if (internal)
+        {
+            const label other = (upCell == own) ? mesh_.faceNeighbour()[facei] : own;
+            if (cellToSurf_[other] >= 0) return cellToSurf_[other];
+        }
+    }
+    if (secondRingBest_.size() == mesh_.nFaces() && secondRingBest_[facei] >= 0)
+    {
+        return secondRingBest_[facei];
+    }
+    return -1;
+}
+
+
+void Foam::advection::isoAdvection::boundedFaceFraction
+(
+    const label facei,
+    const scalar dVfOld,
+    const scalar dVfNew
+)
+{
+    if (!alphafPtr_) return;
+    if (!mesh_.isInternalFace(facei))
+    {
+        const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+        const label patchi = pbm.patchID()[facei - mesh_.nInternalFaces()];
+        if (alphafPtr_->boundaryField()[patchi].size() != pbm[patchi].size()) return;
+    }
+    if (dVfOld == dVfNew) return;
+    ++nBoundedFaces_;
+    const scalar afOld = faceValue(*alphafPtr_, facei);
+    scalar s = (dVfOld != 0) ? dVfNew/dVfOld : ((dVfNew == 0) ? 0 : 1);
+    s = min(max(s, scalar(0)), scalar(1));
+    if (s == 0) ++nBoundedZero_; else ++nBoundedPartial_;
+    maxOneMinusS_ = max(maxOneMinusS_, mag(1 - s));
+    scalar af = min(max(afOld*s, scalar(0)), scalar(1));
+
+    if (sweptBoundedFaceFraction_ == "recompute")
+    {
+        const label si = faceSurface(facei);
+        if (si < 0)
+        {
+            ++nRecomputeNoPlane_;
+        }
+        else
+        {
+            // the donor's plane moved along its normal until its swept liquid
+            // volume through the face is |dVf_bounded|; the end area of that
+            // plane is the face fraction
+            const scalar magSf = mag(mesh_.faceAreas()[facei]);
+            const scalar dt = mesh_.time().deltaTValue();
+            const scalar phif = faceValue(phi_, facei);
+            const vector n = surfN0_[si];
+            const point x0 = surfX0_[si];
+            const scalar Un0 = surfUn0_[si];
+            const scalar h = Foam::cbrt(mesh_.V()[mesh_.faceOwner()[facei]]);
+            const scalar target = mag(dVfNew);
+            label evals = 0;
+            auto g = [&](const scalar c) -> scalar
+            {
+                ++evals;
+                return mag
+                (
+                    advectFace_.timeIntegratedFaceFlux
+                    (
+                        facei, x0 + c*n, n, Un0, dt, phif, magSf
+                    )
+                );
+            };
+            scalar lo = -h, hi = h;
+            scalar glo = g(lo), ghi = g(hi);
+            // the direction in which the swept volume grows
+            scalar sgn = 1;
+            if (glo > ghi)
+            {
+                sgn = -1; const scalar t = glo; glo = ghi; ghi = t;
+            }
+            auto gs = [&](const scalar c) -> scalar { return g(sgn*c); };
+            for (label k = 0; k < 8 && glo > target; ++k)
+            {
+                lo -= (hi - lo); glo = gs(lo);
+            }
+            for (label k = 0; k < 8 && ghi < target; ++k)
+            {
+                hi += (hi - lo); ghi = gs(hi);
+            }
+            if (glo > target || ghi < target)
+            {
+                ++nRecomputeNotBracketed_;
+            }
+            else
+            {
+                for (label it = 0; it < 200; ++it)
+                {
+                    const scalar mid = 0.5*(lo + hi);
+                    if (gs(mid) > target) hi = mid; else lo = mid;
+                    if (hi - lo <= 1e-13*h) break;
+                }
+                gs(0.5*(lo + hi));
+                af = min(max(advectFace_.subFaceAreaEnd()/magSf, scalar(0)), scalar(1));
+                ++nRecomputed_;
+            }
+            recomputeEvals_ += evals;
+            recomputeEvalsMax_ = max(recomputeEvalsMax_, evals);
+        }
+    }
+    setFaceValue(*alphafPtr_, facei, af);
+    wetFace_.set(facei, (af != 0) ? 1u : 0u);
+}
 
 
 void Foam::advection::isoAdvection::fragmentLog()

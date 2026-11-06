@@ -250,6 +250,33 @@ class isoAdvection
             //  bounding and the clipping (2026-11-07)
             bool massDiagnostics_;
 
+            //- Decision 2 (Tomislav, 2026-11-07; the swept loop's key of
+            //  davof-swept-enright 1306749, taken over for the plane-clipped
+            //  loop): the face fractions under the bounding, key
+            //  sweptBoundedFaceFraction none | scale | recompute. none = the
+            //  bounding changes dVf and leaves alphaf (before 2026-11-07);
+            //  scale = wherever a bounding pass changes a face's dVf by the
+            //  factor s = dVf_bounded / dVf, the stored face fraction is
+            //  scaled by s (clipped to [0, 1]); a removed flux (s = 0) dries
+            //  the face; recompute = the face fraction recomputed as the
+            //  plane's end area on the face with the donor's plane (the upwind
+            //  surface cell's, or the second ring's) moved along its normal so
+            //  that its swept liquid volume through the face equals
+            //  |dVf_bounded| (bisection on cutFaceAdvect::timeIntegratedFaceFlux
+            //  to 1e-13 h); scale where the face has no plane or no bracket.
+            //  Both sides of a processor face apply the same s (the corrected
+            //  faces are synchronised). The counters per step.
+            word sweptBoundedFaceFraction_;
+            label nBoundedFaces_ {0};
+            label nBoundedZero_ {0};
+            label nBoundedPartial_ {0};
+            scalar maxOneMinusS_ {0};
+            label nRecomputed_ {0};
+            label nRecomputeNoPlane_ {0};
+            label nRecomputeNotBracketed_ {0};
+            label recomputeEvals_ {0};
+            label recomputeEvalsMax_ {0};
+
             //- The plane loop's fragment log (key planeFragmentLog, default
             //  false; the analogue of the swept loop's sweptFragmentLog of
             //  davof-swept-enright 5d8e57d, 2026-11-07): the cells that
@@ -471,6 +498,20 @@ class isoAdvection
             //  (after the defaults): a cell without a plane with a wet face
             void fragmentLog();
             void fragMarkWisps();
+
+            //- Decision 2: the face fraction of a face whose dVf the bounding
+            //  changed from dVfOld to dVfNew (scale or recompute)
+            void boundedFaceFraction
+            (
+                const label facei,
+                const scalar dVfOld,
+                const scalar dVfNew
+            );
+
+            //- The surface (index into surfX0_ etc.) whose plane set the
+            //  face's flux in this step: the upwind surface cell's, else the
+            //  second ring's; -1 without a plane
+            label faceSurface(const label facei) const;
 
             //- Store the end area of the last sweep on facei as the face
             //  fraction (clipped to [0, 1]); a negative end area writes

@@ -204,6 +204,34 @@ step):
    identity check iso/ident5, job 56013017, 2026-11-07). On a processor
    patch the owner's plane
    sweeps the face and the sync replaces the value.
+   Decisions 2 and 3 of Tomislav (2026-11-07; the swept loop's keys of
+   davof-swept-enright 1306749, taken over for the plane-clipped loop with the
+   same names and semantics, the defaults the former behaviour):
+   `sweptBoundedFaceFraction none | scale | recompute` -- none: the bounding
+   changes a face's dVf and leaves its face fraction; scale: wherever a
+   bounding pass changes a face's dVf by s = dVf_bounded / dVf the stored
+   face fraction is scaled by s (clipped to [0, 1]; s = 0 dries the face);
+   recompute: the face fraction is the end area on the face of the donor's
+   plane (the upwind surface cell's, else the second ring's) moved along its
+   normal until its swept liquid volume through the face equals |dVf_bounded|
+   (a bisection on cutFaceAdvect::timeIntegratedFaceFlux to 1e-13 h), scale
+   where the face has no plane or the volume is not bracketed; the counters
+   per step ("bounded face fractions (...): faces, s = 0 on, partial, max
+   |1 - s|, recomputed (no plane, not bracketed), positioning evaluations").
+   `interfaceCellRule normalOnly | normalAndAlpha | normalAndAlphaReset` (the
+   davof reconstruction) -- normalOnly: an interface cell is a cell with
+   |m_c| > wispTol V^(2/3) regardless of alpha; normalAndAlpha: also
+   surfCellTol < alpha < 1 - surfCellTol, a dry or full cell never gets a
+   plane and its face fractions are left; normalAndAlphaReset: the same, and
+   the faces of such a cell are set to its state (0 / 1) where they differ,
+   the shared faces changing the neighbours' m_c too, no mass moving,
+   synchronised across processor faces; per step the cells with |m_c| above
+   the threshold and alpha outside (tol, 1 - tol), how many got a plane, the
+   reset cells and faces and the largest |dalphaf|. The seed log of the shear
+   (planeFragmentLog, 2026-11-07) showed the two mechanisms these address: a
+   neighbour's extended plane leaving a fraction on a face of a cell without
+   liquid (the rule's case) and the bounding correcting a cell to 0 or 1 while
+   its faces keep the plane's values (the bounded face fraction's case).
 5. The second ring: every face no plane has set whose cell shares a face
    with a surface cell is swept by the neighbouring plane whose
    end-of-step position is closest to the face centre (one and the same

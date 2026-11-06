@@ -158,6 +158,16 @@ void Foam::advection::isoAdvection::limitFluxes
         extendMarkedCells(needBounding);
     }
 
+    if (planeFragmentLog_ || sweptBoundedFaceFraction_ != "none")
+    {
+        Info<< "isoAdvection: before the bounding: min(alpha) = " << minAlpha
+            << ", max(alpha) = 1 + " << maxAlphaMinus1 << endl;
+    }
+    nBoundedFaces_ = nBoundedZero_ = nBoundedPartial_ = 0;
+    maxOneMinusS_ = 0;
+    nRecomputed_ = nRecomputeNoPlane_ = nRecomputeNotBracketed_ = 0;
+    recomputeEvals_ = recomputeEvalsMax_ = 0;
+
     // Loop number of bounding steps
     for (label n = 0; n < nAlphaBounds_; n++)
     {
@@ -223,11 +233,16 @@ void Foam::advection::isoAdvection::limitFluxes
                     }
 
                     // Change to treat boundaries consistently
+                    const scalar dVfOld = faceValue(dVf_, facei);
                     scalar corrVf =
-                        faceValue(dVf_, facei)
+                        dVfOld
                       + faceValue(dVfcorrectionValues, facei);
 
                     setFaceValue(dVf_, facei, corrVf);
+                    if (sweptBoundedFaceFraction_ != "none" && storeAreaFractions_ && alphafPtr_)
+                    {
+                        boundedFaceFraction(facei, dVfOld, corrVf);
+                    }
                 }
             }
             syncProcPatches(dVf_, phi_);
@@ -259,6 +274,29 @@ void Foam::advection::isoAdvection::limitFluxes
 
     alpha1_.correctBoundaryConditions();
 
+    if (sweptBoundedFaceFraction_ != "none" && storeAreaFractions_ && alphafPtr_)
+    {
+        label nB = nBoundedFaces_, nZ = nBoundedZero_, nPt = nBoundedPartial_;
+        label nR = nRecomputed_, nNo = nRecomputeNoPlane_, nNb = nRecomputeNotBracketed_;
+        label nEv = recomputeEvals_, nEm = recomputeEvalsMax_;
+        scalar mS = maxOneMinusS_;
+        if (Pstream::parRun())
+        {
+            reduce(nB, sumOp<label>()); reduce(nZ, sumOp<label>()); reduce(nPt, sumOp<label>());
+            reduce(nR, sumOp<label>()); reduce(nNo, sumOp<label>()); reduce(nNb, sumOp<label>());
+            reduce(nEv, sumOp<label>()); reduce(nEm, maxOp<label>()); reduce(mS, maxOp<scalar>());
+        }
+        Info<< "isoAdvection: bounded face fractions (" << sweptBoundedFaceFraction_
+            << "): faces " << nB << ", s = 0 on " << nZ << ", partial " << nPt
+            << ", max |1 - s| " << mS;
+        if (sweptBoundedFaceFraction_ == "recompute")
+        {
+            Info<< ", recomputed " << nR << " (no plane " << nNo << ", not bracketed "
+                << nNb << "), positioning evaluations mean "
+                << scalar(nEv)/max(nR, label(1)) << " max " << nEm;
+        }
+        Info<< endl;
+    }
     if (extendBounding)
     {
         Info<< "isoAdvection: bounding extended by a second layer: "

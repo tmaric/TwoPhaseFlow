@@ -180,6 +180,28 @@ class davof
         //  cells with alpha within isoFaceTol of 0 or 1 get a plane too
         //  (vofCutCell returns them as full or empty before any cut).
         word positioning_;
+
+        //- Decision 3 (Tomislav, 2026-11-07; the swept loop's key of
+        //  davof-swept-enright 1306749, taken over for the plane-clipped
+        //  loop): the interface-cell rule, key interfaceCellRule normalOnly |
+        //  normalAndAlpha | normalAndAlphaReset. normalOnly = |m_c| above the
+        //  threshold regardless of alpha (before 2026-11-07, the reference);
+        //  normalAndAlpha = also surfCellTol < alpha < 1 - surfCellTol: a dry
+        //  or full cell never gets a plane, its face fractions are left;
+        //  normalAndAlphaReset = the same, and the faces of such a cell whose
+        //  fractions differ from its state are set to the state (0 dry, 1
+        //  full): a face shared with a neighbour changes the neighbour's m_c
+        //  too, no mass moves (alpha is untouched), synchronised across
+        //  processor faces (the larger flag wins where both sides reset).
+        //  Per step: the cells with |m_c| above the threshold and alpha
+        //  outside (tol, 1 - tol), how many got a plane, the cells and faces
+        //  reset, the largest |dalphaf|.
+        word interfaceCellRule_;
+        label nRuleOutside_ {0};
+        label nRuleOutsidePlane_ {0};
+        label nRuleResetCells_ {0};
+        label nRuleResetFaces_ {0};
+        scalar ruleResetMaxDaf_ {0};
         scalar positioningTol_;
         label positioningMaxIter_;
 
@@ -296,6 +318,9 @@ class davof
         //  every face (davofInit::areaNormal's loop); the cells the sum
         //  touched in touchedCell_
         void formAreaNormal();
+
+        //- Set the face fraction of a face (internal or patch; decision 3)
+        void setFaceFraction(const label facei, const scalar v);
 
         //- The time the current state belongs to (see Description)
         scalar stateTime();
