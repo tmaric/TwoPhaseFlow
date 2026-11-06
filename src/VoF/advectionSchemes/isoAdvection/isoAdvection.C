@@ -260,6 +260,32 @@ Foam::advection::isoAdvection::isoAdvection
     nFragAlphafChanged_(0),
     nFragBoundFaces_(0),
     fragAlphafCopy_(),
+    sweptPieceVolumeWord_
+    (
+        modelDict().getOrDefault<word>
+        (
+            "sweptPieceVolume",
+            modelDict().getOrDefault<bool>("sweptExactCaps", false)
+          ? word("closureThenTets") : word("closure")
+        )
+    ),
+    sweptPieceMode_(0),
+    sweptPieceValidate_(modelDict().getOrDefault<bool>("sweptPieceValidate", false)),
+    nSweptClosurePieces_(0),
+    sweptBoundedFaceFraction_(modelDict().getOrDefault<word>("sweptBoundedFaceFraction", "none")),
+    nBoundedFaces_(0),
+    nBoundedZero_(0),
+    nBoundedPartial_(0),
+    maxOneMinusS_(0),
+    nRecomputed_(0),
+    nRecomputeNoPlane_(0),
+    nRecomputeNotBracketed_(0),
+    recomputeEvals_(0),
+    recomputeEvalsMax_(0),
+    sweptFaceTris_(),
+    sweptFacePlaneN_(),
+    sweptFacePlaneX0_(),
+    sweptFaceHasPlane_(),
     upLazy_(),
     upDone_(),
     anyPatchPoint_(),
@@ -404,6 +430,42 @@ Foam::advection::isoAdvection::isoAdvection
     paraboloidDefectPtr_(nullptr)
 {
    cutFaceAdvect::debug = debug;
+
+    // decisions 1 and 2 (2026-11-07): the piece-volume algorithm and the
+    // bounded face fractions
+    if (sweptPieceVolumeWord_ == "closure") sweptPieceMode_ = 0;
+    else if (sweptPieceVolumeWord_ == "oneDonorFallback")
+    {
+        sweptPieceMode_ = 0;
+        Info<< "isoAdvection: sweptPieceVolume oneDonorFallback is a DEPRECATED"
+            << " alias of closure" << endl;
+    }
+    else if (sweptPieceVolumeWord_ == "closureThenTets") sweptPieceMode_ = 1;
+    else if (sweptPieceVolumeWord_ == "signedTets") sweptPieceMode_ = 2;
+    else
+    {
+        FatalErrorInFunction
+            << "sweptPieceVolume " << sweptPieceVolumeWord_
+            << ": closure | closureThenTets | signedTets" << exit(FatalError);
+    }
+    if (modelDict().found("sweptExactCaps"))
+    {
+        Info<< "isoAdvection: sweptExactCaps is DEPRECATED: use sweptPieceVolume"
+            << " closureThenTets" << endl;
+    }
+    if
+    (
+        sweptBoundedFaceFraction_ != "none" && sweptBoundedFaceFraction_ != "scale"
+     && sweptBoundedFaceFraction_ != "recompute"
+    )
+    {
+        FatalErrorInFunction
+            << "sweptBoundedFaceFraction " << sweptBoundedFaceFraction_
+            << ": none | scale | recompute" << exit(FatalError);
+    }
+    Info<< "isoAdvection: sweptPieceVolume " << sweptPieceVolumeWord_
+        << ", sweptPieceValidate " << sweptPieceValidate_
+        << ", sweptBoundedFaceFraction " << sweptBoundedFaceFraction_ << endl;
 
     initAreaFractions();
 

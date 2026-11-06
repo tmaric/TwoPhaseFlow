@@ -29,6 +29,7 @@ License
 #include "davofInit.H"
 #include "davofCcsPositioning.H"
 #include "zoneDistribute.H"
+#include "syncTools.H"
 #include "addToRunTimeSelectionTable.H"
 #include "profiling.H"
 
@@ -391,6 +392,12 @@ Foam::reconstruction::davof::davof
     wispTol_(modelDict().getOrDefault<scalar>("wispTol", 1e-3)),
     surfCellTol_(modelDict().getOrDefault<scalar>("surfCellTol", 1e-8)),
     isoFaceTol_(modelDict().getOrDefault<scalar>("isoFaceTol", 1e-8)),
+    interfaceCellRule_(modelDict().getOrDefault<word>("interfaceCellRule", "normalOnly")),
+    nRuleOutside_(0),
+    nRuleOutsidePlane_(0),
+    nRuleResetCells_(0),
+    nRuleResetFaces_(0),
+    ruleResetMaxDaf_(0),
     positioning_(modelDict().getOrDefault<word>("positioning", "ccs")),
     positioningTol_(modelDict().getOrDefault<scalar>("positioningTol", 1e-14)),
     positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 30)),
@@ -635,6 +642,81 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     // well, and the all-dry rule assigned +0), so it is skipped without
     // reading its faces: the cells the sum touched are visited, in cell
     // order (the bitSet iterates ascending), the others hold +0.
+    // decision 3 (2026-11-07): the alpha condition of the interface-cell rule
+    if
+    (
+        interfaceCellRule_ != "normalOnly" && interfaceCellRule_ != "normalAndAlpha"
+     && interfaceCellRule_ != "normalAndAlphaReset"
+    )
+    {
+        FatalErrorInFunction
+            << "interfaceCellRule " << interfaceCellRule_
+            << ": normalOnly | normalAndAlpha | normalAndAlphaReset" << exit(FatalError);
+    }
+    const scalar tolA = surfCellTol_;
+    auto alphaInside = [&](const label celli) -> bool
+    {
+        const scalar a = alpha1_[celli];
+        return (a > tolA && a < 1 - tolA);
+    };
+    nRuleOutside_ = nRuleOutsidePlane_ = nRuleResetCells_ = nRuleResetFaces_ = 0;
+    ruleResetMaxDaf_ = 0;
+    if (interfaceCellRule_ == "normalAndAlphaReset")
+    {
+        // the faces of a dry or full cell with |m_c| above the threshold are
+        // set to its state; a face shared with a neighbour changes the
+        // neighbour's m_c as well; no mass moves (alpha is untouched)
+        labelList resetFlag(mesh_.nFaces(), 0);   // 1: set to 0, 2: set to 1
+        bool any = false;
+        for (const label celli : touchedCell_)
+        {
+            if (m[celli] == vector::zero) continue;
+            if (alphaInside(celli)) continue;
+            if (!(mag(m[celli]) > davofInit::wispThreshold(mesh_, celli, wispTol_))) continue;
+            const scalar state = (alpha1_[celli] <= tolA) ? 0 : 1;
+            const labelList& cf = cells[celli];
+            bool changed = false;
+            forAll(cf, i)
+            {
+                const label f = cf[i];
+                if (!hasValue_[f]) continue;
+                const scalar af = faceFraction(f);
+                if (af == state) continue;
+                ruleResetMaxDaf_ = max(ruleResetMaxDaf_, mag(af - state));
+                setFaceFraction(f, state);
+                resetFlag[f] = (state == 0) ? 1 : 2;
+                ++nRuleResetFaces_;
+                changed = true;
+            }
+            if (changed)
+            {
+                ++nRuleResetCells_;
+                any = true;
+            }
+        }
+        if (returnReduce(any, orOp<bool>()))
+        {
+            if (Pstream::parRun())
+            {
+                syncTools::syncFaceList(mesh_, resetFlag, maxEqOp<label>());
+                const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+                forAll(pbm, patchi)
+                {
+                    if (!pbm[patchi].coupled()) continue;
+                    forAll(pbm[patchi], i)
+                    {
+                        const label f = pbm[patchi].start() + i;
+                        if (resetFlag[f] == 1) setFaceFraction(f, 0);
+                        else if (resetFlag[f] == 2) setFaceFraction(f, 1);
+                    }
+                }
+            }
+            // the wet-face list no longer describes alphaf: the full pass
+            wetFacesNFaces_ = -1;
+            formAreaNormal();
+        }
+    }
+
     for (const label celli : touchedCell_)
     {
         if (m[celli] == vector::zero) continue;
@@ -654,8 +736,14 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
         }
         else if (mag(m[celli]) > davofInit::wispThreshold(mesh_, celli, wispTol_))
         {
-            interfaceCell_[celli] = true;
-            interfaceLabels_.append(celli);
+            const bool inside = alphaInside(celli);
+            if (!inside) ++nRuleOutside_;
+            if (interfaceCellRule_ == "normalOnly" || inside)
+            {
+                if (!inside) ++nRuleOutsidePlane_;
+                interfaceCell_[celli] = true;
+                interfaceLabels_.append(celli);
+            }
         }
     }
 
@@ -826,6 +914,25 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
             << ", floor exits " << nF << ", maxIter exits " << nM
             << ", end-of-interval cells " << nEnd << " (" << nEndNo
             << " without a plane)";
+    }
+    {
+        label nO = nRuleOutside_, nOP = nRuleOutsidePlane_;
+        label nRc = nRuleResetCells_, nRf = nRuleResetFaces_;
+        scalar dMax = ruleResetMaxDaf_;
+        if (Pstream::parRun())
+        {
+            reduce(nO, sumOp<label>()); reduce(nOP, sumOp<label>());
+            reduce(nRc, sumOp<label>()); reduce(nRf, sumOp<label>());
+            reduce(dMax, maxOp<scalar>());
+        }
+        Info<< "; interface-cell rule " << interfaceCellRule_
+            << ": cells with |m_c| above the threshold and alpha outside (tol, 1 - tol) "
+            << nO << ", with a plane " << nOP;
+        if (interfaceCellRule_ == "normalAndAlphaReset")
+        {
+            Info<< ", reset cells " << nRc << ", faces " << nRf
+                << ", max |dalphaf| " << dMax;
+        }
     }
     Info<< endl;
 }
@@ -1073,3 +1180,17 @@ Foam::vectorField& Foam::reconstruction::davof::tensorCentres()
 
 
 // ************************************************************************* //
+
+
+void Foam::reconstruction::davof::setFaceFraction(const label facei, const scalar v)
+{
+    const label nInt = mesh_.nInternalFaces();
+    if (facei < nInt)
+    {
+        alphaf_.primitiveFieldRef()[facei] = v;
+        return;
+    }
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label patchi = pbm.whichPatch(facei);
+    alphaf_.boundaryFieldRef()[patchi][facei - pbm[patchi].start()] = v;
+}

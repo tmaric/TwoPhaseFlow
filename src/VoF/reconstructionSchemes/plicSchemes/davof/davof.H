@@ -204,6 +204,27 @@ class davof
         //- Tolerance of the plane positioning by alpha
         scalar isoFaceTol_;
 
+        //- Decision 3 (Tomislav, 2026-11-07): the interface-cell rule, key
+        //  interfaceCellRule normalOnly | normalAndAlpha | normalAndAlphaReset.
+        //  normalOnly = |m_c| above the threshold regardless of alpha (before
+        //  2026-11-07, the reference); normalAndAlpha = also
+        //  surfCellTol < alpha < 1 - surfCellTol: a dry or full cell never
+        //  gets a plane, its face fractions are left; normalAndAlphaReset =
+        //  the same, and the faces of such a cell whose fractions differ from
+        //  its state are set to the state (0 dry, 1 full): a face shared with
+        //  a neighbour changes the neighbour's m_c too, no mass moves (alpha
+        //  is untouched), synchronised across processor faces (the larger
+        //  flag wins where both sides reset). Per step: the cells with |m_c|
+        //  above the threshold and alpha outside (tol, 1 - tol) ("dry cells
+        //  with wet faces"), how many got a plane, the cells and faces reset,
+        //  the largest |dalphaf|.
+        word interfaceCellRule_;
+        label nRuleOutside_;
+        label nRuleOutsidePlane_;
+        label nRuleResetCells_;
+        label nRuleResetFaces_;
+        scalar ruleResetMaxDaf_;
+
         //- The plane positioning (key positioning, 2026-11-04): vofCutCell
         //  (surfaceIteratorPLIC::vofCutCell to isoFaceTol in alpha, the
         //  default = before) or ccs (Consecutive Cubic Spline positioning
@@ -378,6 +399,9 @@ class davof
 
         //- The wetted area vector of a polyMesh face that carries a value
         inline vector faceWettedArea(const label facei) const;
+
+        //- Set the face fraction of a face (internal or patch)
+        void setFaceFraction(const label facei, const scalar v);
 
         //- Position the plane of celli by alpha along n; sets normal_ and
         //  centre_ (zero when the cut fails). Returns the success. With

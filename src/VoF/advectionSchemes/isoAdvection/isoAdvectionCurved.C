@@ -1146,6 +1146,20 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptSliverClosed_ = 0;
     nSweptExactUsed_ = nSweptExactChecked_ = 0;
     sweptExactDiffMax_ = 0;
+    nSweptClosurePieces_ = 0;
+    if (sweptBoundedFaceFraction_ == "recompute")
+    {
+        const label nF = mesh_.nFaces();
+        if (sweptFaceTris_.size() != nF)
+        {
+            sweptFaceTris_.setSize(nF);
+            sweptFacePlaneN_.setSize(nF, Zero);
+            sweptFacePlaneX0_.setSize(nF, Zero);
+            sweptFaceHasPlane_.resize(nF);
+        }
+        forAll(sweptFaceTris_, f) sweptFaceTris_[f].clear();
+        sweptFaceHasPlane_.reset();
+    }
     nSweptCovChecked_ = 0;
     sweptCovClosureMax_ = sweptCovExactMax_ = 0;
     for (label k = 0; k < 4; ++k)
@@ -2503,16 +2517,21 @@ void Foam::advection::isoAdvection::reportCurved() const
             if (Pstream::parRun()) reduce(nUp, sumOp<label>());
             Info<< "; point velocity: points evaluated " << nUp << " of " << returnReduce(mesh_.nPoints(), sumOp<label>());
         }
-        if (sweptExactCaps_)
+        if (sweptPieceMode_ > 0 || sweptPieceValidate_)
         {
-            label nEu = nSweptExactUsed_, nEc = nSweptExactChecked_;
+            label nEu = nSweptExactUsed_, nEc = nSweptExactChecked_, nCl = nSweptClosurePieces_;
             scalar dEm = sweptExactDiffMax_;
             if (Pstream::parRun())
             {
-                reduce(nEu, sumOp<label>()); reduce(nEc, sumOp<label>()); reduce(dEm, maxOp<scalar>());
+                reduce(nEu, sumOp<label>()); reduce(nEc, sumOp<label>());
+                reduce(nCl, sumOp<label>()); reduce(dEm, maxOp<scalar>());
             }
-            Info<< "; exact caps: pieces " << nEu << ", checked against the closure "
-                << nEc << ", max |dV|/V_c " << dEm;
+            Info<< "; piece volumes (" << sweptPieceVolumeWord_ << "): closure " << nCl
+                << ", signed tets " << nEu;
+            if (sweptPieceValidate_)
+            {
+                Info<< ", validated " << nEc << ", max |V_closure - V_tets|/V_c " << dEm;
+            }
         }
         if (sweptCoverageCheck_)
         {
@@ -2994,5 +3013,119 @@ void Foam::advection::isoAdvection::fragmentLog()
         fragBoundFaces_.reset();
         fragBoundMagPrev_ = fragBoundMag_;
         fragBoundMag_ = 0.0;
+    }
+}
+
+
+// * * * * * * * decision 2 (2026-11-07): the bounded face fractions * * * * //
+
+#include "davofSimplexGeometry.H"
+
+void Foam::advection::isoAdvection::boundedFaceFraction
+(
+    const label facei,
+    const scalar dVfOld,
+    const scalar dVfNew
+)
+{
+    ++nBoundedFaces_;
+    const scalar af0 = faceValue(*alphafPtr_, facei);
+    scalar s = 0;
+    if (mag(dVfNew) <= VSMALL) s = 0;
+    else if (mag(dVfOld) > VSMALL) s = dVfNew/dVfOld;
+    else s = 1;   // a flux created where there was none: the fraction is left
+    if (s < 0) s = 0;
+    if (s == 0) ++nBoundedZero_;
+    else if (s != 1)
+    {
+        ++nBoundedPartial_;
+        maxOneMinusS_ = max(maxOneMinusS_, mag(1 - s));
+    }
+    bool done = false;
+    if
+    (
+        sweptBoundedFaceFraction_ == "recompute" && s != 0 && s != 1
+     && sweptFaceTris_.size() == mesh_.nFaces() && sweptFaceTris_[facei].size()
+    )
+    {
+        if (!sweptFaceHasPlane_.test(facei))
+        {
+            ++nRecomputeNoPlane_;
+        }
+        else
+        {
+            const List<FixedList<point, 3>>& T = sweptFaceTris_[facei];
+            const vector& n = sweptFacePlaneN_[facei];
+            const point& x0 = sweptFacePlaneX0_[facei];
+            const point& xf = mesh_.faceCentres()[facei];
+            const label own = mesh_.faceOwner()[facei];
+            const scalar h = Foam::cbrt(mesh_.V()[own]);
+            const List<davof::halfSpace> noPlanes;
+            label nEv = 0;
+            // the liquid volume of the swept volume under the donor's plane
+            // moved by c along its normal (the one-donor clip, exact by the
+            // signed tetrahedra); increasing in c
+            auto g = [&](const scalar c) -> scalar
+            {
+                ++nEv;
+                davof::halfSpace hs;
+                hs.n = n; hs.x0 = x0 + c*n; hs.axis = -1; hs.sgn = 1;
+                return mag(davof::sweptPieceExactVolume(T, noPlanes, true, hs, xf));
+            };
+            scalar c = 0;
+            bool bracketed = false;
+            davof::solveOffset(g, mag(dVfNew), -h, h, 1e-14*h, c, bracketed);
+            recomputeEvals_ += nEv;
+            recomputeEvalsMax_ = max(recomputeEvalsMax_, nEv);
+            if (!bracketed)
+            {
+                ++nRecomputeNotBracketed_;
+            }
+            else
+            {
+                // the wetted area of the pre-image fan under the positioned plane
+                davof::halfSpace hs;
+                hs.n = n; hs.x0 = x0 + c*n; hs.axis = -1; hs.sgn = 1;
+                vector w(Zero);
+                forAll(T, k)
+                {
+                    if (k % 4 != 1) continue;
+                    const FixedList<point, 3>& t = T[k];
+                    const scalar s0 = hs.dist(t[0]), s1 = hs.dist(t[1]), s2 = hs.dist(t[2]);
+                    if (s0 <= 0 && s1 <= 0 && s2 <= 0)
+                    {
+                        w += 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
+                    }
+                    else if (!(s0 > 0 && s1 > 0 && s2 > 0))
+                    {
+                        vector aw; point xw;
+                        davof::triNegativePolygon(t[0], t[1], t[2], s0, s1, s2, aw, xw);
+                        w += aw;
+                    }
+                }
+                const scalar magSf = mag(mesh_.faceAreas()[facei]);
+                const scalar af = min(max(mag(w)/magSf, scalar(0)), scalar(1));
+                setFaceValue(*alphafPtr_, facei, af);
+                if (wetVecPtr_)
+                {
+                    const vector v0 = faceValue(*wetVecPtr_, facei);
+                    const scalar m0 = mag(v0);
+                    setFaceValue(*wetVecPtr_, facei, (m0 > VSMALL) ? v0*(af*magSf/m0) : v0);
+                }
+                if (wetFace_.size() > facei) wetFace_.set(facei, (af != 0) ? 1u : 0u);
+                ++nRecomputed_;
+                done = true;
+            }
+        }
+    }
+    if (!done)
+    {
+        const scalar af = min(max(af0*s, scalar(0)), scalar(1));
+        setFaceValue(*alphafPtr_, facei, af);
+        if (wetVecPtr_)
+        {
+            setFaceValue(*wetVecPtr_, facei, faceValue(*wetVecPtr_, facei)*s);
+        }
+        if (wetFace_.size() > facei) wetFace_.set(facei, (af != 0) ? 1u : 0u);
     }
 }

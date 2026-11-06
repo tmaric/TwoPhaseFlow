@@ -708,6 +708,55 @@ class isoAdvection
             label nFragAlphafChanged_;
             label nFragBoundFaces_;
             autoPtr<surfaceScalarField> fragAlphafCopy_;
+
+            //- Decision 1 (Tomislav, 2026-11-07): the piece-volume algorithm,
+            //  key sweptPieceVolume closure | closureThenTets | signedTets
+            //  (oneDonorFallback: a deprecated alias of closure; the former
+            //  sweptExactCaps true: closureThenTets, deprecated). closure = the
+            //  cap closure for k <= 3 of full rank, the one-donor clip of the
+            //  face where it does not solve (the production behaviour before
+            //  2026-11-07, kept for reproducibility); closureThenTets = the
+            //  signed tetrahedra (davof::sweptPieceExactVolume) where the
+            //  closure does not solve, no one-donor clip anywhere;
+            //  signedTets = every piece by the signed tetrahedra, no cap
+            //  bookkeeping. The 2D face update is the same in all three.
+            //  sweptPieceValidate: |V_closure - V_tets| on every piece where
+            //  both apply (printed per step). The pieces per path per step.
+            word sweptPieceVolumeWord_;
+            label sweptPieceMode_;
+            bool sweptPieceValidate_;
+            label nSweptClosurePieces_;
+
+            //- Decision 2 (Tomislav, 2026-11-07): the face fractions under
+            //  the bounding, key sweptBoundedFaceFraction none | scale |
+            //  recompute: none = the bounding changes dVf and leaves alphaf
+            //  (before 2026-11-07); scale = wherever a bounding pass changes a
+            //  face's dVf by the factor s = dVf_bounded / dVf, the stored face
+            //  fraction (and the wetted area vector) is scaled by s, a removed
+            //  flux (s = 0) dries the face (exact there, approximate for a
+            //  partial change); recompute = the face fraction recomputed as the
+            //  wetted area of the pre-image fan under the donor's plane
+            //  positioned along its normal so that the swept liquid volume
+            //  (the signed tetrahedra under that plane alone) equals
+            //  |dVf_bounded| (davof::solveOffset), consistent by construction,
+            //  scale where no plane or no bracket. Both sides of a processor
+            //  face apply the same s. The counters per step; for recompute the
+            //  closed swept list and the donor plane of every computed face
+            //  are kept for the step.
+            word sweptBoundedFaceFraction_;
+            label nBoundedFaces_;
+            label nBoundedZero_;
+            label nBoundedPartial_;
+            scalar maxOneMinusS_;
+            label nRecomputed_;
+            label nRecomputeNoPlane_;
+            label nRecomputeNotBracketed_;
+            label recomputeEvals_;
+            label recomputeEvalsMax_;
+            List<List<FixedList<point, 3>>> sweptFaceTris_;
+            vectorField sweptFacePlaneN_;
+            pointField sweptFacePlaneX0_;
+            bitSet sweptFaceHasPlane_;
             mutable vectorField upLazy_;
             mutable bitSet upDone_;
             mutable bitSet anyPatchPoint_;
@@ -1245,6 +1294,15 @@ public:
             //  (sweptFragmentLog), both called from advect
             void reinitFaceFractions();
             void fragmentLog();
+
+            //- Decision 2: the face fraction of a face whose dVf the bounding
+            //  changed from dVfOld to dVfNew (scale or recompute)
+            void boundedFaceFraction
+            (
+                const label facei,
+                const scalar dVfOld,
+                const scalar dVfNew
+            );
 
             //- tensorCentroid anchored: for every interface cell the plane
             //  in the frame of the used normal through the cut centroid

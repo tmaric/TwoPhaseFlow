@@ -1223,3 +1223,35 @@ leia's `etc/leia-env.sh` appends `$LEIA_TPF_DIR/platforms/<WM_OPTIONS>/{bin,lib}
 leia's own directories; the default is the `TwoPhaseFlow` clone next to the leia clone.
 The `interFlow` benchmark arm of leia's studies (`config/interFlowDroplet{2D,3D}.yaml`)
 therefore runs this build without any study-config reference to this repository.
+
+
+## The interchangeable piece volumes, bounded face fractions and interface-cell rule (2026-11-07)
+
+Tomislav's decisions 1-3 of 2026-11-07 after the 3D deformation study (leia
+`docs/davof/REPORT-swept.md`, "The 3D Enright deformation"): three keys of the
+`alpha.water` dictionary, each with the former behaviour as a value, so that every
+earlier result stays reproducible. The defaults are the former behaviour until the
+tests decide.
+
+| key | values | meaning |
+|---|---|---|
+| `sweptPieceVolume` | `closure` (default) | the cap closure of the clipped wet boundary for k <= 3 caps of full rank; a piece it cannot solve (k > 3, rank-deficient) makes the face take the one-donor clip (counted as "rank fallbacks"); the behaviour before 2026-11-07 |
+| | `closureThenTets` | the closure where it solves, the signed tetrahedra (`davof::sweptPieceExactVolume`) otherwise; no one-donor clip anywhere; bit for bit = `closure` where no fallback fires |
+| | `signedTets` | every piece by the signed tetrahedra about the face centre, each clipped as a convex polyhedron by the cell's planes and the PLIC plane (Sutherland-Hodgman face by face, Zhang-Chen signed decomposition); no closure, no cap bookkeeping; round-off against `closure` |
+| | `oneDonorFallback` | a deprecated alias of `closure` (printed) |
+| `sweptPieceValidate` | `false` (default) / `true` | with `true` every piece where both algorithms apply is computed by both and the largest |V_closure - V_tets| / V_c of the step is printed ("piece volumes (...): closure N, signed tets M, validated K, max ...") |
+| `sweptBoundedFaceFraction` | `none` (default) | the bounding changes a face's dVf and leaves the face fraction (before 2026-11-07) |
+| | `scale` | wherever a bounding pass changes a face's dVf by s = dVf_bounded / dVf, the face fraction and the wetted area vector are scaled by s; s = 0 dries the face (exact), a partial change is approximate; both sides of a processor face apply the same s |
+| | `recompute` | the face fraction recomputed as the wetted area of the pre-image fan under the donor's plane positioned along its normal so that the one-donor swept liquid volume equals |dVf_bounded| (`davof::solveOffset`); `scale` where the face has no donor plane or no bracket; the positioning evaluations counted |
+| `interfaceCellRule` | `normalOnly` (default) | an interface cell is a cell with |m_c| > wispTol V^(2/3) regardless of alpha (before 2026-11-07) |
+| | `normalAndAlpha` | also surfCellTol < alpha < 1 - surfCellTol; a dry or full cell never gets a plane, its face fractions are left |
+| | `normalAndAlphaReset` | the same, and the faces of such a cell are set to its state (0 / 1) where they differ; the shared faces change the neighbours' m_c too; no mass moves; synchronised across processor faces |
+
+Per step the log carries: the pieces per path ("piece volumes"), the rank fallbacks,
+the bounded faces with the share s = 0 / partial and max |1 - s| (and the recompute
+counts), "before the bounding: min(alpha), max(alpha)", and for the reconstruction
+the cells with |m_c| above the threshold and alpha outside (tol, 1 - tol) with the
+number that got a plane (and the reset counts). The diagnostics `sweptFragmentLog`,
+`sweptPieceDumpTol`, `sweptCoverageCheck` and `sweptReinitFaceFractions` of the
+deformation study stay opt-in. The old key `sweptExactCaps true` is a deprecated
+alias of `sweptPieceVolume closureThenTets`.

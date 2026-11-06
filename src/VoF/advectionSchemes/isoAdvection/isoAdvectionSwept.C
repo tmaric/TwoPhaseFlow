@@ -1179,7 +1179,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 davof::pieceResult r;
                 if (sweeps)
                 {
-                    r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing", sweptExactCaps_);
+                    r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing", sweptPieceMode_, sweptPieceValidate_);
                     covV = r.coverage;
                     // the pieces' own gate: a piece counts above 1e-12 of
                     // the boundary; below it nothing is added
@@ -1240,13 +1240,15 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 (
                     T, planes, wetPlane, plic, xf, &xDonor,
                     sweptCapSet_ == "crossing",
-                    sweptExactCaps_
+                    sweptPieceMode_,
+                    sweptPieceValidate_
                 );
             tStatVol += tick() - tv0;
             // the pre-image's wetted part in the face's orientation (preSign)
             if (areaFromVolume) { preAw = preSign*r.aPre; preCov = r.covPre; }
             nStatVolClips += r.nClip; nStatTris += r.nTri;
             if (r.exactUsed) ++nSweptExactUsed_;
+            else if (r.coverage > 1e-12*sumMagT && !r.degenerate) ++nSweptClosurePieces_;
             if (r.exactDiff >= 0)
             {
                 ++nSweptExactChecked_;
@@ -1419,7 +1421,7 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                     if (!st.touched) continue;
                     const SubList<davof::halfSpace> planes(ringPlanes, st.np, st.p0);
                     davof::pieceResult r;
-                    if (sweeps) r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing", sweptExactCaps_);
+                    if (sweeps) r = davof::sweptPieceVolume(T, planes, st.wetPlane, st.plic, xf, &xDonor, sweptCapSet_ == "crossing", sweptPieceMode_, sweptPieceValidate_);
                     Pout<< " [cell " << st.c << (st.rc ? "r" : "") << " alpha " << st.a0c
                         << " cov " << r.coverage/max(sumMagT, VSMALL) << " V/V_g " << (vTotal > VSMALL ? r.volume/vTotal : 0)
                         << " deg " << r.degenerate << " ok " << r.ok << " caps " << r.nCaps << " contacts " << r.nContact << "]";
@@ -1484,6 +1486,26 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     {
         return (A2 > VSMALL) ? (w & aPreFull)/A2 : 0;
     };
+
+    // decision 2, recompute: the closed swept list and the donor plane of
+    // this face, for the bounding
+    if (sweptBoundedFaceFraction_ == "recompute" && sweptFaceTris_.size() == mesh_.nFaces())
+    {
+        sweptFaceTris_[facei] = T;
+        sweptFaceHasPlane_.unset(facei);
+        if (!sweptNoDonorSurface_)
+        {
+            vector nRaw; point x0;
+            planeOf(S, donor, h, sweptPlaneTol_, "sweptFaceCells", nRaw, x0);
+            const scalar nm = mag(nRaw);
+            if (nm > VSMALL)
+            {
+                sweptFacePlaneN_[facei] = nRaw/nm;
+                sweptFacePlaneX0_[facei] = x0;
+                sweptFaceHasPlane_.set(facei);
+            }
+        }
+    }
 
     if (rankFallback)
     {
@@ -1748,7 +1770,8 @@ void Foam::advection::isoAdvection::sweptConsistencyProbe
                 (
                     T, planes, hasS, plic, Cf[facei], &C[donor],
                     sweptCapSet_ == "crossing",
-                    sweptExactCaps_
+                    sweptPieceMode_,
+                    sweptPieceValidate_
                 );
             if (r.coverage <= 1e-12*sumMagT) continue;
             if (!r.ok) fallback = true;
