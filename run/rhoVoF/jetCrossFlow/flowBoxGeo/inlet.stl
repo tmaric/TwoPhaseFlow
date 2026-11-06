@@ -1,0 +1,16 @@
+solid inlet
+ facet normal -1 0 0
+  outer loop
+   vertex -0.01 0 0.01
+   vertex -0.01 0.02 -0.01
+   vertex -0.01 0 -0.01
+  endloop
+ endfacet
+ facet normal -1 -0 -0
+  outer loop
+   vertex -0.01 0 0.01
+   vertex -0.01 0.02 0.01
+   vertex -0.01 0.02 -0.01
+  endloop
+ endfacet
+endsolid inlet

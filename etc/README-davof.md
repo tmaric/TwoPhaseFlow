@@ -116,8 +116,11 @@ unchanged (the third reference row of the verification). `davof` keeps its own
 (c) The function objects `areaFractionError`, `volumeFractionError` (`exactState
 exactSphere`), `reconstructionError` (`src/postProcessing/`), the apps `advectorVoF`
 (`setFlow` at the half step, the abort guard), `initDavofFields`, `planeVolumeConsistency`,
-`staticFaceFractions`, the unit test `testCutFaceAdvectEndArea`, and the benchmark
-dictionaries `run/benchmark/{advection,reconstruction}`.
+`staticFaceFractions`, `initShearFlow3D` (the 3D shear flow of Liovic et al. 2006 at t = 0,
+U and phi, for the verification's `isoShear3D` case of leia; the time factor is
+advectorVoF's `spirallingFlow`), the unit test `testCutFaceAdvectEndArea`, and the
+benchmark dictionaries `run/benchmark/{advection,reconstruction}`; the liquid jet in
+cross flow `run/rhoVoF/jetCrossFlow` (its README).
 
 Removed from this branch (history on `davof-swept`): `isoAdvectionSwept.C` and every
 `swept*` key, `isoAdvectionCurved.C` (the paraboloid dual advection, the keys

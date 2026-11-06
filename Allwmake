@@ -25,6 +25,7 @@ wmake apps/benchmark/advectorVoF
 wmake apps/benchmark/reconstructInterface
 wmake apps/benchmark/staticFaceFractions
 wmake apps/benchmark/planeVolumeConsistency
+wmake apps/benchmark/initShearFlow3D
 wmake apps/test/testCutFaceAdvectEndArea
 
 wmake solver/multiRegionPhaseChangeFlow
