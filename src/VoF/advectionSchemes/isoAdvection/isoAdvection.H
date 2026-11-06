@@ -689,6 +689,25 @@ class isoAdvection
             label nSweptCovChecked_;
             scalar sweptCovClosureMax_;
             scalar sweptCovExactMax_;
+            //- sweptPieceDumpTol (2026-11-06, default -1 = off): with
+            //  sweptExactCaps, a PLIC-clipped piece on which the closure and
+            //  the exact volume differ by more than tol V_c is dumped to
+            //  postProcessing/sweptPieceDump/<step>_<rank>_<n>.txt (the raw
+            //  closed triangle list, the cell planes, the PLIC plane, both
+            //  volumes); at most 200 per run
+            scalar sweptPieceDumpTol_;
+            label nSweptPieceDumps_;
+            //- the first-layer bounding as a class of the fragment log: the
+            //  faces whose dVf the bounding changed in the step (and the
+            //  step before) with the summed |correction|, and the faces
+            //  whose alphaf the bounding changed (expected none)
+            bitSet fragBoundFaces_;
+            bitSet fragBoundFacesPrev_;
+            scalarField fragBoundMag_;
+            scalarField fragBoundMagPrev_;
+            label nFragAlphafChanged_;
+            label nFragBoundFaces_;
+            autoPtr<surfaceScalarField> fragAlphafCopy_;
             mutable vectorField upLazy_;
             mutable bitSet upDone_;
             mutable bitSet anyPatchPoint_;

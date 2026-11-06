@@ -2884,7 +2884,7 @@ void Foam::advection::isoAdvection::fragmentLog()
     const scalarField& V = mesh_.V();
     const cellList& cells = mesh_.cells();
     const vectorField& C = mesh_.cellCentres();
-    label nNew = 0, nFb = 0, nB2 = 0, nW = 0, nNone = 0;
+    label nNew = 0, nFb = 0, nB2 = 0, nW = 0, nNone = 0, nBf = 0;
     forAll(ic, celli)
     {
         if (!ic[celli] || fragLogged_.test(celli)) continue;
@@ -2903,10 +2903,24 @@ void Foam::advection::isoAdvection::fragmentLog()
         const bool b2 = fragBound2CellsPrev_.test(celli);
         const bool w1 = fragWispCells_.test(celli);
         const bool w2 = fragWispCellsPrev_.test(celli);
+        // the first-layer bounding: a face of the cell whose dVf the
+        // bounding changed, with the largest summed |correction| over V_c
+        bool bf1 = false, bf2 = false;
+        scalar bm1 = 0, bm2 = 0;
+        if (fragBoundFaces_.size() == nFaces)
+        {
+            for (const label f : cf)
+            {
+                if (fragBoundFaces_.test(f)) { bf1 = true; bm1 = max(bm1, fragBoundMag_[f]); }
+                if (fragBoundFacesPrev_.test(f)) { bf2 = true; bm2 = max(bm2, fragBoundMagPrev_[f]); }
+            }
+        }
+        bm1 /= V[celli]; bm2 /= V[celli];
         if (fb1 || fb2) ++nFb;
         if (b1 || b2) ++nB2;
         if (w1 || w2) ++nW;
-        if (!(fb1 || fb2 || b1 || b2 || w1 || w2)) ++nNone;
+        if (bf1 || bf2) ++nBf;
+        if (!(fb1 || fb2 || b1 || b2 || w1 || w2 || bf1 || bf2)) ++nNone;
         if (nFragLogged_ < 200)
         {
             if (!fragStream_)
@@ -2926,7 +2940,8 @@ void Foam::advection::isoAdvection::fragmentLog()
                 fragStream_().precision(17);
                 fragStream_()
                     << "step,t,cell,cx,cy,cz,alpha,mOverV23,af0,af1,af2,af3,af4,af5,"
-                    << "fallbackPrev1,fallbackPrev2,bound2Prev1,bound2Prev2,wispPrev1,wispPrev2"
+                    << "fallbackPrev1,fallbackPrev2,bound2Prev1,bound2Prev2,wispPrev1,wispPrev2,"
+                    << "boundFacePrev1,boundFacePrev2,boundMagPrev1OverVc,boundMagPrev2OverVc"
                     << nl;
             }
             fragStream_()
@@ -2940,7 +2955,8 @@ void Foam::advection::isoAdvection::fragmentLog()
             }
             fragStream_()
                 << ',' << fb1 << ',' << fb2 << ',' << b1 << ',' << b2
-                << ',' << w1 << ',' << w2 << nl;
+                << ',' << w1 << ',' << w2
+                << ',' << bf1 << ',' << bf2 << ',' << bm1 << ',' << bm2 << nl;
             ++nFragLogged_;
         }
     }
@@ -2953,12 +2969,16 @@ void Foam::advection::isoAdvection::fragmentLog()
             << " (fallback-adjacent " << returnReduce(nFb, sumOp<label>())
             << ", second-layer bounded " << returnReduce(nB2, sumOp<label>())
             << ", wisp without a surface " << returnReduce(nW, sumOp<label>())
+            << ", bounded face " << returnReduce(nBf, sumOp<label>())
             << ", none " << returnReduce(nNone, sumOp<label>())
             << "); cumulative fallback-adjacent "
             << returnReduce(nFragFallback_, sumOp<label>())
             << ", second-layer bounded " << returnReduce(nFragBound2_, sumOp<label>())
             << ", wisp " << returnReduce(nFragWisp_, sumOp<label>())
-            << ", none " << returnReduce(nFragNone_, sumOp<label>()) << endl;
+            << ", none " << returnReduce(nFragNone_, sumOp<label>())
+            << "; the previous step's bounding changed dVf on "
+            << returnReduce(nFragBoundFaces_, sumOp<label>()) << " faces and alphaf on "
+            << returnReduce(nFragAlphafChanged_, sumOp<label>()) << " faces" << endl;
     }
     // the sets of the last step become the step before; the new step fills
     // the current ones
@@ -2968,4 +2988,11 @@ void Foam::advection::isoAdvection::fragmentLog()
     fragBound2Cells_.reset();
     fragWispCellsPrev_ = fragWispCells_;
     fragWispCells_.reset();
+    if (fragBoundFaces_.size() == nFaces)
+    {
+        fragBoundFacesPrev_ = fragBoundFaces_;
+        fragBoundFaces_.reset();
+        fragBoundMagPrev_ = fragBoundMag_;
+        fragBoundMag_ = 0.0;
+    }
 }

@@ -153,6 +153,18 @@ void Foam::advection::isoAdvection::limitFluxes
         (storeAreaFractions_ && alphafPtr_ && boundSecondLayer_);
     bitSet firstLayer;
     nBoundedBeyondRing_ = 0;
+    // the fragment log: alphaf before the bounding, the faces it corrects
+    if (sweptFragmentLog_ && alphafPtr_)
+    {
+        fragAlphafCopy_.reset(new surfaceScalarField(*alphafPtr_));
+        if (fragBoundFaces_.size() != mesh_.nFaces())
+        {
+            fragBoundFaces_.resize(mesh_.nFaces()); fragBoundFaces_.reset();
+            fragBoundFacesPrev_.resize(mesh_.nFaces()); fragBoundFacesPrev_.reset();
+            fragBoundMag_.setSize(mesh_.nFaces(), 0.0);
+            fragBoundMagPrev_.setSize(mesh_.nFaces(), 0.0);
+        }
+    }
     if (extendBounding)
     {
         firstLayer = needBounding;
@@ -219,6 +231,15 @@ void Foam::advection::isoAdvection::limitFluxes
                       + faceValue(dVfcorrectionValues, facei);
 
                     setFaceValue(dVf_, facei, corrVf);
+                    if (sweptFragmentLog_ && fragBoundFaces_.size() > facei)
+                    {
+                        const scalar dc = mag(faceValue(dVfcorrectionValues, facei));
+                        if (dc > 0)
+                        {
+                            fragBoundFaces_.set(facei);
+                            fragBoundMag_[facei] += dc;
+                        }
+                    }
                 }
             }
             syncProcPatches(dVf_, phi_);
@@ -249,6 +270,30 @@ void Foam::advection::isoAdvection::limitFluxes
     }
 
     alpha1_.correctBoundaryConditions();
+
+    if (sweptFragmentLog_ && alphafPtr_ && fragAlphafCopy_)
+    {
+        // the bounding leaves alphaf as it was? (the count of faces changed)
+        label nCh = 0;
+        const scalarField& a = alphafPtr_->primitiveField();
+        const scalarField& b = fragAlphafCopy_().primitiveField();
+        forAll(a, facei)
+        {
+            if (a[facei] != b[facei]) ++nCh;
+        }
+        forAll(alphafPtr_->boundaryField(), patchi)
+        {
+            const fvsPatchScalarField& pa = alphafPtr_->boundaryField()[patchi];
+            const fvsPatchScalarField& pb = fragAlphafCopy_().boundaryField()[patchi];
+            forAll(pa, i)
+            {
+                if (pa[i] != pb[i]) ++nCh;
+            }
+        }
+        nFragAlphafChanged_ = nCh;
+        nFragBoundFaces_ = fragBoundFaces_.count();
+        fragAlphafCopy_.clear();
+    }
 
     if (extendBounding)
     {

@@ -1251,6 +1251,44 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
             {
                 ++nSweptExactChecked_;
                 sweptExactDiffMax_ = max(sweptExactDiffMax_, r.exactDiff/mesh_.V()[donor]);
+                if
+                (
+                    sweptPieceDumpTol_ >= 0
+                 && r.exactDiff > sweptPieceDumpTol_*mesh_.V()[donor]
+                 && nSweptPieceDumps_ < 200
+                )
+                {
+                    // the piece dump (the independent truth is computed
+                    // from the raw list and the planes, piece_truth.py)
+                    const fileName ddir(mesh_.time().globalPath()/"postProcessing"/"sweptPieceDump");
+                    mkDir(ddir);
+                    OFstream os
+                    (
+                        ddir/(Foam::name(mesh_.time().timeIndex()) + "_" + Foam::name(Pstream::myProcNo())
+                            + "_" + Foam::name(nSweptPieceDumps_) + ".txt")
+                    );
+                    os.precision(17);
+                    os << "step " << mesh_.time().timeIndex() << " t " << mesh_.time().value()
+                       << " face " << facei << " donor " << donor << " cell " << c << " remote " << (rc ? 1 : 0)
+                       << " Vc " << mesh_.V()[donor] << " alpha0c " << a0c << " wetPlane " << wetPlane
+                       << " closureVolume " << r.volume
+                       << " exactVolume " << davof::sweptPieceExactVolume(T, planes, wetPlane, plic, xf)
+                       << " nCaps " << r.nCaps << " ok " << r.ok << " degenerate " << r.degenerate
+                       << " closureResidual " << r.closureResidual << " coverage " << r.coverage << nl;
+                    os << "xRef " << xf << nl << "xDonor " << xDonor << nl;
+                    os << "plic " << plic.n << ' ' << plic.x0 << ' ' << plic.axis << ' ' << plic.sgn << nl;
+                    os << "planes " << planes.size() << nl;
+                    for (const davof::halfSpace& hs : planes)
+                    {
+                        os << hs.n << ' ' << hs.x0 << ' ' << hs.axis << ' ' << hs.sgn << nl;
+                    }
+                    os << "triangles " << T.size() << nl;
+                    forAll(T, k)
+                    {
+                        os << T[k][0] << ' ' << T[k][1] << ' ' << T[k][2] << nl;
+                    }
+                    ++nSweptPieceDumps_;
+                }
             }
             if (sweptCoverageCheck_)
             {
