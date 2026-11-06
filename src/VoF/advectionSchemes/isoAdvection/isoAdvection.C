@@ -670,7 +670,11 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
     if (pf.size())
     {
         scalar af = alpha[own[facei]];
-        inflowBoundaryFraction(facei, af);
+        scalar aBC = 0;
+        if (inflowBoundaryFraction(facei, aBC) && aBC >= 1)
+        {
+            af = aBC;   // a liquid inlet's face is wholly liquid
+        }
         pf[facei - pbm[patchi].start()] = af;
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
     }

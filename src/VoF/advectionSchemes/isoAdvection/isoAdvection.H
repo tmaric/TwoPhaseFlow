@@ -398,9 +398,8 @@ class isoAdvection
 
             //- The default of one face from the alpha field given: the
             //  upwind cell's value (phi >= 0: the owner), boundary faces
-            //  the owner's, an inflow boundary face the boundary
-            //  condition's value (inflowBoundaryFraction); faces of empty
-            //  patches carry no value
+            //  the owner's, a liquid inlet's face 1 (inflowBoundaryFraction
+            //  with alpha_b = 1); faces of empty patches carry no value
             void setDefaultAreaFraction
             (
                 const label facei,
@@ -408,17 +407,18 @@ class isoAdvection
             );
 
             //- An inflow face of a non-coupled patch (phi_f < 0: the flux
-            //  enters the domain) carries the alpha boundary condition's
-            //  value as its face fraction where no plane sweeps it (the
-            //  defaults) and, when the condition says the face is wholly
-            //  liquid (alpha_b = 1, a liquid inlet: the nozzle of the jet
-            //  in cross flow), also where a plane sweeps it; a face the
-            //  condition calls gas while a plane crosses it keeps the
-            //  plane's liquid area (the plane gate's inlet, whose fixed
-            //  value 0 is not the face's state: the identity check of
-            //  2026-11-06). Returns true for an inflow face and sets af;
-            //  false for every other face (internal, coupled, outflow, no
-            //  flux)
+            //  enters the domain) whose alpha boundary condition says the
+            //  face is wholly liquid (alpha_b = 1, a liquid inlet: the
+            //  nozzle of the jet in cross flow) holds 1 as its face
+            //  fraction, in the sweep, the second ring and the defaults;
+            //  every other inflow face keeps the plane's liquid area or the
+            //  owner's alpha, because a condition's value below 1 is the
+            //  entering fluid, not the face's state (the plane gate's
+            //  inlet, fixedValue 0 while the plane crosses it or a full
+            //  cell sits at it: the identity checks of 2026-11-06).
+            //  Returns true for an inflow face and sets af to the
+            //  condition's value; false for every other face (internal,
+            //  coupled, outflow, no flux)
             bool inflowBoundaryFraction(const label facei, scalar& af) const;
 
             //- Store the boundary condition's value on an inflow boundary

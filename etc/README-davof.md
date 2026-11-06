@@ -181,22 +181,22 @@ step):
    does not reach keeps the upwind flux (the side value of an extended
    plane can contradict a pure cell's content on a curved interface).
 4. Boundary faces of a surface cell: the owner's plane sets `alphaf` on an
-   outflow face, whose flux is the plane's as before; an INFLOW face of a
-   non-coupled patch (phi_f < 0) keeps the boundary condition's flux and
-   (since 2026-11-06, `inflowBoundaryFraction`) holds the alpha boundary
-   condition's value as its face fraction where no plane sweeps it (the
-   defaults, rule 1; before, the owner's alpha) and, when the condition
-   says the face is wholly liquid (alpha_b = 1: a liquid inlet, the nozzle
-   of the jet in cross flow), also where a plane sweeps it (the sweep and
-   the second ring, which takes no such face). A face the condition calls
-   gas (alpha_b = 0) while a plane crosses it keeps the plane's liquid
-   area: on the plane gate's inlet the fixed value 0 is the entering
-   fluid, not the face's state, and the plane's area is exact there (the
-   version that took the condition's value on every swept inflow face
-   moved the oblique arm by 1.8e-2 in alpha within 20 steps, 2026-11-06).
-   On a processor patch the owner's plane sweeps the face and the sync
-   replaces the value. The eight verification cases (`zeroGradient` and
-   `fixedValue` 0 inlets) are unchanged bit for bit.
+   outflow face, whose flux is the plane's as before, and on an inflow
+   face (phi_f < 0) of a non-coupled patch, whose flux is the boundary
+   condition's; since 2026-11-06 (`inflowBoundaryFraction`) an inflow face
+   whose alpha condition says the face is wholly liquid (alpha_b = 1: a
+   liquid inlet, the nozzle of the jet in cross flow) holds 1 instead, in
+   the sweep, in the second ring (which takes no such face) and in the
+   defaults (rule 1). Every other inflow face keeps the plane's liquid
+   area or the owner's alpha: a condition's value below 1 is the entering
+   fluid, not the face's state. On the plane gate's inlet (fixedValue 0)
+   the plane crosses the inlet and full cells sit at it; the version that
+   took the condition's value on every swept inflow face moved the
+   oblique arm by 1.8e-2 in alpha within 20 steps, the version that took
+   it in the defaults alone by 5.7e-6 (2026-11-06). On a processor patch
+   the owner's plane sweeps the face and the sync replaces the value.
+   The eight verification cases (`zeroGradient` and `fixedValue` 0
+   inlets) are unchanged bit for bit.
 5. The second ring: every face no plane has set whose cell shares a face
    with a surface cell is swept by the neighbouring plane whose
    end-of-step position is closest to the face centre (one and the same
