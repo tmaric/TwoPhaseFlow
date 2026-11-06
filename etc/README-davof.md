@@ -834,3 +834,22 @@ leia's `etc/leia-env.sh` appends `$LEIA_TPF_DIR/platforms/<WM_OPTIONS>/{bin,lib}
 leia's own directories; the default is the `TwoPhaseFlow` clone next to the leia clone.
 The `interFlow` benchmark arm of leia's studies (`config/interFlowDroplet{2D,3D}.yaml`)
 therefore runs this build without any study-config reference to this repository.
+
+(c) The standing rule on plane positioning (Tomislav, 2026-11-08): "We should never count
+on the closed form to position PLIC, only always as input for CCS." The explicit
+Gauss-theorem position pPlane_c = (sum_f alpha_f (x_f - x_c).S_f^out - 3 alpha_c V_c)/|m_c|
+is exact on a planar state only; on every other state it is the START of the CCS
+positioning, never the plane. Audit of this branch at bf70393 (2026-11-08): no path takes
+pPlane as the final plane. `davof::positionPlane` positions every plane by alpha, with
+`positioning ccs` (the default) by `davof::ccsPositionPlane` started from pPlane_c, with
+`positioning vofCutCell` by the bisection of `surfaceIteratorPLIC::vofCutCell` (no closed
+form); the normal models receive the face-fraction normal m_c (`select(t, m, ...)`), and
+the models that need positioned planes (`exact`, `ringFit`) get planes positioned by alpha
+in the first pass and re-positioned along the selected normal; the explicit plane is cut
+once more for the realizability diagnostics only (`planeVolDefect`, `planeAreaDefect`,
+the field `pPlane`); the second-ring sweep of isoAdvection and the `interface` function
+object take `surf.normal()`/`surf.centre()`, the positioned plane; `plicRDF` and
+`gradAlpha` position by `vofCutCell` or `ccs`; `apps/benchmark/planeVolumeConsistency`
+evaluates both positionings by design; `initDavofFields` uses the closed forms of the exact
+shapes for the INITIAL alpha and alphaf only (not a PLIC positioning). Any new path that
+forms a plane follows the same rule: the closed form may start CCS, never end it.
