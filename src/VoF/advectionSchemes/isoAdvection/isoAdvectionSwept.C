@@ -870,6 +870,8 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     vector aPreWet(Zero);
     scalar coverage = 0, coveragePre = 0;
     bool rankFallback = false;
+    // sweptCoverageCheck: the unclipped piece volumes of the ring by the two paths
+    scalar covVolClosure = 0, covVolExact = 0;
     List<davof::halfSpace> planes;
 
     // The pre-test (sweptPreTest, 2026-11-04). The vertex set of the swept
@@ -1250,6 +1252,14 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
                 ++nSweptExactChecked_;
                 sweptExactDiffMax_ = max(sweptExactDiffMax_, r.exactDiff/mesh_.V()[donor]);
             }
+            if (sweptCoverageCheck_)
+            {
+                // the whole piece of this cell (no PLIC clip) by both paths
+                const davof::pieceResult rc0 =
+                    davof::sweptPieceVolume(T, planes, false, plic, xf, &xDonor, sweptCapSet_ == "crossing", false);
+                if (!rc0.degenerate && rc0.ok) covVolClosure += rc0.volume;
+                covVolExact += davof::sweptPieceExactVolume(T, planes, false, plic, xf);
+            }
             if (r.coverage > 1e-12*sumMagT) ++nStatPieces;
             dbgVol = r.volume;
             dbgCovV = r.coverage;
@@ -1385,6 +1395,12 @@ void Foam::advection::isoAdvection::sweptFaceCellsFlux
     if (sumMagT > VSMALL)
     {
         const scalar beyond = max(scalar(0), (sumMagT - coverage)/sumMagT);
+        if (sweptCoverageCheck_ && vTotal > VSMALL && beyond <= 1e-12)
+        {
+            ++nSweptCovChecked_;
+            sweptCovClosureMax_ = max(sweptCovClosureMax_, mag(covVolClosure - vTotal)/vTotal);
+            sweptCovExactMax_ = max(sweptCovExactMax_, mag(covVolExact - vTotal)/vTotal);
+        }
         const scalar beyondPre = (sumMagPre > VSMALL) ? max(scalar(0), (sumMagPre - coveragePre)/sumMagPre) : 0;
         const scalar b = sweeps ? max(beyond, beyondPre) : beyondPre;
         if (b > 1e-9)

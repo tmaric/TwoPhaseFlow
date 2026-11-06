@@ -1146,6 +1146,8 @@ void Foam::advection::isoAdvection::curvedFlux(const scalar dt)
     nSweptSliverClosed_ = 0;
     nSweptExactUsed_ = nSweptExactChecked_ = 0;
     sweptExactDiffMax_ = 0;
+    nSweptCovChecked_ = 0;
+    sweptCovClosureMax_ = sweptCovExactMax_ = 0;
     for (label k = 0; k < 4; ++k)
     {
         nClsFaces_[k] = nClsTouched_[k] = nClsPieces_[k] = nClsVolClips_[k] = nClsAreaClips_[k] = nClsTris_[k] = 0;
@@ -2511,6 +2513,17 @@ void Foam::advection::isoAdvection::reportCurved() const
             }
             Info<< "; exact caps: pieces " << nEu << ", checked against the closure "
                 << nEc << ", max |dV|/V_c " << dEm;
+        }
+        if (sweptCoverageCheck_)
+        {
+            label nCv = nSweptCovChecked_;
+            scalar cC = sweptCovClosureMax_, cE = sweptCovExactMax_;
+            if (Pstream::parRun())
+            {
+                reduce(nCv, sumOp<label>()); reduce(cC, maxOp<scalar>()); reduce(cE, maxOp<scalar>());
+            }
+            Info<< "; coverage check: faces " << nCv << ", max |sum V_closure - V_g|/V_g " << cC
+                << ", max |sum V_exact - V_g|/V_g " << cE;
         }
         // the per-face-class statistics (sweptClassStats, 2026-11-05): one
         // clause per class, the sums over the ranks; the times are the sums

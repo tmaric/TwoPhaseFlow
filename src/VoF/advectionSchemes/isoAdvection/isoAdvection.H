@@ -680,6 +680,15 @@ class isoAdvection
             label nSweptExactUsed_;
             label nSweptExactChecked_;
             scalar sweptExactDiffMax_;
+            //- sweptCoverageCheck (2026-11-06): per face the ring's unclipped
+            //  piece volumes (no PLIC clip) summed by the closure path and by
+            //  the exact path against the geometric swept volume V_g, for the
+            //  faces the ring covers; the faces checked and the largest
+            //  relative deviation of each path per step
+            bool sweptCoverageCheck_;
+            label nSweptCovChecked_;
+            scalar sweptCovClosureMax_;
+            scalar sweptCovExactMax_;
             mutable vectorField upLazy_;
             mutable bitSet upDone_;
             mutable bitSet anyPatchPoint_;
