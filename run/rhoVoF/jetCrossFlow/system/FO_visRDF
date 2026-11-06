@@ -16,7 +16,7 @@ functions
 
         codeOptions
         #{
-            -I../../../../../src/VoF/lnInclude \
+            -I$(FOAM_USER_LIBBIN)/../../../src/VoF/lnInclude \
             -I$(LIB_SRC)/finiteVolume/lnInclude \
             -I$(LIB_SRC)/fileFormats/lnInclude \
             -I$(LIB_SRC)/surfMesh/lnInclude \
