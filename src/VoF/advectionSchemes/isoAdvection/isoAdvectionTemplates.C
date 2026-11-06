@@ -198,6 +198,20 @@ void Foam::advection::isoAdvection::limitFluxes
                 {
                     checkIfOnProcPatch(facei);
                     const label own = owner[facei];
+                    if (planeFragmentLog_ && fragBound1Faces_.size() > facei)
+                    {
+                        // the layer of the corrected face (planeFragmentLog)
+                        const bool l1 =
+                            !extendBounding
+                         || (
+                                firstLayer.test(own)
+                             && (
+                                    !mesh_.isInternalFace(facei)
+                                 || firstLayer.test(neighbour[facei])
+                                )
+                            );
+                        (l1 ? fragBound1Faces_ : fragBound2Faces_).set(facei);
+                    }
 
                     alpha1_[own] +=
                         -faceValue(dVfcorrectionValues, facei)/mesh_.V()[own];
@@ -431,6 +445,11 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // reconstruct the interface
     surf_->reconstruct();
 
+    if (planeFragmentLog_ && storeAreaFractions_ && alphafPtr_)
+    {
+        fragmentLog();
+    }
+
     if(timeIndex_ < mesh_.time().timeIndex())
     {
         timeIndex_= mesh_.time().timeIndex();
@@ -540,6 +559,11 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         // The faces with a non-zero fraction, ascending, for the davof
         // scheme's area sums
         publishWetFaces();
+
+        if (planeFragmentLog_)
+        {
+            fragMarkWisps();
+        }
     }
 
     advectionTime_ += (mesh_.time().elapsedCpuTime() - advectionStartTime);

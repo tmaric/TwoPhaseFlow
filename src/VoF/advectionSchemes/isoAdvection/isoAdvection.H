@@ -66,6 +66,7 @@ SourceFiles
 #include "reconstructionSchemes.H"
 #include "cutFaceAdvect.H"
 #include "bitSet.H"
+#include "OFstream.H"
 #include "zeroField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -248,6 +249,30 @@ class isoAdvection
             //  false): sum(alpha V) against the boundary sum of dVf, the
             //  bounding and the clipping (2026-11-07)
             bool massDiagnostics_;
+
+            //- The plane loop's fragment log (key planeFragmentLog, default
+            //  false; the analogue of the swept loop's sweptFragmentLog of
+            //  davof-swept-enright 5d8e57d, 2026-11-07): the cells that
+            //  become interface cells of the reconstruction while alpha is
+            //  within 1e-6 of 0 or 1 (postProcessing/planeFragmentLog/
+            //  cells_<rank>.csv, the first 200 per rank), with the classes
+            //  of the previous two steps: a face of the cell whose fraction
+            //  the second-ring sweep set from a neighbour's plane, a face
+            //  whose flux the plane set beyond the donor (planeFlux), a face
+            //  whose flux the bounding changed (first layer, second layer),
+            //  a face the content bound moved, the cell a wisp (wet faces
+            //  without a plane); the per-step class counts in the log
+            bool planeFragmentLog_;
+            bitSet fragRingFaces_, fragRingFacesPrev_;
+            bitSet fragRingFluxFaces_, fragRingFluxFacesPrev_;
+            bitSet fragBound1Faces_, fragBound1FacesPrev_;
+            bitSet fragBound2Faces_, fragBound2FacesPrev_;
+            bitSet fragContentFaces_, fragContentFacesPrev_;
+            bitSet fragWispCells_, fragWispCellsPrev_;
+            bitSet fragLogged_;
+            label nFragLogged_, nFragRing_, nFragRingFlux_, nFragBound1_,
+                  nFragBound2_, nFragContent_, nFragWisp_, nFragNone_;
+            autoPtr<OFstream> fragStream_;
 
             //- Per face: the non-surface upwind cell for which planeFlux
             //  set the plane's flux in this step (-1 otherwise), and the
@@ -438,6 +463,14 @@ class isoAdvection
             //- The list of the wet faces from wetFace_ (bitSet::toc(),
             //  ascending), handed to the davof scheme
             void publishWetFaces();
+
+            //- The plane loop's fragment log (planeFragmentLog): the new
+            //  interface cells with alpha within 1e-6 of 0 or 1 after the
+            //  reconstruction, classed by the marks of the previous two
+            //  steps; then the marks rotate. And the wisp mark of the step
+            //  (after the defaults): a cell without a plane with a wet face
+            void fragmentLog();
+            void fragMarkWisps();
 
             //- Store the end area of the last sweep on facei as the face
             //  fraction (clipped to [0, 1]); a negative end area writes

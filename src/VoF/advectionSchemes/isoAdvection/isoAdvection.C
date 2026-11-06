@@ -140,6 +140,17 @@ Foam::advection::isoAdvection::isoAdvection
     nBoundedBeyondRing_(0),
     contentBound_(modelDict().getOrDefault<bool>("contentBound", true)),
     massDiagnostics_(modelDict().getOrDefault<bool>("massDiagnostics", false)),
+    planeFragmentLog_(modelDict().getOrDefault<bool>("planeFragmentLog", false)),
+    fragRingFaces_(), fragRingFacesPrev_(),
+    fragRingFluxFaces_(), fragRingFluxFacesPrev_(),
+    fragBound1Faces_(), fragBound1FacesPrev_(),
+    fragBound2Faces_(), fragBound2FacesPrev_(),
+    fragContentFaces_(), fragContentFacesPrev_(),
+    fragWispCells_(), fragWispCellsPrev_(),
+    fragLogged_(),
+    nFragLogged_(0), nFragRing_(0), nFragRingFlux_(0), nFragBound1_(0),
+    nFragBound2_(0), nFragContent_(0), nFragWisp_(0), nFragNone_(0),
+    fragStream_(nullptr),
     planeFluxUpCell_(0),
     dVfUpwindPlaneFace_(0),
     nContentBoundFaces_(0),
@@ -867,6 +878,10 @@ void Foam::advection::isoAdvection::storeAreaFraction
     if (secondRing)
     {
         ++nAlphafSecondRing_;
+        if (planeFragmentLog_ && fragRingFaces_.size() > facei)
+        {
+            fragRingFaces_.set(facei);
+        }
     }
     else
     {
@@ -1115,6 +1130,10 @@ void Foam::advection::isoAdvection::boundCellContent(const scalar dt)
             const scalar cur = faceValue(dVf_, facei);
             setFaceValue(dVf_, facei, up + lambda*(cur - up));
             ++nContentBoundFaces_;
+            if (planeFragmentLog_ && fragContentFaces_.size() > facei)
+            {
+                fragContentFaces_.set(facei);
+            }
         }
     }
 }
@@ -1149,6 +1168,10 @@ Foam::scalar Foam::advection::isoAdvection::planeFlux
         return dVfUpwind;
     }
     ++nFluxSecondRing_;
+    if (planeFragmentLog_ && fragRingFluxFaces_.size() > facei)
+    {
+        fragRingFluxFaces_.set(facei);
+    }
     planeFluxUpCell_[facei] = upCell;
     dVfUpwindPlaneFace_[facei] = dVfUpwind;
     planeFluxFaces_.append(facei);
@@ -1382,6 +1405,154 @@ void Foam::advection::isoAdvection::checkIfOnProcPatch(const label facei)
 }
 
 
+
+
+void Foam::advection::isoAdvection::fragmentLog()
+{
+    const label nCells = mesh_.nCells(), nFaces = mesh_.nFaces();
+    if (fragLogged_.size() != nCells)
+    {
+        fragLogged_.resize(nCells); fragLogged_.reset();
+        for (bitSet* s : {&fragRingFaces_, &fragRingFacesPrev_, &fragRingFluxFaces_, &fragRingFluxFacesPrev_,
+                          &fragBound1Faces_, &fragBound1FacesPrev_, &fragBound2Faces_, &fragBound2FacesPrev_,
+                          &fragContentFaces_, &fragContentFacesPrev_})
+        {
+            s->resize(nFaces); s->reset();
+        }
+        fragWispCells_.resize(nCells); fragWispCells_.reset();
+        fragWispCellsPrev_.resize(nCells); fragWispCellsPrev_.reset();
+    }
+    const boolList& ic = surf_->interfaceCell();
+    if (ic.size() != nCells) return;
+    const volVectorField* mPtr =
+        mesh_.findObject<volVectorField>
+        (
+            IOobject::groupName("areaNormalDavof", alpha1_.group())
+        );
+    const scalarField& V = mesh_.V();
+    const cellList& cells = mesh_.cells();
+    const vectorField& C = mesh_.cellCentres();
+    label nNew = 0, nR = 0, nRf = 0, nB1 = 0, nB2 = 0, nC = 0, nW = 0, nNone = 0;
+    forAll(ic, celli)
+    {
+        if (!ic[celli] || fragLogged_.test(celli)) continue;
+        const scalar a = alpha1_[celli];
+        if (!(a < 1e-6 || a > 1 - 1e-6)) continue;
+        fragLogged_.set(celli);
+        ++nNew;
+        const labelList& cf = cells[celli];
+        bool r1 = false, r2 = false, rf1 = false, rf2 = false, b11 = false, b12 = false,
+             b21 = false, b22 = false, c1 = false, c2 = false;
+        for (const label f : cf)
+        {
+            if (fragRingFaces_.test(f)) r1 = true;
+            if (fragRingFacesPrev_.test(f)) r2 = true;
+            if (fragRingFluxFaces_.test(f)) rf1 = true;
+            if (fragRingFluxFacesPrev_.test(f)) rf2 = true;
+            if (fragBound1Faces_.test(f)) b11 = true;
+            if (fragBound1FacesPrev_.test(f)) b12 = true;
+            if (fragBound2Faces_.test(f)) b21 = true;
+            if (fragBound2FacesPrev_.test(f)) b22 = true;
+            if (fragContentFaces_.test(f)) c1 = true;
+            if (fragContentFacesPrev_.test(f)) c2 = true;
+        }
+        const bool w1 = fragWispCells_.test(celli);
+        const bool w2 = fragWispCellsPrev_.test(celli);
+        if (r1 || r2) ++nR;
+        if (rf1 || rf2) ++nRf;
+        if (b11 || b12) ++nB1;
+        if (b21 || b22) ++nB2;
+        if (c1 || c2) ++nC;
+        if (w1 || w2) ++nW;
+        if (!(r1 || r2 || rf1 || rf2 || b11 || b12 || b21 || b22 || c1 || c2 || w1 || w2)) ++nNone;
+        if (nFragLogged_ < 200)
+        {
+            if (!fragStream_)
+            {
+                const fileName dir
+                (
+                    mesh_.time().globalPath()/"postProcessing"/"planeFragmentLog"
+                );
+                mkDir(dir);
+                fragStream_.reset
+                (
+                    new OFstream
+                    (
+                        dir/("cells_" + Foam::name(Pstream::myProcNo()) + ".csv")
+                    )
+                );
+                fragStream_().precision(17);
+                fragStream_()
+                    << "step,t,cell,cx,cy,cz,alpha,mOverV23,af0,af1,af2,af3,af4,af5,"
+                    << "ringPrev1,ringPrev2,ringFluxPrev1,ringFluxPrev2,"
+                    << "bound1Prev1,bound1Prev2,bound2Prev1,bound2Prev2,"
+                    << "contentPrev1,contentPrev2,wispPrev1,wispPrev2" << nl;
+            }
+            fragStream_()
+                << mesh_.time().timeIndex() << ',' << mesh_.time().value() << ','
+                << celli << ',' << C[celli].x() << ',' << C[celli].y() << ',' << C[celli].z()
+                << ',' << a << ','
+                << (mPtr ? mag((*mPtr)[celli])/Foam::pow(V[celli], 2.0/3.0) : scalar(-1));
+            for (label i = 0; i < 6; ++i)
+            {
+                fragStream_() << ','
+                    << ((i < cf.size()) ? faceValue(*alphafPtr_, cf[i]) : scalar(-1));
+            }
+            fragStream_()
+                << ',' << r1 << ',' << r2 << ',' << rf1 << ',' << rf2
+                << ',' << b11 << ',' << b12 << ',' << b21 << ',' << b22
+                << ',' << c1 << ',' << c2 << ',' << w1 << ',' << w2 << nl;
+            ++nFragLogged_;
+        }
+    }
+    nFragRing_ += nR; nFragRingFlux_ += nRf; nFragBound1_ += nB1; nFragBound2_ += nB2;
+    nFragContent_ += nC; nFragWisp_ += nW; nFragNone_ += nNone;
+    const label gNew = returnReduce(nNew, sumOp<label>());
+    if (gNew > 0)
+    {
+        Info<< "planeFragmentLog: new interface cells with alpha within 1e-6"
+            << " of 0 or 1: " << gNew
+            << " (second-ring fraction " << returnReduce(nR, sumOp<label>())
+            << ", plane flux beyond the donor " << returnReduce(nRf, sumOp<label>())
+            << ", bounded first layer " << returnReduce(nB1, sumOp<label>())
+            << ", bounded second layer " << returnReduce(nB2, sumOp<label>())
+            << ", content bound " << returnReduce(nC, sumOp<label>())
+            << ", wisp " << returnReduce(nW, sumOp<label>())
+            << ", none " << returnReduce(nNone, sumOp<label>())
+            << "); cumulative " << returnReduce(nFragRing_, sumOp<label>())
+            << " / " << returnReduce(nFragRingFlux_, sumOp<label>())
+            << " / " << returnReduce(nFragBound1_, sumOp<label>())
+            << " / " << returnReduce(nFragBound2_, sumOp<label>())
+            << " / " << returnReduce(nFragContent_, sumOp<label>())
+            << " / " << returnReduce(nFragWisp_, sumOp<label>())
+            << " / " << returnReduce(nFragNone_, sumOp<label>()) << endl;
+    }
+    // the marks of the last step become the step before; the new step fills
+    // the current ones
+    fragRingFacesPrev_ = fragRingFaces_; fragRingFaces_.reset();
+    fragRingFluxFacesPrev_ = fragRingFluxFaces_; fragRingFluxFaces_.reset();
+    fragBound1FacesPrev_ = fragBound1Faces_; fragBound1Faces_.reset();
+    fragBound2FacesPrev_ = fragBound2Faces_; fragBound2Faces_.reset();
+    fragContentFacesPrev_ = fragContentFaces_; fragContentFaces_.reset();
+    fragWispCellsPrev_ = fragWispCells_; fragWispCells_.reset();
+}
+
+
+void Foam::advection::isoAdvection::fragMarkWisps()
+{
+    if (fragWispCells_.size() != mesh_.nCells()) return;
+    const boolList& ic = surf_->interfaceCell();
+    if (ic.size() != mesh_.nCells()) return;
+    const cellList& cells = mesh_.cells();
+    forAll(ic, celli)
+    {
+        if (ic[celli]) continue;
+        for (const label f : cells[celli])
+        {
+            if (wetFace_.test(f)) { fragWispCells_.set(celli); break; }
+        }
+    }
+}
 
 
 void Foam::advection::isoAdvection::applyBruteForceBounding()
