@@ -416,11 +416,15 @@ inline scalar sweptPieceExactVolume
     const label nc = cellPlanes.size();
     scalar vol = 0;
     // one polygon clipped by a half-space (Sutherland-Hodgman), the crossing
-    // points collected for the cap
+    // points collected for the cap; a vertex within tol of the plane is on
+    // the plane: kept, and no crossing through it (the coplanar rule, as the
+    // closure's 1e-12 L: without it a swept face lying in a cell plane at
+    // round-off distance made a spurious cap of the face's size, measured
+    // 2026-11-07 on the oblique plane N 40, 0.99 V_c against the true 0.95)
     auto clipOne = []
     (
         const poly& q, const halfSpace& hs, poly& out,
-        FixedList<point, 48>& cross, label& nCross
+        FixedList<point, 48>& cross, label& nCross, const scalar tol
     )
     {
         out.n = 0;
@@ -429,8 +433,9 @@ inline scalar sweptPieceExactVolume
             const point& p0 = q.p[j];
             const point& p1 = q.p[(j + 1) % q.n];
             const scalar s0 = hs.dist(p0), s1 = hs.dist(p1);
-            if (s0 <= 0 && out.n < 24) out.p[out.n++] = p0;
-            if ((s0 <= 0) != (s1 <= 0))
+            const bool in0 = (s0 <= tol), in1 = (s1 <= tol);
+            if (in0 && out.n < 24) out.p[out.n++] = p0;
+            if (in0 != in1)
             {
                 const point x = p0 + (p1 - p0)*(s0/(s0 - s1));
                 if (out.n < 24) out.p[out.n++] = x;
@@ -456,6 +461,7 @@ inline scalar sweptPieceExactVolume
         if (!(L > 0)) continue;
         const vector aT = 0.5*((t[1] - t[0]) ^ (t[2] - t[0]));
         if (mag(aT) <= 1e-16*L*L) continue;
+        const scalar tolL = 1e-12*L;
         // the triangle's own part inside the cell (the coverage) and, after
         // the PLIC clip, the wetted part of a pre-image triangle
         if (coverage || covPre || aPre)
@@ -464,14 +470,14 @@ inline scalar sweptPieceExactVolume
             poly c; FixedList<point, 48> cr; label ncr = 0;
             for (label i = 0; i < nc && b.n >= 3; ++i)
             {
-                ncr = 0; clipOne(b, cellPlanes[i], c, cr, ncr); b = c;
+                ncr = 0; clipOne(b, cellPlanes[i], c, cr, ncr, tolL); b = c;
             }
             if (b.n >= 3)
             {
                 const scalar ab = mag(areaOf(b, t[0]));
                 if (coverage) *coverage += ab;
                 if (covPre && (k % 4 == 1)) *covPre += ab;
-                if (wetPlane) { ncr = 0; clipOne(b, plic, c, cr, ncr); b = c; }
+                if (wetPlane) { ncr = 0; clipOne(b, plic, c, cr, ncr, tolL); b = c; }
                 if (aPre && b.n >= 3 && (k % 4 == 1)) *aPre += areaOf(b, t[0]);
             }
         }
@@ -503,7 +509,7 @@ inline scalar sweptPieceExactVolume
                 poly& q = P[i];
                 if (q.n < 3) continue;
                 poly out;
-                clipOne(q, hs, out, cross, nCross);
+                clipOne(q, hs, out, cross, nCross, tolL);
                 q = out;
                 if (q.n >= 3) anyLeft = true;
             }
