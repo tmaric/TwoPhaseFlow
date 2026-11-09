@@ -145,6 +145,7 @@ Foam::advection::isoAdvection::isoAdvection
     sweptBoundedFaceFraction_(modelDict().getOrDefault<word>("sweptBoundedFaceFraction", "none")),
     davofFluxExtension_(modelDict().getOrDefault<word>("davofFluxExtension", "secondRing")),
     davofFaceFractionSource_(modelDict().getOrDefault<word>("davofFaceFractionSource", "secondRing")),
+    davofProcFaceRule_(modelDict().getOrDefault<word>("davofProcFaceRule", "former")),
     planeFragmentLog_(modelDict().getOrDefault<bool>("planeFragmentLog", false)),
     fragRingFaces_(), fragRingFacesPrev_(),
     fragRingFluxFaces_(), fragRingFluxFacesPrev_(),
@@ -209,10 +210,17 @@ Foam::advection::isoAdvection::isoAdvection
             << ": sweepOnly | secondRing | interfaceCellFaces | enteringFaces"
             << exit(FatalIOError);
     }
+    if (davofProcFaceRule_ != "former" && davofProcFaceRule_ != "symmetric")
+    {
+        FatalIOErrorInFunction(modelDict())
+            << "davofProcFaceRule " << davofProcFaceRule_
+            << ": former | symmetric" << exit(FatalIOError);
+    }
     if (storeAreaFractions_)
     {
         Info<< "isoAdvection: davofFluxExtension " << davofFluxExtension_
-            << ", davofFaceFractionSource " << davofFaceFractionSource_ << endl;
+            << ", davofFaceFractionSource " << davofFaceFractionSource_
+            << ", davofProcFaceRule " << davofProcFaceRule_ << endl;
     }
 
     if (storeAreaFractions_ && alphafPtr_ && isA<reconstruction::davof>(*surf_))
@@ -555,7 +563,28 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             const label patchFacei = facei - start;
             const scalar phiP = phib[patchi][patchFacei];
 
-            if (phiP >= 0)
+            // A zero flux satisfies phiP >= 0 on BOTH sides of a processor
+            // patch (the patch fluxes are +0 and -0), so both surface
+            // cells sweep the face as their downwind face, both register
+            // it, and the sync swaps the two values (the np1/np8 gap of
+            // PURE, located 2026-11-09: the first differing faces are the
+            // lateral I-I processor faces). davofProcFaceRule symmetric:
+            // the lower rank alone sweeps a zero-flux processor face, the
+            // higher rank takes its value in the sync; former (the
+            // default): the former behaviour
+            bool sweepsHere = (phiP >= 0);
+            if (phiP == 0 && davofProcFaceRule_ == "symmetric")
+            {
+                const polyPatch& pp = boundaryMesh[patchi];
+                if (isA<processorPolyPatch>(pp))
+                {
+                    sweepsHere =
+                        Pstream::myProcNo()
+                      < refCast<const processorPolyPatch>(pp).neighbProcNo();
+                }
+            }
+
+            if (sweepsHere)
             {
                 const scalar magSf = magSfb[patchi][patchFacei];
 
@@ -741,6 +770,24 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
     if (pf.size())
     {
         scalar af = alpha[own[facei]];
+        // davofProcFaceRule symmetric (2026-11-09): an inflow processor
+        // face takes the upwind cell's alpha, which is the neighbour
+        // cell's on the other rank (the processor patch field of alpha
+        // holds the neighbour values after correctBoundaryConditions, at
+        // both call sites: the start-of-step alpha in the sweep's
+        // fallback, the final alpha in the defaults); the former rule
+        // gives the owner's, the downwind cell's, alpha there (the second
+        // rank-dependent branch of the np1/np8 gap)
+        if
+        (
+            davofProcFaceRule_ == "symmetric"
+         && isA<processorPolyPatch>(pbm[patchi])
+         && phi_.boundaryField()[patchi].size()
+         && phi_.boundaryField()[patchi][facei - pbm[patchi].start()] < 0
+        )
+        {
+            af = alpha1_.boundaryField()[patchi][facei - pbm[patchi].start()];
+        }
         scalar aBC = 0;
         if (inflowBoundaryFraction(facei, aBC) && aBC >= 1)
         {
@@ -1219,6 +1266,7 @@ void Foam::advection::isoAdvection::guardFaceFractions()
     const label nInt = mesh_.nInternalFaces();
     const scalar eps = surfCellTol_;
     nGuardZero_ = nGuardOne_ = nGuardConflict_ = nGuardInlet_ = nSliverCells_ = 0;
+    nGuardZeroBig_ = nGuardOneBig_ = 0;
 
     auto decide = [&](const scalar aO, const scalar aN, const bool hasN) -> label
     {
@@ -1240,7 +1288,14 @@ void Foam::advection::isoAdvection::guardFaceFractions()
             alphafSetFaces_.append(f);
         }
         alphafSetFace_.set(f);
+        // the count, and the count of the changes above round-off dust
+        // (a cell with |alpha| ~ 1e-16 counts as dry and its default
+        // faces carry that value)
         if (target == 0) ++nGuardZero_; else ++nGuardOne_;
+        if (mag(cur - scalar(target)) > 1e-12)
+        {
+            if (target == 0) ++nGuardZeroBig_; else ++nGuardOneBig_;
+        }
     };
 
     for (label f = 0; f < nInt; ++f)
@@ -1282,7 +1337,11 @@ void Foam::advection::isoAdvection::guardFaceFractions()
                 scalar aBC = 0;
                 if (inflowBoundaryFraction(f, aBC) && aBC >= 1)
                 {
-                    ++nGuardInlet_;
+                    // a liquid inlet: the arriving fluid is liquid, the
+                    // face is wholly liquid whatever the owner holds (the
+                    // defaults' rule; the jet's nozzle at t = 0)
+                    if (faceValue(*alphafPtr_, f) != 1) ++nGuardInlet_;
+                    write(f, 1);
                     continue;
                 }
                 const label t = decide(a[own[f]], 0, false);
@@ -1307,10 +1366,12 @@ void Foam::advection::isoAdvection::guardFaceFractions()
         << " faces swept, " << returnReduce(nEnteringClosest_, sumOp<label>())
         << " by the closest plane, " << returnReduce(nEnteringNoPlane_, sumOp<label>())
         << " without a plane; guard: " << returnReduce(nGuardZero_, sumOp<label>())
-        << " faces set to 0, " << returnReduce(nGuardOne_, sumOp<label>())
-        << " to 1, " << returnReduce(nGuardConflict_, sumOp<label>())
+        << " faces set to 0 (" << returnReduce(nGuardZeroBig_, sumOp<label>())
+        << " above 1e-12), " << returnReduce(nGuardOne_, sumOp<label>())
+        << " to 1 (" << returnReduce(nGuardOneBig_, sumOp<label>())
+        << " above 1e-12), " << returnReduce(nGuardConflict_, sumOp<label>())
         << " conflicts left, " << returnReduce(nGuardInlet_, sumOp<label>())
-        << " inlet faces left; slivers: " << returnReduce(nSliverCells_, sumOp<label>())
+        << " liquid inlet faces set to 1; slivers: " << returnReduce(nSliverCells_, sumOp<label>())
         << " cells with alpha in (" << eps << ", 1e-3) and a wet face" << endl;
 }
 

@@ -326,13 +326,31 @@ class isoAdvection
             //  defaults: a cell with alpha^{n+1} <= surfCellTol has dry
             //  faces, >= 1 - surfCellTol full faces, whatever a plane said;
             //  a face between a dry and a full cell is a conflict, left and
-            //  counted; a liquid inlet face (alpha_b = 1, inflow) is left.
+            //  counted; a liquid inlet face (alpha_b = 1, inflow) is 1
+            //  whatever the owner holds (the arriving fluid is liquid).
             //  Per step in the log: the entering cells and faces, the cells
             //  without a plane, the guard's faces set to 0 and to 1, the
             //  conflicts, the slivers (alpha in (surfCellTol, 1e-3) with a
             //  wet face), and the seed count before the guard.
             word davofFluxExtension_;
             word davofFaceFractionSource_;
+
+            //- The processor faces (the np1/np8 gap of PURE, located by
+            //  the 2-rank bisections of 2026-11-09, two branches): (1) a
+            //  zero patch flux is >= 0 on both sides, so both surface
+            //  cells sweep the shared face as their downwind face and the
+            //  sync swaps the two values, whereas in serial the owner's
+            //  plane alone sets it; (2) the default of a boundary face is
+            //  the owner's alpha, so an inflow processor face whose upwind
+            //  cell is not a surface cell (no sync) holds the downwind
+            //  cell's alpha in parallel and the upwind cell's in serial.
+            //  Key davofProcFaceRule former | symmetric: former = the
+            //  former behaviour (default; the standing parallel rows),
+            //  symmetric = the lower rank alone sweeps a zero-flux
+            //  processor face (the higher rank takes its value in the
+            //  sync) and an inflow processor face's default is the
+            //  neighbour cell's alpha from the processor patch field
+            word davofProcFaceRule_;
 
             //- enteringFaces: the faces the entering sweep set in this
             //  step (for the processor exchange), the step's counters
@@ -344,6 +362,8 @@ class isoAdvection
             label nEnteringClosest_ {0};
             label nGuardZero_ {0};
             label nGuardOne_ {0};
+            label nGuardZeroBig_ {0};
+            label nGuardOneBig_ {0};
             label nGuardConflict_ {0};
             label nGuardInlet_ {0};
             label nSliverCells_ {0};
