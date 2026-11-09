@@ -352,6 +352,19 @@ class isoAdvection
             //  neighbour cell's alpha from the processor patch field
             word davofProcFaceRule_;
 
+            //- The per-face record of the path that last wrote the face
+            //  fraction in the step (key davofFaceSourceLog, default
+            //  false; the registered surface field alphafSource.<group>,
+            //  written with the fields; the localisation of 2026-11-09):
+            //  1 own downwind sweep, 2 own upwind sweep (interfaceCellFaces
+            //  rule), 3 boundary outflow sweep, 4 boundary inflow sweep,
+            //  5 second-ring sweep, 6 entering sweep, 7 default, 8 the
+            //  processor sync, 9 the entering sync, +10 scaled by the
+            //  bounding, 20 the guard's 0, 21 the guard's 1
+            bool faceSourceLog_;
+            autoPtr<surfaceScalarField> alphafSourcePtr_;
+            label srcTag_ {0};
+
             //- enteringFaces: the faces the entering sweep set in this
             //  step (for the processor exchange), the step's counters
             bitSet enteringSetFace_;
@@ -604,6 +617,15 @@ class isoAdvection
             //  neighbour's alpha from the processor patch field); the
             //  faces it writes are marked set for the next step's defaults
             void guardFaceFractions();
+
+            //- davofFaceSourceLog: record the path tag for a face
+            void tagFaceSource(const label facei, const label tag)
+            {
+                if (faceSourceLog_ && alphafSourcePtr_)
+                {
+                    setFaceValue(*alphafSourcePtr_, facei, scalar(tag));
+                }
+            }
 
             //- The plane loop's fragment log (planeFragmentLog): the new
             //  interface cells with alpha within 1e-6 of 0 or 1 after the

@@ -146,6 +146,8 @@ Foam::advection::isoAdvection::isoAdvection
     davofFluxExtension_(modelDict().getOrDefault<word>("davofFluxExtension", "secondRing")),
     davofFaceFractionSource_(modelDict().getOrDefault<word>("davofFaceFractionSource", "secondRing")),
     davofProcFaceRule_(modelDict().getOrDefault<word>("davofProcFaceRule", "former")),
+    faceSourceLog_(modelDict().getOrDefault<bool>("davofFaceSourceLog", false)),
+    alphafSourcePtr_(nullptr),
     planeFragmentLog_(modelDict().getOrDefault<bool>("planeFragmentLog", false)),
     fragRingFaces_(), fragRingFacesPrev_(),
     fragRingFluxFaces_(), fragRingFluxFacesPrev_(),
@@ -226,6 +228,28 @@ Foam::advection::isoAdvection::isoAdvection
     if (storeAreaFractions_ && alphafPtr_ && isA<reconstruction::davof>(*surf_))
     {
         davofPtr_ = &refCast<reconstruction::davof>(*surf_);
+    }
+    if (faceSourceLog_ && alphafPtr_)
+    {
+        alphafSourcePtr_.reset
+        (
+            new surfaceScalarField
+            (
+                IOobject
+                (
+                    IOobject::groupName("alphafSource", alpha1_.group()),
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::AUTO_WRITE
+                ),
+                mesh_,
+                dimensionedScalar(dimless, Zero)
+            )
+        );
+        Info<< "isoAdvection: davofFaceSourceLog: the path that wrote each"
+            << " face fraction is recorded in "
+            << alphafSourcePtr_->name() << endl;
     }
 
     // Prepare lists used in parallel runs
@@ -374,6 +398,10 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
         nAlphafFallback_ = 0;
         nAlphafClipped_ = 0;
         nFluxSecondRing_ = 0;
+        if (faceSourceLog_ && alphafSourcePtr_)
+        {
+            *alphafSourcePtr_ == dimensionedScalar(dimless, Zero);
+        }
         nContentBoundFaces_ = 0;
         nContentBoundCells_ = 0;
         surfX0_.clear();
@@ -486,6 +514,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                         if (storeAf)
                         {
                             // The downwind face: this cell's plane sets it
+                            srcTag_ = 1;
                             storeAreaFraction
                             (
                                 facei,
@@ -515,6 +544,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                                     phiIn[facei],
                                     magSfIn[facei]
                                 );
+                            srcTag_ = 2;
                             storeAreaFraction
                             (
                                 facei,
@@ -605,6 +635,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
 
                 if (storeAf)
                 {
+                    srcTag_ = 3;
                     storeAreaFraction
                     (
                         facei,
@@ -636,6 +667,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
                     phiP,
                     magSf
                 );
+                srcTag_ = 4;
                 storeAreaFraction
                 (
                     facei,
@@ -760,6 +792,7 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
         const scalar af =
             (phif >= 0) ? alpha[own[facei]] : alpha[mesh_.faceNeighbour()[facei]];
         alphafPtr_->primitiveFieldRef()[facei] = af;
+        tagFaceSource(facei, 7);
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
         return;
     }
@@ -794,6 +827,7 @@ void Foam::advection::isoAdvection::setDefaultAreaFraction
             af = aBC;   // a liquid inlet's face is wholly liquid
         }
         pf[facei - pbm[patchi].start()] = af;
+        tagFaceSource(facei, 7);
         wetFace_.set(facei, (af != 0) ? 1u : 0u);
     }
 }
@@ -1160,6 +1194,7 @@ void Foam::advection::isoAdvection::sweepEnteringCells(const scalar dt)
                 phif,
                 magSf
             );
+            srcTag_ = 6;
             storeAreaFraction(f, advectFace_.subFaceAreaEnd(), true);
             if (!alphafSetFace_.test(f)) continue;   // the sweep fell back
             ++nEnteringFaces_;
@@ -1235,6 +1270,7 @@ void Foam::advection::isoAdvection::syncEnteringFaces()
             }
             const scalar af = vals[k];
             alphafPtr_->boundaryFieldRef()[patchi][pf] = af;
+            tagFaceSource(f, 9);
             wetFace_.set(f, (af != 0) ? 1u : 0u);
             if (!alphafSetFace_.test(f))
             {
@@ -1282,6 +1318,7 @@ void Foam::advection::isoAdvection::guardFaceFractions()
         const scalar cur = faceValue(*alphafPtr_, f);
         if (cur == scalar(target)) return;
         setFaceValue(*alphafPtr_, f, scalar(target));
+        tagFaceSource(f, 20 + target);
         wetFace_.set(f, (target != 0) ? 1u : 0u);
         if (!alphafSetFace_.test(f))
         {
@@ -1404,6 +1441,7 @@ void Foam::advection::isoAdvection::storeAreaFraction
     af = min(max(af, scalar(0)), scalar(1));
 
     setFaceValue(*alphafPtr_, facei, af);
+    tagFaceSource(facei, srcTag_);
     wetFace_.set(facei, (af != 0) ? 1u : 0u);
     if (!alphafSetFace_.test(facei))
     {
@@ -1534,6 +1572,7 @@ void Foam::advection::isoAdvection::sweepSecondRing(const scalar dt)
         // side value; the upwind default re-evaluated with the new alpha
         // would hand the cell fraction of a cell the plane has entered to
         // all its faces)
+        srcTag_ = 5;
         storeAreaFraction
         (
             f,
@@ -1895,6 +1934,7 @@ Foam::DynamicList<Foam::label>  Foam::advection::isoAdvection::syncProcPatches
                     // The upwind side's face fraction, no sign change
                     alphaf->boundaryFieldRef()[patchi][facei] = nbrAf[i];
                     const label meshFacei = procPatch.start() + facei;
+                    tagFaceSource(meshFacei, 8);
                     wetFace_.set(meshFacei, (nbrAf[i] != 0) ? 1u : 0u);
                     if (!alphafSetFace_.test(meshFacei))
                     {
@@ -2069,6 +2109,11 @@ void Foam::advection::isoAdvection::boundedFaceFraction
         }
     }
     setFaceValue(*alphafPtr_, facei, af);
+    if (faceSourceLog_ && alphafSourcePtr_)
+    {
+        const label t = label(faceValue(*alphafSourcePtr_, facei));
+        if (t < 10) tagFaceSource(facei, t + 10);
+    }
     wetFace_.set(facei, (af != 0) ? 1u : 0u);
 }
 
