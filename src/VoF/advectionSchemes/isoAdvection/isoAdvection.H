@@ -298,6 +298,15 @@ class isoAdvection
             //  for a partial cell without a plane, the alpha boundary
             //  condition's value on a liquid inlet); no sweep of the upwind
             //  faces (so no plane flux beyond the donor either).
+            //  interfaceCellFaces (Tomislav's hypothesis, 2026-11-09, the
+            //  row ONERING): every face of every surface cell from the
+            //  plane sweep at the end of the step (the downwind faces as
+            //  under sweepOnly; an upwind face from the upwind cell's plane
+            //  where that cell is a surface cell, else from this cell's
+            //  plane; an inflow boundary face from this cell's plane); no
+            //  second ring, every other face the upwind default. A face
+            //  two surface cells share is swept once, by the upwind cell's
+            //  plane, on both sides of a processor boundary (the sync).
             word davofFluxExtension_;
             word davofFaceFractionSource_;
 
@@ -514,6 +523,14 @@ class isoAdvection
             //- The list of the wet faces from wetFace_ (bitSet::toc(),
             //  ascending), handed to the davof scheme
             void publishWetFaces();
+
+            //- The fragmentation seeds of the step (Tomislav, 2026-11-09),
+            //  one log line per step from the final face fractions: the
+            //  cells with alpha = 0 (after the clipping) that hold a wet
+            //  face, and the cells with alpha = 1 that hold a face whose
+            //  fraction is below 1; a boundary face whose patch carries no
+            //  value (an empty patch) is skipped
+            void wetDryLog() const;
 
             //- The plane loop's fragment log (planeFragmentLog): the new
             //  interface cells with alpha within 1e-6 of 0 or 1 after the

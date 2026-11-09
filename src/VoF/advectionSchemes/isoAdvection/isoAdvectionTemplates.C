@@ -601,6 +601,9 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
         // scheme's area sums
         publishWetFaces();
 
+        // The fragmentation seeds of the step (2026-11-09)
+        wetDryLog();
+
         if (planeFragmentLog_)
         {
             fragMarkWisps();

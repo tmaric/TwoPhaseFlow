@@ -195,11 +195,16 @@ Foam::advection::isoAdvection::isoAdvection
             << "davofFluxExtension " << davofFluxExtension_
             << ": none | secondRing" << exit(FatalIOError);
     }
-    if (davofFaceFractionSource_ != "sweepOnly" && davofFaceFractionSource_ != "secondRing")
+    if
+    (
+        davofFaceFractionSource_ != "sweepOnly"
+     && davofFaceFractionSource_ != "secondRing"
+     && davofFaceFractionSource_ != "interfaceCellFaces"
+    )
     {
         FatalIOErrorInFunction(modelDict())
             << "davofFaceFractionSource " << davofFaceFractionSource_
-            << ": sweepOnly | secondRing" << exit(FatalIOError);
+            << ": sweepOnly | secondRing | interfaceCellFaces" << exit(FatalIOError);
     }
     if (storeAreaFractions_)
     {
@@ -327,8 +332,15 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     // plane is swept over a surface cell's upwind faces or inflow boundary
     // faces and no second ring is swept (those faces take the upwind
     // default); the plane flux beyond the donor needs that sweep, so
-    // davofFluxExtension secondRing acts only with the former source
-    const bool sweepsUpwindFaces = (davofFaceFractionSource_ == "secondRing");
+    // davofFluxExtension secondRing acts only with the former source.
+    // interfaceCellFaces (Tomislav's hypothesis, 2026-11-09): the surface
+    // cells' upwind faces and inflow boundary faces are swept as under
+    // secondRing (the upwind cell's plane where that cell is a surface
+    // cell, else this cell's plane; the same rule on both sides of a
+    // processor boundary, the sync carrying the upwind surface cell's
+    // value), the second ring is not
+    const bool sweepsUpwindFaces = (davofFaceFractionSource_ != "sweepOnly");
+    const bool sweepsSecondRing = (davofFaceFractionSource_ == "secondRing");
     if (storeAf)
     {
         alphafSetFace_.reset();
@@ -606,7 +618,7 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
     // has set yet, swept by the neighbouring plane
     if (storeAf)
     {
-        if (sweepsUpwindFaces)
+        if (sweepsSecondRing)
         {
             sweepSecondRing(dt);
         }
@@ -886,6 +898,48 @@ void Foam::advection::isoAdvection::publishWetFaces()
     {
         davofPtr_->setWetFaces(wetFaces_);
     }
+}
+
+
+void Foam::advection::isoAdvection::wetDryLog() const
+{
+    // The fragmentation seeds of the step (Tomislav, 2026-11-09): a cell
+    // with alpha = 0 whose faces are not all dry, a cell with alpha = 1
+    // whose faces are not all full, counted from the final face fractions
+    // of the step (the defaults evaluated, the planes' values kept). The
+    // count is a diagnostic only; nothing reads it.
+    const scalarField& a = alpha1_.primitiveField();
+    const cellList& cells = mesh_.cells();
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label nInt = mesh_.nInternalFaces();
+    auto hasValue = [&](const label f) -> bool
+    {
+        if (f < nInt) return true;
+        const label patchi = pbm.patchID()[f - nInt];
+        return alphafPtr_->boundaryField()[patchi].size() == pbm[patchi].size();
+    };
+    label nDryWet = 0, nFullDry = 0;
+    forAll(a, celli)
+    {
+        if (a[celli] <= 0)
+        {
+            for (const label f : cells[celli])
+            {
+                if (wetFace_.test(f)) { ++nDryWet; break; }
+            }
+        }
+        else if (a[celli] >= 1)
+        {
+            for (const label f : cells[celli])
+            {
+                if (hasValue(f) && faceValue(*alphafPtr_, f) != 1) { ++nFullDry; break; }
+            }
+        }
+    }
+    Info<< "isoAdvection: seeds: " << returnReduce(nDryWet, sumOp<label>())
+        << " cells with alpha = 0 and a wet face, "
+        << returnReduce(nFullDry, sumOp<label>())
+        << " cells with alpha = 1 and a face below 1" << endl;
 }
 
 
