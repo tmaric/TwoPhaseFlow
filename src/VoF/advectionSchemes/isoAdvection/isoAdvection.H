@@ -307,8 +307,46 @@ class isoAdvection
             //  second ring, every other face the upwind default. A face
             //  two surface cells share is swept once, by the upwind cell's
             //  plane, on both sides of a processor boundary (the sync).
+            //  enteringFaces (Tomislav's realizability rule, 2026-11-09, the
+            //  row ENTERING): the face fractions must be realizable with
+            //  respect to the volume fractions, not the planes. The sweeps
+            //  of interfaceCellFaces, plus the second-ring sweep restricted
+            //  to the entering cells (a cell without a plane at t^n whose
+            //  alpha^{n+1} lies in (surfCellTol, 1 - surfCellTol): it
+            //  received liquid or gas through a shared face in this step):
+            //  its faces no plane set take the end area of ONE neighbouring
+            //  plane, that of the upwind surface cell of the shared face
+            //  with the largest volume inflow |phi| dt into the cell (the
+            //  cell the fluid came from); without an upwind surface
+            //  neighbour the plane closest to the cell centre at t + dt;
+            //  without a surface neighbour no sweep (counted). The flux is
+            //  untouched (no planeFlux). Both sides of a processor face
+            //  sweep; where both set the face, the upwind side's value
+            //  stands (phi = 0: the lower rank). Then the guard after the
+            //  defaults: a cell with alpha^{n+1} <= surfCellTol has dry
+            //  faces, >= 1 - surfCellTol full faces, whatever a plane said;
+            //  a face between a dry and a full cell is a conflict, left and
+            //  counted; a liquid inlet face (alpha_b = 1, inflow) is left.
+            //  Per step in the log: the entering cells and faces, the cells
+            //  without a plane, the guard's faces set to 0 and to 1, the
+            //  conflicts, the slivers (alpha in (surfCellTol, 1e-3) with a
+            //  wet face), and the seed count before the guard.
             word davofFluxExtension_;
             word davofFaceFractionSource_;
+
+            //- enteringFaces: the faces the entering sweep set in this
+            //  step (for the processor exchange), the step's counters
+            bitSet enteringSetFace_;
+            DynamicLabelList enteringSetFaces_;
+            label nEnteringCells_ {0};
+            label nEnteringFaces_ {0};
+            label nEnteringNoPlane_ {0};
+            label nEnteringClosest_ {0};
+            label nGuardZero_ {0};
+            label nGuardOne_ {0};
+            label nGuardConflict_ {0};
+            label nGuardInlet_ {0};
+            label nSliverCells_ {0};
 
             //- The plane loop's fragment log (key planeFragmentLog, default
             //  false; the analogue of the swept loop's sweptFragmentLog of
@@ -529,8 +567,23 @@ class isoAdvection
             //  cells with alpha = 0 (after the clipping) that hold a wet
             //  face, and the cells with alpha = 1 that hold a face whose
             //  fraction is below 1; a boundary face whose patch carries no
-            //  value (an empty patch) is skipped
-            void wetDryLog() const;
+            //  value (an empty patch) is skipped. The tag names the line
+            //  ("seeds"; "seeds before the guard" under enteringFaces)
+            void wetDryLog(const char* tag = "seeds") const;
+
+            //- enteringFaces (2026-11-09): the second-ring sweep restricted
+            //  to the entering cells (see davofFaceFractionSource_), after
+            //  the bounding and before the defaults; then the processor
+            //  exchange of the faces it set
+            void sweepEnteringCells(const scalar dt);
+            void syncEnteringFaces();
+
+            //- enteringFaces: the guard after the defaults, every cell with
+            //  alpha <= surfCellTol dry-faced, >= 1 - surfCellTol
+            //  full-faced, on both sides of a processor face alike (the
+            //  neighbour's alpha from the processor patch field); the
+            //  faces it writes are marked set for the next step's defaults
+            void guardFaceFractions();
 
             //- The plane loop's fragment log (planeFragmentLog): the new
             //  interface cells with alpha within 1e-6 of 0 or 1 after the

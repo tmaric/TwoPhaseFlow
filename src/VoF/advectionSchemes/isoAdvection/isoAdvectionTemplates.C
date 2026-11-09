@@ -591,7 +591,28 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // DAVOF: the faces no plane has set carry the upwind cell's new alpha
     if (storeAreaFractions_ && alphafPtr_)
     {
+        const bool entering = (davofFaceFractionSource_ == "enteringFaces");
+
+        // enteringFaces (2026-11-09): the second-ring sweep restricted to
+        // the cells the fluid entered in this step, before the defaults
+        if (entering)
+        {
+            sweepEnteringCells(mesh_.time().deltaTValue());
+        }
+
         defaultAreaFractions();
+
+        if (entering)
+        {
+            // the seeds before the guard, then the guard of the
+            // realizability rule
+            wetDryLog("seeds before the guard");
+            guardFaceFractions();
+            for (const label celli : surfCells_)
+            {
+                cellToSurf_[celli] = -1;
+            }
+        }
 
         // The faces set in this step are the previous ones of the next
         alphafPrevSetFaces_.swap(alphafSetFaces_);

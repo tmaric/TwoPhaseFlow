@@ -41,6 +41,7 @@ License
 #include "OBJstream.H"
 #include "syncTools.H"
 #include "profiling.H"
+#include "coupledFvPatchField.H"
 #include "davof.H"
 #include <cstring>
 
@@ -200,11 +201,13 @@ Foam::advection::isoAdvection::isoAdvection
         davofFaceFractionSource_ != "sweepOnly"
      && davofFaceFractionSource_ != "secondRing"
      && davofFaceFractionSource_ != "interfaceCellFaces"
+     && davofFaceFractionSource_ != "enteringFaces"
     )
     {
         FatalIOErrorInFunction(modelDict())
             << "davofFaceFractionSource " << davofFaceFractionSource_
-            << ": sweepOnly | secondRing | interfaceCellFaces" << exit(FatalIOError);
+            << ": sweepOnly | secondRing | interfaceCellFaces | enteringFaces"
+            << exit(FatalIOError);
     }
     if (storeAreaFractions_)
     {
@@ -643,9 +646,14 @@ void Foam::advection::isoAdvection::timeIntegratedFlux()
             planeFluxUpCell_[facei] = -1;
             dVfUpwindPlaneFace_[facei] = 0;
         }
-        for (const label celli : surfCells_)
+        // enteringFaces reads cellToSurf_ after the bounding
+        // (sweepEnteringCells) and resets it there
+        if (davofFaceFractionSource_ != "enteringFaces")
         {
-            cellToSurf_[celli] = -1;
+            for (const label celli : surfCells_)
+            {
+                cellToSurf_[celli] = -1;
+            }
         }
     }
 
@@ -901,7 +909,7 @@ void Foam::advection::isoAdvection::publishWetFaces()
 }
 
 
-void Foam::advection::isoAdvection::wetDryLog() const
+void Foam::advection::isoAdvection::wetDryLog(const char* tag) const
 {
     // The fragmentation seeds of the step (Tomislav, 2026-11-09): a cell
     // with alpha = 0 whose faces are not all dry, a cell with alpha = 1
@@ -936,10 +944,374 @@ void Foam::advection::isoAdvection::wetDryLog() const
             }
         }
     }
-    Info<< "isoAdvection: seeds: " << returnReduce(nDryWet, sumOp<label>())
+    Info<< "isoAdvection: " << tag << ": " << returnReduce(nDryWet, sumOp<label>())
         << " cells with alpha = 0 and a wet face, "
         << returnReduce(nFullDry, sumOp<label>())
         << " cells with alpha = 1 and a face below 1" << endl;
+}
+
+
+void Foam::advection::isoAdvection::sweepEnteringCells(const scalar dt)
+{
+    // The realizability rule (Tomislav, 2026-11-09): a face takes a plane's
+    // value only from a cell that holds fluid and only where fluid arrived.
+    // The entering cells: no plane at t^n (cellToSurf_ < 0, still valid
+    // here), alpha^{n+1} partial. ONE plane per cell: the upwind surface
+    // neighbour across the shared face with the largest volume inflow
+    // |phi| dt into the cell; none upwind: the surface neighbour whose plane
+    // at t + dt is closest to the cell centre; no surface neighbour: no
+    // sweep. The faces of the cell no plane has set take that plane's end
+    // area (storeAreaFraction, counted as second ring); the flux stays.
+    addProfilingInFunction(geometricVoF);
+    const cellList& cellFaces = mesh_.cells();
+    const labelList& own = mesh_.faceOwner();
+    const labelList& nei = mesh_.faceNeighbour();
+    const vectorField& C = mesh_.cellCentres();
+    const vectorField& Sf = mesh_.faceAreas();
+    const scalarField& phiIn = phi_.primitiveField();
+    const scalarField& a = alpha1_.primitiveField();
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label nInt = mesh_.nInternalFaces();
+    const scalar eps = surfCellTol_;
+
+    if (enteringSetFace_.size() != mesh_.nFaces())
+    {
+        enteringSetFace_.resize(mesh_.nFaces());
+        enteringSetFace_.reset();
+    }
+    enteringSetFaces_.clear();
+    nEnteringCells_ = nEnteringFaces_ = nEnteringNoPlane_ = nEnteringClosest_ = 0;
+
+    if (cellToSurf_.size() != mesh_.nCells()) return;
+
+    // The planes of the surface cells on the other side of every processor
+    // patch, per patch face (hasPlane 0/1, x0, n0, Un0), so that the choice
+    // of the plane does not depend on the decomposition
+    List<labelList> nbrHas(pbm.size());
+    List<vectorField> nbrX0(pbm.size()), nbrN0(pbm.size());
+    List<scalarField> nbrUn0(pbm.size());
+    if (Pstream::parRun())
+    {
+        PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
+        forAll(procPatchLabels_, i)
+        {
+            const label patchi = procPatchLabels_[i];
+            const processorPolyPatch& procPatch =
+                refCast<const processorPolyPatch>(pbm[patchi]);
+            const labelUList& fc = procPatch.faceCells();
+            labelList has(fc.size(), 0);
+            vectorField x0(fc.size(), Zero), n0(fc.size(), Zero);
+            scalarField un0(fc.size(), 0);
+            forAll(fc, k)
+            {
+                const label si = cellToSurf_[fc[k]];
+                if (si >= 0)
+                {
+                    has[k] = 1; x0[k] = surfX0_[si]; n0[k] = surfN0_[si];
+                    un0[k] = surfUn0_[si];
+                }
+            }
+            UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
+            toNbr << has << x0 << n0 << un0;
+        }
+        pBufs.finishedSends();
+        forAll(procPatchLabels_, i)
+        {
+            const label patchi = procPatchLabels_[i];
+            const processorPolyPatch& procPatch =
+                refCast<const processorPolyPatch>(pbm[patchi]);
+            UIPstream fromNbr(procPatch.neighbProcNo(), pBufs);
+            fromNbr >> nbrHas[patchi] >> nbrX0[patchi] >> nbrN0[patchi]
+                >> nbrUn0[patchi];
+        }
+    }
+
+    forAll(a, celli)
+    {
+        if (cellToSurf_[celli] >= 0) continue;
+        if (!(a[celli] > eps && a[celli] < 1 - eps)) continue;
+        ++nEnteringCells_;
+
+        // the plane: the largest volume inflow from a surface neighbour,
+        // else the closest surface neighbour's plane
+        bool haveIn = false, haveClose = false;
+        scalar inMax = -1, dMin = GREAT;
+        point x0In = Zero, x0Close = Zero;
+        vector n0In = Zero, n0Close = Zero;
+        scalar un0In = 0, un0Close = 0;
+        auto consider = [&]
+        (
+            const scalar inflow, const point& x0, const vector& n0,
+            const scalar un0
+        )
+        {
+            if (inflow > 0 && inflow > inMax)
+            {
+                inMax = inflow; haveIn = true; x0In = x0; n0In = n0; un0In = un0;
+            }
+            const scalar d = mag(((C[celli] - x0) & n0) - un0*dt);
+            if (d < dMin)
+            {
+                dMin = d; haveClose = true; x0Close = x0; n0Close = n0;
+                un0Close = un0;
+            }
+        };
+        for (const label g : cellFaces[celli])
+        {
+            if (g < nInt)
+            {
+                const label other = (own[g] == celli) ? nei[g] : own[g];
+                const label si = cellToSurf_[other];
+                if (si < 0) continue;
+                // the volume entering celli through g (phi: owner -> neighbour)
+                const scalar inflow =
+                    ((own[g] == celli) ? -phiIn[g] : phiIn[g])*dt;
+                consider(inflow, surfX0_[si], surfN0_[si], surfUn0_[si]);
+            }
+            else
+            {
+                const label patchi = pbm.patchID()[g - nInt];
+                if (!nbrHas[patchi].size()) continue;
+                const label pf = g - pbm[patchi].start();
+                if (!nbrHas[patchi][pf]) continue;
+                const scalar inflow = -phi_.boundaryField()[patchi][pf]*dt;
+                consider
+                (
+                    inflow, nbrX0[patchi][pf], nbrN0[patchi][pf],
+                    nbrUn0[patchi][pf]
+                );
+            }
+        }
+        if (!haveIn && haveClose) ++nEnteringClosest_;
+        if (!haveIn && !haveClose)
+        {
+            ++nEnteringNoPlane_;
+            continue;
+        }
+        const point x0 = haveIn ? x0In : x0Close;
+        const vector n0 = haveIn ? n0In : n0Close;
+        const scalar un0 = haveIn ? un0In : un0Close;
+
+        for (const label f : cellFaces[celli])
+        {
+            if (alphafSetFace_.test(f)) continue;
+            if (f >= nInt)
+            {
+                const polyPatch& pp = pbm[pbm.patchID()[f - nInt]];
+                if (isA<emptyPolyPatch>(pp) || pp.empty()) continue;
+            }
+            const scalar magSf = mag(Sf[f]);
+            if (magSf <= VSMALL) continue;
+            const scalar phif = (f < nInt) ? phiIn[f] : faceValue(phi_, f);
+            advectFace_.timeIntegratedFaceFlux
+            (
+                f,
+                x0,
+                n0,
+                un0,
+                dt,
+                phif,
+                magSf
+            );
+            storeAreaFraction(f, advectFace_.subFaceAreaEnd(), true);
+            if (!alphafSetFace_.test(f)) continue;   // the sweep fell back
+            ++nEnteringFaces_;
+            enteringSetFace_.set(f);
+            enteringSetFaces_.append(f);
+        }
+    }
+
+    syncEnteringFaces();
+
+    // the marks of this step reset (the list is read once more by nothing)
+    for (const label f : enteringSetFaces_)
+    {
+        enteringSetFace_.unset(f);
+    }
+}
+
+
+void Foam::advection::isoAdvection::syncEnteringFaces()
+{
+    // The processor faces the entering sweep set on this side are sent with
+    // their values; a face set on both sides takes the upwind side's value
+    // (phi on this side >= 0: this side is upwind; phi = 0: the lower
+    // rank), a face set on one side takes that value on both.
+    if (!Pstream::parRun()) return;
+    const polyBoundaryMesh& patches = mesh_.boundaryMesh();
+    PstreamBuffers pBufs(Pstream::commsTypes::nonBlocking);
+
+    forAll(procPatchLabels_, i)
+    {
+        const label patchi = procPatchLabels_[i];
+        const processorPolyPatch& procPatch =
+            refCast<const processorPolyPatch>(patches[patchi]);
+        const label start = procPatch.start();
+        DynamicLabelList ids(64);
+        DynamicScalarList vals(64);
+        for (const label f : enteringSetFaces_)
+        {
+            if (f >= start && f < start + procPatch.size())
+            {
+                ids.append(f - start);
+                vals.append(alphafPtr_->boundaryField()[patchi][f - start]);
+            }
+        }
+        UOPstream toNbr(procPatch.neighbProcNo(), pBufs);
+        toNbr << ids << vals;
+    }
+
+    pBufs.finishedSends();
+
+    forAll(procPatchLabels_, i)
+    {
+        const label patchi = procPatchLabels_[i];
+        const processorPolyPatch& procPatch =
+            refCast<const processorPolyPatch>(patches[patchi]);
+        const label start = procPatch.start();
+        UIPstream fromNbr(procPatch.neighbProcNo(), pBufs);
+        List<label> ids;
+        List<scalar> vals;
+        fromNbr >> ids >> vals;
+        const scalarField& phip = phi_.boundaryField()[patchi];
+        const bool lowerRank = (Pstream::myProcNo() < procPatch.neighbProcNo());
+        forAll(ids, k)
+        {
+            const label pf = ids[k];
+            const label f = start + pf;
+            if (enteringSetFace_.test(f))
+            {
+                // both sides set it: the upwind side's value
+                const bool thisUpwind =
+                    (phip[pf] > 0) || (phip[pf] == 0 && lowerRank);
+                if (thisUpwind) continue;
+            }
+            const scalar af = vals[k];
+            alphafPtr_->boundaryFieldRef()[patchi][pf] = af;
+            wetFace_.set(f, (af != 0) ? 1u : 0u);
+            if (!alphafSetFace_.test(f))
+            {
+                alphafSetFaces_.append(f);
+            }
+            alphafSetFace_.set(f);
+        }
+    }
+}
+
+
+void Foam::advection::isoAdvection::guardFaceFractions()
+{
+    // The guard of the realizability rule (2026-11-09): after the defaults,
+    // every face of a cell with alpha <= surfCellTol is dry and every face
+    // of a cell with alpha >= 1 - surfCellTol is full, whatever a plane
+    // said. Both cells of a face decide (the neighbour's alpha across a
+    // processor patch from the patch field, so both sides write the same
+    // value); a dry cell beside a full one is a conflict, left and
+    // counted; a liquid inlet face (alpha_b = 1, inflow) is left. The
+    // faces written are marked set, so the next step's defaults revisit
+    // them. Then the slivers: the cells with alpha in (surfCellTol, 1e-3)
+    // holding a wet face.
+    addProfilingInFunction(geometricVoF);
+    const labelList& own = mesh_.faceOwner();
+    const labelList& nei = mesh_.faceNeighbour();
+    const scalarField& a = alpha1_.primitiveField();
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const label nInt = mesh_.nInternalFaces();
+    const scalar eps = surfCellTol_;
+    nGuardZero_ = nGuardOne_ = nGuardConflict_ = nGuardInlet_ = nSliverCells_ = 0;
+
+    auto decide = [&](const scalar aO, const scalar aN, const bool hasN) -> label
+    {
+        const bool dryO = (aO <= eps), fullO = (aO >= 1 - eps);
+        const bool dryN = hasN && (aN <= eps), fullN = hasN && (aN >= 1 - eps);
+        if ((dryO && fullN) || (fullO && dryN)) return -2;   // conflict
+        if (dryO || dryN) return 0;
+        if (fullO || fullN) return 1;
+        return -1;                                           // no rule
+    };
+    auto write = [&](const label f, const label target)
+    {
+        const scalar cur = faceValue(*alphafPtr_, f);
+        if (cur == scalar(target)) return;
+        setFaceValue(*alphafPtr_, f, scalar(target));
+        wetFace_.set(f, (target != 0) ? 1u : 0u);
+        if (!alphafSetFace_.test(f))
+        {
+            alphafSetFaces_.append(f);
+        }
+        alphafSetFace_.set(f);
+        if (target == 0) ++nGuardZero_; else ++nGuardOne_;
+    };
+
+    for (label f = 0; f < nInt; ++f)
+    {
+        const label t = decide(a[own[f]], a[nei[f]], true);
+        if (t == -2) { ++nGuardConflict_; continue; }
+        if (t >= 0) write(f, t);
+    }
+
+    forAll(pbm, patchi)
+    {
+        const polyPatch& pp = pbm[patchi];
+        if (isA<emptyPolyPatch>(pp) || pp.empty()) continue;
+        if (alphafPtr_->boundaryField()[patchi].size() != pp.size()) continue;
+        const label start = pp.start();
+        if (pp.coupled())
+        {
+            // the neighbour cells' alpha across the coupled patch
+            const coupledFvPatchField<scalar>& cpf =
+                refCast<const coupledFvPatchField<scalar>>
+                (
+                    alpha1_.boundaryField()[patchi]
+                );
+            const tmp<scalarField> taN = cpf.patchNeighbourField();
+            const scalarField& aN = taN();
+            forAll(pp, i)
+            {
+                const label f = start + i;
+                const label t = decide(a[own[f]], aN[i], true);
+                if (t == -2) { ++nGuardConflict_; continue; }
+                if (t >= 0) write(f, t);
+            }
+        }
+        else
+        {
+            forAll(pp, i)
+            {
+                const label f = start + i;
+                scalar aBC = 0;
+                if (inflowBoundaryFraction(f, aBC) && aBC >= 1)
+                {
+                    ++nGuardInlet_;
+                    continue;
+                }
+                const label t = decide(a[own[f]], 0, false);
+                if (t >= 0) write(f, t);
+            }
+        }
+    }
+
+    // the slivers: a legitimate corner arrival
+    const cellList& cells = mesh_.cells();
+    forAll(a, celli)
+    {
+        if (!(a[celli] > eps && a[celli] < 1e-3)) continue;
+        for (const label f : cells[celli])
+        {
+            if (wetFace_.test(f)) { ++nSliverCells_; break; }
+        }
+    }
+
+    Info<< "isoAdvection: entering: " << returnReduce(nEnteringCells_, sumOp<label>())
+        << " cells, " << returnReduce(nEnteringFaces_, sumOp<label>())
+        << " faces swept, " << returnReduce(nEnteringClosest_, sumOp<label>())
+        << " by the closest plane, " << returnReduce(nEnteringNoPlane_, sumOp<label>())
+        << " without a plane; guard: " << returnReduce(nGuardZero_, sumOp<label>())
+        << " faces set to 0, " << returnReduce(nGuardOne_, sumOp<label>())
+        << " to 1, " << returnReduce(nGuardConflict_, sumOp<label>())
+        << " conflicts left, " << returnReduce(nGuardInlet_, sumOp<label>())
+        << " inlet faces left; slivers: " << returnReduce(nSliverCells_, sumOp<label>())
+        << " cells with alpha in (" << eps << ", 1e-3) and a wet face" << endl;
 }
 
 
