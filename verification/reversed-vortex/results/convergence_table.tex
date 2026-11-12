@@ -2,7 +2,7 @@
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
-\caption{Convergence on the reversed-vortex test, both reconstruction schemes. The order is a least-squares fit of $\log E_{\text{shape}}$ against $\log N$ over the whole sequence; the residual is the largest departure from that fit, in $\log E$. Data: \cite{tudatalib2026}, \protect\path{reversed-vortex/results/convergence.csv}.}
+\caption{Convergence on the reversed-vortex test, both reconstruction schemes. The order is a least-squares fit of $\log E_{\text{shape}}$ against $\log N$ over the whole sequence; the residual is the largest departure from that fit, in $\log E$. Bold: the shape error with the frame exceeds the one without it at the same $N$. Data: \cite{tudatalib2026}, \protect\path{reversed-vortex/results/convergence.csv}.}
 \label{tab:conv}
 \begin{tabular}{r cc cc}
 \toprule
@@ -11,24 +11,24 @@
 $N$ & $E_{\text{shape}}$ & $E_{\text{bound}}$ & $E_{\text{shape}}$ & $E_{\text{bound}}$ \\
 \midrule
 \multicolumn{5}{l}{\emph{plicRDF}} \\
-32 & $5.486\times10^{-2}$ & $0$ & $6.712\times10^{-2}$ & $8.470\times10^{-22}$ \\
-64 & $2.120\times10^{-2}$ & $0$ & $2.381\times10^{-2}$ & $1.694\times10^{-21}$ \\
-128 & $2.963\times10^{-3}$ & $0$ & $5.412\times10^{-3}$ & $1.131\times10^{-22}$ \\
-256 & $6.338\times10^{-4}$ & $4.235\times10^{-22}$ & $8.643\times10^{-4}$ & $9.191\times10^{-8}$ \\
-512 & $1.095\times10^{-4}$ & $5.672\times10^{-12}$ & $3.091\times10^{-4}$ & $1.804\times10^{-7}$ \\
-1024 & $1.873\times10^{-5}$ & $6.557\times10^{-11}$ & $3.585\times10^{-5}$ & $1.053\times10^{-9}$ \\
-2048 & $4.540\times10^{-6}$ & $4.482\times10^{-11}$ & $9.580\times10^{-6}$ & $1.444\times10^{-10}$ \\
+32 & $5.486\times10^{-2}$ & $0$ & {\boldmath$6.712\times10^{-2}$} & $8.470\times10^{-22}$ \\
+64 & $2.120\times10^{-2}$ & $0$ & {\boldmath$2.381\times10^{-2}$} & $1.694\times10^{-21}$ \\
+128 & $2.963\times10^{-3}$ & $0$ & {\boldmath$5.412\times10^{-3}$} & $1.131\times10^{-22}$ \\
+256 & $6.338\times10^{-4}$ & $4.235\times10^{-22}$ & {\boldmath$8.643\times10^{-4}$} & $9.191\times10^{-8}$ \\
+512 & $1.095\times10^{-4}$ & $5.672\times10^{-12}$ & {\boldmath$3.091\times10^{-4}$} & $1.804\times10^{-7}$ \\
+1024 & $1.873\times10^{-5}$ & $6.557\times10^{-11}$ & {\boldmath$3.585\times10^{-5}$} & $1.053\times10^{-9}$ \\
+2048 & $4.540\times10^{-6}$ & $4.482\times10^{-11}$ & {\boldmath$9.580\times10^{-6}$} & $1.444\times10^{-10}$ \\
 \quad fitted order & \multicolumn{2}{c}{$2.35$} & \multicolumn{2}{c}{$2.19$} \\
 \quad max residual & \multicolumn{2}{c}{$0.356$} & \multicolumn{2}{c}{$0.374$} \\
 \midrule
 \multicolumn{5}{l}{\emph{isoAlpha}} \\
-32 & $7.748\times10^{-2}$ & $0$ & $8.105\times10^{-2}$ & $0$ \\
-64 & $1.615\times10^{-2}$ & $0$ & $1.989\times10^{-2}$ & $0$ \\
-128 & $2.052\times10^{-3}$ & $0$ & $2.477\times10^{-3}$ & $0$ \\
-256 & $4.956\times10^{-4}$ & $1.465\times10^{-89}$ & $1.261\times10^{-3}$ & $1.153\times10^{-9}$ \\
-512 & $9.937\times10^{-5}$ & $2.034\times10^{-10}$ & $1.471\times10^{-4}$ & $1.880\times10^{-10}$ \\
-1024 & $3.194\times10^{-5}$ & $2.097\times10^{-9}$ & $4.786\times10^{-5}$ & $1.085\times10^{-9}$ \\
-2048 & $1.136\times10^{-5}$ & $9.142\times10^{-10}$ & $1.744\times10^{-5}$ & $1.781\times10^{-8}$ \\
+32 & $7.748\times10^{-2}$ & $0$ & {\boldmath$8.105\times10^{-2}$} & $0$ \\
+64 & $1.615\times10^{-2}$ & $0$ & {\boldmath$1.989\times10^{-2}$} & $0$ \\
+128 & $2.052\times10^{-3}$ & $0$ & {\boldmath$2.477\times10^{-3}$} & $0$ \\
+256 & $4.956\times10^{-4}$ & $1.465\times10^{-89}$ & {\boldmath$1.261\times10^{-3}$} & $1.153\times10^{-9}$ \\
+512 & $9.937\times10^{-5}$ & $2.034\times10^{-10}$ & {\boldmath$1.471\times10^{-4}$} & $1.880\times10^{-10}$ \\
+1024 & $3.194\times10^{-5}$ & $2.097\times10^{-9}$ & {\boldmath$4.786\times10^{-5}$} & $1.085\times10^{-9}$ \\
+2048 & $1.136\times10^{-5}$ & $9.142\times10^{-10}$ & {\boldmath$1.744\times10^{-5}$} & $1.781\times10^{-8}$ \\
 \quad fitted order & \multicolumn{2}{c}{$2.16$} & \multicolumn{2}{c}{$2.07$} \\
 \quad max residual & \multicolumn{2}{c}{$0.459$} & \multicolumn{2}{c}{$0.460$} \\
 \bottomrule
