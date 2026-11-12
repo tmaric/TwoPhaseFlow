@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Interface evolution every 0.1T, with and without the frame, from simulation data.
+"""Retracing, seen in the interface: one mirror pair, with and without the frame.
 
-This is the marker figure of the Bothe & Maric recipe redrawn from the solver's
-output. Rows are the original reversed vortex and the same base field with the
-frame superposed; columns are the two half-periods. A snapshot at t and its
-mirror at T-t share a colour, so retracing is read along a row: in the first row
-the right panel repeats the left one curve for curve, in the second it does not.
+The static figure says one thing. Without the frame, the interface at T - t lies
+on the interface at t, because the second half-period retraces the first; with
+the frame, the two are apart. Each panel overlays the simulated alpha = 0.5
+contours at 0.3T (solid) and its mirror time 0.7T (dashed). An earlier version
+drew every 0.1T against the exact interface; the review found it overloaded.
+
+The exact interface used by the animation is computed here, independently of
+the solver.
 
 Simulated interfaces are the alpha = 0.5 contours. The exact interface under
 each is computed here, independently of the solver: the base flow is
@@ -48,10 +51,9 @@ plt.rcParams.update({
 INK = "#0b0b0b"
 MUTED = "#52514e"
 GRID = "#d9d8d3"
-# Pair index j = min(k, 10-k) for t = 0.1kT. j = 0 is the disc itself (t = 0
-# and t = T), drawn in ink; j = 1..5 take the first five categorical slots in
-# fixed order. Validated (light): CVD and normal-vision separation pass; three
-# slots sit below 3:1 on the surface, so every curve is also labelled directly.
+# Categorical slots validated for CVD and normal-vision separation (light). The
+# mirror pair uses slots 1 and 2, and also differs in line width and dash, so
+# it does not rely on colour alone.
 PAIR_COLOURS = [INK, "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]
 ALPHA_CMAP = LinearSegmentedColormap.from_list("alpha", ["#fcfcfb", "#256abf"])
 
@@ -111,55 +113,6 @@ def frame_axes(ax):
         sp.set_color(MUTED)
 
 
-def label_points(curves):
-    """For each curve, the point farthest from every other curve.
-
-    Labels go where a curve is most alone, so they rarely sit on a neighbour,
-    and away from labels already placed, so two labels do not overlap.
-    """
-    pts = [np.vstack(c)[:: max(1, len(np.vstack(c)) // 400)] for c in curves]
-    out = []
-    for i, p in enumerate(pts):
-        others = [q for j, q in enumerate(pts) if j != i]
-        if not others:
-            out.append(p[len(p) // 2])
-            continue
-        o = np.vstack(others)
-        d = np.min(np.hypot(p[:, None, 0] - o[None, :, 0],
-                            p[:, None, 1] - o[None, :, 1]), axis=1)
-        if out:
-            # a label is about 0.08 wide; closer than that to a placed one overlaps
-            q = np.array(out)
-            dl = np.min(np.hypot(p[:, None, 0] - q[None, :, 0],
-                                 p[:, None, 1] - q[None, :, 1]), axis=1)
-            d = np.where(dl > 0.1, d, d - 1.0)
-        # keep labels off the domain edge
-        d = np.where((p[:, 0] > 0.06) & (p[:, 0] < 0.94) &
-                     (p[:, 1] > 0.06) & (p[:, 1] < 0.94), d, -2.0)
-        out.append(p[int(np.argmax(d))])
-    return out
-
-
-def panel(ax, ks, sim, exact, centre=None):
-    frame_axes(ax)
-    curves = []
-    for k in ks:
-        j = min(k, 10 - k)
-        col = PAIR_COLOURS[j]
-        for seg in exact[k]:
-            ax.plot(seg[:, 0], seg[:, 1], color=MUTED, lw=0.8, zorder=2)
-        for seg in sim[k]:
-            ax.plot(seg[:, 0], seg[:, 1], color=col, lw=2.2, zorder=3)
-        curves.append(sim[k])
-    for k, (x, y) in zip(ks, label_points(curves)):
-        txt = "$0$" if k == 0 else ("$T$" if k == 10 else f"${k / 10:g}T$")
-        ax.annotate(txt, (x, y), xytext=(4, 4), textcoords="offset points",
-                    fontsize=FS - 6, color=INK, zorder=5,
-                    bbox=dict(boxstyle="round,pad=0.15", fc="#fcfcfb", ec="none", alpha=0.85))
-    if centre is not None:
-        ax.plot(*centre, marker="+", color=INK, ms=14, mew=2.0, zorder=6)
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--framed-case", required=True)
@@ -174,48 +127,47 @@ def main():
     p.add_argument("--out-anim", required=True, help="animated GIF")
     p.add_argument("--anim-interval", type=float, default=None,
                    help="time between animation frames (default: every written time)")
+    p.add_argument("--mirror", type=float, default=0.3,
+                   help="draw the pair t = mirror*T and (1 - mirror)*T")
+    p.add_argument("--static-only", action="store_true",
+                   help="skip the animation")
     a = p.parse_args()
 
     T, N = a.end_time, a.n
     c3 = [float(v) for v in a.centre.strip("()").split()]
     centre = np.array([c3[0], c3[2]])
-    snap = [k * T / 10 for k in range(11)]
 
     for out in (a.out, a.out_anim):
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 
-    # ---- the static figure: snapshots every 0.1T ----
-    ex_plain = exact_interfaces(snap, T, a.period, centre, 0.0)
-    ex_framed = exact_interfaces(snap, T, a.period, centre, a.revolutions)
-    sim_plain = {k: contours(alpha_at(a.plain_case, t, N), N) for k, t in enumerate(snap)}
-    sim_framed = {k: contours(alpha_at(a.framed_case, t, N), N) for k, t in enumerate(snap)}
-    ex_plain = {k: [ex_plain[t]] for k, t in enumerate(snap)}
-    ex_framed = {k: [ex_framed[t]] for k, t in enumerate(snap)}
-
-    first, second = list(range(0, 6)), list(range(5, 11))
-    fig, axes = plt.subplots(2, 2, figsize=(15.5, 16.0))
-    panel(axes[0, 0], first, sim_plain, ex_plain)
-    panel(axes[0, 1], second, sim_plain, ex_plain)
-    panel(axes[1, 0], first, sim_framed, ex_framed, centre)
-    panel(axes[1, 1], second, sim_framed, ex_framed, centre)
-    axes[0, 0].set_title(r"$0 \leq t \leq T/2$")
-    axes[0, 1].set_title(r"$T/2 \leq t \leq T$")
-    axes[0, 0].set_ylabel("original\n(retracing)")
-    axes[1, 0].set_ylabel(f"frame superposed\n({a.revolutions:g} revolution about "
-                          f"$({centre[0]:g},{centre[1]:g})$)")
-    for ax in axes[1]:
-        ax.set_xlabel("$x$")
-
-    handles = [Line2D([], [], color=PAIR_COLOURS[j], lw=3,
-                      label=("$t=0,\\ T$" if j == 0 else f"$t={j / 10:g}T,\\ {1 - j / 10:g}T$"
-                             if j < 5 else "$t=0.5T$"))
-               for j in range(6)]
-    handles.append(Line2D([], [], color=MUTED, lw=0.8, label="exact"))
-    fig.legend(handles=handles, loc="lower center", ncol=4, frameon=False,
-               bbox_to_anchor=(0.5, 0.0))
-    fig.suptitle(f"Reversed vortex, {a.scheme}, $N={N}$: simulated $\\alpha=0.5$ "
-                 "every $0.1T$ (colour), exact interface (thin)", fontsize=FS)
-    fig.tight_layout(rect=[0, 0.07, 1, 0.97])
+    # ---- the static figure: one mirror pair per run, overlaid ----
+    m = a.mirror
+    t1, t2 = m * T, (1.0 - m) * T
+    # 12 in wide at \textwidth halves every size: FS = 20 prints at 10 pt
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 6.6))
+    for ax, case, title, cen in (
+            (axes[0], a.plain_case, "without frame", None),
+            (axes[1], a.framed_case, "with frame", centre)):
+        frame_axes(ax)
+        ax.set_xticks([0, 0.5, 1], ["0", "0.5", "1"])
+        ax.set_yticks([0, 0.5, 1], ["0", "0.5", "1"])
+        ax.tick_params(labelsize=FS - 4)
+        for seg in contours(alpha_at(case, t1, N), N):
+            ax.plot(seg[:, 0], seg[:, 1], color=PAIR_COLOURS[1], lw=5.0,
+                    solid_capstyle="round", zorder=3)
+        for seg in contours(alpha_at(case, t2, N), N):
+            ax.plot(seg[:, 0], seg[:, 1], color=PAIR_COLOURS[2], lw=2.2,
+                    ls=(0, (4, 2.5)), zorder=4)
+        if cen is not None:
+            ax.plot(*cen, marker="+", color=INK, ms=16, mew=2.4, zorder=6)
+        ax.set_title(title, fontsize=FS + 2)
+    axes[1].set_yticklabels([])
+    handles = [Line2D([], [], color=PAIR_COLOURS[1], lw=5.0, label=f"$t={m:g}\\,T$"),
+               Line2D([], [], color=PAIR_COLOURS[2], lw=2.2, ls=(0, (4, 2.5)),
+                      label=f"$t={1 - m:g}\\,T$")]
+    fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False,
+               fontsize=FS, bbox_to_anchor=(0.5, 0.0), handlelength=3.0)
+    fig.tight_layout(rect=[0, 0.08, 1, 1], w_pad=1.0)
     fig.savefig(a.out, dpi=160)
     # contours are line art: a vector copy for the manuscript
     pdf = os.path.splitext(a.out)[0] + ".pdf"
@@ -223,6 +175,8 @@ def main():
     plt.close(fig)
     print(a.out)
     print(pdf)
+    if a.static_only:
+        return
 
     # ---- the animation: every written time, both runs side by side ----
     from foamlib import FoamCase

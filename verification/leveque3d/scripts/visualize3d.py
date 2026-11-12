@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""3D interface snapshots at t = 0, T/4, T/2, 3T/4, T.
+"""3D interface snapshots at t = 0, T/2, T.
 
 The volume fraction is read with foamlib, reshaped onto the uniform hex block
 and contoured at alpha = 0.5 with marching cubes. The framed case is drawn
 twice: in the laboratory frame, and mapped back through E_t^{-1} into the
 co-rotating frame, where it must reproduce the unframed case.
+
+Three snapshots, not five, and no title: the figures are printed at \\textwidth,
+and the review asked for larger panels and fonts. The caption carries what the
+title used to say.
 """
 
 from __future__ import annotations
@@ -46,6 +50,7 @@ LZ = 2.0
 # reaches the top; set from the command line, 0 means 'no clip'
 ZCLIP = 0.0
 NZF = 2
+ZOOM = 1.1
 
 
 def read_alpha(case_dir: str, t: float, N: int) -> np.ndarray:
@@ -105,10 +110,6 @@ def to_moving_frame(verts, t, T, centre, revolutions):
     return out
 
 
-def _nz_label(nzf):
-    """'N' rather than '1N' when the cells are already cubic."""
-    return "N" if nzf == 1 else f"{nzf}N"
-
 def draw(ax, verts, faces, title, centre=None):
     if verts is not None and len(faces):
         mesh = Poly3DCollection(verts[faces], alpha=0.9)
@@ -122,7 +123,8 @@ def draw(ax, verts, faces, title, centre=None):
     ax.set_ylim(0, LY)
     zt = ZCLIP if ZCLIP > 0 else LZ
     ax.set_zlim(0, zt)
-    ax.set_box_aspect((1, 1, zt))
+    # a 3D axes draws its box well inside its own rectangle; zoom fills it
+    ax.set_box_aspect((1, 1, zt), zoom=ZOOM)
     # x's last tick and y's first tick meet at the corner nearest the viewer,
     # and both read the same two digits in every panel; the axis names carry
     # more and cannot collide.
@@ -138,12 +140,12 @@ def draw(ax, verts, faces, title, centre=None):
         ax.set_zticks([0, 0.5, 1])
     else:
         ax.set_zticks([0, round(0.5 * zt, 2), zt])
-    ax.tick_params(axis='z', labelsize=FS - 6, pad=2)
-    ax.tick_params(axis='x', labelsize=FS - 6)
-    ax.tick_params(axis='y', labelsize=FS - 6)
+    ax.tick_params(axis='z', labelsize=FS - 4, pad=2)
+    ax.tick_params(axis='x', labelsize=FS - 4)
+    ax.tick_params(axis='y', labelsize=FS - 4)
     ax.view_init(elev=18, azim=-58)
     if title:
-        ax.set_title(title, fontsize=FS, pad=0)
+        ax.set_title(title, fontsize=FS + 2, pad=0)
 
 
 def main():
@@ -171,63 +173,72 @@ def main():
     T, N = a.end_time, a.n
     c = [float(v) for v in a.centre.strip("()").split()]
     centre = (c[0], c[1])
-    times = [0.0, T / 4, T / 2, 3 * T / 4, T]
-    labels = ["$t=0$", "$t=T/4$", "$t=T/2$", "$t=3T/4$", "$t=T$"]
+    times = [0.0, T / 2, T]
 
-    for out in (a.out_moving, a.out_static):
+    framed = [isosurface(read_alpha(a.framed_case, t, N), N) for t in times]
+    plain = [isosurface(read_alpha(a.plain_case, t, N), N) for t in times]
+    render(framed, plain, times, T, centre, a.revolutions, a.out_moving, a.out_static)
+
+
+# 12 in wide at \textwidth (about 6 in) halves every size: FS = 20 prints at
+# 10 pt, the caption size. A strip on the left holds the row labels, a strip on
+# top the panel titles (in inches, so both figures get the same strips).
+FIG_W = 12.0
+LABEL_W = 0.8
+RIGHT_W = 0.4
+TITLE_H = 0.45
+BOTTOM_H = 0.25
+
+
+def _grid(nrows, ncols):
+    """Figure of 3D axes tiling it without gaps; subplot spacing cannot make
+    3D panels touch, because each reserves a wide margin inside its box."""
+    zt = ZCLIP if ZCLIP > 0 else LZ
+    pw = (FIG_W - LABEL_W - RIGHT_W) / ncols
+    ph = pw * (0.72 + 0.2 * min(zt, 1.0))         # flatter box, shorter panel
+    H = TITLE_H + nrows * ph + BOTTOM_H
+    fig = plt.figure(figsize=(FIG_W, H))
+    axes = [[fig.add_axes([(LABEL_W + j * pw) / FIG_W, (H - TITLE_H - (i + 1) * ph) / H,
+                           pw / FIG_W, ph / H], projection="3d")
+             for j in range(ncols)] for i in range(nrows)]
+    # the panels overlap a little; a transparent background keeps one panel's
+    # tick labels visible under its neighbour
+    for row in axes:
+        for ax in row:
+            ax.set_facecolor((1, 1, 1, 0))
+    rows_y = [(H - TITLE_H - (i + 0.5) * ph) / H for i in range(nrows)]
+    return fig, axes, rows_y
+
+
+def render(framed, plain, times, T, centre, revolutions, out_moving, out_static):
+    """framed, plain: (verts, faces) per time, as returned by isosurface."""
+    labels = {0.0: "$t=0$", T / 2: "$t=T/2$", T: "$t=T$"}
+    for out in (out_moving, out_static):
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 
     # ---- framed case, laboratory and co-rotating views ----
-    fig = plt.figure(figsize=(30.0, 15.0))
-    for col, (t, lab) in enumerate(zip(times, labels)):
-        v, f = isosurface(read_alpha(a.framed_case, t, N), N)
-        ax = fig.add_subplot(2, len(times), col + 1, projection="3d")
-        draw(ax, v, f, lab, centre=centre)
-        if col == 0:
-            ax.text2D(-0.16, 0.5, "laboratory frame\n(as simulated)",
-                      transform=ax.transAxes, rotation=90, va="center", fontsize=FS - 2)
-        ax2 = fig.add_subplot(2, len(times), len(times) + col + 1, projection="3d")
-        draw(ax2,
-             None if v is None else to_moving_frame(v, t, T, centre, a.revolutions),
+    fig, axes, rows_y = _grid(2, len(times))
+    for col, (t, (v, f)) in enumerate(zip(times, framed)):
+        draw(axes[0][col], v, f, labels.get(t, f"$t={t:g}$"), centre=centre)
+        draw(axes[1][col],
+             None if v is None else to_moving_frame(v, t, T, centre, revolutions),
              f, "")
-        if col == 0:
-            ax2.text2D(-0.16, 0.5, "co-rotating frame\n$E_t^{-1}$ applied",
-                       transform=ax2.transAxes, rotation=90, va="center", fontsize=FS - 2)
-    fig.suptitle(
-        f"Moving-frame case: {a.revolutions:g} revolution about the axis through "
-        f"$({centre[0]:g},{centre[1]:g})$ superposed on the {a.field}\n"
-        f"{a.scheme}, $N={N}$ ($n_z={_nz_label(NZF)}$), $T={T:g}$",
-        fontsize=FS + 2,
-    )
-    fig.tight_layout(rect=[0.02, 0.0, 1, 0.93])
-    # a 3D axes reserves a wide margin inside its own box, so a 2x5 grid
-    # leaves about half the figure empty; at \textwidth that space is
-    # taken from the panels
-    fig.subplots_adjust(hspace=-0.30, wspace=-0.05)
-    fig.savefig(a.out_moving, dpi=170)
+    for y, text in zip(rows_y, ("laboratory frame\n(as simulated)",
+                                "rotating frame\n(mapped back)")):
+        fig.text(0.01, y, text, rotation=90, va="center", ha="left", fontsize=FS)
+    fig.savefig(out_moving, dpi=170)
     plt.close(fig)
-    print(a.out_moving)
+    print(out_moving)
 
     # ---- unframed case ----
-    fig = plt.figure(figsize=(30.0, 8.0))
-    for col, (t, lab) in enumerate(zip(times, labels)):
-        v, f = isosurface(read_alpha(a.plain_case, t, N), N)
-        ax = fig.add_subplot(1, len(times), col + 1, projection="3d")
-        draw(ax, v, f, lab)
-        if col == 0:
-            ax.text2D(-0.16, 0.5, "laboratory frame\n(= co-rotating)",
-                      transform=ax.transAxes, rotation=90, va="center", fontsize=FS - 2)
-    fig.suptitle(
-        f"Non-moving-frame case: the original {a.field} "
-        "(no frame superposed)\n"
-        f"{a.scheme}, $N={N}$; the motion for $t>T/2$ retraces the motion for $t<T/2$",
-        fontsize=FS + 2,
-    )
-    fig.tight_layout(rect=[0.02, 0.0, 1, 0.88])
-    fig.subplots_adjust(wspace=-0.05)
-    fig.savefig(a.out_static, dpi=170)
+    fig, axes, rows_y = _grid(1, len(times))
+    for col, (t, (v, f)) in enumerate(zip(times, plain)):
+        draw(axes[0][col], v, f, labels.get(t, f"$t={t:g}$"))
+    fig.text(0.01, rows_y[0], "laboratory frame", rotation=90, va="center",
+             ha="left", fontsize=FS)
+    fig.savefig(out_static, dpi=170)
     plt.close(fig)
-    print(a.out_static)
+    print(out_static)
 
 
 if __name__ == "__main__":
