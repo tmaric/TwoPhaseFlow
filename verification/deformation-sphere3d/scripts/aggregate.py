@@ -64,14 +64,15 @@ def _orders(ns, es):
     return out
 
 
-def _fmt(x):
+def _fmt(x, bold=False):
     """1.234e-03 -> $1.234\\times10^{-3}$"""
     if x is None:
         return "---"
     if x == 0.0:
         return "$0$"
     m, e = f"{x:.3e}".split("e")
-    return rf"${m}\times10^{{{int(e)}}}$"
+    s = rf"${m}\times10^{{{int(e)}}}$"
+    return rf"{{\boldmath{s}}}" if bold else s
 
 
 def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
@@ -158,7 +159,8 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             rf"\caption{{Convergence on the {test_name} test, both reconstruction "
             r"schemes. The order is a least-squares fit of $\log E_{\text{shape}}$ "
             r"against $\log N$ over the whole sequence; the residual is the "
-            r"largest departure from that fit, in $\log E$. Data: "
+            r"largest departure from that fit, in $\log E$. Bold: the shape error "
+            r"with the frame exceeds the one without it at the same $N$. Data: "
             rf"\cite{{tudatalib2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
         )
         L.append(rf"\label{{tab:{label_prefix}}}")
@@ -186,12 +188,16 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
             L.append(rf"\multicolumn{{5}}{{l}}{{\emph{{{scheme}}}}} \\")
             for N in present:
                 cells = [str(N)]
-                for frame in frames:
+                # the review asked to mark where avoiding the cancellation
+                # raised the error: the framed column, against the unframed one
+                ref = by[frames[0]].get(N)
+                for fi, frame in enumerate(frames):
                     r = by[frame].get(N)
                     if r is None:
                         cells += ["---", "---"]
                     else:
-                        cells += [_fmt(r["E_shape"]), _fmt(r["E_bound"])]
+                        up = fi > 0 and ref is not None and r["E_shape"] > ref["E_shape"]
+                        cells += [_fmt(r["E_shape"], bold=up), _fmt(r["E_bound"])]
                 L.append(" & ".join(cells) + r" \\")
             fo, fr_, _ = fits[(scheme, frames[0])]
             go, gr, _ = fits[(scheme, frames[1])]

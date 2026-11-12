@@ -5,7 +5,7 @@
 #   materialize (local)  -> one OpenFOAM case per (scheme, frame, N)
 #   solve       (sbatch) -> blockMesh | setAlphaField | advectorVoF
 #   aggregate   (local)  -> convergence.csv + convergence_table.tex
-#   visualize   (sbatch) -> interface isosurfaces at t = 0, T/4, T/2, 3T/4, T
+#   visualize   (sbatch) -> interface isosurfaces at t = 0, T/2, T
 #
 # No flux generator is needed: movingFrameFlow3D builds phi from the analytic
 # vector potential at construction and at every step, which is what replaces
