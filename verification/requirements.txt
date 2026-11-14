@@ -1,0 +1,20 @@
+# Python packages for the verification studies (verification/*/scripts,
+# verification/postprocess.py) and the manuscript illustrations
+# (verification/manuscript-illustrations).
+#
+# Versions used for the published results: the Lichtenberg module
+# python/3.11.14 for the workflows, sympy for cancellation_1d.py.
+#
+#     python3 -m venv .venv && . .venv/bin/activate
+#     pip install -r verification/requirements.txt
+#
+# The simulations themselves need OpenFOAM v2512 and the TwoPhaseFlow build;
+# see verification/<study>/README.md.
+numpy==2.4.6
+matplotlib==3.11.1
+scikit-image==0.26.0
+foamlib==1.7.1
+pillow==12.3.0
+pyyaml==6.0.3
+sympy==1.12
+snakemake==9.23.1

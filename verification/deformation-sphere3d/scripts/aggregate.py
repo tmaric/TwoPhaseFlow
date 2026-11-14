@@ -157,11 +157,12 @@ def write(runs, schemes, frames, resolutions, end_time, csv_path, tex_path,
         L.append(r"\setlength{\tabcolsep}{4pt}")
         L.append(
             rf"\caption{{Convergence on the {test_name} test, both reconstruction "
-            r"schemes. The order is a least-squares fit of $\log E_{\text{shape}}$ "
-            r"against $\log N$ over the whole sequence; the residual is the "
-            r"largest departure from that fit, in $\log E$. Bold: the shape error "
-            r"with the frame exceeds the one without it at the same $N$. Data: "
-            rf"\cite{{tudatalib2026}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
+            r"schemes. The order is the negative least-squares slope of "
+            r"$\ln E_{\text{shape}}$ against $\ln N$ over the whole sequence; the "
+            r"residual is the maximum absolute residual in $\ln E_{\text{shape}}$. "
+            r"Bold: the shape error with the frame exceeds the one without it at the "
+            r"same $N$. Data: "
+            rf"\cite{{bothe2026figshare}}, \protect\path{{{workflow}/results/convergence.csv}}.}}"
         )
         L.append(rf"\label{{tab:{label_prefix}}}")
         L.append(r"\begin{tabular}{r cc cc}")
