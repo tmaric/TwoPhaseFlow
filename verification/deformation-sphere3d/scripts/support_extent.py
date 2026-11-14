@@ -22,6 +22,7 @@ convergence in the number of surface seeds.
 from __future__ import annotations
 
 import argparse
+import os
 import math
 import re
 
@@ -43,6 +44,10 @@ def u0(p, field, swirl):
     uy = np.where(inside, -np.sin(2 * PI * x) * np.sin(PI * y) ** 2, 0.0)
     rho = np.hypot(x - swirl[0], y - swirl[1])
     return np.stack([ux, uy, (1 - 2 * rho) ** 2], 1)
+
+
+# repository root, for paths written into the result files
+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
 def sphere(dict_path):
@@ -105,7 +110,7 @@ def main():
     with open(args.out, "w") as fh:
         w = fh.write
         w(f"# swept material extent, {args.field}; sphere centre {tuple(centre)} "
-          f"radius {radius:g} (from {args.alpha_dict})\n")
+          f"radius {radius:g} (from {os.path.relpath(os.path.abspath(args.alpha_dict), REPO)})\n")
         w(f"# rotation axis through ({ax[0]:g}, {ax[1]:g}), parallel to e_z; "
           f"period {args.period:g}\n")
         w(f"seeds {n1:6d}: r_max {r1:.4f}   z [{lo1[2]:.4f}, {hi1[2]:.4f}]\n")

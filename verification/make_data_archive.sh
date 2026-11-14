@@ -68,8 +68,15 @@ for s in "${STUDIES[@]}"; do
 done
 find "$TMP/$NAME" -name __pycache__ -type d -prune -exec rm -rf {} +
 
+# result files written before the generators named paths relative to the
+# repository carry this clone's absolute path; make it relative
+grep -rlZF "$PWD/" "$TMP/$NAME"/verification/*/results "$TMP/$NAME"/verification/*/runs \
+    | xargs -0 -r sed -i "s|$PWD/||g" || true
+
 # ---- nothing private leaves: paths on the cluster or a workstation, credentials
-leaks=$(grep -rIlE "${USER:?}|/work/scratch|/home/[a-z]|/mnt/c/|C:\\\\Users|ghp_[A-Za-z0-9]|github_pat_|PRIVATE KEY" "$TMP/$NAME" || true)
+# exempt: this script (it holds the patterns) and an upstream ParaView state
+# file of 2021 with its author's paths, public in DLR-RY/TwoPhaseFlow
+leaks=$(grep -rIlE --exclude=make_data_archive.sh --exclude=spuriousUCloseUp.pvsm "${USER:?}|/work/scratch|/home/[a-z]|/mnt/c/|C:\\\\Users|ghp_[A-Za-z0-9]|github_pat_|PRIVATE KEY" "$TMP/$NAME" || true)
 if [ -n "$leaks" ]; then
     echo "private paths or credentials in:" >&2
     echo "$leaks" | sed "s|$TMP/||" >&2
