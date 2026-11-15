@@ -1,0 +1,29 @@
+{
+  "source": "7f00fc55a67aefbcfa88bdb46a4fc378bac0db0c",
+  "date": "2026-11-15",
+  "completed": [
+    "homogeneous",
+    "layered",
+    "sphere",
+    "sphere-pml",
+    "piston",
+    "gorkov",
+    "height-empty",
+    "height-1",
+    "height-2",
+    "height-3"
+  ],
+  "expected": [
+    "homogeneous",
+    "layered",
+    "sphere",
+    "sphere-pml",
+    "piston",
+    "gorkov",
+    "height-empty",
+    "height-1",
+    "height-2",
+    "height-3"
+  ],
+  "all_complete": true
+}

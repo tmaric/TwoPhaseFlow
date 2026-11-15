@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+cd "${0%/*}" || exit 1
+. "${WM_PROJECT_DIR:?}/bin/tools/RunFunctions"
+. ./caseParams.sh
+
+SOLVER=acousticHelmholtzFoam
+
+./Allclean
+./prepareCase
+runApplication cartesian2DMesh
+runApplication extrudeMesh
+./postMesh
+runApplication checkMesh -allGeometry -allTopology
+restore0Dir
+rm -f 0/Pre.in 0/Pim.in
+runApplication setPMLFields
+
+rm -f "log.${SOLVER}"
+runApplication decomposePar -force
+runParallel "$SOLVER"
+runApplication reconstructPar -latestTime

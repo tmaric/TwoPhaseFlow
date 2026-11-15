@@ -1,0 +1,24 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit 1
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+. ./caseParams.sh
+
+./Allclean
+./prepareCase
+rm -f 0/*.in
+
+runApplication blockMesh
+runApplication setAlphaField
+runApplication setPMLFields
+runApplication decomposePar -force
+runParallel "${SOLVER}"
+runApplication reconstructPar -latestTime
+
+if [ "$CASE_MODE" = "interface" ]; then
+    python3 postprocess_interface_convergence.py
+elif [ "$CASE_MODE" = "pmlReflection" ]; then
+    python3 postprocess_pml_reflection.py
+else
+    python3 postprocess_interface.py
+fi

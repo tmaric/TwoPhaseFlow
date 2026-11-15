@@ -1,0 +1,23 @@
+{
+  "output": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/layered/comparison",
+  "configs": "8000:10000:forward,8000:50000:forward,8000:100000:forward,8000:200000:forward,8000:500000:forward,8000:500000:reverse,560:500000:forward,1120:500000:forward,2240:500000:forward,4480:500000:forward,8960:500000:forward",
+  "ranks": "1,4,8",
+  "binaries": {
+    "solver": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/openfoam-user/platforms/linux64GccDPInt32Opt/bin/acousticHelmholtzFoam",
+    "setAlphaField": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/openfoam-user/platforms/linux64GccDPInt32Opt/bin/setAlphaField"
+  },
+  "sha256": {
+    "acousticHelmholtzFoam": "a4be803cf2fa6cfafac970763286f7d99cb55c7c481ce50bd7cd027022dcc6bc",
+    "libacousticInterface": "a6c81b364d591a3d49f8da0ca6fea1cdac7a4e87b6f054144f225f64ee81db60",
+    "setAlphaField": "ac613667b2535c5dd85a8afe0f53fdb634d5de4a879b4e9b5caeb646a31ad162"
+  },
+  "scripts": {
+    "run_face_area_comparison.py": "693579c0b44f3982a11974b9e3fbd1c180721d365bd6ac9803b0a9eebe03b6ea",
+    "postprocess_interface.py": "ca8e1065b85ef1735aadfb4166acbc0381b2d979f3b6063131a690b3516fd80c",
+    "prepareCase": "5b36b92c9367162e180cd5672ca46b1fc7e63008de2f075437f1c3f08d002acb",
+    "caseParams.sh": "9a587469ff98ea8600576b7905431a2af96340ea804a5136ba3d303add421738"
+  },
+  "revision": null,
+  "caseStatus": null,
+  "OpenFOAM": "v2606"
+}

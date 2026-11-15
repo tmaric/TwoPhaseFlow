@@ -1,0 +1,46 @@
+[
+  {
+    "path": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/height-empty/seed.csv",
+    "rows": 31,
+    "range": [
+      0,
+      30
+    ]
+  },
+  {
+    "path": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/height-shards/empty-0/case/sweepResults/heightSweepResults.csv",
+    "rows": 18,
+    "range": [
+      31,
+      48
+    ],
+    "sha256": "dfedd8ee3a7cea59f7768ec6478b312dafb47ea48e9132f3327a7be213d4874e"
+  },
+  {
+    "path": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/height-shards/empty-1/case/sweepResults/heightSweepResults.csv",
+    "rows": 18,
+    "range": [
+      49,
+      66
+    ],
+    "sha256": "061bbf9c7d185012cb2ac7ab519f95cefe5c7d2d66e125eba9ed1108e4367013"
+  },
+  {
+    "path": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/height-shards/empty-2/case/sweepResults/heightSweepResults.csv",
+    "rows": 18,
+    "range": [
+      67,
+      84
+    ],
+    "sha256": "042bc76a6076c8a7bf7de4c96b33156e5c06d529c031bfe10da0cdbdd50a63a3"
+  },
+  {
+    "path": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/height-shards/empty-3/case/sweepResults/heightSweepResults.csv",
+    "rows": 15,
+    "range": [
+      85,
+      99
+    ],
+    "sha256": "08a0ffce9a09dd3e1ef1939160eb7bd9a81c36c16a1172df9a1e54c3617de3fe"
+  }
+]

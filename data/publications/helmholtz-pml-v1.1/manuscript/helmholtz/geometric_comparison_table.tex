@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{rcccc}
+\toprule
+& \multicolumn{2}{c}{$E_P$ (serial)} & \multicolumn{2}{c}{$D_8$} \\
+$N$ & Original & Geometric & Original & Geometric \\
+\midrule
+16 & $9.2118\times10^{-1}$ & $9.1199\times10^{-1}$ & $<2\times10^{-14}$ & $<2\times10^{-14}$ \\
+24 & $1.7960\times10^{-1}$ & $1.7983\times10^{-1}$ & $2.9721\times10^{-4}$ & $<2\times10^{-14}$ \\
+32 & $6.4716\times10^{-2}$ & $6.4767\times10^{-2}$ & $3.1739\times10^{-5}$ & $<2\times10^{-14}$ \\
+48 & $2.9746\times10^{-2}$ & $2.9753\times10^{-2}$ & $2.6395\times10^{-6}$ & $<2\times10^{-14}$ \\
+\bottomrule
+\end{tabular}
+\caption{Controlled comparison of the original face-area selection and
+geometric averaging for a penetrable liquid sphere on $N^3$ Cartesian cells.
+Both methods use the same pressure flux. $E_P$ is the volume-weighted
+complex-pressure error against the series solution; $D_8$ compares eight-rank
+and serial pressure fields for the same method; differences below
+$2\times10^{-14}$ are roundoff and vary between runs.}
+\label{tab:geometricComparison}
+\end{table}

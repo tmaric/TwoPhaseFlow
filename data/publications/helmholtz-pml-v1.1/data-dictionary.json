@@ -1,0 +1,761 @@
+[
+  {
+    "path": "secondary/gorkov/gorkovStudy/gorkov_comparison.tsv",
+    "rows": 7,
+    "columns": [
+      "radius_um",
+      "radius_m",
+      "drop_cell_size_m",
+      "n_cells",
+      "n_surface_faces",
+      "max_nonorthogonality_deg",
+      "avg_nonorthogonality_deg",
+      "max_skewness",
+      "numerical_force_y_N",
+      "ka",
+      "gorkov_force_y_N",
+      "numerical_to_gorkov",
+      "absolute_relative_error"
+    ]
+  },
+  {
+    "path": "secondary/gorkov/gorkovStudy/raw_results.tsv",
+    "rows": 7,
+    "columns": [
+      "radius_um",
+      "radius_m",
+      "drop_cell_size_m",
+      "n_cells",
+      "n_surface_faces",
+      "max_nonorthogonality_deg",
+      "avg_nonorthogonality_deg",
+      "max_skewness",
+      "numerical_force_y_N"
+    ]
+  },
+  {
+    "path": "secondary/gorkov/meshConvergence/mesh_convergence.tsv",
+    "rows": 3,
+    "columns": [
+      "level",
+      "h_over_a",
+      "segments",
+      "cell_size_m",
+      "n_cells",
+      "n_surface_faces",
+      "max_nonorthogonality_deg",
+      "avg_nonorthogonality_deg",
+      "max_skewness",
+      "numerical_force_y_N",
+      "gorkov_force_y_N",
+      "difference_from_gorkov",
+      "change_to_next_finer"
+    ]
+  },
+  {
+    "path": "secondary/gorkov/meshConvergence/raw_results.tsv",
+    "rows": 3,
+    "columns": [
+      "level",
+      "h_over_a",
+      "segments",
+      "cell_size_m",
+      "n_cells",
+      "n_surface_faces",
+      "max_nonorthogonality_deg",
+      "avg_nonorthogonality_deg",
+      "max_skewness",
+      "numerical_force_y_N"
+    ]
+  },
+  {
+    "path": "secondary/gorkov/positionSweep/amplitude_scaling.tsv",
+    "rows": 2,
+    "columns": [
+      "position_mm",
+      "force_at_1Pa_N",
+      "force_at_1000Pa_N",
+      "force_at_1000Pa_div_1e6_N",
+      "relative_scaling_deviation"
+    ]
+  },
+  {
+    "path": "secondary/gorkov/positionSweep/position_sweep.tsv",
+    "rows": 11,
+    "columns": [
+      "position_mm",
+      "position_m",
+      "n_cells",
+      "n_surface_faces",
+      "max_nonorthogonality_deg",
+      "avg_nonorthogonality_deg",
+      "max_skewness",
+      "numerical_force_y_N",
+      "gorkov_force_y_N",
+      "difference_normalized_by_peak_force"
+    ]
+  },
+  {
+    "path": "secondary/gorkov/positionSweep/raw_results.tsv",
+    "rows": 11,
+    "columns": [
+      "position_mm",
+      "position_m",
+      "n_cells",
+      "n_surface_faces",
+      "max_nonorthogonality_deg",
+      "avg_nonorthogonality_deg",
+      "max_skewness",
+      "numerical_force_y_N"
+    ]
+  },
+  {
+    "path": "secondary/height-1/seed.csv",
+    "rows": 23,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/height-1/sweepResults/heightSweepResults.csv",
+    "rows": 100,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/height-2/seed.csv",
+    "rows": 23,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/height-2/sweepResults/heightSweepResults.csv",
+    "rows": 100,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/height-3/seed.csv",
+    "rows": 23,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/height-3/sweepResults/heightSweepResults.csv",
+    "rows": 100,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/height-empty/seed.csv",
+    "rows": 31,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/height-empty/sweepResults/heightSweepResults.csv",
+    "rows": 100,
+    "columns": [
+      "series_key",
+      "series_label",
+      "initialization",
+      "aspect_ratio",
+      "index",
+      "height_mm",
+      "H_m",
+      "height_fac",
+      "Fn_reflector1_wedge_N",
+      "Fn_reflector1_axisym_N",
+      "axisym_factor"
+    ]
+  },
+  {
+    "path": "secondary/homogeneous/postProcessing/homogeneousBaseline/1/metrics.csv",
+    "rows": 1,
+    "columns": [
+      "cellsPerWavelength",
+      "cells",
+      "hOverLambda",
+      "maxNonOrthogonality",
+      "avgNonOrthogonality",
+      "pressureRelL2",
+      "pressureRelLinf",
+      "velocityRelL2",
+      "velocityInteriorRelL2",
+      "velocityBoundaryRelL2"
+    ]
+  },
+  {
+    "path": "secondary/homogeneous/studyResults/convergence/metrics_summary.csv",
+    "rows": 24,
+    "columns": [
+      "meshFamily",
+      "boundaryMode",
+      "cellsPerWavelength",
+      "cells",
+      "hOverLambda",
+      "maxNonOrthogonality",
+      "avgNonOrthogonality",
+      "pressureRelL2",
+      "pressureRelLinf",
+      "velocityRelL2",
+      "velocityInteriorRelL2",
+      "velocityBoundaryRelL2",
+      "pressureOrder",
+      "velocityOrder"
+    ]
+  },
+  {
+    "path": "secondary/layered/comparison/face-area-comparison.csv",
+    "rows": 66,
+    "columns": [
+      "N",
+      "sigmaMax",
+      "order",
+      "mode",
+      "ranks",
+      "pressureRelL2",
+      "referenceDifference",
+      "parallelDifference",
+      "seconds",
+      "maxRelativeResidual"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N1120-s500000-forward.csv",
+    "rows": 1120,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N2240-s500000-forward.csv",
+    "rows": 2240,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N4480-s500000-forward.csv",
+    "rows": 4480,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N560-s500000-forward.csv",
+    "rows": 560,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N8000-s10000-forward.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N8000-s100000-forward.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N8000-s200000-forward.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N8000-s50000-forward.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N8000-s500000-forward.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N8000-s500000-reverse.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-N8960-s500000-forward.csv",
+    "rows": 8960,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-forward.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/pressure-reverse.csv",
+    "rows": 8000,
+    "columns": [
+      "x_m",
+      "Pre_Pa",
+      "Pim_Pa",
+      "absP_Pa",
+      "exact_Pre_Pa",
+      "exact_Pim_Pa",
+      "exact_absP_Pa"
+    ]
+  },
+  {
+    "path": "secondary/layered/profile-metrics.csv",
+    "rows": 11,
+    "columns": [
+      "N",
+      "sigmaMax",
+      "order",
+      "h_m",
+      "pressureRelL2",
+      "realRelL2",
+      "imagRelL2"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N20/analyticalCompare/arcComparison.csv",
+    "rows": 361,
+    "columns": [
+      "theta_deg",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "SPL_sim_dB",
+      "SPL_exact_dB",
+      "r_arc_m"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N20/analyticalCompare/onAxisComparison.csv",
+    "rows": 116,
+    "columns": [
+      "z_m",
+      "r_m",
+      "z_over_rayleigh",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "p_sim_over_p0",
+      "p_exact_over_p0"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N30/analyticalCompare/arcComparison.csv",
+    "rows": 361,
+    "columns": [
+      "theta_deg",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "SPL_sim_dB",
+      "SPL_exact_dB",
+      "r_arc_m"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N30/analyticalCompare/onAxisComparison.csv",
+    "rows": 174,
+    "columns": [
+      "z_m",
+      "r_m",
+      "z_over_rayleigh",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "p_sim_over_p0",
+      "p_exact_over_p0"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N40/analyticalCompare/arcComparison.csv",
+    "rows": 361,
+    "columns": [
+      "theta_deg",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "SPL_sim_dB",
+      "SPL_exact_dB",
+      "r_arc_m"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N40/analyticalCompare/onAxisComparison.csv",
+    "rows": 233,
+    "columns": [
+      "z_m",
+      "r_m",
+      "z_over_rayleigh",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "p_sim_over_p0",
+      "p_exact_over_p0"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N60/analyticalCompare/arcComparison.csv",
+    "rows": 361,
+    "columns": [
+      "theta_deg",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "SPL_sim_dB",
+      "SPL_exact_dB",
+      "r_arc_m"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N60/analyticalCompare/onAxisComparison.csv",
+    "rows": 349,
+    "columns": [
+      "z_m",
+      "r_m",
+      "z_over_rayleigh",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "p_sim_over_p0",
+      "p_exact_over_p0"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N80/analyticalCompare/arcComparison.csv",
+    "rows": 361,
+    "columns": [
+      "theta_deg",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "SPL_sim_dB",
+      "SPL_exact_dB",
+      "r_arc_m"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/N80/analyticalCompare/onAxisComparison.csv",
+    "rows": 466,
+    "columns": [
+      "z_m",
+      "r_m",
+      "z_over_rayleigh",
+      "Pre_sim_pa",
+      "Pim_sim_pa",
+      "Pre_exact_pa",
+      "Pim_exact_pa",
+      "p_sim_over_p0",
+      "p_exact_over_p0"
+    ]
+  },
+  {
+    "path": "secondary/piston/meshConvergence/metrics_summary.csv",
+    "rows": 5,
+    "columns": [
+      "cellsPerWavelength",
+      "h_over_lambda",
+      "time",
+      "field_relL2",
+      "field_magnitude_relL2",
+      "axis_relL2",
+      "axis_relLinf",
+      "axis_magnitude_relL2"
+    ]
+  },
+  {
+    "path": "secondary/sphere/studyResults/area-comparison.csv",
+    "rows": 16,
+    "columns": [
+      "N",
+      "cells",
+      "mode",
+      "ranks",
+      "pressureRelL2",
+      "liquidRelL2",
+      "gasRelL2",
+      "interfaceRelL2",
+      "parallelDifference",
+      "seconds",
+      "maxRelativeResidual"
+    ]
+  },
+  {
+    "path": "secondary/sphere-pml/studyResults/main/convergence.csv",
+    "rows": 24,
+    "columns": [
+      "material",
+      "truncation",
+      "N",
+      "cells",
+      "physicalCells",
+      "physicalRelL2",
+      "observedOrder",
+      "hostRelL2",
+      "dropRelL2",
+      "interfaceRelL2",
+      "farHostRelL2",
+      "minusDirichletRelL2",
+      "sigmaOverOmega",
+      "pmlLength",
+      "ranks",
+      "seconds",
+      "maxRelativeResidual"
+    ]
+  },
+  {
+    "path": "secondary/sphere-pml/studyResults/main/rigid_difference.csv",
+    "rows": 2,
+    "columns": [
+      "material",
+      "N",
+      "hostCells",
+      "relL2Difference"
+    ]
+  },
+  {
+    "path": "secondary/sphere-pml/studyResults/ranks8/convergence.csv",
+    "rows": 4,
+    "columns": [
+      "material",
+      "truncation",
+      "N",
+      "cells",
+      "physicalCells",
+      "physicalRelL2",
+      "observedOrder",
+      "hostRelL2",
+      "dropRelL2",
+      "interfaceRelL2",
+      "farHostRelL2",
+      "minusDirichletRelL2",
+      "sigmaOverOmega",
+      "pmlLength",
+      "ranks",
+      "seconds",
+      "maxRelativeResidual"
+    ]
+  },
+  {
+    "path": "secondary/sphere-pml/studyResults/ranks8/rank_comparison.csv",
+    "rows": 4,
+    "columns": [
+      "material",
+      "truncation",
+      "N",
+      "ranks",
+      "relL2Difference"
+    ]
+  },
+  {
+    "path": "secondary/sphere-pml/studyResults/softPML/convergence.csv",
+    "rows": 16,
+    "columns": [
+      "material",
+      "truncation",
+      "N",
+      "cells",
+      "physicalCells",
+      "physicalRelL2",
+      "observedOrder",
+      "hostRelL2",
+      "dropRelL2",
+      "interfaceRelL2",
+      "farHostRelL2",
+      "minusDirichletRelL2",
+      "sigmaOverOmega",
+      "pmlLength",
+      "ranks",
+      "seconds",
+      "maxRelativeResidual"
+    ]
+  },
+  {
+    "path": "secondary/workstation-performance/strong-scaling-transcribed.csv",
+    "rows": 4,
+    "columns": [
+      "mpi_ranks",
+      "cells",
+      "unknowns",
+      "elapsed_s",
+      "speedup",
+      "efficiency_percent",
+      "origin"
+    ]
+  }
+]

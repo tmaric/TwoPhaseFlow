@@ -1,0 +1,25 @@
+{
+  "output": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/sphere/case/studyResults",
+  "sizes": "16,24,32,48",
+  "modes": "legacy,geometric",
+  "ranks": "1,8",
+  "sphereRadius": 0.001,
+  "ka": 1.0,
+  "frequency": 54590.1454805201,
+  "seriesOrders": 25,
+  "binaries": {
+    "solver": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/openfoam-user/platforms/linux64GccDPInt32Opt/bin/acousticHelmholtzFoam",
+    "setAlphaField": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/openfoam-user/platforms/linux64GccDPInt32Opt/bin/setAlphaField"
+  },
+  "sha256": {
+    "acousticHelmholtzFoam": "a4be803cf2fa6cfafac970763286f7d99cb55c7c481ce50bd7cd027022dcc6bc",
+    "libacousticInterface": "a6c81b364d591a3d49f8da0ca6fea1cdac7a4e87b6f054144f225f64ee81db60",
+    "setAlphaField": "ac613667b2535c5dd85a8afe0f53fdb634d5de4a879b4e9b5caeb646a31ad162"
+  },
+  "scripts": {
+    "sphere_area_comparison.py": "4ee8ee56b4f6a447c1b4c5e6ddbefa658391c29495695e858659bd628cc3bb43"
+  },
+  "revision": null,
+  "caseStatus": null,
+  "OpenFOAM": "v2606"
+}

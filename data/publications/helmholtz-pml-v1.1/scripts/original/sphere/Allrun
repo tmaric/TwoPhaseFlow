@@ -1,0 +1,9 @@
+#!/bin/sh
+# Penetrable sphere with exact boundary data: original versus geometric
+# interface face areas on 16^3..48^3 cells, serial and eight ranks.
+set -eu
+cd "${0%/*}" || exit 1
+
+./Allclean
+python3 sphere_area_comparison.py --output studyResults \
+    --sizes "${SPHERE_SIZES:-16,24,32,48}" --ranks "${SPHERE_RANKS:-1,8}"

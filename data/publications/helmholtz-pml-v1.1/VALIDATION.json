@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "checks": 1688,
+  "campaigns": 10,
+  "numerical_cases": 576,
+  "integration_tests": 20,
+  "max_rigid_sphere_force_relative_difference_from_printed_workstation_table": 4.9158658199652885e-06,
+  "note": "Printed workstation tables remain primary; HPC reproduction is independent. Force last digits vary across builds. Workstation performance values are transcriptions, not HPC timings."
+}

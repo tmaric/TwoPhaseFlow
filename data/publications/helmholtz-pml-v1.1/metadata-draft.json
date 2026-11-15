@@ -1,0 +1,78 @@
+{
+  "title": "HPC reproduction data for the revised finite-volume Helmholtz/PML method and acousticHelmholtzFoam papers",
+  "version": "1.1",
+  "date": "2026-11-15",
+  "creators": [
+    "Chuanchao Xu",
+    "Tomislav Marić"
+  ],
+  "data_license": "CC-BY-4.0",
+  "software_license": "GPL-3.0-or-later",
+  "software_revision": "7f00fc55a67aefbcfa88bdb46a4fc378bac0db0c",
+  "data_tag": "helmholtz-pml-data-v1.1",
+  "repository_url": "https://github.com/tmaric/TwoPhaseFlow/tree/helmholtz-pml-data-v1.1/data/publications/helmholtz-pml-v1.1",
+  "archive_status": "Prepared for TUdatalib deposit update; upload and public release not completed in this session.",
+  "prior_version": {
+    "version": "1.0",
+    "reserved_doi": "10.48328/tudatalib-2357",
+    "item_uuid": "35f0590b-a654-40b8-8268-df6175882afa",
+    "handle": "https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/5583",
+    "status_checked": "2026-11-15; DOI resolver returned 404, repository served bot-check. Do not assign this DOI to v1.1 without repository confirmation."
+  },
+  "data_collection_year": 2026,
+  "language": "en",
+  "resource_type": "Dataset",
+  "keywords": [
+    "Helmholtz equation",
+    "finite volume method",
+    "perfectly matched layer",
+    "two-phase acoustics",
+    "PLIC",
+    "acoustic radiation force",
+    "OpenFOAM"
+  ],
+  "DFG_subjects": [
+    {
+      "code": "4.22-03",
+      "label": "Strömungsmechanik",
+      "label_en": "Fluid Dynamics"
+    }
+  ],
+  "TUdatalib_collection": {
+    "uuid": "fc0e593d-562b-4f47-a665-bec676d883c7",
+    "uri": "https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/5582",
+    "parent": "Mathematical Modelling and Analysis"
+  },
+  "funding": [
+    {
+      "funder": "Deutsche Forschungsgemeinschaft (DFG, German Research Foundation)",
+      "project_number": "542327521",
+      "project_title": "Dynamic vertical positioning of liquid droplets in transducer-reflector sound field arrangement",
+      "acknowledged_by": [
+        "Mario Kupnik",
+        "Dieter Bothe"
+      ],
+      "source": "https://www.etit.tu-darmstadt.de/must/news_details_271040.en.jsp"
+    }
+  ],
+  "acknowledgements": "The authors gratefully acknowledge the computing time provided on the high-performance computer Lichtenberg II at TU Darmstadt, funded by the German Federal Ministry of Research, Technology and Space (BMFTR), and the State of Hesse Ministry of Science and Research, Art and Culture (HMWK).",
+  "manuscript_affiliations": {
+    "mma": "Mathematical Modeling and Analysis, Mathematics Department, TU Darmstadt, Germany",
+    "must": "Measurement and Sensor Technology, Department of Electrical Engineering and Information Technology, TU Darmstadt, Germany"
+  },
+  "dataset_creators": [
+    {
+      "name": "Chuanchao Xu",
+      "family_name": "Xu",
+      "given_name": "Chuanchao",
+      "affiliation": "Mathematical Modeling and Analysis, Mathematics Department, TU Darmstadt, Germany"
+    },
+    {
+      "name": "Tomislav Marić",
+      "family_name": "Marić",
+      "given_name": "Tomislav",
+      "affiliation": "Mathematical Modeling and Analysis, Mathematics Department, TU Darmstadt, Germany"
+    }
+  ],
+  "description": "Independent Lichtenberg II reproduction of 576 cases for the revised method/software manuscripts, with pressure/reference profiles, convergence summaries, integrated forces, 400 levitator height points, execution records, portable validation/plot tools and manuscript identification assets. Original workstation timing aggregates are transcribed and labelled separately; raw timing repetitions, volume meshes and full solver fields are excluded."
+}

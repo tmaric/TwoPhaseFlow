@@ -1,0 +1,4 @@
+sbatch: slurm_job_submit: [I] LUA job_submit Plugin V1.1.0004 started
+sbatch: slurm_job_submit: [I] TIME_SLOT is 'short'
+sbatch: slurm_job_submit: [I] Partition changed from nil to 'deflt_short'
+56398204

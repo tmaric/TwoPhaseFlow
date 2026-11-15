@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{rcccc}
+\toprule
+& \multicolumn{2}{c}{Water drop in air, $E_P$ [\%]} & \multicolumn{2}{c}{Oil drop in water, $E_P$ [\%]} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+$N$ & Exact data & PML & Exact data & PML \\
+\midrule
+8 & 4.195 & 3.506 & 3.377 & 2.667 \\
+16 & 1.376 & 1.102 & 0.831 & 0.645 \\
+32 & 0.629 & 0.498 & 0.204 & 0.157 \\
+64 & 0.305 & 0.241 & 0.0505 & 0.0388 \\
+\bottomrule
+\end{tabular}
+\caption{Penetrable sphere with an axial point source in a one-degree wedge,
+$h=a/N$: complex-pressure error in the physical region.  Exact data:
+exact pressure on the outer boundary of the physical region.  PML:
+$\sigma_{\max}/\omega=12.6$ and $L=3.25a$ with the azimuthal damping of
+\cref{eq:wedgeAzimuthalStretch}.}
+\label{tab:spherePML}
+\end{table}

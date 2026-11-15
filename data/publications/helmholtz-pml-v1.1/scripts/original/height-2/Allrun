@@ -1,0 +1,58 @@
+#!/bin/sh
+set -e
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+. ./caseParams.sh                                   # Case parameters
+#------------------------------------------------------------------------------
+
+if [ "${RUN_MODE}" = "fullFig4Sweep" ] && [ "${TPF_INTERNAL_SWEEP_RUN:-0}" != "1" ]; then
+    exec ./runHeightSweep.sh
+fi
+
+SOLVER=acousticHelmholtzFoam
+
+rm -f \
+    log.cartesian2DMesh \
+    log.extrudeMesh \
+    log.topoSet.alphaInterface.* \
+    log.refineMesh.alphaInterface.* \
+    log.setAlphaField.alphaInterface.* \
+    log.setAlphaField \
+    log.setPMLFields \
+    log.decomposePar \
+    log.reconstructPar \
+    "log.${SOLVER}"
+
+./Allclean
+./prepareCase
+
+runApplication cartesian2DMesh
+runApplication extrudeMesh
+./postMesh
+
+restore0Dir
+case "${DROP_MODE}" in
+    ellipsoid)
+        runApplication setAlphaField
+        ./refineAlphaInterface
+        ;;
+    empty)
+        foamDictionary -entry internalField -set "uniform 0" 0/alpha.water \
+            > /dev/null
+        ;;
+    *)
+        echo "Unsupported DROP_MODE='${DROP_MODE}'. Use 'ellipsoid' or 'empty'." >&2
+        exit 1
+        ;;
+esac
+
+rm -f 0/Pim.in
+
+runApplication setPMLFields
+
+rm -f "log.${SOLVER}"
+runApplication decomposePar -force
+runParallel "${SOLVER}"
+runApplication reconstructPar -latestTime
+
+#------------------------------------------------------------------------------

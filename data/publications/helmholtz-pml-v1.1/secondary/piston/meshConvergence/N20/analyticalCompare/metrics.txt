@@ -1,0 +1,15 @@
+time = 1
+f_Hz = 10000.0
+a_m = 0.1
+rho_c_u0_pa = 411.59999999999997
+rayleigh_m = 0.9159162255363831
+physical_extent_m = 0.2
+r_arc_m = 0.18000000000000002
+rim_nodes = 1024
+field_cells = 13456
+axis_cells = 116
+field_relL2 = 8.631662e-02
+field_magnitude_relL2 = 7.735334e-03
+axis_relL2 = 7.853373e-02
+axis_relLinf = 1.141311e-01
+axis_magnitude_relL2 = 2.165163e-02

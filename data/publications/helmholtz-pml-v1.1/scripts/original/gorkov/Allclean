@@ -1,0 +1,11 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/CleanFunctions      # Tutorial clean functions
+#------------------------------------------------------------------------------
+
+cleanCase0
+rm -f constant/*unrolled*
+rm -rf constant/polyMesh
+rm -f constant/levitator2D.fms
+
+#------------------------------------------------------------------------------
