@@ -1,0 +1,90 @@
+luac: cannot open /home/tm83tomy/.cache/lmod/spiderT.x86_64_Linux.lua: No such file or directory
+CAMPAIGN piston JOB 56398267 HOST mpsd0063 SOURCE 7f00fc55a67aefbcfa88bdb46a4fc378bac0db0c
+PASS  rim integral vs on-axis closed form: max relative difference 3.45e-16
+PASS  rim integral vs 2D Rayleigh quadrature (z >= 0.02 m): max relative difference 1.63e-13
+PASS  node doubling 1024 -> 2048 (physical region, rim and baffle): max relative difference 2.38e-13
+PASS  continuity across r = a: difference over the gap a(1 -/+ eps) for eps = 1e-7, 1e-9, 1e-11: 2.97e-06, 2.97e-08, 2.97e-10 (must fall with eps)
+Reference validation PASSED
+=== pistonRadiation mesh convergence: 20 cells per wavelength ===
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Restore 0/ from 0.orig/
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldComparison.csv.gz
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldError.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/metrics.txt
+Metrics: field(relL2=8.631662e-02) axis(relL2=7.853373e-02, relLinf=1.141311e-01)
+=== pistonRadiation mesh convergence: 30 cells per wavelength ===
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Restore 0/ from 0.orig/
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldComparison.csv.gz
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldError.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/metrics.txt
+Metrics: field(relL2=3.766876e-02) axis(relL2=3.363890e-02, relLinf=4.914235e-02)
+=== pistonRadiation mesh convergence: 40 cells per wavelength ===
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Restore 0/ from 0.orig/
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldComparison.csv.gz
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldError.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/metrics.txt
+Metrics: field(relL2=2.108081e-02) axis(relL2=1.850424e-02, relLinf=2.738476e-02)
+=== pistonRadiation mesh convergence: 60 cells per wavelength ===
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Restore 0/ from 0.orig/
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldComparison.csv.gz
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldError.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/metrics.txt
+Metrics: field(relL2=9.332416e-03) axis(relL2=7.861834e-03, relLinf=1.183994e-02)
+=== pistonRadiation mesh convergence: 80 cells per wavelength ===
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Restore 0/ from 0.orig/
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.csv
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldComparison.csv.gz
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/onAxisComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/arcComparison.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/fieldError.png
+Wrote: /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/piston/case/postProcessing/analyticalCompare/1/metrics.txt
+Metrics: field(relL2=5.258525e-03) axis(relL2=4.263405e-03, relLinf=6.475723e-03)
+Mesh convergence outputs written to: meshConvergence
+Summary: meshConvergence/metrics_summary.csv
+CPC_CAMPAIGN_COMPLETE piston

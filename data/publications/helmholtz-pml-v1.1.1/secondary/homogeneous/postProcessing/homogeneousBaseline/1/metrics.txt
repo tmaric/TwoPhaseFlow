@@ -1,0 +1,10 @@
+cellsPerWavelength = 9.600000000000e+01
+cells = 6.480000000000e+03
+hOverLambda = 1.041666666667e-02
+maxNonOrthogonality = 3.713141355610e+01
+avgNonOrthogonality = 1.589333647160e+01
+pressureRelL2 = 2.481131902413e-03
+pressureRelLinf = 5.562670424455e-03
+velocityRelL2 = 9.219011194814e-03
+velocityInteriorRelL2 = 9.163340615080e-03
+velocityBoundaryRelL2 = 9.599940800987e-03

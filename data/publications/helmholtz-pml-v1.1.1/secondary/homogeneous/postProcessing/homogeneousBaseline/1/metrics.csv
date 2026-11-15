@@ -1,0 +1,2 @@
+cellsPerWavelength,cells,hOverLambda,maxNonOrthogonality,avgNonOrthogonality,pressureRelL2,pressureRelLinf,velocityRelL2,velocityInteriorRelL2,velocityBoundaryRelL2
+96.0,6480.0,0.010416666666666666,37.1314135561,15.8933364716,0.0024811319024134063,0.005562670424455107,0.00921901119481355,0.009163340615079686,0.00959994080098682

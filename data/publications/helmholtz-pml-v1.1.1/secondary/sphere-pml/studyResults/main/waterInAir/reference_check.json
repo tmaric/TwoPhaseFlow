@@ -1,0 +1,7 @@
+{
+  "pressureJump": 2.571142567590861e-16,
+  "velocityJump": 7.51870784148879e-14,
+  "incidentExpansion": 1.2008898127460162e-15,
+  "homogeneousLimit": 8.46803086708784e-18,
+  "truncation60vs80": 0.0
+}

@@ -1,0 +1,5 @@
+material,truncation,N,ranks,relL2Difference
+waterInAir,pml,16,8,1.3733474408713132e-14
+waterInAir,pml,32,8,3.2912474114621986e-14
+oilInWater,pml,16,8,1.4040665191283684e-14
+oilInWater,pml,32,8,2.5869457764635922e-14

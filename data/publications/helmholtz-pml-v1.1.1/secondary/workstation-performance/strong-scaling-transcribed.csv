@@ -1,0 +1,5 @@
+mpi_ranks,cells,unknowns,elapsed_s,speedup,efficiency_percent,origin
+1,570818,1141636,16.36,1,100,"Transcribed from software manuscript Table 3; workstation, 2026-10-27"
+2,570818,1141636,11.23,1.46,72.8,"Transcribed from software manuscript Table 3; workstation, 2026-10-27"
+4,570818,1141636,8.71,1.88,47,"Transcribed from software manuscript Table 3; workstation, 2026-10-27"
+8,570818,1141636,8.6,1.9,23.8,"Transcribed from software manuscript Table 3; workstation, 2026-10-27"

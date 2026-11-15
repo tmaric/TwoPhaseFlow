@@ -1,0 +1,32 @@
+{
+  "output": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/sphere-pml/case/studyResults/ranks8",
+  "materials": "waterInAir,oilInWater",
+  "sizes": "16,32",
+  "truncations": "pml",
+  "ranks": 8,
+  "sigma_factor": 12.6,
+  "pml_thickness": 3.25,
+  "pmlLength": 0.0032500000000000003,
+  "sphereRadius": 0.001,
+  "sourceHeight": 0.0025,
+  "hostWavenumber": 1000.0,
+  "po": 3,
+  "binaries": {
+    "setAlphaField": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/openfoam-user/platforms/linux64GccDPInt32Opt/bin/setAlphaField",
+    "setPMLFields": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/openfoam-user/platforms/linux64GccDPInt32Opt/bin/setPMLFields",
+    "solver": "/work/scratch/tm83tomy/ultrasound-cpc-20261115/openfoam-user/platforms/linux64GccDPInt32Opt/bin/acousticHelmholtzFoam"
+  },
+  "sha256": {
+    "acousticHelmholtzFoam": "a4be803cf2fa6cfafac970763286f7d99cb55c7c481ce50bd7cd027022dcc6bc",
+    "libacousticInterface": "a6c81b364d591a3d49f8da0ca6fea1cdac7a4e87b6f054144f225f64ee81db60",
+    "setAlphaField": "ac613667b2535c5dd85a8afe0f53fdb634d5de4a879b4e9b5caeb646a31ad162",
+    "setPMLFields": "973647221976eaa6d21e4628b47570c70523e32f884e211e84f094751d364087"
+  },
+  "scripts": {
+    "sphere_pml.py": "7a37bcc4698315b477f0e543ea0b802198278947e43fee2b4a2de5cc71ea8813",
+    "sphere_reference.py": "def3dab64272f1245d633ab91fb38916c5cfb399402cfc64d638c6df7734649b"
+  },
+  "revision": null,
+  "caseStatus": null,
+  "OpenFOAM": "v2606"
+}

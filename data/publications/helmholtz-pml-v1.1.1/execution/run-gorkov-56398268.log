@@ -1,0 +1,330 @@
+luac: cannot open /home/tm83tomy/.cache/lmod/spiderT.x86_64_Linux.lua: No such file or directory
+CAMPAIGN gorkov JOB 56398268 HOST mpsd0070 SOURCE 7f00fc55a67aefbcfa88bdb46a4fc378bac0db0c
+Running coarse level (h/a=0.125, segments=64)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/coarse
+Running medium level (h/a=0.0625, segments=128)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/medium
+Running fine level (h/a=0.03125, segments=256)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/meshConvergence/fine
+Wrote meshConvergence/mesh_convergence.tsv
+Wrote meshConvergence/mesh_convergence.png
+level	h_over_a	segments	cell_size_m	n_cells	n_surface_faces	max_nonorthogonality_deg	avg_nonorthogonality_deg	max_skewness	numerical_force_y_N	gorkov_force_y_N	difference_from_gorkov	change_to_next_finer
+coarse	0.125	64	7.5e-06	21804	67	39.2898667011	1.27078231236	0.42913782015	-9.55347696338e-16	-9.82525647028e-16	0.02766131426	0.02664515315
+medium	0.0625	128	3.75e-06	22087	131	41.7936750556	1.5989797726	0.427277297905	-9.81499911801e-16	-9.82525647028e-16	0.001043978068	0.00198912179
+fine	0.03125	256	1.875e-06	22615	259	41.1622549617	2.07533859694	0.431061157492	-9.8345612581e-16	-9.82525647028e-16	0.0009470274748	
+Running radius 30 um (sphere cell size 1.875e-06 m)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=3e-05 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r30um
+Running radius 40 um (sphere cell size 2.5e-06 m)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=4e-05 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r40um
+Running radius 60 um (sphere cell size 3.75e-06 m)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r60um
+Running radius 80 um (sphere cell size 5e-06 m)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=8e-05 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r80um
+Running radius 100 um (sphere cell size 6.25e-06 m)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=0.0001 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r100um
+Running radius 120 um (sphere cell size 7.5e-06 m)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=0.00012 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r120um
+Running radius 150 um (sphere cell size 9.375e-06 m)
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=0.00015 m, centre y=0.0040003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/gorkovStudy/r150um
+Wrote gorkovStudy/gorkov_comparison.tsv
+Wrote gorkovStudy/gorkov_comparison.png
+Maximum relative error: 1.485%
+radius_um	radius_m	drop_cell_size_m	n_cells	n_surface_faces	max_nonorthogonality_deg	avg_nonorthogonality_deg	max_skewness	numerical_force_y_N	ka	gorkov_force_y_N	numerical_to_gorkov	absolute_relative_error
+30	3e-05	1.875e-06	22130	131	40.0870720563	1.67208562219	0.426648140986	-1.24638963872e-16	0.01387613082	-1.22815705878e-16	1.014845479	0.01484547909
+40	4e-05	2.5e-06	21924	88	36.2303743893	1.44686077061	0.418042382459	-2.91967212466e-16	0.01850150776	-2.9111871023e-16	1.002914626	0.002914626253
+60	6e-05	3.75e-06	22087	131	41.7936750556	1.5989797726	0.427277297905	-9.81499911801e-16	0.02775226163	-9.82525647028e-16	0.9989560219	0.001043978068
+80	8e-05	5e-06	21880	90	40.9535199109	1.42132041577	0.431827298417	-2.34697378426e-15	0.03700301551	-2.32894968184e-15	1.007739155	0.007739154932
+100	0.0001	6.25e-06	21974	110	34.8882525271	1.44459181456	0.424583722163	-4.5149190663e-15	0.04625376939	-4.54872984735e-15	0.9925669842	0.007433015849
+120	0.00012	7.5e-06	22034	131	39.0482373912	1.58722811463	0.421786576978	-7.83853448619e-15	0.05550452327	-7.86020517622e-15	0.9972429867	0.002757013277
+150	0.00015	9.375e-06	21827	83	35.7862645922	1.25313762941	0.433246093009	-1.5373915661e-14	0.06938065408	-1.53519632348e-14	1.001429943	0.001429942598
+Running particle position y=0.6 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0006 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p01_0.6mm
+Running particle position y=1.4 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0014 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p02_1.4mm
+Running particle position y=2.2 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0022 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p03_2.2mm
+Running particle position y=3.0 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.003 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p04_3.0mm
+Running particle position y=3.396039604 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.003396039604 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p05_3.396039604mm
+Running particle position y=4.0 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.004 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p06_4.0mm
+Running particle position y=4.8 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0048 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p07_4.8mm
+Running particle position y=5.6 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0056 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p08_5.6mm
+Running particle position y=6.4 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0064 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p09_6.4mm
+Running particle position y=6.792079208 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.006792079208 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p10_6.792079208mm
+Running particle position y=7.1 mm
+Cleaning case /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm
+Preparing rigid-sphere Gorkov verification:
+  f=25250 Hz, Pa=1.0 Pa
+  radius=6e-05 m, centre y=0.0071 m
+  transducer pressure=(-0.9240721935583189, 0) Pa
+Running cartesian2DMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm
+Running extrudeMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm
+Restore 0/ from 0.orig/
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm
+Running acousticHelmholtzFoam (8 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/gorkov/case/positionSweep/p11_7.1mm
+Wrote positionSweep/position_sweep.tsv
+Wrote positionSweep/position_sweep.png
+Maximum peak-normalized difference: 3.415%
+RMS peak-normalized difference: 1.288%
+position_mm	position_m	n_cells	n_surface_faces	max_nonorthogonality_deg	avg_nonorthogonality_deg	max_skewness	numerical_force_y_N	gorkov_force_y_N	difference_normalized_by_peak_force
+0.6	0.0006	22110	131	35.57811515	1.63449637714	0.426635933566	9.81170594902e-16	9.76327656904e-16	0.002614019883
+1.4	0.0014	22110	131	35.5788442989	1.63161264807	0.427037535875	1.80603685033e-15	1.78271635931e-15	0.01258744738
+2.2	0.0022	22100	130	41.4751619288	1.60507058516	0.419746434199	1.67088681262e-15	1.65648730574e-15	0.007772264958
+3.0	0.003	22110	131	35.5782581369	1.63170656333	0.426635937999	6.41988625675e-16	6.63676495733e-16	0.01170622535
+3.396039604	0.003396039604	22109	131	38.212822806	1.5713181336	0.427894246826	6.32745654442e-17	-6.78753702984e-26	0.03415302289
+4.0	0.004	22093	130	41.4688810368	1.58904033649	0.41974630755	-9.82744193693e-16	-9.82089707792e-16	0.0003532647246
+4.8	0.0048	22110	131	35.5787040415	1.63170619874	0.42663593779	-1.81519458408e-15	-1.7845520531e-15	0.01653958512
+5.6	0.0056	22110	131	35.5788112664	1.63161252762	0.427037662959	-1.65783630876e-15	-1.65343630984e-15	0.002374939482
+6.4	0.0064	22100	130	41.4751688264	1.60507315516	0.419746447839	-6.62719810682e-16	-6.5733492101e-16	0.002906543233
+6.792079208	0.006792079208	22087	131	41.158589932	1.6314008226	0.430931446366	4.28606276044e-19	1.35750740597e-25	0.000231344067
+7.1	0.0071	22110	131	35.5900458641	1.6355776202	0.427037407564	5.25760318262e-16	5.20627524841e-16	0.002770471987
+CPC_CAMPAIGN_COMPLETE gorkov

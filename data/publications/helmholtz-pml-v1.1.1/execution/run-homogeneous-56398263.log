@@ -1,0 +1,280 @@
+luac: cannot open /home/tm83tomy/.cache/lmod/spiderT.x86_64_Linux.lua: No such file or directory
+luac: cannot open /home/tm83tomy/.cache/lmod/spiderT.x86_64_Linux.lua: No such file or directory
+CAMPAIGN homogeneous JOB 56398263 HOST mpsd0056 SOURCE 7f00fc55a67aefbcfa88bdb46a4fc378bac0db0c
+=== baseline: dirichlet, orthogonal, Nlambda=16 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, orthogonal, Nlambda=24 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, orthogonal, Nlambda=32 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, orthogonal, Nlambda=48 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, orthogonal, Nlambda=64 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, orthogonal, Nlambda=96 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, warpedInterior, Nlambda=16 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 418 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, warpedInterior, Nlambda=24 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 896 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, warpedInterior, Nlambda=32 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 1554 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, warpedInterior, Nlambda=48 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 3410 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, warpedInterior, Nlambda=64 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 5986 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: dirichlet, warpedInterior, Nlambda=96 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 13298 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, orthogonal, Nlambda=16 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, orthogonal, Nlambda=24 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, orthogonal, Nlambda=32 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, orthogonal, Nlambda=48 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, orthogonal, Nlambda=64 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, orthogonal, Nlambda=96 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, warpedInterior, Nlambda=16 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 418 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, warpedInterior, Nlambda=24 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 896 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, warpedInterior, Nlambda=32 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 1554 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, warpedInterior, Nlambda=48 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 3410 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, warpedInterior, Nlambda=64 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 5986 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+=== baseline: mixed, warpedInterior, Nlambda=96 ===
+Running blockMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Deformed 13298 mesh points with amplitude factor 0.08; orthogonal boundary layers: 1; transition fraction: 0.15
+Running checkMesh on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setExprFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running setPMLFields on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running decomposePar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running acousticHelmholtzFoam (4 processes) on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case 
+Running reconstructPar on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+Running postProcess on /work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case
+/work/scratch/tm83tomy/ultrasound-cpc-20261115/results/homogeneous/case/postProcessing/homogeneousBaseline/1/metrics.txt
+CPC_CAMPAIGN_COMPLETE homogeneous
