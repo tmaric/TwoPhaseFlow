@@ -5,7 +5,7 @@ This archive accompanies
 > D. Bothe and T. Marić, *Cyclic changes of frame for designing non-retracing
 > verification cases for numerical interface tracking*, arXiv preprint, 2026.
 
-Archive DOI: <https://doi.org/@FIGSHARE_DOI@> (Figshare).
+Archive DOI: <https://doi.org/10.6084/m9.figshare.35042791> (Figshare).
 Code: TwoPhaseFlow, tag `arxiv-nonretracing-advection-v1`,
 <https://github.com/tmaric/TwoPhaseFlow/tree/arxiv-nonretracing-advection-v1>.
 `MANIFEST.txt` names the commit and lists a sha256 checksum of every file.
