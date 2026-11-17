@@ -365,11 +365,11 @@ Foam::reconstruction::davof::davof
         dict
     ),
     mesh_(alpha1.mesh()),
-    wispTol_(modelDict().getOrDefault<scalar>("wispTol", 1e-3)),
+    wispTol_(modelDict().getOrDefault<scalar>("wispTol", 0)),
     surfCellTol_(modelDict().getOrDefault<scalar>("surfCellTol", 1e-8)),
     isoFaceTol_(modelDict().getOrDefault<scalar>("isoFaceTol", 1e-8)),
     positioning_(modelDict().getOrDefault<word>("positioning", "ccs")),
-    interfaceCellRule_(modelDict().getOrDefault<word>("interfaceCellRule", "normalOnly")),
+    interfaceCellRule_(modelDict().getOrDefault<word>("interfaceCellRule", "alphaAndRingSum")),
     positioningTol_(modelDict().getOrDefault<scalar>("positioningTol", 1e-14)),
     positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 30)),
     positioningDirection_(modelDict().getOrDefault<word>("positioningDirection", "unit")),

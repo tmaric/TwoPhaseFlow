@@ -93,7 +93,11 @@ Foam::autoPtr<Foam::davofNormalModel> Foam::davofNormalModel::New
     const reconstruction::davof& scheme
 )
 {
-    word modelType(dict.getOrDefault<word>("normalModel", ""));
+    // The default is ringSum (the PURE set, 2026-11-17); the former
+    // default, the empty word (the deprecated keys sliverNormal and
+    // normalSource mapped onto cellLocal, youngs, plicRDF or exact), is
+    // reached by normalModel cellLocal or by the empty word.
+    word modelType(dict.getOrDefault<word>("normalModel", "ringSum"));
 
     // The dictionary the model reads: the scheme's, or a copy carrying the
     // mapping of the deprecated keys.

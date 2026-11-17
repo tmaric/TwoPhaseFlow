@@ -234,7 +234,7 @@ class isoAdvection
             //  layer of cells when the face fractions are stored: the
             //  second-ring sweep sets plane fluxes on faces whose other
             //  cell lies beyond the first layer (dictionary key
-            //  boundSecondLayer, default true)
+            //  boundSecondLayer, default false since 2026-11-17, true = FORMER)
             bool boundSecondLayer_;
 
             //- Cells beyond the first layer the extended bounding corrected
@@ -345,8 +345,8 @@ class isoAdvection
             //  cell is not a surface cell (no sync) holds the downwind
             //  cell's alpha in parallel and the upwind cell's in serial.
             //  Key davofProcFaceRule former | symmetric: former = the
-            //  former behaviour (default; the standing parallel rows),
-            //  symmetric = the lower rank alone sweeps a zero-flux
+            //  former behaviour (the default until 2026-11-17),
+            //  symmetric = (the default since 2026-11-17) the lower rank alone sweeps a zero-flux
             //  processor face (the higher rank takes its value in the
             //  sync) and an inflow processor face's default is the
             //  neighbour cell's alpha from the processor patch field
