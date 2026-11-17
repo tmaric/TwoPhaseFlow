@@ -866,3 +866,11 @@ Build: this branch `davof-isoAdvector-defaults` (off `davof-isoAdvector` 9abe8c0
 - C2: the new build with the explicit FORMER key set gives the same log lines as the old build with no davof key (its former defaults), on all three cases.
 - C3: on the 1-rank cases the new build with PURE and `davofProcFaceRule former` gives the same log lines as PURE with `symmetric` (the rule acts on processor faces only); if not, report the difference and stop.
 - Runs (12): new build no keys x3, FORMER explicit x3, PURE with rule former x2 (1 rank), PURE explicit x1 (R32, 8 ranks); old build no keys x3. The old build's PURE reference is the stored run of 2026-11-09 (same executable and keys).
+
+### Results of the checks (2026-11-17; build 56534172, runs 56575421, `agents/forkdefault/runs`)
+
+All 12 runs ended with "End" after 20 steps. Compared: the solver log without the clock, execution-time and header lines, `diff`.
+- C1 holds: the new build without davof keys gives the same log lines as the old build (9abe8c0) with the PURE keys written explicitly (the stored runs of 2026-11-09) on R32 on 1 rank, P20o on 1 rank and R32 on 8 ranks (0 differing lines on 1 rank; on 8 ranks one header line, the MPI session name `(mpsd0020 8)` against `(mpsd0001 8)`), and the same lines as the new build with the PURE keys explicit on R32 on 8 ranks (0 differing lines). The explicit FORMER keys change 516 of the lines of R32 on 1 rank, so the comparison discriminates.
+- C2 holds: the new build with the explicit FORMER key set gives 0 differing lines against the old build with no davof keys, on all three cases.
+- C3 holds: on the 1-rank cases R32 and P20o, PURE with `davofProcFaceRule former` and with `symmetric` differ in one line only, the log line that prints the key's own value.
+- The build job 56534172 returned rc 1 only from the check `libVoF lacks sweptFaceCells` of the branch `davof`'s build script, a string that does not exist on this branch; the compile and link had no error and every binary exists.
