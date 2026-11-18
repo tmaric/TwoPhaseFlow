@@ -1,0 +1,6 @@
+efficientZoneCPCStencil/efficientZoneCPCStencil.C
+efficientZoneDistribute/efficientZoneDistribute.C
+efficientReconstructedDistanceFunction/efficientReconstructedDistanceFunction.C
+efficientPlicRDF/efficientPlicRDF.C
+
+LIB = $(FOAM_USER_LIBBIN)/libefficientPlicRDF

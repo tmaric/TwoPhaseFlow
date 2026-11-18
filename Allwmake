@@ -1,6 +1,7 @@
 #!/bin/bash
 
 wmake libso src/VoF
+wmake libso src/efficientPlicRDF
 wmake all src/boundaryConditions
 wmake all src/thermoDynamics
 
