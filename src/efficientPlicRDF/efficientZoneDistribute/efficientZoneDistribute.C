@@ -75,6 +75,8 @@ Foam::efficientZoneDistribute::efficientZoneDistribute(const fvMesh& mesh)
     stencil_(efficientZoneCPCStencil::New(mesh)),
     globalNumbering_(stencil_.globalNumbering()),
     send_(UPstream::nProcs()),
+    recv_(UPstream::nProcs()),
+    recvSizes_(UPstream::nProcs(), Zero),
     pBufs_(UPstream::commsTypes::nonBlocking),
     cyclicBoundaryCells_(mesh.nCells(), false)
 {
@@ -189,13 +191,15 @@ void Foam::efficientZoneDistribute::setUpCommforZone
 
         for (const int proci : pBufs_.allProcs())
         {
-            const auto& indices = needed[proci];
+            recv_[proci] = needed[proci].sortedToc();
+            recvSizes_[proci] = recv_[proci].size();
+            const auto& indices = recv_[proci];
 
             if (proci != UPstream::myProcNo() && !indices.empty())
             {
                 // Serialize as List
                 UOPstream toProc(proci, pBufs_);
-                toProc << indices.sortedToc();
+                toProc << indices;
             }
         }
 

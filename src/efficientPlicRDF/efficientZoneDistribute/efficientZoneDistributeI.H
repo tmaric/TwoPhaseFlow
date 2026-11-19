@@ -219,43 +219,48 @@ Foam::Map<Type> Foam::efficientZoneDistribute::getDatafromOtherProc
 
     if (UPstream::parRun())
     {
-        // Stream the requested values into PstreamBuffers
+        // Setup already negotiated the global indices and receive counts.
+        // Send only values, in the request order; no per-field size handshake
+        // or serialized hash-map keys are needed.
+        List<Field<Type>> sendValues(UPstream::nProcs());
+        List<Field<Type>> recvValues;
 
-        pBufs_.clear();
-
-        for (const int proci : pBufs_.allProcs())
+        forAll(send_, proci)
         {
-            const auto& indices = send_[proci];
+            const labelList& indices = send_[proci];
+            Field<Type>& values = sendValues[proci];
+            values.setSize(indices.size());
 
-            if (proci != UPstream::myProcNo() && !indices.empty())
+            forAll(indices, i)
             {
-                // Serialize as Map
-                Map<Type> sendValues(2*indices.size());
-
-                for (const label sendIdx : indices)
-                {
-                    sendValues.insert
-                    (
-                        sendIdx,
-                        getLocalValue(phi, globalNumbering_.toLocal(sendIdx))
-                    );
-                }
-
-                UOPstream toProc(proci, pBufs_);
-                toProc << sendValues;
+                values[i] = getLocalValue
+                (
+                    phi, globalNumbering_.toLocal(indices[i])
+                );
             }
         }
 
-        finishedNeighbourSends();
+        Pstream::exchange<Field<Type>, Type>
+        (
+            sendValues, recvSizes_, recvValues,
+            pBufs_.tag(), pBufs_.comm(), true
+        );
 
-        for (const label proci : stencil_.neighbourProcs())
+        forAll(recv_, proci)
         {
-            if (pBufs_.recvDataCount(proci))
-            {
-                UIPstream fromProc(proci, pBufs_);
-                Map<Type> tmpValues(fromProc);
+            const labelList& indices = recv_[proci];
+            const Field<Type>& values = recvValues[proci];
 
-                neiValues += tmpValues;
+            if (values.size() != indices.size())
+            {
+                FatalErrorInFunction
+                    << "Unexpected field size from processor " << proci
+                    << exit(FatalError);
+            }
+
+            forAll(indices, i)
+            {
+                neiValues.insert(indices[i], values[i]);
             }
         }
     }

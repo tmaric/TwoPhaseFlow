@@ -94,6 +94,12 @@ class efficientZoneDistribute
         //- Global cell/face index to send for processor-to-processor comms
         List<labelList> send_;
 
+        //- Requested global indices in the same order sent during setup.
+        List<labelList> recv_;
+
+        //- Number of field elements expected from each processor.
+        labelList recvSizes_;
+
         //- Persistent set of exchange buffers
         PstreamBuffers pBufs_;
 
