@@ -1015,3 +1015,12 @@ Shear2D N 64/128/256, shear3D N 32/64/128, deformation3D N 32/64/128 (the same r
 - PE4: wall clock of ENTERING <= 1.1 x plicRDF at equal ranks in every case.
 - PE5: ONERING completes all 18 and lies between PURE and ENTERING in E_shape in at least 12 of 18.
 If ENTERING aborts anywhere: no repair; the first abort is reported with the abort line, the step, min/max alpha, and the five cells with the largest violation at the step before; the other cases continue.
+
+### Results of step B: the curved standing matrix (2026-11-23; `etc/entering_matrix_tables.md`; jobs 57090666 to 57090683, 18 jobs of 4 rows, one repetition; fork binary of this branch, build 57090424, stamp per case in `agents/forkdefault/iso/time/*/*_r1/.stamp`)
+
+- PE2 holds: ENTERING completed all 18 cases (no abort). ONERING and PURE and plicRDF also completed all 18.
+- PE3 is false in its first part: E_shape of ENTERING is below PURE's in 3 of 18 cases (ENTERING / PURE: 0.9999, 0.9999, 0.9996). In the three-dimensional flows ENTERING and PURE (and ONERING) agree to 1e-3 or better in 10 cases (ratios 0.9996 to 1.0014; shear3D and deformation3D give E_shape 0.00629, 0.00188, 5.0e-4 and 0.0100, 0.0039, 7.6e-4 in all three rows); in shear2D ENTERING is above PURE by 2 % to 25 % (1.019 to 1.251). ENTERING / plicRDF is between 0.9 and 1.5 in 13 of 18 cases: below 0.9 in shear2D N 64 (0.60, 0.73), above 1.5 in shear3D N 128 (1.52, 1.50 at Co 0.2, 0.5; 1.34 to 1.41 at N 32 and 64) and between for the rest (0.88 to 1.10 in shear2D N 128 and 256, 1.10 to 1.32 in deformation3D).
+- PE4 holds: wall clock of ENTERING / plicRDF at equal ranks is 0.45 to 0.99 (0.99 in shear3D N 32 at both Co; 0.57 to 0.82 otherwise); one repetition per row, rows run one after the other on one exclusive i01 node.
+- PE5 is false in its second part: ONERING completes all 18, but lies between PURE and ENTERING in E_shape in 2 of 18 cases.
+- Courant numbers (the solver's own maximum, labels 0.2 / 0.5): shear2D 0.1996 to 0.1998 / 0.4991 to 0.4996; shear3D 0.2165 to 0.2170 / 0.5413 to 0.5426; deformation3D 0.1968 to 0.1983 / 0.4920 to 0.4956. The solver does not print the target in the shear3D rows (+8 % to +9 %) and in deformation3D (-1 % to -1.6 %).
+- The tables hold, per row and case: status, E_shape and order, L1(x) and order, |n - n_e| L1 (with order) and Linf, 1 - n.n_e L1 and Linf, mass error, min alpha, max alpha - 1, interface cells at the end, wall clock.
