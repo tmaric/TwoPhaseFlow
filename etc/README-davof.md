@@ -874,3 +874,43 @@ All 12 runs ended with "End" after 20 steps. Compared: the solver log without th
 - C2 holds: the new build with the explicit FORMER key set gives 0 differing lines against the old build with no davof keys, on all three cases.
 - C3 holds: on the 1-rank cases R32 and P20o, PURE with `davofProcFaceRule former` and with `symmetric` differ in one line only, the log line that prints the key's own value.
 - The build job 56534172 returned rc 1 only from the check `libVoF lacks sweptFaceCells` of the branch `davof`'s build script, a string that does not exist on this branch; the compile and link had no error and every binary exists.
+
+## The ring-sum inconsistency of the ENTERING variant: location (2026-11-23)
+
+Task of Tomislav (2026-11-23, "Reopen the fork track, start with item 2"); branch `davof-isoAdvector-ringsum` off `davof-isoAdvector` ec4e064; workspace
+`agents/forkdefault`; tables `etc/ringsum_tables.md`. The isoAdvector-based rows are run at OpenFOAM Co 0.2 and 0.5 only (never 0.95 or 1; standing rule of 2026-11-23).
+
+The record (article FINDINGS 2026-11-09; fork b839296, e854f6e, 9abe8c0): plane translation, normal arm (U parallel to n = (0.3 0.5 0.8124)), Co 0.5, the ENTERING key
+set (`davofFaceFractionSource enteringFaces` with its guard): step 1 exact except 3 sliver faces at 1e-5; at step 2 faces off by 6e-3 are written by the interface
+cells' own downwind sweeps although the planes are accurate (normal 8.6e-7, centre 1.6e-6), and the reconstruction's own check gives max |A n - m|/V^(2/3) = 0.029
+(FORMER 5e-14, PURE 0.16) while the written face fractions are exact; interface-cell counts 176 (ENTERING) against 173 (FORMER); read then: "the ring sum reads data
+that differ from the written fields"; never located.
+
+Step 0 (reproduction, the keys written explicitly, job 57087084; the case of the stored 2026-11-09 run `swept/iso/gate-steps/N20_ENTERING_normal_co0.5` with
+n_cells, deltaT and endTime changed): the check max |A n - m|/V^(2/3) at the reconstruction after step 1 is 0.02871 at N 20 (stored run: 0.0287146920884307, the
+same digits), 0.02577 at N 40, 0.02696 at N 80; 176 interface cells at N 20 after step 1 as stored.
+
+### Pre-registration (before step 1 runs; the three alternatives as given)
+
+- PI1: the 0.029 sits in at most 10 cells, and in each of them m_k "as the code computes it" differs from m_k "from the in-memory alpha_f over all faces" by the mismatch
+  itself: a stale or incomplete wet-face list (or cached copy), built before the last modification of alpha_f in the step. Falsifier: the two agree to 1e-12 in those cells.
+- PI2 (if PI1 is false): the in-memory field at the check differs from the written field: an order-of-operations fault. Falsifier: they agree to 1e-12.
+- PI3 (if both are false): the mismatch is in cells that the active rule admits and FORMER's rule excludes (the 176 against 173), i.e. the check measures sliver cells
+  with a poor ring normal, and no datum is read wrongly.
+- Report which of the three the data show; the verdict is Tomislav's.
+
+One pre-authorised repair, and only this one: IF PI1 holds in the literal form "a list or cache of alpha_f is not rebuilt after the last modification of alpha_f in the
+step", rebuild it at that point (one commit, no key, the line named). Then (i) step 0 again, the check and L1(alpha_f); (ii) the plane ladder N 20/40/80/160, both arms,
+Co 0.2 and 0.5, rows FORMER, PURE, ONERING, ENTERING, all keys explicit, before and after the repair in one table (L1(alpha_f) max over steps, the check's max, min alpha,
+max alpha - 1); FORMER predicted identical to the digit, PURE to change by less than 10 %, ENTERING normal Co 0.5 to fall below 1e-6. If PURE changes at all, say so
+prominently (every stored PURE row would need recomputation: Tomislav's decision). Any other cause than this literal one: no repair, stop and report with the dump of the
+worst cell.
+
+### The diagnostics (step 1; print only)
+
+Key `ringSumDiag N` of the davof dictionary (default 0 = off): at every reconstruction of the time indices 1..N, where the check is evaluated (davof.C, after the
+normals are selected), the cells with the ten largest |A n - m|/V^(2/3) are printed as `RSDIAG` lines: (a) cell, centre, alpha, interface status under the active rule and under
+normalOnly/wispTol 1e-3, |m_k|/V^(2/3); (b) m_k as the code computes it (areaNormal_, through the wet-face list), from the in-memory alpha_f over all faces of the cell (no list),
+from the alpha_f field as written to the state's time directory, and from the exact face fractions, and the ring sum with the ring cells; (c) per face: memory, written and
+exact alpha_f, membership of the wet-face list, the alphafSource path id (needs `davofFaceSourceLog true`), the sign of phi; (d) n used, n exact, A of the explicit plane's cut,
+the CCS residual. Global counters on the `RSDIAG time index` line. The exact state comes from the sub-dictionary `ringSumDiagPlane { origin; normal; U; liquidSide; }`.

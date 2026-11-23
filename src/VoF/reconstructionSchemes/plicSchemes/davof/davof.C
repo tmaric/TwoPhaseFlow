@@ -318,6 +318,235 @@ void Foam::reconstruction::davof::formAreaNormal()
 }
 
 
+void Foam::reconstruction::davof::ringSumDiagnostic(const scalar tState)
+{
+    // PRINT ONLY (key ringSumDiag, 2026-11-23): nothing of the scheme's state is
+    // changed. Called where the explicit-plane check max |A n - m|/V^(2/3) has
+    // been evaluated and the normals selected.
+    const label timeIndex = mesh_.time().timeIndex();
+    if (timeIndex > ringSumDiag_) return;
+
+    const dictionary& pd = modelDict().subDict("ringSumDiagPlane");
+    const point origin0(pd.get<vector>("origin"));
+    vector nPl(pd.get<vector>("normal"));
+    nPl /= mag(nPl);
+    const vector U0(pd.get<vector>("U"));
+    const scalar liquidSide = pd.getOrDefault<scalar>("liquidSide", -1);
+    const point x0 = origin0 + U0*tState;
+
+    const vectorField& Sf = mesh_.faceAreas();
+    const vectorField& C = mesh_.cellCentres();
+    const scalarField& V = mesh_.V();
+    const labelUList& own = mesh_.faceOwner();
+    const cellList& cells = mesh_.cells();
+    const pointField& pts = mesh_.points();
+    const faceList& fcs = mesh_.faces();
+    const label nInt = mesh_.nInternalFaces();
+    const label nFaces = mesh_.nFaces();
+    const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
+    const vectorField& m = areaNormal_.primitiveField();
+
+    // the exact face fraction of face f for the plane at tState
+    auto exactAf = [&](const label f) -> scalar
+    {
+        const face& fc = fcs[f];
+        DynamicList<point> poly(8), out(10);
+        for (const label p : fc) poly.append(pts[p]);
+        const label n = poly.size();
+        for (label i = 0; i < n; ++i)
+        {
+            const point& a = poly[i];
+            const point& b = poly[(i + 1) % n];
+            const scalar da = liquidSide*((a - x0) & nPl);
+            const scalar db = liquidSide*((b - x0) & nPl);
+            if (da >= 0) out.append(a);
+            if ((da >= 0) != (db >= 0))
+            {
+                out.append(a + (da/(da - db))*(b - a));
+            }
+        }
+        vector A(Zero);
+        for (label i = 1; i + 1 < out.size(); ++i)
+        {
+            A += (out[i] - out[0]) ^ (out[i + 1] - out[0]);
+        }
+        return 0.5*mag(A)/mag(Sf[f]);
+    };
+
+    // the written field of the state's time directory, if there is one
+    autoPtr<surfaceScalarField> writtenPtr;
+    {
+        IOobject io
+        (
+            alphaf_.name(),
+            mesh_.time().timeName(tState),
+            mesh_,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE,
+            IOobject::NO_REGISTER
+        );
+        if (io.typeHeaderOk<surfaceScalarField>(true))
+        {
+            writtenPtr.reset(new surfaceScalarField(io, mesh_));
+        }
+    }
+    auto valueOf = [&](const surfaceScalarField& fld, const label f) -> scalar
+    {
+        if (f < nInt) return fld.primitiveField()[f];
+        const label patchi = pbm.patchID()[f - nInt];
+        if (fld.boundaryField()[patchi].size() != pbm[patchi].size()) return 0;
+        return fld.boundaryField()[patchi][f - pbm[patchi].start()];
+    };
+
+    const word srcName(IOobject::groupName("alphafSource", alpha1_.group()));
+    const surfaceScalarField* srcFld =
+        mesh_.foundObject<surfaceScalarField>(srcName)
+      ? &mesh_.lookupObject<surfaceScalarField>(srcName) : nullptr;
+    const surfaceScalarField* phiFld =
+        mesh_.foundObject<surfaceScalarField>("phi")
+      ? &mesh_.lookupObject<surfaceScalarField>("phi") : nullptr;
+
+    boolList inWet(nFaces, false);
+    if (wetFacesPtr_)
+    {
+        for (const label f : *wetFacesPtr_) inWet[f] = true;
+    }
+
+    // global counters
+    label nWetNotInList = 0, nListDry = 0, nExactMismatch = 0;
+    scalar maxMemWritten = 0, maxMemExact = 0;
+    for (label f = 0; f < nFaces; ++f)
+    {
+        if (!hasValue_[f]) continue;
+        const scalar af = faceFraction(f);
+        if (af != 0 && !inWet[f]) ++nWetNotInList;
+        if (af == 0 && inWet[f]) ++nListDry;
+        if (writtenPtr.valid())
+        {
+            maxMemWritten = max(maxMemWritten, mag(af - valueOf(*writtenPtr, f)));
+        }
+        const scalar ex = exactAf(f);
+        maxMemExact = max(maxMemExact, mag(af - ex));
+        if (mag(af - ex) > 1e-3) ++nExactMismatch;
+    }
+
+    // cells that are interface under the active rule, not under FORMER's
+    // (normalOnly, wispTol 1e-3)
+    label nActiveNotFormer = 0;
+    scalar aLo = GREAT, aHi = -GREAT;
+    for (const label c : interfaceLabels_)
+    {
+        if (!(mag(m[c]) > davofInit::wispThreshold(mesh_, c, 1e-3)))
+        {
+            ++nActiveNotFormer;
+            aLo = min(aLo, alpha1_[c]);
+            aHi = max(aHi, alpha1_[c]);
+        }
+    }
+
+    // the cells with the largest check
+    List<Pair<scalar>> worst;
+    label nAbove6 = 0, nAbove3 = 0;
+    for (const label c : interfaceLabels_)
+    {
+        const scalar d = planeAreaDefect_[c];
+        if (d > 1e-6) ++nAbove6;
+        if (d > 1e-3) ++nAbove3;
+        worst.append(Pair<scalar>(d, scalar(c)));
+    }
+    Foam::sort(worst, [](const Pair<scalar>& a, const Pair<scalar>& b) { return a.first() > b.first(); });
+
+    Info<< "RSDIAG time index " << timeIndex << " state time " << tState
+        << " reconstruction " << nReconstructInIndex_ << " written field "
+        << (writtenPtr.valid() ? "read" : "absent") << ": interface cells "
+        << interfaceLabels_.size() << ", check above 1e-6 in " << nAbove6
+        << " cells, above 1e-3 in " << nAbove3 << " cells; wet list "
+        << (wetFacesPtr_ ? "present with " : "absent ")
+        << (wetFacesPtr_ ? wetFacesPtr_->size() : 0) << " faces, wet-list valid flag "
+        << (wetFacesNFaces_ == nFaces) << "; faces with alpha_f != 0 not in the list "
+        << nWetNotInList << ", faces in the list with alpha_f == 0 " << nListDry
+        << ", max |alpha_f memory - written| " << maxMemWritten
+        << ", max |alpha_f memory - exact| " << maxMemExact << " (faces above 1e-3: "
+        << nExactMismatch << "); cells interface under the active rule but not under normalOnly/wispTol 1e-3: "
+        << nActiveNotFormer;
+    if (nActiveNotFormer) Info<< " (alpha " << aLo << " .. " << aHi << ")";
+    Info<< endl;
+
+    const label nShow = min(label(10), worst.size());
+    for (label k = 0; k < nShow; ++k)
+    {
+        const label c = label(worst[k].second());
+        const scalar V23 = Foam::pow(V[c], 2.0/3.0);
+        const labelList& cf = cells[c];
+        auto sgnOf = [&](const label f) -> scalar { return (own[f] == c) ? 1 : -1; };
+
+        vector mMem(Zero), mWr(Zero), mEx(Zero);
+        for (const label f : cf)
+        {
+            if (!hasValue_[f]) continue;
+            mMem += sgnOf(f)*faceFraction(f)*Sf[f];
+            if (writtenPtr.valid()) mWr += sgnOf(f)*valueOf(*writtenPtr, f)*Sf[f];
+            mEx += sgnOf(f)*exactAf(f)*Sf[f];
+        }
+        const vector mCode = m[c];
+
+        // the ring (cells sharing a point with c) and the sum of m over it
+        labelHashSet ring;
+        for (const label p : mesh_.cellPoints()[c])
+        {
+            for (const label cc : mesh_.pointCells()[p]) ring.insert(cc);
+        }
+        vector ringM(Zero);
+        for (const label cc : ring) ringM += m[cc];
+
+        label iUsed = -1;
+        forAll(interfaceLabels_, i) if (interfaceLabels_[i] == c) { iUsed = i; break; }
+        const vector nUsed = (iUsed >= 0) ? usedNormal_[iUsed] : vector(Zero);
+        vector nEx = nPl;
+        if ((nEx & nUsed) < 0) nEx = -nEx;
+
+        // the explicit plane's cut as the check evaluates it
+        const scalar mMag = mag(mCode);
+        vector areaPl(Zero);
+        if (mMag > 0)
+        {
+            const label status = cutCell_.calcSubCell(c, pPlane_[c], mCode/mMag);
+            if (status == 0) areaPl = cutCell_.faceArea();
+        }
+
+        Info<< "RSDIAG cell " << c << " centre " << C[c] << " alpha " << alpha1_[c]
+            << " | interface: active rule yes, normalOnly/wispTol 1e-3 "
+            << (mag(m[c]) > davofInit::wispThreshold(mesh_, c, 1e-3) ? "yes" : "no")
+            << " | |m_k|/V^(2/3) " << mMag/V23 << " | check " << planeAreaDefect_[c] << nl
+            << "RSDIAG   m code " << mCode << ", m in-memory all faces " << mMem
+            << " (|diff|/V^(2/3) " << mag(mMem - mCode)/V23 << "), m written "
+            << (writtenPtr.valid() ? mWr : vector(Zero)) << " (|diff| "
+            << (writtenPtr.valid() ? mag(mWr - mMem)/V23 : scalar(-1)) << "), m exact faces " << mEx
+            << " (|code - exact| " << mag(mCode - mEx)/V23 << ", |memory - exact| " << mag(mMem - mEx)/V23 << ")" << nl
+            << "RSDIAG   ring sum code " << ringSum_[c] << ", sum of m over the ring computed here " << ringM
+            << ", ring cells " << ring.size() << ":";
+        for (const label cc : ring.sortedToc())
+        {
+            Info<< " " << cc << "(|m|/V23 " << mag(m[cc])/Foam::pow(V[cc], 2.0/3.0) << ", alpha " << alpha1_[cc] << ")";
+        }
+        Info<< nl
+            << "RSDIAG   n used " << nUsed << ", n exact " << nEx << ", |1 - n.n_exact| " << mag(1 - (nUsed & nEx))
+            << ", A (explicit plane) " << areaPl << " |A| " << mag(areaPl)
+            << ", CCS residual " << positioningResidual_[c] << ", p explicit " << pPlane_[c] << nl;
+        for (const label f : cf)
+        {
+            const scalar mem = hasValue_[f] ? faceFraction(f) : scalar(0);
+            Info<< "RSDIAG   face " << f << (f < nInt ? "" : "(b)")
+                << " memory " << mem << " written "
+                << (writtenPtr.valid() && hasValue_[f] ? valueOf(*writtenPtr, f) : scalar(-1))
+                << " exact " << exactAf(f) << " inList " << inWet[f]
+                << " source " << (srcFld ? label(valueOf(*srcFld, f)) : label(-1))
+                << " phi*sgn " << (phiFld ? sgnOf(f)*valueOf(*phiFld, f) : scalar(0)) << nl;
+        }
+    }
+}
+
+
 Foam::scalar Foam::reconstruction::davof::stateTime()
 {
     const Time& runTime = mesh_.time();
@@ -372,6 +601,7 @@ Foam::reconstruction::davof::davof
     interfaceCellRule_(modelDict().getOrDefault<word>("interfaceCellRule", "alphaAndRingSum")),
     positioningTol_(modelDict().getOrDefault<scalar>("positioningTol", 1e-14)),
     positioningMaxIter_(modelDict().getOrDefault<label>("positioningMaxIter", 30)),
+    ringSumDiag_(modelDict().getOrDefault<label>("ringSumDiag", 0)),
     positioningDirection_(modelDict().getOrDefault<word>("positioningDirection", "unit")),
     cutCellPos_(alpha1.mesh()),
     positioningResidual_
@@ -910,6 +1140,11 @@ void Foam::reconstruction::davof::reconstruct(bool forceUpdate)
     pPlane_.correctBoundaryConditions();
     planeVolDefect_.correctBoundaryConditions();
     planeAreaDefect_.correctBoundaryConditions();
+
+    if (ringSumDiag_ > 0)
+    {
+        ringSumDiagnostic(tState);
+    }
 
     Info<< "davof: " << nInterface << " interface cells (wispTol " << wispTol_
         << "), ";

@@ -218,6 +218,15 @@ class davof
         scalar positioningTol_;
         label positioningMaxIter_;
 
+        //- Print-only diagnostics of the explicit-plane check (key
+        //  ringSumDiag N, default 0 = off; N > 0: at every reconstruction of
+        //  the time indices 1..N, the ten cells with the largest
+        //  |A n - m|/V^(2/3), the face data they read and the wet-face list;
+        //  the exact state from the sub-dictionary ringSumDiagPlane {origin,
+        //  normal, U, liquidSide}); 2026-11-23, docs: etc/README-davof.md
+        label ringSumDiag_;
+        void ringSumDiagnostic(const scalar tState);
+
         //- The direction handed to the ccs positioning (key
         //  positioningDirection unit | areaNormal, default unit = the
         //  former normalisation n/|n|, the explicit start pPlane_c along
