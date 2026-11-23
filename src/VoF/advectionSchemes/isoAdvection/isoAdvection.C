@@ -149,6 +149,7 @@ Foam::advection::isoAdvection::isoAdvection
     faceSourceLog_(modelDict().getOrDefault<bool>("davofFaceSourceLog", false)),
     alphafSourcePtr_(nullptr),
     fluxTrace_(modelDict().getOrDefault<label>("ringSumFluxTrace", 0)),
+    boundTrace_(modelDict().getOrDefault<label>("ringSumBoundTrace", 0)),
     planeFragmentLog_(modelDict().getOrDefault<bool>("planeFragmentLog", false)),
     fragRingFaces_(), fragRingFacesPrev_(),
     fragRingFluxFaces_(), fragRingFluxFacesPrev_(),

@@ -127,6 +127,12 @@ void Foam::advection::isoAdvection::limitFluxes
     scalar minAlpha = gMin(alpha1_);           // min(alphaNew);
     const label nOvershoots = 20;         // sum(pos0(alphaNew - 1 - aTol));
 
+    // print-only trace of the bounding (key ringSumBoundTrace)
+    scalarField aBeforeTrace;
+    DynamicList<scalar> passMinTrace, passMaxTrace;
+    const scalar minBeforeTrace = minAlpha, maxBeforeTrace = maxAlphaMinus1;
+    if (boundTrace_ > 0) aBeforeTrace = alpha1_.primitiveField();
+
     const labelList& owner = mesh_.faceOwner();
     const labelList& neighbour = mesh_.faceNeighbour();
 
@@ -254,6 +260,11 @@ void Foam::advection::isoAdvection::limitFluxes
 
         maxAlphaMinus1 = gMax(alpha1_) - 1;     // max(alphaNew - 1);
         minAlpha = gMin(alpha1_);               // min(alphaNew);
+        if (boundTrace_ > 0)
+        {
+            passMinTrace.append(minAlpha);
+            passMaxTrace.append(maxAlphaMinus1);
+        }
 
         if (debug)
         {
@@ -273,6 +284,56 @@ void Foam::advection::isoAdvection::limitFluxes
     }
 
     alpha1_.correctBoundaryConditions();
+
+    if (boundTrace_ > 0)
+    {
+        const scalarField& aN = alpha1_.primitiveField();
+        const volVectorField& nrm = surf_->normal();
+        const boolList& ifc = surf_->interfaceCell();
+        label nIn = 0, nOut = 0, nBelowIn = 0, nBelowOut = 0;
+        scalar minA = GREAT, maxEx = -GREAT;
+        List<Pair<scalar>> worst;
+        forAll(aN, c)
+        {
+            minA = min(minA, aN[c]); maxEx = max(maxEx, aN[c] - 1);
+            const scalar viol = max(-aN[c], aN[c] - 1);
+            if (viol > 1e-12)
+            {
+                const bool inN = needBounding.test(c);
+                if (inN) ++nIn; else ++nOut;
+                if (viol > 1e-6) { if (inN) ++nBelowIn; else ++nBelowOut; }
+                worst.append(Pair<scalar>(viol, scalar(c)));
+            }
+        }
+        Foam::sort(worst, [](const Pair<scalar>& a, const Pair<scalar>& b) { return a.first() > b.first(); });
+        Info<< "RSBOUND step " << mesh_.time().timeIndex() << ": before the bounding min " << minBeforeTrace << ", max - 1 " << maxBeforeTrace;
+        forAll(passMinTrace, k)
+        {
+            Info<< "; after pass " << k + 1 << " min " << passMinTrace[k] << ", max - 1 " << passMaxTrace[k];
+        }
+        Info<< "; passes run " << passMinTrace.size() << "; after the last pass min " << minA << ", max - 1 " << maxEx
+            << "; cells outside [-1e-12, 1 + 1e-12]: inside needBounding " << nIn << ", outside " << nOut
+            << "; violation above 1e-6: inside " << nBelowIn << ", outside " << nBelowOut << endl;
+        if (worst.size() && worst[0].first() > 1e-6)
+        {
+            const cellList& cl = mesh_.cells();
+            for (label k = 0; k < min(label(5), worst.size()); ++k)
+            {
+                const label c = label(worst[k].second());
+                label nOutflow = 0;
+                for (const label f : cl[c])
+                {
+                    const scalar ph = faceValue(phi_, f);
+                    const bool outf = (owner[f] == c) ? (ph > 0) : (ph < 0);
+                    if (outf && faceValue(dVf_, f) != 0) ++nOutflow;
+                }
+                Info<< "RSBOUND   worst cell " << c << " violation " << worst[k].first() << " alpha before " << aBeforeTrace[c]
+                    << " after " << aN[c] << " needBounding " << (needBounding.test(c) ? "yes" : "no")
+                    << " interface cell at t^n " << ((ifc[c] && mag(nrm[c]) != 0) ? "yes" : "no")
+                    << " outflow faces with dVf != 0 " << nOutflow << endl;
+            }
+        }
+    }
 
     if (sweptBoundedFaceFraction_ != "none" && storeAreaFractions_ && alphafPtr_)
     {
@@ -581,6 +642,11 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // Apply non-conservative bounding mechanisms (clipping and snapping)
     // Note: We should be able to write out alpha before this is done!
     applyBruteForceBounding();
+    if (boundTrace_ > 0)
+    {
+        Info<< "RSBOUND end of step " << mesh_.time().timeIndex() << ": min " << gMin(alpha1_)
+            << ", max - 1 " << gMax(alpha1_) - 1 << endl;
+    }
 
     if (massDiagnostics_)
     {

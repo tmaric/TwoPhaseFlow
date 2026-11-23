@@ -377,6 +377,16 @@ class isoAdvection
             //  holds dVf before limitFluxes; fluxTraceOrient_ is the sign of
             //  the plane normal for cutCellPLIC (set at the first call)
             label fluxTrace_;
+
+            //- Print-only trace of the conservative bounding (key
+            //  ringSumBoundTrace N, default 0 = off; 2026-11-24): per step the
+            //  min and max of alpha before the bounding, after each pass and
+            //  at the end of the step, the cells outside [-1e-12, 1 + 1e-12]
+            //  after the last pass inside and outside needBounding, and for
+            //  the five worst cells of the step (printed when the violation
+            //  exceeds 1e-6) alpha before and after, needBounding, plane at
+            //  t^n, the outflow faces with a non-zero dVf
+            label boundTrace_;
             autoPtr<surfaceScalarField> dVfRawPtr_;
             scalar fluxTraceOrient_ {0};
             void fluxTraceReport();
