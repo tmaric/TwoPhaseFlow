@@ -508,10 +508,19 @@ void Foam::reconstruction::davof::ringSumDiagnostic(const scalar tState)
         // the explicit plane's cut as the check evaluates it
         const scalar mMag = mag(mCode);
         vector areaPl(Zero);
+        scalar alphaPl = -1, alphaPlEx = -1, pEx = 0;
+        vector areaPlEx(Zero);
         if (mMag > 0)
         {
-            const label status = cutCell_.calcSubCell(c, pPlane_[c], mCode/mMag);
+            const vector nHat = mCode/mMag;
+            const label status = cutCell_.calcSubCell(c, pPlane_[c], nHat);
             if (status == 0) areaPl = cutCell_.faceArea();
+            alphaPl = (status == 0) ? cutCell_.VolumeOfFluid() : ((status < 0) ? 1 : 0);
+            // the exact plane (through the exact point, the code's orientation of m)
+            pEx = (x0 - C[c]) & nHat;
+            const label st2 = cutCell_.calcSubCell(c, pEx, nHat);
+            if (st2 == 0) areaPlEx = cutCell_.faceArea();
+            alphaPlEx = (st2 == 0) ? cutCell_.VolumeOfFluid() : ((st2 < 0) ? 1 : 0);
         }
 
         Info<< "RSDIAG cell " << c << " centre " << C[c] << " alpha " << alpha1_[c]
@@ -532,7 +541,11 @@ void Foam::reconstruction::davof::ringSumDiagnostic(const scalar tState)
         Info<< nl
             << "RSDIAG   n used " << nUsed << ", n exact " << nEx << ", |1 - n.n_exact| " << mag(1 - (nUsed & nEx))
             << ", A (explicit plane) " << areaPl << " |A| " << mag(areaPl)
-            << ", CCS residual " << positioningResidual_[c] << ", p explicit " << pPlane_[c] << nl;
+            << ", CCS residual " << positioningResidual_[c] << ", p explicit " << pPlane_[c] << nl
+            << "RSDIAG   explicit plane: volume fraction " << alphaPl << " against alpha_k " << alpha1_[c]
+            << " (volume defect " << planeVolDefect_[c] << "); exact plane through x0(t) with the same n: p " << pEx
+            << ", volume fraction " << alphaPlEx << ", area vector " << areaPlEx << " |A| " << mag(areaPlEx)
+            << ", |m_k| " << mMag << nl;
         for (const label f : cf)
         {
             const scalar mem = hasValue_[f] ? faceFraction(f) : scalar(0);
