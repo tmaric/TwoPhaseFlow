@@ -1107,3 +1107,26 @@ Part B (the bounds control, deformation3D N 64, target Co 0.5, serial; solver Co
 - PB3 is false: PURE's |min alpha| after the last pass is 2.3e-17 with 12 passes (and with 6); the falsifier (below 5e-5) is met. With 3 passes it is 5.3e-3.
 - PB4 is false for plicRDF and holds for PURE: plicRDF's E_shape changes by +1.35 % from 3 to 6 passes and -0.010 % from 6 to 12; PURE's by -0.001 % and 0.000 %.
 - Mass error (max |dev|) 1.5e-11 % to 3.7e-11 % in all runs.
+
+## Branch davof-isoAdvector-normal, 2026-11-23, next batch: the transport matrix with HYB1 at 6 bounding passes and the ring quadric's outliers; pre-registration (Tomislav, written before the first run)
+
+Rules: same workspace and branch, tmaric only, OpenFOAM Co 0.2 and 0.5 only with the solver's Courant line checked, every davof key explicit, no repair, no tuning, no new model.
+
+### Part M: transport matrix
+
+One binary for every row: the current build of the branch (with ringSumRDF), its hash recorded in the table. Cases: shear2D N 64/128/256 (ranks 1/1/8), shear3D and deformation3D N 32/64/128 (ranks 1/8/64), Co 0.2 and 0.5: the 18 cases of the curved matrix, same dictionaries. Rows, all with nAlphaBounds 6 (the only change against the curved matrix), clip false, snapTol 0: (1) plicRDF; (2) PURE (normalModel ringSum, key set as before); (3) HYB1 = PURE's key set with normalModel ringSumRDF, rdfIterations 1. One repetition per case, except the six N 128 cases on 64 ranks of the 3D flows, which get three repetitions per row (median wall clock reported, all three values). Columns as in entering_matrix_tables.md (corrected columns) plus: wall-clock ratio to plicRDF at equal ranks, E_shape ratio to plicRDF, and for rows (1) and (2) the E_shape ratio to the existing 3-pass value of the curved matrix.
+
+- PH1: HYB1's E_shape is within 3 % of plicRDF's in six of six shear3D cases and within 6 % in six of six deformation3D cases. Falsifier: beyond 10 % in any 3D case.
+- PH2: HYB1 saves little: its median wall clock at N 128 on 64 ranks is at least 0.85 times plicRDF's in four of four 3D cases. Falsifier: at most 0.70 in any of them.
+- PH3: on shear2D HYB1 loses PURE's advantage: HYB1 / plicRDF in E_shape at least 0.9 at N 64, both Co. Falsifier: at most 0.75.
+- PH4: with 6 passes every run of every row has min alpha >= -1e-6 and max alpha - 1 <= 1e-6. Falsifier: any PURE run below -1e-4.
+- PH5: against the 3-pass values of the curved matrix, PURE's E_shape changes by less than 0.1 % and plicRDF's by less than 2 % in every 3D case.
+
+### Part Q: the ring quadric's outliers (print only, static, no transport)
+
+State: the 3D sphere, shifted centre, N 64 (ratio 1.73, Linf 0.24), and for comparison the standard centre N 64 (ratio 0.006). For the ten cells with the largest 1 - n.n_e of ringFit in each state: alpha_k, |m_k|/A_k, the number of ring planes that enter the fit, whether the fit fell back, whatever conditioning measure the fit already computes (no solver is added; if none exists, say so), 1 - n.n_e of ringFit and of ringSum in that cell. Also the count of interface cells with 1 - n.n_e above 1e-3 for ringFit, ringSum and plicRDF in both states, and ringFit's L1 with these ten cells removed.
+
+- HQ1: the outliers are sliver cells: at least eight of the ten worst cells of the shifted state have alpha_k outside [0.01, 0.99]. Falsifier: fewer than five.
+- HQ2: without the ten worst cells ringFit's 1 - n.n_e L1 in the shifted state is at most 0.1 times plicRDF's. Falsifier: above 0.5.
+
+Tables: etc/transport_hyb_tables.md and etc/quadric_outlier_tables.md.
