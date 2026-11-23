@@ -444,6 +444,32 @@ void Foam::reconstruction::davof::ringSumDiagnostic(const scalar tState)
         }
     }
 
+    // alpha_k against the volume fraction of the exact plane in every interface
+    // cell (the cut of the cell by the plane through x0(t), the orientation of m_k)
+    label nDa6 = 0, nDa3 = 0, nChk3 = 0, nChk3Da4 = 0, cDaMax = -1;
+    scalar daMax = 0;
+    for (const label c : interfaceLabels_)
+    {
+        const scalar mMag = mag(m[c]);
+        if (!(mMag > 0)) continue;
+        const vector nHat = m[c]/mMag;
+        const label st = cutCell_.calcSubCell(c, (x0 - C[c]) & nHat, nHat);
+        const scalar aEx = (st == 0) ? cutCell_.VolumeOfFluid() : ((st < 0) ? 1 : 0);
+        const scalar da = mag(alpha1_[c] - aEx);
+        if (da > daMax) { daMax = da; cDaMax = c; }
+        if (da > 1e-6) ++nDa6;
+        if (da > 1e-3) ++nDa3;
+        if (planeAreaDefect_[c] > 1e-3)
+        {
+            ++nChk3;
+            if (da > 1e-4) ++nChk3Da4;
+        }
+    }
+    Info<< "RSDIAG alpha_k against the exact plane's volume fraction: max |alpha_k - alpha_plane| " << daMax
+        << " (cell " << cDaMax << "), cells above 1e-6: " << nDa6 << ", above 1e-3: " << nDa3
+        << "; of the " << nChk3 << " cells with check above 1e-3, " << nChk3Da4
+        << " have |alpha_k - alpha_plane| above 1e-4" << endl;
+
     // the cells with the largest check
     List<Pair<scalar>> worst;
     label nAbove6 = 0, nAbove3 = 0;
