@@ -955,3 +955,23 @@ Rows x arms x Co x N: 72 runs (6 rows, normal and oblique arm, OF Co 0.2 and 0.5
 - Co 0.2, normal arm: PURE has 3, 0 and 0 faces above 1e-12 V_k in step 1 (N 20/40/80; the 3 at 2.5e-9 V_k), ENTERING the same; the alpha_k deviation over the run is PURE 1.2e-4/1.2e-4/1.3e-4, ONERING the same, ENTERING 1.1e-7/2.7e-14/6.5e-14, FORMER 2.0e-14/2.1e-13/3.6e-10. Oblique arm, Co 0.2: step 1 has 1, 0 and 0 faces (PURE, ONERING, ENTERING); deviation over the run PURE 4.7e-2/5.8e-2/7.9e-2, ONERING 3.9e-6/5.4e-6/5.7e-6, ENTERING 4.7e-8/7.8e-8/7.8e-8, FORMER 4.2e-14/3.3e-12/1.4e-9; Co 0.5: PURE 2.8e-2/4.3e-2/5.7e-2, ONERING 9.5e-5/1.2e-4/1.7e-4, ENTERING 6.8e-8/8.0e-14/3.2e-13, FORMER 4.4e-14/3.3e-12/5.0e-9.
 - Unexpected: FORMER on the normal arm at Co 0.5 is exact in step 1 (1.9e-14) and then grows by a factor of 20 to 40 per step: N 40, alpha_k deviation 5e-13 (step 2), 1.8e-11, 5.5e-10, 3.0e-8, 9.3e-7, 3.7e-5, 1.4e-3 (step 8), 0.86 at the end (16 steps); N 80: 1 at the end (32 steps), N 20: 8.6e-9 after 8 steps; the explicit-plane check grows with it (1.5e-13 at the first reconstruction, 4e-8 after step 6 at N 40). At Co 0.2 the growth is slower (N 80, 80 steps: 3.6e-10).
 - The numbers of the plane-ladder rows and the comparators by row, arm, Co and N are in the table B of `etc/ringsum_tables.md`.
+
+## The Courant number of the plane ladder; the normal arm at OpenFOAM Co 0.2 and 0.5 (2026-11-23, third task; print only, no repair, no new key)
+
+Task of Tomislav (2026-11-23). Step 1, read-only: the labelled Co of the ladder is |U| dt/h (the step counts are the same on both arms); OpenFOAM's Courant number is (|u_x| + |u_y| + |u_z|) dt/h. Measured from the solver's own `Courant Number mean/max` lines, N 20 (the stored 2026-11-09 case has the same deltaT = 1e-4 at N 20):
+
+| arm | label | deltaT (N 20) | solver Courant Number mean / max | ratio to the label |
+|---|---|---|---|---|
+| normal, U = (0.3 0.5 0.8124) | 0.5 | 1e-4 | 0.8062 / 0.8062 | 1.6124 |
+| normal | 0.2 | 4e-5 | 0.32248 / 0.32248 | 1.6124 |
+| oblique, U = (1 0 0) | 0.5 | 1e-4 | 0.5 / 0.5 | 1.0 |
+| oblique | 0.2 | 4e-5 | 0.2 / 0.2 | 1.0 |
+
+So the normal-arm rows labelled "Co 0.5" and "Co 0.2" of the ladder (and the 2026-11-09 record) are OpenFOAM Co 0.806 and 0.322. Step 2 reruns the normal arm at OpenFOAM Co 0.2 and 0.5, i.e. |U| dt/h = 0.2/1.6124 = 0.124039 and 0.5/1.6124 = 0.310097.
+
+Pre-registration of step 2 (verbatim from the task, before the runs):
+- PE1: at OpenFOAM Co 0.2 and 0.5 on the normal arm ENTERING has 0 step-1 faces above 1e-12 V_k at N >= 40 and a max alpha_k deviation over the run <= 1e-10 at N >= 40 (N 20: <= 1e-6, the guard-dried slivers). Falsifier: one N >= 40 case above 1e-8.
+- PE1b: FORMER stays below 1e-8 at these Courant numbers at every N (its growth at 0.806 is outside the range).
+- PE1c: PURE's L1 deviation is below plicRDF's on the normal arm and above it on the oblique arm (as at the old labels).
+
+Definitions of the normal norms in the tables (reconstructionError.C): LNormalDiff1 and LNormalDiffInf are the L1 (mean over the interface cells) and Linf of |n - n_e| at the last step; LNormal1_ is the time average over the run of the per-step mean of 1 - n.n_e and LNormalInf_ the maximum over the run of its maximum (so the 'LNormalInf_ / LNormal1_' of the earlier tables are run quantities, not end-of-run values).
