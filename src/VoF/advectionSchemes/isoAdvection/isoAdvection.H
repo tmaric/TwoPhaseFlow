@@ -365,6 +365,22 @@ class isoAdvection
             autoPtr<surfaceScalarField> alphafSourcePtr_;
             label srcTag_ {0};
 
+            //- Print-only trace of the volume flux against the exact moving
+            //  plane (key ringSumFluxTrace N, default 0 = off; every step the
+            //  counters, the time indices 1..N in detail; the exact state
+            //  from the sub-dictionary ringSumDiagPlane {origin, normal, U,
+            //  liquidSide}; 2026-11-23): the exact flux of a face is phi_f
+            //  times the time integral of the exact wetted fraction of the
+            //  face (piecewise quadratic in time, Simpson between the times
+            //  the plane passes the face's vertices, exact); the cell's
+            //  exact volume fraction is the exact cut of the cell. dVfRawPtr_
+            //  holds dVf before limitFluxes; fluxTraceOrient_ is the sign of
+            //  the plane normal for cutCellPLIC (set at the first call)
+            label fluxTrace_;
+            autoPtr<surfaceScalarField> dVfRawPtr_;
+            scalar fluxTraceOrient_ {0};
+            void fluxTraceReport();
+
             //- enteringFaces: the faces the entering sweep set in this
             //  step (for the processor exchange), the step's counters
             bitSet enteringSetFace_;

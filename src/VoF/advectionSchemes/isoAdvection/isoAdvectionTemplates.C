@@ -502,6 +502,12 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
     // Do the isoAdvection on surface cells
     timeIntegratedFlux();
 
+    // print-only trace (key ringSumFluxTrace): the flux before the limiter
+    if (fluxTrace_ > 0)
+    {
+        dVfRawPtr_.reset(new surfaceScalarField("dVfRaw", dVf_));
+    }
+
     // Mass diagnostics (massDiagnostics true, 2026-11-07): sum(alpha V)
     // before the step, the boundary (non-coupled patches) and internal sums
     // of dVf, and the changes of sum(alpha V) by the flux step, the
@@ -586,6 +592,12 @@ void Foam::advection::isoAdvection::advect(const SpType& Sp, const SuType& Su)
             << " residual " << (m2 - m1) + (sB1 - sB0)
             << ", clip dM " << m3 - m2
             << ", internal dVf sum " << sI0 << endl;
+    }
+
+    // print-only trace of the flux against the exact moving plane
+    if (fluxTrace_ > 0)
+    {
+        fluxTraceReport();
     }
 
     // DAVOF: the faces no plane has set carry the upwind cell's new alpha

@@ -148,6 +148,7 @@ Foam::advection::isoAdvection::isoAdvection
     davofProcFaceRule_(modelDict().getOrDefault<word>("davofProcFaceRule", "symmetric")),
     faceSourceLog_(modelDict().getOrDefault<bool>("davofFaceSourceLog", false)),
     alphafSourcePtr_(nullptr),
+    fluxTrace_(modelDict().getOrDefault<label>("ringSumFluxTrace", 0)),
     planeFragmentLog_(modelDict().getOrDefault<bool>("planeFragmentLog", false)),
     fragRingFaces_(), fragRingFacesPrev_(),
     fragRingFluxFaces_(), fragRingFluxFacesPrev_(),
@@ -2262,6 +2263,258 @@ void Foam::advection::isoAdvection::fragMarkWisps()
         {
             if (wetFace_.test(f)) { fragWispCells_.set(celli); break; }
         }
+    }
+}
+
+
+void Foam::advection::isoAdvection::fluxTraceReport()
+{
+    // PRINT ONLY (key ringSumFluxTrace, 2026-11-23); nothing of the scheme's
+    // state is changed. Called at the end of the flux step (after the
+    // bounding and the clipping, before the face-fraction block), when
+    // dVf_, the alpha of t^{n+1}, and the reconstruction of t^n (planes,
+    // interface cells) are all still in memory.
+    const dictionary& pd = modelDict().subDict("ringSumDiagPlane");
+    const point origin0(pd.get<vector>("origin"));
+    vector nPl(pd.get<vector>("normal"));
+    nPl /= mag(nPl);
+    const vector U0(pd.get<vector>("U"));
+    const scalar side = pd.getOrDefault<scalar>("liquidSide", 1);
+    const scalar dt = mesh_.time().deltaTValue();
+    const scalar t1 = mesh_.time().value();
+    const scalar t0 = t1 - dt;
+    const label ti = mesh_.time().timeIndex();
+    const bool detail = (ti <= fluxTrace_);
+
+    const vectorField& C = mesh_.cellCentres();
+    const scalarField& V = mesh_.V();
+    const labelUList& own = mesh_.faceOwner();
+    const labelUList& nei = mesh_.faceNeighbour();
+    const pointField& pts = mesh_.points();
+    const faceList& fcs = mesh_.faces();
+    const cellList& cells = mesh_.cells();
+    const vectorField& Sf = mesh_.faceAreas();
+    const label nInt = mesh_.nInternalFaces();
+    const label nFaces = mesh_.nFaces();
+    const point xa = origin0 + U0*t0, xb = origin0 + U0*t1;
+    const volVectorField& normalF = surf_->normal();
+    const boolList& interfaceCell = surf_->interfaceCell();
+    auto hasPlane = [&](const label c) -> bool
+    {
+        return c >= 0 && interfaceCell[c] && mag(normalF[c]) != 0;
+    };
+
+    auto dist = [&](const point& p, const point& x0) -> scalar
+    {
+        return side*((p - x0) & nPl);
+    };
+
+    // the exact wetted fraction of face f for the plane through x0
+    auto faceFrac = [&](const label f, const point& x0) -> scalar
+    {
+        const face& fc = fcs[f];
+        DynamicList<point> poly(8), out(10);
+        for (const label p : fc) poly.append(pts[p]);
+        const label n = poly.size();
+        for (label i = 0; i < n; ++i)
+        {
+            const point& a = poly[i];
+            const point& b = poly[(i + 1) % n];
+            const scalar da = dist(a, x0), db = dist(b, x0);
+            if (da >= 0) out.append(a);
+            if ((da >= 0) != (db >= 0)) out.append(a + (da/(da - db))*(b - a));
+        }
+        vector A(Zero);
+        for (label i = 1; i + 1 < out.size(); ++i)
+        {
+            A += (out[i] - out[0]) ^ (out[i + 1] - out[0]);
+        }
+        return 0.5*mag(A)/mag(Sf[f]);
+    };
+
+    // the exact flux of face f over the step: phi_f times the integral of the
+    // wetted fraction over time (piecewise quadratic between the times the
+    // plane passes a vertex of the face: Simpson is exact)
+    auto exactFlux = [&](const label f) -> scalar
+    {
+        const scalar phif = faceValue(phi_, f);
+        if (phif == 0) return 0;
+        const face& fc = fcs[f];
+        bool allL = true, allG = true;
+        DynamicList<scalar> tb(10);
+        tb.append(t0);
+        for (const label p : fc)
+        {
+            const scalar d0 = dist(pts[p], xa), d1 = dist(pts[p], xb);
+            if (d0 < 0 || d1 < 0) allL = false;
+            if (d0 > 0 || d1 > 0) allG = false;
+            if ((d0 < 0 && d1 > 0) || (d0 > 0 && d1 < 0))
+            {
+                tb.append(t0 + dt*d0/(d0 - d1));
+            }
+        }
+        tb.append(t1);
+        if (allL) return phif*dt;
+        if (allG) return 0;
+        Foam::sort(tb);
+        scalar integral = 0;
+        for (label i = 0; i + 1 < tb.size(); ++i)
+        {
+            const scalar a = tb[i], b = tb[i + 1];
+            if (b <= a) continue;
+            const scalar m = 0.5*(a + b);
+            integral += (b - a)/6.0*
+            (
+                faceFrac(f, origin0 + U0*a)
+              + 4*faceFrac(f, origin0 + U0*m)
+              + faceFrac(f, origin0 + U0*b)
+            );
+        }
+        return phif*integral;
+    };
+
+    cutCellPLIC cc(mesh_);
+    auto cellAlpha = [&](const label c, const point& x0, const scalar os) -> scalar
+    {
+        bool anyL = false, anyG = false;
+        for (const label p : mesh_.cellPoints()[c])
+        {
+            const scalar d = dist(pts[p], x0);
+            if (d >= 0) anyL = true;
+            if (d <= 0) anyG = true;
+        }
+        if (anyL && !anyG) return 1;
+        if (anyG && !anyL) return 0;
+        const vector nHat = os*nPl;
+        const label st = cc.calcSubCell(c, (x0 - C[c]) & nHat, nHat);
+        return (st == 0) ? cc.VolumeOfFluid() : ((st < 0) ? 1 : 0);
+    };
+
+    // the orientation of the plane normal for cutCellPLIC, from the cells
+    // the plane cuts at the start of the first step
+    if (fluxTraceOrient_ == 0)
+    {
+        scalar e[2] = {0, 0};
+        const scalarField& a0 = alpha1_.oldTime().primitiveField();
+        forAll(a0, c)
+        {
+            bool anyL = false, anyG = false;
+            for (const label p : mesh_.cellPoints()[c])
+            {
+                const scalar d = dist(pts[p], xa);
+                if (d >= 0) anyL = true;
+                if (d <= 0) anyG = true;
+            }
+            if (!(anyL && anyG)) continue;
+            e[0] += mag(cellAlpha(c, xa, 1) - a0[c]);
+            e[1] += mag(cellAlpha(c, xa, -1) - a0[c]);
+        }
+        fluxTraceOrient_ = (e[0] <= e[1]) ? 1 : -1;
+        Info<< "RSFLUX orientation of the plane normal for the cell cuts " << fluxTraceOrient_
+            << " (sum |alpha_plane - alpha^n| at t^n: " << e[0] << " for +, " << e[1] << " for -)" << endl;
+    }
+    const scalar os = fluxTraceOrient_;
+
+    // the face flux errors
+    const surfaceScalarField& dVfRaw = dVfRawPtr_();
+    label nBad = 0, nBadRaw = 0;
+    scalar maxErr = 0, maxErrRaw = 0, l1Err = 0, l1ErrRaw = 0, maxErrUpPlane = 0;
+    labelList classCount(8, 0);
+    scalarField exF(nFaces, 0), errF(nFaces, 0), errRawF(nFaces, 0);
+    DynamicList<label> badFaces(256);
+    for (label f = 0; f < nFaces; ++f)
+    {
+        const scalar phif = faceValue(phi_, f);
+        if (f >= nInt)
+        {
+            const polyPatch& pp = mesh_.boundaryMesh()[mesh_.boundaryMesh().patchID()[f - nInt]];
+            if (isA<emptyPolyPatch>(pp) || pp.empty()) continue;
+        }
+        const scalar ex = exactFlux(f);
+        exF[f] = ex;
+        const scalar Vo = V[own[f]];
+        const scalar err = faceValue(dVf_, f) - ex;
+        const scalar errRaw = faceValue(dVfRaw, f) - ex;
+        errF[f] = err; errRawF[f] = errRaw;
+        l1Err += mag(err)/Vo; l1ErrRaw += mag(errRaw)/Vo;
+        maxErr = max(maxErr, mag(err)/Vo); maxErrRaw = max(maxErrRaw, mag(errRaw)/Vo);
+        const label up = (phif >= 0) ? own[f] : ((f < nInt) ? nei[f] : label(-1));
+        const label dn = (phif >= 0) ? ((f < nInt) ? nei[f] : label(-1)) : own[f];
+        if (mag(errRaw) > 1e-12*Vo) ++nBadRaw;
+        if (mag(err) > 1e-12*Vo)
+        {
+            ++nBad;
+            badFaces.append(f);
+            const label cls = (hasPlane(up) ? 1 : 0) + (hasPlane(dn) ? 2 : 0) + (f >= nInt ? 4 : 0);
+            ++classCount[cls];
+        }
+        if (hasPlane(up)) maxErrUpPlane = max(maxErrUpPlane, mag(err)/Vo);
+    }
+
+    // the cells: alpha^{n+1} against the exact cut, and the face-error sums
+    const scalarField& aNew = alpha1_.primitiveField();
+    const scalarField& aOld = alpha1_.oldTime().primitiveField();
+    scalar maxDev = 0, sumDevV = 0, maxDev0 = 0;
+    label cMax = -1, nDev = 0;
+    List<Pair<scalar>> worst;
+    forAll(aNew, c)
+    {
+        const scalar ex1 = cellAlpha(c, xb, os);
+        const scalar dev = aNew[c] - ex1;
+        sumDevV += mag(dev)*V[c];
+        if (mag(dev) > 1e-12) ++nDev;
+        if (mag(dev) > maxDev) { maxDev = mag(dev); cMax = c; }
+        if (mag(dev) > 1e-9) worst.append(Pair<scalar>(mag(dev), scalar(c)));
+    }
+    if (ti == 1)
+    {
+        forAll(aOld, c) maxDev0 = max(maxDev0, mag(aOld[c] - cellAlpha(c, xa, os)));
+    }
+    Info<< "RSFLUX step " << ti << " t " << t1 << ": faces with |dVf - exact| > 1e-12 V: " << nBad
+        << " (before the limiter " << nBadRaw << "), max |err|/V " << maxErr << " (before the limiter " << maxErrRaw
+        << "), sum |err|/V " << l1Err << " (" << l1ErrRaw << "); classes upwind plane/downwind plane/boundary: "
+        << "none " << classCount[0] << ", up " << classCount[1] << ", down " << classCount[2] << ", both " << classCount[3]
+        << ", boundary none " << classCount[4] << " up " << classCount[5] << " down " << classCount[6] << " both " << classCount[7]
+        << "; max |err|/V over faces whose upwind cell has a plane " << maxErrUpPlane
+        << "; alpha_k deviation from the exact plane: max " << maxDev << " (cell " << cMax << "), sum |D| V " << sumDevV
+        << ", cells above 1e-12 " << nDev;
+    if (ti == 1) Info<< "; alpha^n deviation max " << maxDev0;
+    Info<< endl;
+
+    if (!detail) return;
+
+    const surfaceScalarField* srcFld = alphafSourcePtr_.valid() ? alphafSourcePtr_.get() : nullptr;
+    Info<< "RSFLUX faces with |dVf - exact| > 1e-12 V (step " << ti << "): face, dVf, exact, err/V, upwind cell (alpha^n, plane at t^n), downwind cell (plane), source id of alphaf" << endl;
+    for (const label f : badFaces)
+    {
+        const scalar phif = faceValue(phi_, f);
+        const label up = (phif >= 0) ? own[f] : ((f < nInt) ? nei[f] : label(-1));
+        const label dn = (phif >= 0) ? ((f < nInt) ? nei[f] : label(-1)) : own[f];
+        Info<< "RSFLUX   face " << f << (f < nInt ? "" : "(b)") << " dVf " << faceValue(dVf_, f) << " exact " << exF[f]
+            << " err/V " << errF[f]/V[own[f]] << " up " << up << " (" << (up >= 0 ? aOld[up] : scalar(-1)) << ", "
+            << (hasPlane(up) ? "plane" : "no plane") << ") down " << dn << " (" << (hasPlane(dn) ? "plane" : "no plane")
+            << ") source " << (srcFld ? label(faceValue(*srcFld, f)) : label(-1)) << endl;
+    }
+    Foam::sort(worst, [](const Pair<scalar>& a, const Pair<scalar>& b) { return a.first() > b.first(); });
+    Info<< "RSFLUX cells with the largest |alpha_k - alpha_plane| (step " << ti << "): D = alpha_k - alpha_plane(t^{n+1}); E_final, E_raw = - sum_f sigma (dVf - exact)/V with the final and the raw (before the limiter) fluxes; alpha^n - alpha_plane(t^n)" << endl;
+    for (label k = 0; k < min(label(10), worst.size()); ++k)
+    {
+        const label c = label(worst[k].second());
+        scalar eFin = 0, eRaw = 0;
+        for (const label f : cells[c])
+        {
+            const scalar sg = (own[f] == c) ? 1 : -1;
+            eFin -= sg*errF[f]/V[c];
+            eRaw -= sg*errRawF[f]/V[c];
+        }
+        Info<< "RSFLUX   cell " << c << " alpha^n " << aOld[c] << " alpha^{n+1} " << aNew[c] << " plane has at t^n "
+            << (hasPlane(c) ? "yes" : "no") << " D " << aNew[c] - cellAlpha(c, xb, os) << " E_final " << eFin << " E_raw " << eRaw
+            << " alpha^n - alpha_plane(t^n) " << aOld[c] - cellAlpha(c, xa, os) << " faces with errors:";
+        for (const label f : cells[c])
+        {
+            if (mag(errF[f]) > 1e-12*V[own[f]]) Info<< " " << f << "(" << ((own[f] == c) ? 1 : -1)*errF[f]/V[c] << ")";
+        }
+        Info<< endl;
     }
 }
 
