@@ -992,3 +992,26 @@ Case: ENTERING, normal arm, OpenFOAM Co 0.2 (|U| dt/h = 0.124039), N 40: exact (
 - HJ1 (recorded before the run): the 33 faces at step 3 have an upwind or downwind cell whose exact alpha lies within the band (0, 1e-8) or (1 - 1e-8, 1) at t^n, i.e. a cell the plane cuts that the rule treats as full or empty (no plane), or a face the guard dried or filled; the deviation per cell is of the order of the band times a geometric factor and does not grow beyond 1e-6 over the run. Falsifier: a face of the 33 with both cells outside the band and planes where the rule says so.
 - HJ2: with the existing tolerance key(s) of that band lowered (surfCellTol 1e-8 -> 1e-10 and 1e-12, and the guard's eps if it is an existing key, one at a time and together; existing keys only) the run's maximum deviation falls roughly in proportion. If the scan needs a tolerance that is not an existing key: no key is added, report.
 The faces are printed by the flux trace with `ringSumFluxTrace 3` (the line now also gives the exact alpha^n of the upwind and downwind cells and the stored alpha^n of the downwind cell).
+
+### Results of step A: the step-3 jump (ENTERING, normal arm, OpenFOAM Co 0.2, N 40; jobs 57090450 to 57090452; build 57090424)
+
+- HJ1 is falsified as written: of the 33 faces above 1e-12 V_k at step 3 (the largest 3.8e-8 V_k), 30 have both the upwind and the downwind cell holding a plane at t^n, with exact and stored alpha^n in the interior of (0, 1) (0.0089 to 0.9986, the stored value within 1e-14 of the exact one); only 3 faces (136799, 136800 and the boundary face 189958) have cells without a plane, and there the upwind cell has alpha^n = 0.9999999975, inside the band (1 - 1e-8, 1). The error sits on faces whose upwind cell has a plane (the largest, face 127439, 3.77e-8 V_k: upwind cell 43199, alpha^n = 0.1485, plane; downwind cell 44799, plane).
+- What the log shows at the step before: at step 2 the guard acts: "seeds before the guard: 13 cells with alpha = 0 and a wet face, 2 cells with alpha = 1 and a face below 1", "guard: 15 faces set to 0 (0 above 1e-12), 6 to 1 (6 above 1e-12)" (at step 1: none). The reconstruction error of the normals is 1.2e-14 after step 1 and 4.6e-8 after step 2, 1.0e-7 after step 3; the explicit-plane defect |alpha_plane - alpha| and the check are 5.5e-14 and 5.4e-13 at the reconstruction after step 1 and 2.5e-6 and 6.2e-6 at the one after step 2. So the guard's face writes of step 2 (the second clause of HJ1, "a face the guard dried/filled") are followed one step later by the flux errors on the faces of the neighbouring interface cells; the mechanism between the two (the ring sum of m over the ring cells that read those faces) was not traced separately.
+- HJ2 (existing key surfCellTol, the band of the entering sweep and the guard: the guard's eps is surfCellTol_, no separate key exists, so the three variants "one at a time and together" are one): ENTERING, normal arm, OpenFOAM Co 0.2, N 40, 64 steps:
+
+| surfCellTol | max alpha_k deviation over the run | L1 rel (last / max over steps) | max check | faces above 1e-12 V_k at step 3 | deviation at step 3 |
+|---|---|---|---|---|---|
+| 1e-8 (standing) | 5.0e-8 | 4.1e-12 / 4.6e-11 | 1.4e-5 | 33 | 3.9e-8 |
+| 1e-10 | 1.3e-9 | 5.2e-14 / 4.6e-13 | 8.8e-7 | 0 | 1.4e-10 |
+| 1e-12 | 1.4e-10 | 3.6e-15 / 7.1e-15 | 8.8e-7 | 0 | 1.4e-10 |
+
+  The maximum falls by a factor 38 for a factor 100 in the tolerance, and by a further factor 10; the step-3 deviation falls from 3.9e-8 to 1.4e-10 and stays there for 1e-12.
+
+### Pre-registration of step B (verbatim from the task, before the runs): the curved standing matrix
+
+Shear2D N 64/128/256, shear3D N 32/64/128, deformation3D N 32/64/128 (the same ranks as the standing rows: 1/1/8, 1/8/64, 1/8/64), OpenFOAM Co 0.2 and 0.5 only, rows plicRDF, PURE, ONERING, ENTERING, every davof key explicit, davofProcFaceRule symmetric in all davof rows, the fork binary of this branch through the iso-time.sbatch route of the 2026-11-09 matrix (leia ac5fd7f5 / 9527a46f), one repetition per case, a version stamp per case; standing tolerances (surfCellTol 1e-8 etc.).
+- PE2: ENTERING completes all 18 cases (falsifier: one abort).
+- PE3: E_shape of ENTERING <= PURE in at least 14 of 18 and ENTERING / plicRDF between 0.9 and 1.5.
+- PE4: wall clock of ENTERING <= 1.1 x plicRDF at equal ranks in every case.
+- PE5: ONERING completes all 18 and lies between PURE and ENTERING in E_shape in at least 12 of 18.
+If ENTERING aborts anywhere: no repair; the first abort is reported with the abort line, the step, min/max alpha, and the five cells with the largest violation at the step before; the other cases continue.
