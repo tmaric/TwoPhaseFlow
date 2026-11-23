@@ -2493,7 +2493,9 @@ void Foam::advection::isoAdvection::fluxTraceReport()
         Info<< "RSFLUX   face " << f << (f < nInt ? "" : "(b)") << " dVf " << faceValue(dVf_, f) << " exact " << exF[f]
             << " err/V " << errF[f]/V[own[f]] << " up " << up << " (" << (up >= 0 ? aOld[up] : scalar(-1)) << ", "
             << (hasPlane(up) ? "plane" : "no plane") << ") down " << dn << " (" << (hasPlane(dn) ? "plane" : "no plane")
-            << ") source " << (srcFld ? label(faceValue(*srcFld, f)) : label(-1)) << endl;
+            << ") exact alpha^n up " << (up >= 0 ? cellAlpha(up, xa, os) : scalar(-1)) << " down " << (dn >= 0 ? cellAlpha(dn, xa, os) : scalar(-1))
+            << " stored alpha^n down " << (dn >= 0 ? aOld[dn] : scalar(-1))
+            << " source " << (srcFld ? label(faceValue(*srcFld, f)) : label(-1)) << endl;
     }
     Foam::sort(worst, [](const Pair<scalar>& a, const Pair<scalar>& b) { return a.first() > b.first(); });
     Info<< "RSFLUX cells with the largest |alpha_k - alpha_plane| (step " << ti << "): D = alpha_k - alpha_plane(t^{n+1}); E_final, E_raw = - sum_f sigma (dVf - exact)/V with the final and the raw (before the limiter) fluxes; alpha^n - alpha_plane(t^n)" << endl;
