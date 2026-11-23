@@ -1145,3 +1145,28 @@ Part Q (the ring quadric's outliers, static, 3D sphere N 64; print-only keys `no
 - Standard centre: ringFit's L1 9.2e-7 (0.006 times plicRDF's); cells above 1e-3: plicRDF 0, ringSum 216, ringFit 0; the ten worst ringFit cells (all alpha_k 0.99984, 1 - n.n_e at most 2.0e-5); no fallback.
 - HQ1 holds: 10 of 10 of the ten worst cells of the shifted state have alpha_k outside [0.01, 0.99] (all nearly full cells with a tiny interface, |m_k|/A_k at most 2.5e-4).
 - HQ2 is false by 5 %: ringFit's L1 without the ten worst cells is 0.105 times plicRDF's (the limit 0.1); the falsifier (above 0.5) is not met.
+
+## Branch davof-isoAdvector-normal, 2026-11-24, closing items: the table correction, the ring quadric under transport, the lower bound in parallel; pre-registration (Tomislav, written before the first run of Parts R and P)
+
+Rules unchanged: same workspace, tmaric only, OpenFOAM Co 0.2 and 0.5 only, own job ids only, every davof key explicit, no repair, no tuning, no new model.
+
+### Part C: correct transport_hyb_tables.md
+
+Its normal columns are shifted again (the column "abs(n-n_e) L1" reads the mean cell volume, the column "1-n.n_e Linf" carries the corrected tables' 1 - n.n_e L1): regenerate with the corrected indices, check three rows against entering_matrix_tables.md, name the wrong script in the README, and check that normal_gate_tables.md and quadric_outlier_tables.md do not share the defect.
+
+### Part R: the ring quadric under transport (existing model, no code change)
+
+Row QUAD = PURE's key set with normalModel ringFit exactly as run in the gate, nAlphaBounds 6. Cases: shear3D and deformation3D, N 32/64/128 (ranks 1/8/64), Co 0.2 and 0.5: 12 runs, one repetition, on the Part M binary (libVoF c1da5c86...). Reported: the Part M columns (corrected), the E_shape and wall-clock ratios to plicRDF and to PURE, the fit fallbacks per step (maximum and at the last step) against the interface cell count.
+
+- PR1: all 12 runs complete with min alpha >= -1e-4 and max alpha - 1 <= 1e-4. Falsifier: an abort, or min alpha below -1e-3 in any run.
+- PR2: the quadric does not beat plicRDF under transport, because the transported face fractions and not the fit limit the normal: QUAD / plicRDF in E_shape on shear3D at N 128 lies between 1.0 and 1.4 at both Co. Falsifier: below 0.95 at both Co.
+- PR3: fit fallbacks at the last step are below 5 % of the interface cells in all six shear3D runs.
+- Decision rule, fixed now: if PR2's falsifier is met, the quadric is a lead; otherwise the normal question is closed in the fork.
+
+### Part P: the lower bound in parallel (print only, existing trace)
+
+deformation3D N 64, Co 0.5, PURE, nAlphaBounds 6 ended at -2.3e-17 in the serial bounds control and at -4.9e-6 on 8 ranks in Part M. Rerun on 8 ranks with ringSumBoundTrace 1 (if the trace does not work in parallel: say what blocks it and stop this part). Reported: min alpha before the bounding and after each pass at the step of the lowest final alpha; for the cells below -1e-9 after the last pass over the run: how many have a face on a processor patch, how many are within one cell of one, how many neither; the five worst cells with these flags.
+
+- HP1: at least 80 % of the cells below -1e-9 after the last pass have a face on a processor patch or share a face with such a cell. Falsifier: fewer than 40 %.
+
+Tables: etc/quadric_transport_tables.md and etc/bounding_parallel_tables.md.
