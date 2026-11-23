@@ -292,7 +292,8 @@ void Foam::advection::isoAdvection::limitFluxes
         const boolList& ifc = surf_->interfaceCell();
         label nIn = 0, nOut = 0, nBelowIn = 0, nBelowOut = 0;
         scalar minA = GREAT, maxEx = -GREAT;
-        List<Pair<scalar>> worst;
+        scalar tv[5] = {0, 0, 0, 0, 0};
+        label tc[5] = {-1, -1, -1, -1, -1};
         forAll(aN, c)
         {
             minA = min(minA, aN[c]); maxEx = max(maxEx, aN[c] - 1);
@@ -302,10 +303,16 @@ void Foam::advection::isoAdvection::limitFluxes
                 const bool inN = needBounding.test(c);
                 if (inN) ++nIn; else ++nOut;
                 if (viol > 1e-6) { if (inN) ++nBelowIn; else ++nBelowOut; }
-                worst.append(Pair<scalar>(viol, scalar(c)));
+                if (viol > tv[4])
+                {
+                    tv[4] = viol; tc[4] = c;
+                    for (label k = 4; k > 0 && tv[k] > tv[k - 1]; --k)
+                    {
+                        Swap(tv[k], tv[k - 1]); Swap(tc[k], tc[k - 1]);
+                    }
+                }
             }
         }
-        Foam::sort(worst, [](const Pair<scalar>& a, const Pair<scalar>& b) { return a.first() > b.first(); });
         Info<< "RSBOUND step " << mesh_.time().timeIndex() << ": before the bounding min " << minBeforeTrace << ", max - 1 " << maxBeforeTrace;
         forAll(passMinTrace, k)
         {
@@ -314,12 +321,12 @@ void Foam::advection::isoAdvection::limitFluxes
         Info<< "; passes run " << passMinTrace.size() << "; after the last pass min " << minA << ", max - 1 " << maxEx
             << "; cells outside [-1e-12, 1 + 1e-12]: inside needBounding " << nIn << ", outside " << nOut
             << "; violation above 1e-6: inside " << nBelowIn << ", outside " << nBelowOut << endl;
-        if (worst.size() && worst[0].first() > 1e-6)
+        if (tc[0] >= 0 && tv[0] > 1e-6)
         {
             const cellList& cl = mesh_.cells();
-            for (label k = 0; k < min(label(5), worst.size()); ++k)
+            for (label k = 0; k < 5 && tc[k] >= 0; ++k)
             {
-                const label c = label(worst[k].second());
+                const label c = tc[k];
                 label nOutflow = 0;
                 for (const label f : cl[c])
                 {
@@ -327,7 +334,7 @@ void Foam::advection::isoAdvection::limitFluxes
                     const bool outf = (owner[f] == c) ? (ph > 0) : (ph < 0);
                     if (outf && faceValue(dVf_, f) != 0) ++nOutflow;
                 }
-                Info<< "RSBOUND   worst cell " << c << " violation " << worst[k].first() << " alpha before " << aBeforeTrace[c]
+                Info<< "RSBOUND   worst cell " << c << " violation " << tv[k] << " alpha before " << aBeforeTrace[c]
                     << " after " << aN[c] << " needBounding " << (needBounding.test(c) ? "yes" : "no")
                     << " interface cell at t^n " << ((ifc[c] && mag(nrm[c]) != 0) ? "yes" : "no")
                     << " outflow faces with dVf != 0 " << nOutflow << endl;
