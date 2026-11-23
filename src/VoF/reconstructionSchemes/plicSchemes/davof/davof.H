@@ -155,6 +155,9 @@ class davof
 :
     public reconstructionSchemes
 {
+    //- The control normal model ringSumRDF positions planes (positionPlane)
+    friend class davofNormalModels::ringSumRDF;
+
     // Private Data
 
         //- Reference to mesh

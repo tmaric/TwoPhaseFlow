@@ -122,6 +122,11 @@ namespace reconstruction
     class davof;
 }
 
+namespace davofNormalModels
+{
+    class ringSumRDF;
+}
+
 /*---------------------------------------------------------------------------*\
                        Class davofNormalModel Declaration
 \*---------------------------------------------------------------------------*/
