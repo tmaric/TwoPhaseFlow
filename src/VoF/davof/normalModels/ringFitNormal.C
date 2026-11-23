@@ -57,7 +57,8 @@ Foam::davofNormalModels::ringFit::ringFit
     ringArea(dict, scheme),
     weight_(dict.getOrDefault<word>("weight", "area")),
     alignTol_(dict.getOrDefault<scalar>("alignTol", 0.2)),
-    minCells_(dict.getOrDefault<label>("minCells", 6))
+    minCells_(dict.getOrDefault<label>("minCells", 6)),
+    diag_(dict.getOrDefault<label>("ringFitDiag", 0))
 {
     if (weight_ != "area" && weight_ != "alpha")
     {
@@ -108,6 +109,27 @@ void Foam::davofNormalModels::ringFit::modelNormals
 
     nFallback_ = 0;
 
+    // Print only: alpha, |m|/A (A the cell's surface area), the ring planes
+    // that enter the fit, those with n.e3 > alignTol (the test of mongeFit's
+    // drop), the fallback flag. The fit computes no conditioning measure.
+    auto diag = [&](const label celli, const bool fb)
+    {
+        if (diag_ <= 0) return;
+        const scalar mMag = mag(m[celli]);
+        label nAl = 0;
+        if (mMag > 0)
+        {
+            const vector e3 = m[celli]/mMag;
+            for (const vector& nk : ns) { if ((nk & e3) > alignTol_) ++nAl; }
+        }
+        scalar A = 0;
+        for (const label fi : mesh_.cells()[celli]) { A += mag(mesh_.faceAreas()[fi]); }
+        Info<< "RFD cell " << celli << " alpha " << alpha[celli]
+            << " mOverA " << ((A > 0) ? mMag/A : scalar(0))
+            << " nRing " << xs.size() << " nAligned " << nAl
+            << " fellBack " << (fb ? 1 : 0) << endl;
+    };
+
     forAll(labels, i)
     {
         const label celli = labels[i];
@@ -147,6 +169,7 @@ void Foam::davofNormalModels::ringFit::modelNormals
         if (!(mMag > 0) || xs.size() < minCells_ || !(wSum > 0))
         {
             ++nFallback_;
+            diag(celli, true);
             continue;
         }
 
@@ -162,6 +185,7 @@ void Foam::davofNormalModels::ringFit::modelNormals
         if (!mongeFit(e3, o, h, xs, ns, ws, wSum, alignTol_, minCells_, b, e1, e2))
         {
             ++nFallback_;
+            diag(celli, true);
             continue;
         }
 
@@ -170,10 +194,12 @@ void Foam::davofNormalModels::ringFit::modelNormals
         if (mag(nFit) > 0 && mag(nFit) < ROOTVGREAT)
         {
             n[i] = nFit;
+            diag(celli, false);
         }
         else
         {
             ++nFallback_;
+            diag(celli, true);
         }
     }
 }

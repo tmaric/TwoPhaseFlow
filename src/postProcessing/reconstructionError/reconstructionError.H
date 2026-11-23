@@ -97,6 +97,10 @@ class reconstructionError
         scalar LCentreDiff2_;
         scalar LCentreDiffInf_;
 
+        //- Print only (key normalCellDiag): one line per interface cell
+        //  with 1 - n.n_e, the plane of the cell against the exact normal
+        bool normalCellDiag_;
+
     // Protected Member Functions
 
         //- File header information

@@ -92,7 +92,8 @@ Foam::reconstructionError::reconstructionError
     nInterface_(0),
     LCentreDiff1_(0),
     LCentreDiff2_(0),
-    LCentreDiffInf_(0)
+    LCentreDiffInf_(0),
+    normalCellDiag_(dict.getOrDefault<bool>("normalCellDiag", false))
 {
 
 
@@ -197,6 +198,11 @@ void Foam::reconstructionError::calcError
            exactNormal /= mag(exactNormal);
 
            LNormal.append(1-(normalCellI & exactNormal));
+           if (normalCellDiag_)
+           {
+               Info<< "NCD t " << mesh_.time().value() << " cell " << cellI
+                   << " err " << (1-(normalCellI & exactNormal)) << endl;
+           }
            LCentre.append(mag(func->distanceToSurfaces(centreCellI)));
            LCurv.append(mag(curv[cellI]-exactCurv));
 

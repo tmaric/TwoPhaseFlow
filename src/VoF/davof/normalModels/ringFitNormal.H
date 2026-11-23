@@ -91,6 +91,9 @@ class ringFit
         //- Fewer usable ring cells: fallback
         label minCells_;
 
+        //- Print only (key ringFitDiag 1): one line per interface cell
+        label diag_;
+
 
 public:
 
