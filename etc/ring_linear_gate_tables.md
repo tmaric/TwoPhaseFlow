@@ -117,3 +117,41 @@ Verdicts, literally against the written statements and falsifiers:
 
 GATE per point (ringLinear, 1 pass, ratio at most 1.05): pos 0 N 64: 0.004 pass; pos 0 N 128: 0.006 pass; pos 1 N 64: 0.009 pass; pos 1 N 128: 0.010 pass.
 
+
+## Controls of the 1-rank against 8-rank difference of ringLinear (2026-11-24)
+
+3D sphere N 64, standard centre, one step of deltaT/1000, binary libVoF sha256 a4ef78aaa10a5b31, advectorVoF 616b35007350e317. 8 ranks: the cases of the serial rows decomposed with `numberOfSubdomains 8; method scotch;` (the decomposeParDict of the case with no further coefficients; the same as job 57155296; scotch takes no n per direction), `mpirun -np 8 advectorVoF -parallel`; jobs 57168520 (A, B, E0 on 8 ranks), 57168521 (E0 on 1 rank), 57155296 (E1 on 8 ranks, reused). Only the reduced columns (LNormalDiff1, LNormalDiff2, LNormalDiffInf) and the interface-cell count are compared.
+
+| row | quantity | 1 rank | 8 ranks | relative difference |
+|---|---|---|---|---|
+| H1: (a) plicRDF | LNormalDiff1 | 0.012289435996391918 | 0.012289435996391344 | 4.67e-14 |
+| H1: (a) plicRDF | LNormalDiff2 | 0.017158795506465957 | 0.017158795506465273 | 3.98e-14 |
+| H1: (a) plicRDF | LNormalDiffInf | 0.044289082677107842 | 0.044289082677123531 | 3.54e-13 |
+| H1: (a) plicRDF | nInterface | 1760 | 1760 | 0 |
+| H2: (b) ringSum | LNormalDiff1 | 0.017765275221217895 | 0.017883463150394185 | 0.00665 |
+| H2: (b) ringSum | LNormalDiff2 | 0.024636078125038204 | 0.024737736716490093 | 0.00413 |
+| H2: (b) ringSum | LNormalDiffInf | 0.064873212274940431 | 0.064873212274940431 | 0 |
+| H2: (b) ringSum | nInterface | 1760 | 1760 | 0 |
+| H3: ringLinear, correction off | LNormalDiff1 | 0.017765275221218353 | 0.017883463150394362 | 0.00665 |
+| H3: ringLinear, correction off | LNormalDiff2 | 0.024636078125039276 | 0.024737736716490724 | 0.00413 |
+| H3: ringLinear, correction off | LNormalDiffInf | 0.064873212274940431 | 0.064873212274940431 | 0 |
+| H3: ringLinear, correction off | nInterface | 1760 | 1760 | 0 |
+| H4: ringLinear, 1 pass, correction on | LNormalDiff1 | 0.00093467016829570763 | 0.0011058832732624038 | 0.183 |
+| H4: ringLinear, 1 pass, correction on | LNormalDiff2 | 0.0011441428992225739 | 0.0022359622609785311 | 0.954 |
+| H4: ringLinear, 1 pass, correction on | LNormalDiffInf | 0.0032916701276763409 | 0.031654518447855107 | 8.62 |
+| H4: ringLinear, 1 pass, correction on | nInterface | 1760 | 1760 | 0 |
+
+Diagnostic lines of ringLinear (ringLinearDiag; last call of the run; cells with y = 0 by solvability / cells with a negative weight / max |W (q - qbar).y|):
+
+| row | 1 rank | 8 ranks |
+|---|---|---|
+| H3: ringLinear, correction off | 0 / 0 / 0 | 0 / 0 / 0 |
+| H4: ringLinear, 1 pass, correction on | 0 / 96 / 1.6116058417518038 | 0 / 96 / 1.6582633429496771 |
+
+Verdicts (agreement to 1e-12 relative in all four quantities):
+
+- H1: (a) plicRDF: agrees (largest relative difference 3.54e-13).
+- H2: (b) ringSum: does NOT agree (largest relative difference 0.00665).
+- H3: ringLinear, correction off: does NOT agree (largest relative difference 0.00665).
+- H4: ringLinear, 1 pass, correction on: does NOT agree (largest relative difference 8.62).
+
