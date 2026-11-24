@@ -1225,3 +1225,23 @@ Binary of every row of the gate (build of commit 1638911): libVoF sha256 a4ef78a
 - Gate, 1-n.n_e L1 of ringLinear (1 pass) over plicRDF's on the 3D sphere: 0.004 (N 64) and 0.006 (N 128) at the standard centre, 0.009 and 0.010 at the shifted centre; all four points pass (at most 1.05). With 2 passes 0.003, 0.006, 0.007, 0.010. On the 2D circle (N 64/128/256/512) the ratio of 1 pass is 0.024, 0.035, 0.041, 0.026 (standard) and 0.019, 0.027, 0.025 at N 64/128/256 (shifted; the N 512 value is in the table).
 - PL1 holds (ratios 0.004 to 0.010; falsifier, above 1.05, not met). PL2 is false: the order from N 64 to 128 is 1.66 (standard) and 2.01 (shifted), below 3; the falsifier (below 2.5) is met at both positions. PL3 holds (0.035, 0.041, 0.027, 0.025; falsifier not met). PL4 is false: two passes change the 3D L1 by -26 %, -27 %, -11 % (standard, N 32/64/128) and +10 %, -23 %, +4 % (shifted); less than 20 % in 3 of 6.
 - The diagnostics: no interface cell has y = 0 by the solvability condition in any state; the cells with a negative weight are 0, 96, 216 (3D standard N 32/64/128), 15, 80, 349 (shifted) and 0 on the 2D circle; the maximum of |W (q - qbar).y| is 1.0 to 2.0 in 3D and 0.6 to 0.8 in 2D.
+
+## Branch davof-isoAdvector-normal, 2026-11-24: the exchange check in its correct form (Part X), the record of the processor faces (Part F), the transport matrix with LIN (Part T, only if X holds); the supervising session's reading and pre-registration (written before the runs)
+
+Reading of the supervising session (Tomislav's coordinating session), recorded as such: the 1-rank against 8-rank difference of ringLinear is upstream of every normal model. After the advection of the step the face fractions differ from serial on 4 processor faces (two sides unequal, up to 0.294); nothing differs at time 0; internal faces never differ. The ring sum (PURE's normal) therefore carries it too, and ringLinear with the correction off follows ringSum on both rank counts. The check "8 ranks = 1 rank to 1e-12 on the scored state" could not separate the new model's exchange from this input difference, so it is replaced by Part X, which uses a rank-independent input. This is a change of the supervising session's own pre-registered stop rule (the 1e-12 agreement on the scored state), made before any transport run, for the reason stated.
+
+### Part X
+
+State: 3D sphere N 64 standard centre, ringLinear 1 pass, correction on: the 1-rank run and the 8-rank run 57155296. The WRITTEN end-time fields interfaceNormal and interfaceCentre (the solver's start-of-step reconstruction from the initial face fractions, rank-independent) are compared with d2_ctl8-cmp.py exactly as for ringSum.
+- PX: every cell agrees between 1 and 8 ranks, maximum absolute difference of interfaceNormal at most 1e-12 and of interfaceCentre at most 1e-12 times h (h = 1/64). Falsifier: one cell above. Reported: the number of differing cells and the maxima.
+- If PX is falsified: stop, no Part T, hand back with the cells (with a processor face, or in the ring of one).
+
+### Part F (print only, no code change)
+
+For the 4 processor faces whose end-time alphaf differs from serial (symmetric rule, ringSum run), one line per face: the serial alphaf, the value on each of the two sides (rank numbers), the patch flux phi on each side (value, sign, exactly zero or not), alpha of the two adjacent cells before and after the step, whether each adjacent cell is a surface cell of the step (nonzero written interfaceNormal), which side equals the serial value; with the source tags of the print-only key davofFaceSourceLog if it puts a per-face record on disk or in the log (otherwise reported without tags). No interpretation, no fix.
+
+### Part T (only if PX holds)
+
+As pre-registered in 2f95c8b (PT1 to PT4, unchanged) with the standing rank counts (1/1/8, 1/8/64, 1/8/64), davofProcFaceRule symmetric, nAlphaBounds 6 explicit in every row, one binary (libVoF a4ef78aaa10a5b31), three repetitions at the six 3D N 128 cases on 64 ranks (median wall clock), error.dat normal columns 12, 13, 14. Added control:
+- PT5: shear3D N 64, Co 0.2 and 0.5, rows PURE and LIN, additionally on 1 rank. Prediction: E_shape on 8 ranks is within 1 % of E_shape on 1 rank for both rows at both Co. Falsifier: a difference above 1 % in any of the four. Reported: the four ratios E_shape(8 ranks)/E_shape(1 rank) and the end-of-run 1 - n.n_e L1 on both rank counts.
+PT1 to PT5 are evaluated literally against their written falsifiers in the table file; the decision rule is evaluated by the supervising session.
