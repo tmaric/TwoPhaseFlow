@@ -1182,3 +1182,37 @@ Part R (the ring quadric under transport; row QUAD = PURE's key set with normalM
 - PR3 is false: the fit fell back to the ringArea normal in 1612 of 2354 (N 32 Co 0.2), 26056 of 31190 (N 64), 3893 of 11694 (N 128) and 3598 of 4535, 2783 of 4884, 113486 of 133591 (Co 0.5) interface cells at the last step of the six shear3D runs (33 % to 85 %); below 5 % in 0 of 6. The maximum over the steps is in the table.
 
 Part P (the lower bound in parallel; deformation3D N 64, Co 0.5, PURE, nAlphaBounds 6, 8 ranks, `ringSumBoundTrace 1`). The trace runs in parallel but only the pass-by-pass minima are global; the counts, the cells and the five worst cells it prints after the loop are those of the master rank (local labels, no reduction, no processor-patch information; in 11 of the 960 steps the master holds no alpha in the printed range), so the per-cell flags the part asks for cannot be produced without changing the trace. Stopped there. Global pass by pass at the step of the lowest final alpha (step 768): before -1.9e-3; after passes 1 to 6 -7.6e-4, -7.6e-4, -3.6e-5, -2.1e-5, -1.0e-5, -4.9e-6; the bounding is not converged after the 6 passes in 21 of the 960 steps, where the serial run converges to round-off in at most 4. HP1 not evaluated.
+
+## Branch davof-isoAdvector-normal, 2026-11-24: the area-weighted linear fit of the ring's area vectors (normalModel ringLinear), the static gate and, only if it passes, the transport matrix; specification and pre-registration (Tomislav, written before the first run)
+
+Rules: workspace agents/forkdefault, tmaric only, OpenFOAM Co 0.2 and 0.5 only with the solver's Courant line checked, own job ids only, every davof key explicit, no repair, no tuning, nothing beyond this specification. Table scripts read the error.dat normal columns with the corrected indices 12, 13, 14; one row of each new table is checked against entering_matrix_tables.md or the gate table.
+
+### The model: normalModel ringLinear (key ringLinearPasses 1 or 2; control key ringLinearCorrection true|false, default true; print-only key ringLinearDiag)
+
+Notation: m_j = -sum_f alpha_f S_f the area vector of cell j (as ringSum uses it), w_j = |m_j|, x_j the centroid of the PLIC polygon of cell j.
+- Stage 1: exactly ringSum: the ring-sum normal in every interface cell, the plane positioned from alpha_k by davof::positionPlane. This gives x_j for every cell that holds a plane.
+- Stage 2, for every interface cell k, over the ring cells j (the same point-neighbour ring as ringSum, k included) that hold a plane after stage 1: W = sum_j w_j; abar = sum_j m_j / W; nbar = abar/|abar|. 3D: t1, t2 any orthonormal pair orthogonal to nbar; q_j = ((x_j - x_k).t1, (x_j - x_k).t2). 2D (mesh.nGeometricD() == 2, e the empty direction from mesh.geometricD()): remove the e component from nbar, t1 = nbar x e normalised; q_j = (x_j - x_k).t1, a scalar. qbar = sum_j w_j q_j / W; C = sum_j w_j (q_j - qbar)(q_j - qbar)^T (2x2 symmetric in 3D, a scalar in 2D). Solve C y = qbar (Cramer's rule in 3D, a division in 2D). a = sum_j m_j [ 1/W - (q_j - qbar).y ]; the normal of cell k is a/|a|. (The weighted least-squares fit of a linear unit-normal field with weights w_j, evaluated at x_k; with y = 0 it is the ring sum over the same cells.) Solvability, not a tolerance: if fewer than 3 ring cells hold a plane in 3D (fewer than 2 in 2D), or the determinant of C is exactly zero, y = 0. ringLinearCorrection false sets y = 0 everywhere.
+- Stage 3: planes repositioned from alpha_k by davof::positionPlane. With ringLinearPasses 2, stage 2 and 3 are repeated once with the new x_j (m_j unchanged).
+- No fallback, no tolerance, no other branch. Parallel-consistent: x_j and m_j of ring cells across processor patches through the same exchange ringSum uses. Print-only diagnostics per step (key ringLinearDiag): the number of interface cells with y = 0 by the solvability condition, the number with a negative weight 1/W - (q_j - qbar).y for some j, and the maximum over cells of max_j |W (q_j - qbar).y|. If something in the fork prevents implementing this as specified: stop and report what blocks it; do not substitute.
+
+### Part S: static gate (as the gate of 2026-11-23: same states, positions, N, route; serial)
+
+Rows: (a) plicRDF and (b) ringSum from the existing gate table (not rerun unless the binary change alters their digits: one state, N 64, checked and reported); (e1) ringLinear, 1 pass; (e2) ringLinear, 2 passes. Checks first: ringLinearCorrection false against ringSum on the 3D sphere N 32 (identical to the digit or the difference and which cells differ in the two sums reported, and continue); 1 rank against 8 ranks on the 3D sphere N 64, ringLinear 1 pass (normal norms agree to 1e-12 relative; if not, stop and report). Reported per state, position, N: 1 - n.n_e L1 and Linf, |n - n_e| L1 and Linf, orders, ratios to plicRDF, cells with 1 - n.n_e above 1e-3, and the diagnostics.
+
+- PL1: ringLinear (1 pass) has at most 0.5 times plicRDF's 1 - n.n_e L1 on the 3D sphere at N 64 and 128, both positions. Falsifier: above 1.05 in any of the four.
+- PL2: its order in 1 - n.n_e L1 from N 64 to 128 is at least 3, both positions. Falsifier: below 2.5.
+- PL3: on the 2D circle its ratio to plicRDF is at most 0.5 at N 128 and 256, both positions. Falsifier: above 1.05.
+- PL4: two passes change the 3D L1 by less than 20 % against one pass.
+- GATE (as before): at most 1.05 times plicRDF on the 3D sphere at N 64 and 128, both positions.
+
+### Part T: transport, only if ringLinear with 1 pass passes the GATE
+
+One binary for every row (the build with ringLinear; hashes recorded). Cases: the 18 cases of the curved matrix (shear2D N 64/128/256 on 1/1/8 ranks; shear3D and deformation3D N 32/64/128 on 1/8/64 ranks; Co 0.2 and 0.5). Rows, all nAlphaBounds 6, clip false, snapTol 0: plicRDF; PURE; LIN = PURE's key set with normalModel ringLinear, ringLinearPasses 1, ringLinearDiag on. One repetition, three at the six 3D N 128 cases on 64 ranks (median and all values). Columns as the corrected transport_hyb_tables.md plus the diagnostics (maximum over the run and at the last step) and the interface cell counts of LIN against PURE.
+
+- PT1: every LIN run completes with min alpha >= -1e-4, max alpha - 1 <= 1e-4 and an interface cell count at the end within 10 % of PURE's. Falsifier: any run with more than 1.5 times PURE's interface cells, or min alpha below -1e-3.
+- PT2: LIN improves on the ring sum and does not beat plicRDF: LIN / PURE in E_shape below 1 in all twelve 3D cases, and LIN / plicRDF on shear3D at N 128 between 1.0 and 1.4 at both Co. Falsifier of the second part: below 0.95 at both Co.
+- PT3: LIN's median wall clock at N 128 on 64 ranks is between 0.60 and 0.80 times plicRDF's in the four 3D cases.
+- PT4: on shear2D LIN's E_shape is at most PURE's at N 128 and 256, both Co.
+- Decision rule, fixed now: the linear fit is a lead only if LIN / plicRDF in E_shape on shear3D at N 128 is below 0.95 at both Co.
+
+Tables: etc/ring_linear_gate_tables.md and etc/ring_linear_transport_tables.md.
