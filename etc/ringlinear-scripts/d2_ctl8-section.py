@@ -1,0 +1,52 @@
+import glob, subprocess
+W = "/work/scratch/tm83tomy/davof/agents/forkdefault"
+date = subprocess.check_output(["date", "+%F"]).decode().strip()
+def last(c):
+    fs = glob.glob(c + "/postProcessing/reconstructionError/*/error.dat")
+    ls = [l.split() for l in open(fs[0]) if l.strip() and not l.startswith("#")]
+    return [float(x) for x in ls[-1]]
+s1 = last(W + "/gateL/3D_N64_p0/B"); sym = last(W + "/gateL/ctl8_B"); fo = last(W + "/gateL/ctl8_Bformer")
+cmpB = open(W + "/ctl8_cmp_B.md").read()
+cmpF = open(W + "/ctl8_cmp_Bformer.md").read()
+names = {12: "LNormalDiff1", 13: "LNormalDiff2", 14: "LNormalDiffInf", 17: "nInterface"}
+o = []
+w = o.append
+w("")
+w("## Where the input of the ring sum differs between 1 rank and 8 ranks (%s)" % date)
+w("")
+w("State: 3D sphere N 64, standard centre, row ringSum (b), the 1-rank case `gateL/3D_N64_p0/B` and the 8-rank case of job 57168520 (`gateL/ctl8_B`, same decomposition: scotch, 8 subdomains), one step of deltaT/1000. No code change. Jobs 57168520 (reused), 57168976 (8 ranks, davofProcFaceRule former). Comparison script `d2_ctl8-cmp.py` (Python/numpy run on the cluster with /usr/bin/python3; it reads the ascii processor fields and maps them to the serial mesh through cellProcAddressing and faceProcAddressing; no reconstructPar).")
+w("")
+w("### A. Workflow order")
+w("")
+w("initDavofFields runs on the serial case, before the decomposition. `d2_gate.sbatch` (which builds the serial case): `(cd $base && blockMesh > log.blockMesh 2>&1 && initDavofFields > log.initDavofFields 2>&1; echo \"init rc=$?\"; ...)`; the rows copy `$base/system $base/constant $base/0` and run serial. The 8-rank cases (`d2_gateL-ctl.sbatch`, `d2_gateL-par.sbatch`, `d2_gateL-former.sbatch`) copy the serial row's `system constant 0`, then `foamDictionary -entry numberOfSubdomains -set 8 ...; foamDictionary -entry method -set scotch ...; decomposePar -force; mpirun -np 8 advectorVoF -parallel`. The decomposed initial state is therefore the decomposition of the serial exact state.")
+w("")
+w("### B. Which reconstruction reconstructionError scores")
+w("")
+w("The one made AFTER the advection of the step, by the function object itself. `areaFractionError.C`, in `execute`: `const bool last = (t + 0.5*runTime.deltaTValue() >= runTime.endTime().value()); if (reconstructionErrorEveryStep_ || last) { reconstructionSchemes& surf = advPtr->surf(); surf.reconstruct(true); ... recErrPtr_->calcError(funcDict, surf.centre(), surf.normal(), curv, true);`. This reconstruct uses alpha and alphaf as left by the step's advection. The solver's own reconstruction of the step is the first call of `isoAdvection::advect`: `// reconstruct the interface  surf_->reconstruct();` (isoAdvectionTemplates.C line 552), before the advection, from the initial face fractions; the fields written at the end time (areaNormalDavof, interfaceNormal, interfaceCentre) are those of that start-of-step reconstruction (`advectorVoF.C`: `runTime.write()` follows the advection; the function object's reconstruct is made at the execution after it).")
+w("")
+w("### C. Field comparison, 1 rank against 8 ranks, row ringSum")
+w("")
+w("Times: 0 (the initial state as decomposed) and 5.20833e-06 (the end of the step). Fields written: alpha.water, alphaf.water (times 0 and end); areaNormalDavof.water, interfaceNormal.water, interfaceCentre.water (end only: they are not written at time 0 because the first reconstruction happens in the step). ringSum is not written and cannot be written through the dictionaries; it is recomputed offline below from areaNormal over the serial mesh's point-neighbour ring and is NOT the solver's own field.")
+w("")
+w(cmpB.strip())
+w("")
+w("The written area vectors and interface fields belong to the reconstruction before the advection (B above), where the face fractions are still the identical initial ones. The last two paragraphs recompute the area vectors from the written end-time face fractions (the state the scored reconstruction is made from), with each rank using its own side of a processor face.")
+w("")
+w("### D. 8 ranks with davofProcFaceRule former, row ringSum")
+w("")
+w("| quantity | 1 rank | 8 ranks, symmetric | 8 ranks, former | rel. diff. former vs 1 rank | rel. diff. former vs symmetric |")
+w("|---|---|---|---|---|---|")
+for i in (12, 13, 14, 17):
+    rf1 = abs(fo[i] - s1[i])/abs(s1[i]); rfs = abs(fo[i] - sym[i])/abs(sym[i])
+    w("| %s | %.17g | %.17g | %.17g | %.3g | %.3g |" % (names[i], s1[i], sym[i], fo[i], rf1, rfs))
+w("")
+w("The same comparison of the fields for the former run (extra):")
+w("")
+w(cmpF.split("### Face fractions")[1].split("### Area vectors")[0].strip().replace("alphaf.water (serial", "alphaf.water, former (serial") if "### Face fractions" in cmpF else "")
+w("")
+w("### The hypothesis HM, literally")
+w("")
+w("(HM: the area vectors m_c differ between 1 and 8 ranks in cells with a processor face because alpha_f on processor faces differs from the value the same face has as an internal face in serial.) See the numbers above: (i) the area vectors recomputed from the end-time face fractions differ in the cells counted in paragraph C (all of them cells with a processor face); (ii) the face fractions alphaf differ from serial only on processor faces (4 faces at the end time, none at time 0; no internal face of a rank and no physical boundary face differs), and the two sides of those 4 faces hold different values; (iii) at time 0 nothing differs, after the step 4 processor faces differ.")
+w("")
+open(W + "/ctl8_cmp_section.md", "w").write("\n".join(o) + "\n")
+print("\n".join(o)[:200])

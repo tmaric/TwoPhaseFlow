@@ -155,3 +155,76 @@ Verdicts (agreement to 1e-12 relative in all four quantities):
 - H3: ringLinear, correction off: does NOT agree (largest relative difference 0.00665).
 - H4: ringLinear, 1 pass, correction on: does NOT agree (largest relative difference 8.62).
 
+
+## Where the input of the ring sum differs between 1 rank and 8 ranks (2026-11-24)
+
+State: 3D sphere N 64, standard centre, row ringSum (b), the 1-rank case `gateL/3D_N64_p0/B` and the 8-rank case of job 57168520 (`gateL/ctl8_B`, same decomposition: scotch, 8 subdomains), one step of deltaT/1000. No code change. Jobs 57168520 (reused), 57168976 (8 ranks, davofProcFaceRule former). Comparison script `d2_ctl8-cmp.py` (Python/numpy run on the cluster with /usr/bin/python3; it reads the ascii processor fields and maps them to the serial mesh through cellProcAddressing and faceProcAddressing; no reconstructPar).
+
+### A. Workflow order
+
+initDavofFields runs on the serial case, before the decomposition. `d2_gate.sbatch` (which builds the serial case): `(cd $base && blockMesh > log.blockMesh 2>&1 && initDavofFields > log.initDavofFields 2>&1; echo "init rc=$?"; ...)`; the rows copy `$base/system $base/constant $base/0` and run serial. The 8-rank cases (`d2_gateL-ctl.sbatch`, `d2_gateL-par.sbatch`, `d2_gateL-former.sbatch`) copy the serial row's `system constant 0`, then `foamDictionary -entry numberOfSubdomains -set 8 ...; foamDictionary -entry method -set scotch ...; decomposePar -force; mpirun -np 8 advectorVoF -parallel`. The decomposed initial state is therefore the decomposition of the serial exact state.
+
+### B. Which reconstruction reconstructionError scores
+
+The one made AFTER the advection of the step, by the function object itself. `areaFractionError.C`, in `execute`: `const bool last = (t + 0.5*runTime.deltaTValue() >= runTime.endTime().value()); if (reconstructionErrorEveryStep_ || last) { reconstructionSchemes& surf = advPtr->surf(); surf.reconstruct(true); ... recErrPtr_->calcError(funcDict, surf.centre(), surf.normal(), curv, true);`. This reconstruct uses alpha and alphaf as left by the step's advection. The solver's own reconstruction of the step is the first call of `isoAdvection::advect`: `// reconstruct the interface  surf_->reconstruct();` (isoAdvectionTemplates.C line 552), before the advection, from the initial face fractions; the fields written at the end time (areaNormalDavof, interfaceNormal, interfaceCentre) are those of that start-of-step reconstruction (`advectorVoF.C`: `runTime.write()` follows the advection; the function object's reconstruct is made at the execution after it).
+
+### C. Field comparison, 1 rank against 8 ranks, row ringSum
+
+Times: 0 (the initial state as decomposed) and 5.20833e-06 (the end of the step). Fields written: alpha.water, alphaf.water (times 0 and end); areaNormalDavof.water, interfaceNormal.water, interfaceCentre.water (end only: they are not written at time 0 because the first reconstruction happens in the step). ringSum is not written and cannot be written through the dictionaries; it is recomputed offline below from areaNormal over the serial mesh's point-neighbour ring and is NOT the solver's own field.
+
+Decomposition: 8 subdomains; cells with a processor face: 37954 of 524288; cells in the point-neighbour ring of those but without a processor face: 45677; processor faces (serial internal faces between two subdomains): 24423 of 1552384 internal faces.
+
+### Cell fields (serial against the processor fields mapped through cellProcAddressing; difference above 1e-12)
+
+| field | time | cells differing | maximum difference | of those: with a processor face | only in the point-neighbour ring of one | elsewhere |
+|---|---|---|---|---|---|---|
+| alpha.water | 0 | 0 | 0 | 0 | 0 | 0 |
+| alpha.water | 5.20833e-06 | 0 | 0 | 0 | 0 | 0 |
+| areaNormalDavof.water | 0 | not written at time 0 | | | | |
+| areaNormalDavof.water | 5.20833e-06 | 0 | 0 | 0 | 0 | 0 |
+| interfaceNormal.water | 0 | not written at time 0 | | | | |
+| interfaceNormal.water | 5.20833e-06 | 0 | 3.58e-17 | 0 | 0 | 0 |
+| interfaceCentre.water | 0 | not written at time 0 | | | | |
+| interfaceCentre.water | 5.20833e-06 | 0 | 8.52e-15 | 0 | 0 | 0 |
+| ringSum recomputed offline from the written areaNormal over the serial mesh's point-neighbour ring (candidate cells; NOT the solver's field) | 5.20833e-06 | 0 of 1760 | 0 | 0 | 0 | 0 |
+
+### Face fractions alphaf.water (serial against the processor fields mapped through faceProcAddressing)
+
+| time | faces differing from serial (above 1e-12) | of those: processor faces | internal faces of a rank | physical boundary faces | max abs(delta alpha_f) on processor faces | processor faces whose two sides differ (above 1e-12) | max difference between the two sides |
+|---|---|---|---|---|---|---|---|
+| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 5.20833e-06 | 4 | 4 | 0 | 0 | 0.294 | 4 | 0.294 |
+
+Processor faces seen from two subdomains: 24423 of 24423 (each holds a value on both sides).
+
+### Area vectors recomputed offline from the end-time face fractions (the state scored by reconstructionError: the reconstruction made after the advection of the step)
+
+Area vectors m_c differing above 1e-12: 4 cells (maximum difference 7.18e-05); of those with a processor face: 4; only in the point-neighbour ring of one: 0; elsewhere: 0. Cells touching the differing face fractions (the faces' owner and neighbour cells): 8.
+Ring sums recomputed from these (candidate cells, alpha inside (1e-8, 1-1e-8)): differing above 1e-12: 40 of 1760 cells (maximum difference 7.18e-05); of those with a processor face: 27; only in the point-neighbour ring of one: 13; elsewhere: 0. Interface-cell normals (the ring sums' directions) differ in the same cells.
+
+The written area vectors and interface fields belong to the reconstruction before the advection (B above), where the face fractions are still the identical initial ones. The last two paragraphs recompute the area vectors from the written end-time face fractions (the state the scored reconstruction is made from), with each rank using its own side of a processor face.
+
+### D. 8 ranks with davofProcFaceRule former, row ringSum
+
+| quantity | 1 rank | 8 ranks, symmetric | 8 ranks, former | rel. diff. former vs 1 rank | rel. diff. former vs symmetric |
+|---|---|---|---|---|---|
+| LNormalDiff1 | 0.017765275221217895 | 0.017883463150394185 | 0.017743439747296478 | 0.00123 | 0.00783 |
+| LNormalDiff2 | 0.024636078125038204 | 0.024737736716490093 | 0.024626696770197458 | 0.000381 | 0.00449 |
+| LNormalDiffInf | 0.064873212274940431 | 0.064873212274940431 | 0.064873212274940431 | 0 | 0 |
+| nInterface | 1760 | 1760 | 1760 | 0 | 0 |
+
+The same comparison of the fields for the former run (extra):
+
+alphaf.water, former (serial against the processor fields mapped through faceProcAddressing)
+
+| time | faces differing from serial (above 1e-12) | of those: processor faces | internal faces of a rank | physical boundary faces | max abs(delta alpha_f) on processor faces | processor faces whose two sides differ (above 1e-12) | max difference between the two sides |
+|---|---|---|---|---|---|---|---|
+| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 5.20833e-06 | 58 | 58 | 0 | 0 | 0.0157 | 58 | 0.0157 |
+
+Processor faces seen from two subdomains: 24423 of 24423 (each holds a value on both sides).
+
+### The hypothesis HM, literally
+
+(HM: the area vectors m_c differ between 1 and 8 ranks in cells with a processor face because alpha_f on processor faces differs from the value the same face has as an internal face in serial.) See the numbers above: (i) the area vectors recomputed from the end-time face fractions differ in the cells counted in paragraph C (all of them cells with a processor face); (ii) the face fractions alphaf differ from serial only on processor faces (4 faces at the end time, none at time 0; no internal face of a rank and no physical boundary face differs), and the two sides of those 4 faces hold different values; (iii) at time 0 nothing differs, after the step 4 processor faces differ.
+
