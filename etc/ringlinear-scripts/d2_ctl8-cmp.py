@@ -265,4 +265,17 @@ dd = np.sqrt(((ds - dp)**2).sum(1)); mm = dd > TOL
 cc = np.zeros(nC, dtype=bool); cc[cl[mm]] = True
 w("Ring sums recomputed from these (candidate cells, alpha inside (1e-8, 1-1e-8)): differing above 1e-12: %d of %d cells (maximum difference %.3g); of those with a processor face: %d; only in the point-neighbour ring of one: %d; elsewhere: %d. Interface-cell normals (the ring sums' directions) differ in the same cells." % (
   mm.sum(), len(cl), dd.max(), (cc & pb).sum(), (cc & ringonly).sum(), (cc & ~ring_of_pb).sum()))
+
+# ---- the tolerances of Part X: interfaceNormal 1e-12, interfaceCentre 1e-12 times h (h = 1/64 or env H)
+H = float(os.environ.get("H", str(1.0/64)))
+w()
+w("### Part X tolerances (written end-time fields; interfaceNormal at most 1e-12, interfaceCentre at most 1e-12 x h with h = %.8g)" % H)
+w()
+w("| field | tolerance | cells above | maximum difference | of those: with a processor face | only in the ring of one | elsewhere |")
+w("|---|---|---|---|---|---|---|")
+for nm, tol in (("interfaceNormal.water", 1e-12), ("interfaceCentre.water", 1e-12*H)):
+    ab = res.get(nm)
+    if not ab: w("| %s | %.3g | not available | | | | |" % (nm, tol)); continue
+    a_, b_ = ab; dif = np.sqrt(((a_ - b_)**2).sum(1)); m = dif > tol
+    w("| %s | %.3g | %d | %.3g | %d | %d | %d |" % (nm, tol, m.sum(), dif.max(), (m & pb).sum(), (m & ringonly).sum(), (m & ~ring_of_pb).sum()))
 print("\n".join(out))

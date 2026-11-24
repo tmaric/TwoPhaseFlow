@@ -228,3 +228,31 @@ Processor faces seen from two subdomains: 24423 of 24423 (each holds a value on 
 
 (HM: the area vectors m_c differ between 1 and 8 ranks in cells with a processor face because alpha_f on processor faces differs from the value the same face has as an internal face in serial.) See the numbers above: (i) the area vectors recomputed from the end-time face fractions differ in the cells counted in paragraph C (all of them cells with a processor face); (ii) the face fractions alphaf differ from serial only on processor faces (4 faces at the end time, none at time 0; no internal face of a rank and no physical boundary face differs), and the two sides of those 4 faces hold different values; (iii) at time 0 nothing differs, after the step 4 processor faces differ.
 
+
+## Part X: the exchange check on the written fields, ringLinear 1 pass (cluster date 2026-11-24)
+
+State: 3D sphere N 64 standard centre, ringLinear 1 pass, correction on; the 1-rank run (gateL/3D_N64_p0/E1) and the 8-rank run 57155296 (gateL/par8_N64, scotch 8). The written end-time fields interfaceNormal and interfaceCentre are the solver's start-of-step reconstruction from the initial face fractions. Compared with d2_ctl8-cmp.py exactly as for ringSum (cell by cell through cellProcAddressing).
+
+### Cell fields (serial against the processor fields mapped through cellProcAddressing; difference above 1e-12)
+
+| field | time | cells differing | maximum difference | of those: with a processor face | only in the point-neighbour ring of one | elsewhere |
+|---|---|---|---|---|---|---|
+| alpha.water | 0 | 0 | 0 | 0 | 0 | 0 |
+| alpha.water | 5.20833e-06 | 0 | 0 | 0 | 0 | 0 |
+| areaNormalDavof.water | 0 | not written at time 0 | | | | |
+| areaNormalDavof.water | 5.20833e-06 | 0 | 0 | 0 | 0 | 0 |
+| interfaceNormal.water | 0 | not written at time 0 | | | | |
+| interfaceNormal.water | 5.20833e-06 | 0 | 1.18e-16 | 0 | 0 | 0 |
+| interfaceCentre.water | 0 | not written at time 0 | | | | |
+| interfaceCentre.water | 5.20833e-06 | 0 | 2.73e-14 | 0 | 0 | 0 |
+| ringSum recomputed offline from the written areaNormal over the serial mesh's point-neighbour ring (candidate cells; NOT the solver's field) | 5.20833e-06 | 0 of 1760 | 0 | 0 | 0 | 0 |
+
+### Part X tolerances (written end-time fields; interfaceNormal at most 1e-12, interfaceCentre at most 1e-12 x h with h = 0.015625)
+
+| field | tolerance | cells above | maximum difference | of those: with a processor face | only in the ring of one | elsewhere |
+|---|---|---|---|---|---|---|
+| interfaceNormal.water | 1e-12 | 0 | 1.18e-16 | 0 | 0 | 0 |
+| interfaceCentre.water | 1.56e-14 | 1 | 2.73e-14 | 1 | 0 | 0 |
+
+PX (every cell agrees: interfaceNormal at most 1e-12, interfaceCentre at most 1e-12 x h; falsifier: one cell above): interfaceNormal holds (0 cells above, maximum 1.18e-16); interfaceCentre is FALSIFIED as written: 1 cell above 1.5625e-14 (maximum difference 2.73e-14 = 1.75e-12 h), and that cell has a processor face. PX is false; by the pre-registration Part T was not run. The areaNormal and alpha.water fields agree exactly (0 cells).
+
