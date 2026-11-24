@@ -256,3 +256,48 @@ State: 3D sphere N 64 standard centre, ringLinear 1 pass, correction on; the 1-r
 
 PX (every cell agrees: interfaceNormal at most 1e-12, interfaceCentre at most 1e-12 x h; falsifier: one cell above): interfaceNormal holds (0 cells above, maximum 1.18e-16); interfaceCentre is FALSIFIED as written: 1 cell above 1.5625e-14 (maximum difference 2.73e-14 = 1.75e-12 h), and that cell has a processor face. PX is false; by the pre-registration Part T was not run. The areaNormal and alpha.water fields agree exactly (0 cells).
 
+
+### Part X, the one cell above the centroid tolerance (read-only from the existing data, cluster date 2026-11-24)
+
+Script d2_xcell.py. The log line of the positioning prints 'residual max'; positioningResidual itself is not written as a field.
+
+    ringLinear 1 pass (E1): maximum interfaceCentre difference 2.73e-14 (= 1.75e-12 h) in cell 84510; alpha at time 0 0.99984038790318941, at the end 0.99984038790318941; |m_c|/h^2 = 0.0110726; cell has a processor face: yes; rank 4; cells above 1e-12 h: 1
+    ringSum (B): maximum interfaceCentre difference 8.52e-15 (= 5.45e-13 h) in cell 84510; alpha at time 0 0.99984038790318941, at the end 0.99984038790318941; |m_c|/h^2 = 0.0110726; cell has a processor face: yes; rank 4; cells above 1e-12 h: 0
+    the cell of the ringLinear maximum is the cell of ringSum's maximum: yes (ringLinear cell 84510, ringSum cell 84510)
+    ringSum's difference in the ringLinear maximum cell: 8.52e-15 (= 5.45e-13 h)
+    positioningResidual: not written as a field; the log line of the positioning prints residual max: ringLinear 1 rank (1.1657341758564144e-14, 3), 8 ranks (1.4932499681208355e-14, 3) (maximum over the run's lines, number of lines); ringSum 1 rank (1.1102230246251565e-14, 3), 8 ranks (1.4932499681208355e-14, 3)
+
+## Part F: the record of the 4 processor faces whose end-time alphaf differs from serial (ringSum, symmetric rule; cluster date 2026-11-24)
+
+3D sphere N 64, standard centre, row ringSum, 1 rank and 8 ranks (same decomposition as job 57168520), with the print-only key davofFaceSourceLog true (job 57170032; the registered field alphafSource.water is written; tags: 1 own downwind sweep, 2 own upwind sweep, 3 boundary outflow sweep, 4 boundary inflow sweep, 5 second-ring sweep, 6 entering sweep, 7 default, 8 the processor sync, 9 the entering sync, +10 scaled by the bounding, 20 the guard's 0, 21 the guard's 1). Script d2_faceRecord.py (run on the login node: the compute node's /usr/bin/python3 has no numpy). The four faces are the same as in the run without the key. No interpretation.
+
+4 processor faces differ from serial at the end time (above 1e-12); source tags on disk: yes
+
+face 266143 (serial internal face; owner cell 89629 on rank 4, neighbour cell 89630 on rank 5)
+- alphaf serial 0; sides: rank 4: 0, rank 5: 0.0042723544866671882; the side equal to the serial value (1e-12): rank 4
+- phi serial 0 (0 (exactly zero)); sides: rank 4: 0 (0 (exactly zero)), rank 5: 0 (0 (exactly zero))
+- owner cell 89629 (rank 4): alpha before 0, after 0, surface cell of the step (written interfaceNormal nonzero): no
+- neighbour cell 89630 (rank 5): alpha before 0.0042723544866671882, after 0.0042723544866671882, surface cell of the step (written interfaceNormal nonzero): yes
+- source tag: serial 7; sides: rank 4: 7, rank 5: 7
+
+face 275634 (serial internal face; owner cell 92830 on rank 4, neighbour cell 96926 on rank 5)
+- alphaf serial 1; sides: rank 4: 1, rank 5: 0.70595522110977327; the side equal to the serial value (1e-12): rank 4
+- phi serial 0 (0 (exactly zero)); sides: rank 4: 0 (0 (exactly zero)), rank 5: 0 (0 (exactly zero))
+- owner cell 92830 (rank 4): alpha before 1, after 1, surface cell of the step (written interfaceNormal nonzero): no
+- neighbour cell 96926 (rank 5): alpha before 0.70595522110977327, after 0.70595522110977327, surface cell of the step (written interfaceNormal nonzero): yes
+- source tag: serial 7; sides: rank 4: 7, rank 5: 7
+
+face 299949 (serial internal face; owner cell 101021 on rank 4, neighbour cell 101022 on rank 5)
+- alphaf serial 0; sides: rank 4: 0, rank 5: 0.0042723544866671796; the side equal to the serial value (1e-12): rank 4
+- phi serial 0 (0 (exactly zero)); sides: rank 4: 0 (0 (exactly zero)), rank 5: 0 (0 (exactly zero))
+- owner cell 101021 (rank 4): alpha before 0, after 0, surface cell of the step (written interfaceNormal nonzero): no
+- neighbour cell 101022 (rank 5): alpha before 0.0042723544866671796, after 0.0042723544866671796, surface cell of the step (written interfaceNormal nonzero): yes
+- source tag: serial 7; sides: rank 4: 7, rank 5: 7
+
+face 312491 (serial internal face; owner cell 105245 on rank 4, neighbour cell 105246 on rank 5)
+- alphaf serial 0; sides: rank 4: 0, rank 5: 0.0010527211715101118; the side equal to the serial value (1e-12): rank 4
+- phi serial 0 (0 (exactly zero)); sides: rank 4: 0 (0 (exactly zero)), rank 5: 0 (0 (exactly zero))
+- owner cell 105245 (rank 4): alpha before 0, after 0, surface cell of the step (written interfaceNormal nonzero): no
+- neighbour cell 105246 (rank 5): alpha before 0.0010527211715101118, after 0.0010527211715101118, surface cell of the step (written interfaceNormal nonzero): yes
+- source tag: serial 7; sides: rank 4: 7, rank 5: 7
+
