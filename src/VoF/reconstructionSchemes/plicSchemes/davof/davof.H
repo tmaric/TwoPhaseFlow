@@ -157,6 +157,7 @@ class davof
 {
     //- The control normal model ringSumRDF positions planes (positionPlane)
     friend class davofNormalModels::ringSumRDF;
+    friend class davofNormalModels::ringLinear;
 
     // Private Data
 
