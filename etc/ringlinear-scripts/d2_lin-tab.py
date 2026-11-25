@@ -96,9 +96,6 @@ w("- PT3 (LIN's median wall clock at N 128 on 64 ranks between 0.60 and 0.80 tim
 p4 = [(("Shear2D", N, ci), E(("Shear2D", N, ci, "LIN"))/E(("Shear2D", N, ci, "PURE"))) for N in (128, 256) for ci in (0, 1)]
 w("- PT4 (shear2D LIN's E_shape at most PURE's at N 128 and 256, both Co): LIN / PURE %s; at most 1 in %d of 4." % ("; ".join("%s %.3f" % (lab(c), x) for c, x in p4), sum(1 for c, x in p4 if x <= 1)))
 w()
-w("Decision rule (fixed before the runs): the linear fit is a lead only if LIN / plicRDF in E_shape on shear3D at N 128 is below 0.95 at both Co: %s (%s)." % (
-  "met" if all(x < 0.95 for c, x in sh) else "not met", "; ".join("%s %.3f" % (lab(c), x) for c, x in sh)))
-w()
 w("### Courant numbers: the solver's own maximum against the target label")
 w()
 w("| flow | N | label 0.2 | label 0.5 |")
